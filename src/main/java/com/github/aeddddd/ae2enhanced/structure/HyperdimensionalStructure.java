@@ -97,7 +97,7 @@ public class HyperdimensionalStructure {
         for (BlockPos rel : relativeSet) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) {
-                continue;
+                return false;
             }
             if (world.getBlockState(actual).getBlock() != expected) {
                 return false;

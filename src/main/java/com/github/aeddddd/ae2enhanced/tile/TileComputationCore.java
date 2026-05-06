@@ -423,9 +423,7 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
         super.readFromNBT(compound);
         this.formed = compound.getBoolean("formed");
         this.parallelLimit = compound.getInteger("parallelLimit");
-        if (compound.hasKey("proxy")) {
-            getProxy().readFromNBT(compound.getCompoundTag("proxy"));
-        }
+        getProxy().readFromNBT(compound);
 
         if (formed && compound.hasKey(NBT_CPU_POOL)) {
             NBTTagList list = compound.getTagList(NBT_CPU_POOL, 10);

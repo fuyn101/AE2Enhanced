@@ -86,41 +86,65 @@ public class StructureEventHandler {
     }
 
     /**
-     * Chunk 加载时：如果该 chunk 包含 ControllerIndex 中记录的控制器，将其加入待验证队列。
-     * 这保证存档重进后，已成型结构能在 chunk 加载完毕后自动重新验证，避免因加载顺序导致的误判解散。
+     * Chunk 加载时：只有当控制器对应的全部结构方块所在 chunk 都已加载时，才安排验证。
+     * 这防止了因部分结构 chunk 未加载而导致 validate() 误判为非法、进而错误解散结构的问题。
      */
     @SubscribeEvent
     public static void onChunkLoad(net.minecraftforge.event.world.ChunkEvent.Load event) {
         if (event.getWorld().isRemote) return;
         World world = event.getWorld();
+
         ControllerIndex index = ControllerIndex.get(world);
-        if (index == null) return;
-
-        net.minecraft.world.chunk.Chunk chunk = event.getChunk();
-        int chunkX = chunk.x;
-        int chunkZ = chunk.z;
-
-        for (BlockPos controllerPos : index.getAll()) {
-            if (world.provider.getDimension() != chunk.getWorld().provider.getDimension()) continue;
-            int cx = controllerPos.getX() >> 4;
-            int cz = controllerPos.getZ() >> 4;
-            // 控制器所在 chunk 已加载，且 8 格半径内的结构 chunk 都已加载时才验证
-            if (cx == chunkX && cz == chunkZ) {
-                scheduleCheck(world.provider.getDimension(), controllerPos);
+        if (index != null) {
+            for (BlockPos controllerPos : index.getAll()) {
+                if (world.provider.getDimension() != event.getWorld().provider.getDimension()) continue;
+                if (areAllChunksLoadedForController(world, controllerPos)) {
+                    scheduleCheck(world.provider.getDimension(), controllerPos);
+                }
             }
         }
 
         ComputationCoreIndex compIndex = ComputationCoreIndex.get(world);
         if (compIndex != null) {
             for (BlockPos controllerPos : compIndex.getAll()) {
-                if (world.provider.getDimension() != chunk.getWorld().provider.getDimension()) continue;
-                int cx = controllerPos.getX() >> 4;
-                int cz = controllerPos.getZ() >> 4;
-                if (cx == chunkX && cz == chunkZ) {
+                if (world.provider.getDimension() != event.getWorld().provider.getDimension()) continue;
+                if (areAllChunksLoadedForController(world, controllerPos)) {
                     scheduleCheck(world.provider.getDimension(), controllerPos);
                 }
             }
         }
+    }
+
+    /**
+     * 检查指定控制器对应的所有结构方块是否都已加载。
+     * 未完全加载时返回 false，防止 validate 误判导致 disassemble。
+     */
+    private static boolean areAllChunksLoadedForController(World world, BlockPos controllerPos) {
+        IBlockState state = world.getBlockState(controllerPos);
+        Block block = state.getBlock();
+        if (block instanceof BlockAssemblyController) {
+            EnumFacing facing = state.getValue(BlockAssemblyController.FACING);
+            BlockPos origin = AssemblyStructure.getOriginFromController(controllerPos, facing);
+            for (BlockPos rel : AssemblyStructure.ALL_SET) {
+                if (!world.isBlockLoaded(origin.add(rel))) return false;
+            }
+            return true;
+        } else if (block instanceof BlockHyperdimensionalController) {
+            EnumFacing facing = state.getValue(BlockHyperdimensionalController.FACING);
+            for (BlockPos rel : HyperdimensionalStructure.ALL_SET) {
+                BlockPos actual = controllerPos.add(HyperdimensionalStructure.rotate(rel, facing));
+                if (!world.isBlockLoaded(actual)) return false;
+            }
+            return true;
+        } else if (block instanceof BlockComputationCore) {
+            EnumFacing facing = state.getValue(BlockComputationCore.FACING);
+            for (BlockPos rel : SupercausalStructure.ALL_STRUCTURE_SET) {
+                BlockPos actual = controllerPos.add(SupercausalStructure.rotate(rel, facing));
+                if (!world.isBlockLoaded(actual)) return false;
+            }
+            return true;
+        }
+        return true;
     }
 
     private static void checkSurroundingControllers(World world, BlockPos changedPos) {
@@ -171,6 +195,12 @@ public class StructureEventHandler {
     }
 
     private static void validateAndUpdate(World world, BlockPos controllerPos) {
+        // 双重保护：即使因 tick 调度延迟导致 chunk 被卸载，也不应在此状态下解散结构
+        if (!areAllChunksLoadedForController(world, controllerPos)) {
+            scheduleCheck(world.provider.getDimension(), controllerPos);
+            return;
+        }
+
         Block controllerBlock = world.getBlockState(controllerPos).getBlock();
         if (controllerBlock == ModBlocks.ASSEMBLY_CONTROLLER) {
             boolean valid = AssemblyStructure.validate(world, controllerPos);
