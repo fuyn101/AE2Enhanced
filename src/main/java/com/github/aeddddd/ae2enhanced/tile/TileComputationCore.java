@@ -21,6 +21,7 @@ import appeng.parts.CableBusContainer;
 import appeng.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockSuperCraftingInterface;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
 import net.minecraft.block.state.IBlockState;
@@ -31,6 +32,7 @@ import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -480,6 +482,27 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
     }
 
     // ---------- 备用方案：直接注入 CraftingGridCache ----------
+
+    @Override
+    @Nonnull
+    public AxisAlignedBB getRenderBoundingBox() {
+        if (world == null) return super.getRenderBoundingBox();
+        if (!(world.getBlockState(pos).getBlock() instanceof BlockComputationCore)) {
+            return super.getRenderBoundingBox();
+        }
+        EnumFacing facing = world.getBlockState(pos).getValue(BlockComputationCore.FACING);
+        EnumFacing structureDir = facing.getOpposite();
+        double cx = pos.getX() + 0.5 + structureDir.getXOffset() * 9.0;
+        double cy = pos.getY() + 0.5;
+        double cz = pos.getZ() + 0.5 + structureDir.getZOffset() * 9.0;
+        double r = 12.0; // 覆盖戴森球全部渲染范围（半径约 10，留余量）
+        return new AxisAlignedBB(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r);
+    }
+
+    @Override
+    public double getMaxRenderDistanceSquared() {
+        return 65536.0; // 256 格渲染距离
+    }
 
     private void injectCpuPoolIntoCraftingGridCache() {
         try {

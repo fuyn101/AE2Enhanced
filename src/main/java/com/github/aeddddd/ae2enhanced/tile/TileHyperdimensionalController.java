@@ -23,6 +23,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -752,5 +753,32 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
         if (tag.hasUniqueId("nexusId")) {
             nexusId = tag.getUniqueId("nexusId");
         }
+    }
+
+    @Override
+    @Nonnull
+    public AxisAlignedBB getRenderBoundingBox() {
+        if (world == null) return super.getRenderBoundingBox();
+        if (!(world.getBlockState(pos).getBlock() instanceof BlockHyperdimensionalController)) {
+            return super.getRenderBoundingBox();
+        }
+        EnumFacing facing = world.getBlockState(pos).getValue(BlockHyperdimensionalController.FACING);
+        double offX, offZ;
+        switch (facing) {
+            case SOUTH: offX = 0; offZ = -2.0; break;
+            case EAST:  offX = -2.0; offZ = 0; break;
+            case WEST:  offX = 2.0; offZ = 0; break;
+            default:    offX = 0; offZ = 2.0; break;
+        }
+        double cx = pos.getX() + 0.5 + offX;
+        double cy = pos.getY() + 4.0;
+        double cz = pos.getZ() + 0.5 + offZ;
+        double r = 5.5; // 覆盖超立方体全部渲染范围（半径约 4.5，留余量）
+        return new AxisAlignedBB(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r);
+    }
+
+    @Override
+    public double getMaxRenderDistanceSquared() {
+        return 65536.0; // 256 格渲染距离
     }
 }

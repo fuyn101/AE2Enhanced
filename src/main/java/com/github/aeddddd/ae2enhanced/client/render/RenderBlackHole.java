@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.EnumFacing;
@@ -82,17 +83,39 @@ public class RenderBlackHole extends TileEntitySpecialRenderer<TileAssemblyContr
 
         boolean blendWasEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
         boolean cullWasEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        boolean depthTestWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean fogWasEnabled = GL11.glIsEnabled(GL11.GL_FOG);
+        boolean alphaTestWasEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+        boolean colorMaterialWasEnabled = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
+
+        // 保存并禁用光照纹理单元（单元1），防止其调制顶点颜色为黑色
+        GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
+        boolean lightmapTexWasEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+        if (lightmapTexWasEnabled) {
+            GlStateManager.disableTexture2D();
+        }
+        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
+
         GlStateManager.depthMask(false);
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(
             GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
             GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO
         );
+        // 强制禁用底层 OpenGL 状态，防止 GlStateManager 状态跟踪不同步（其他代码可能直接调用了 GL11.glEnable）
+        GL11.glDisable(GL11.GL_LIGHTING);
         GlStateManager.disableLighting();
         GlStateManager.disableTexture2D();
         GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glDisable(GL11.GL_FOG);
+        GlStateManager.disableFog();
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
+        GlStateManager.disableAlpha();
+        GlStateManager.enableDepth();
+        GL11.glDisable(GL11.GL_COLOR_MATERIAL);
         GL11.glNormal3f(0.0f, 1.0f, 0.0f);
         GlStateManager.disableCull();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
         try {
             // 1. 事件视界（纯黑，始终存在）
@@ -140,6 +163,32 @@ public class RenderBlackHole extends TileEntitySpecialRenderer<TileAssemblyContr
                 GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO
             );
+            if (fogWasEnabled) {
+                GL11.glEnable(GL11.GL_FOG);
+                GlStateManager.enableFog();
+            } else {
+                GL11.glDisable(GL11.GL_FOG);
+                GlStateManager.disableFog();
+            }
+            if (alphaTestWasEnabled) {
+                GL11.glEnable(GL11.GL_ALPHA_TEST);
+                GlStateManager.enableAlpha();
+            } else {
+                GL11.glDisable(GL11.GL_ALPHA_TEST);
+                GlStateManager.disableAlpha();
+            }
+            if (depthTestWasEnabled) {
+                GlStateManager.enableDepth();
+            } else {
+                GlStateManager.disableDepth();
+            }
+            if (colorMaterialWasEnabled) {
+                GL11.glEnable(GL11.GL_COLOR_MATERIAL);
+            } else {
+                GL11.glDisable(GL11.GL_COLOR_MATERIAL);
+            }
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
             GlStateManager.popMatrix();
         }
     }

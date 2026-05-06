@@ -515,9 +515,10 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
         }
         EnumFacing controllerFacing = world.getBlockState(pos).getValue(BlockAssemblyController.FACING);
         BlockPos origin = AssemblyStructure.getOriginFromController(pos, controllerFacing);
+        // 黑洞半径最大约 6.5，bounding box 必须完全覆盖渲染区域（origin 为中心 ±7）
         return new AxisAlignedBB(
-            origin.getX() - 4, origin.getY() - 4, origin.getZ() - 4,
-            origin.getX() + 5, origin.getY() + 5, origin.getZ() + 5
+            origin.getX() - 7, origin.getY() - 7, origin.getZ() - 7,
+            origin.getX() + 8, origin.getY() + 8, origin.getZ() + 8
         );
     }
 
