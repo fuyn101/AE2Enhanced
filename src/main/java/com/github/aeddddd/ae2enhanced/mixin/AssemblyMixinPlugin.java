@@ -5,6 +5,7 @@ import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import zone.rong.mixinbooter.ILateMixinLoader;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,15 @@ public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader 
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList("mixins.ae2enhanced.late.json");
+        List<String> configs = new ArrayList<>();
+        configs.add("mixins.ae2enhanced.late.json");
+        // 如果 Thaumic Energistics 安装，加载源质相关 Mixin
+        try {
+            Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+            configs.add("mixins.ae2enhanced.late.thaumic.json");
+        } catch (ClassNotFoundException e) {
+            // Thaumic Energistics 未安装，跳过源质 Mixin
+        }
+        return configs;
     }
 }

@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced;
 
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
+import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemStableSpacetimeManifold;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import net.minecraft.item.Item;
@@ -16,12 +17,14 @@ public class ModItems {
     public static ItemConformalCharge CONFORMAL_CHARGE;
     public static ItemDifferentialFormStabilizer DIFFERENTIAL_FORM_STABILIZER;
     public static ItemStableSpacetimeManifold STABLE_SPACETIME_MANIFOLD;
+    public static ItemEssentiaDrop ESSENTIA_DROP;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
         CONFORMAL_CHARGE = new ItemConformalCharge();
         DIFFERENTIAL_FORM_STABILIZER = new ItemDifferentialFormStabilizer();
         STABLE_SPACETIME_MANIFOLD = new ItemStableSpacetimeManifold();
+        ESSENTIA_DROP = new ItemEssentiaDrop();
     }
 
     @SubscribeEvent
@@ -30,5 +33,6 @@ public class ModItems {
         event.getRegistry().register(CONFORMAL_CHARGE);
         event.getRegistry().register(DIFFERENTIAL_FORM_STABILIZER);
         event.getRegistry().register(STABLE_SPACETIME_MANIFOLD);
+        event.getRegistry().register(ESSENTIA_DROP);
     }
 }
