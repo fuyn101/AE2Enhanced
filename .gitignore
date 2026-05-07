@@ -79,6 +79,8 @@ inspection_reports/
 
 ### Decompiled / Temp ###
 ae2_decompiled/
+ae2fc_decompiled/
+ae2fc_decompiled_temp/
 appeng/
 cfr.jar
 *.class

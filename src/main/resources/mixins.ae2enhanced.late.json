@@ -11,6 +11,9 @@
     "MixinCreativeCellInventory",
     "MixinToolMatterCannon"
   ],
-  "client": [],
+  "client": [
+    "MixinGuiCraftAmount",
+    "MixinGuiCraftConfirm"
+  ],
   "server": []
 }
