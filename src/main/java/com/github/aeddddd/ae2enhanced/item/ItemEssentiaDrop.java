@@ -67,6 +67,11 @@ public class ItemEssentiaDrop extends Item {
         return ASPECT_TO_META.getOrDefault(aspectTag, 0);
     }
 
+    public static int getAspectCount() {
+        initAspectMaps();
+        return ASPECT_TO_META.size();
+    }
+
     public static String getAspectTagFromMeta(int meta) {
         initAspectMaps();
         return META_TO_ASPECT.get(meta);
