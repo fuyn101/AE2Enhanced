@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.network.PacketCraftRequestLong;
+import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.PacketRequestAssembly;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
@@ -73,6 +74,7 @@ public class AE2Enhanced {
         network.registerMessage(PacketRequestAssembly.Handler.class, PacketRequestAssembly.class, 0, Side.SERVER);
         network.registerMessage(PacketPatternPage.Handler.class, PacketPatternPage.class, 1, Side.SERVER);
         network.registerMessage(PacketCraftRequestLong.Handler.class, PacketCraftRequestLong.class, 2, Side.SERVER);
+        network.registerMessage(PacketMEMonitorableAction.Handler.class, PacketMEMonitorableAction.class, 3, Side.SERVER);
         proxy.preInit(event);
     }
 

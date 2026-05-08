@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin.late;
 
-import appeng.client.gui.implementations.GuiCraftAmount;
+import appeng.client.gui.implementations.GuiCellWorkbench;
+import appeng.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
@@ -15,16 +16,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Collections;
 
 /**
- * E2a：在合成数量 GUI 中渲染流体/气体/源质假物品的真实名称 tooltip。
+ * E2a：在 Cell Workbench 中渲染流体/气体/源质假物品的 tooltip。
  */
-@Mixin(value = GuiCraftAmount.class, remap = false)
-public class MixinGuiCraftAmount {
+@Mixin(value = GuiCellWorkbench.class, remap = false)
+public class MixinGuiCellWorkbench {
 
     @Inject(method = "renderHoveredToolTip", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onRenderTooltip(int mouseX, int mouseY, CallbackInfo ci) {
         GuiContainer screen = (GuiContainer) (Object) this;
         Slot slot = screen.getSlotUnderMouse();
-        if (slot == null || !slot.getHasStack()) {
+        if (!(slot instanceof SlotFake) || !slot.getHasStack()) {
             return;
         }
 

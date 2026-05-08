@@ -12,13 +12,17 @@
     "MixinToolMatterCannon",
     "MixinInventoryPlayer",
     "MixinNetworkMonitorFluid",
-    "MixinNetworkInventoryHandlerFluid"
+    "MixinNetworkInventoryHandlerFluid",
+    "MixinGridStorageCacheFluid",
+    "MixinContainerCellWorkbench",
+    "MixinTileIOPort"
   ],
   "client": [
     "MixinGuiCraftAmount",
     "MixinGuiCraftConfirm",
     "MixinGuiMEMonitorableFluid",
-    "MixinGuiMEMonitorableHandleClick"
+    "MixinGuiMEMonitorableHandleClick",
+    "MixinGuiCellWorkbench"
   ],
   "server": []
 }
