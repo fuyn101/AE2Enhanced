@@ -53,6 +53,7 @@ public class MixinNetworkMonitorFluid {
 
     @Inject(method = "getAvailableItems", at = @At("TAIL"))
     private void ae2enhanced$onGetAvailableItemsFluid(IItemList out, CallbackInfoReturnable<IItemList> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
 
         IMEMonitor<IAEFluidStack> fluidMonitor = ae2enhanced$getFluidMonitor();
@@ -74,6 +75,7 @@ public class MixinNetworkMonitorFluid {
     @Inject(method = "extractItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onExtractItemsFluid(IAEStack request, Actionable mode, IActionSource source,
                                                   CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
         if (!(request instanceof IAEItemStack)) return;
 
@@ -108,6 +110,7 @@ public class MixinNetworkMonitorFluid {
     @Inject(method = "injectItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onInjectItemsFluid(IAEStack input, Actionable mode, IActionSource source,
                                                  CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
         if (!(input instanceof IAEItemStack)) return;
 

@@ -53,6 +53,7 @@ public class MixinGridStorageCacheGas {
 
     @SuppressWarnings("unchecked")
     private void postGasChanges(Iterable<? extends IAEStack<?>> changes, IActionSource src) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (changes == null) return;
 
         try {

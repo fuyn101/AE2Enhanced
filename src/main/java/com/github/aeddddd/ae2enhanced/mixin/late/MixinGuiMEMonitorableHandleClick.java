@@ -49,7 +49,8 @@ public class MixinGuiMEMonitorableHandleClick {
         }
 
         // 2. 手持流体容器点击流体假物品槽位
-        if (!mouseItem.isEmpty() && mouseItem.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED
+                && !mouseItem.isEmpty() && mouseItem.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)
                 && ItemFluidDrop.isFluidDrop(slotStack)) {
             FluidStack fluid = ItemFluidDrop.getFluidStack(slotStack);
             NBTTagCompound nbt = fluid != null ? fluid.writeToNBT(new NBTTagCompound()) : new NBTTagCompound();
@@ -60,7 +61,8 @@ public class MixinGuiMEMonitorableHandleClick {
         }
 
         // 3. 手持气体容器点击气体假物品槽位
-        if (!mouseItem.isEmpty() && mouseItem.getItem() instanceof IGasItem
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED
+                && !mouseItem.isEmpty() && mouseItem.getItem() instanceof IGasItem
                 && ItemGasDrop.isGasDrop(slotStack)) {
             String gasName = ItemGasDrop.getGasName(slotStack);
             NBTTagCompound nbt = new NBTTagCompound();
@@ -72,7 +74,8 @@ public class MixinGuiMEMonitorableHandleClick {
         }
 
         // 4. 空手点击流体假物品槽位 -> 获取装满的桶
-        if (mouseItem.isEmpty() && ItemFluidDrop.isFluidDrop(slotStack)) {
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED
+                && mouseItem.isEmpty() && ItemFluidDrop.isFluidDrop(slotStack)) {
             FluidStack fluid = ItemFluidDrop.getFluidStack(slotStack);
             NBTTagCompound nbt = fluid != null ? fluid.writeToNBT(new NBTTagCompound()) : new NBTTagCompound();
             AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(
@@ -82,7 +85,8 @@ public class MixinGuiMEMonitorableHandleClick {
         }
 
         // 5. 空手点击气体假物品槽位 -> 获取装满的气体容器（暂不实现，ae2fc 也未完整实现）
-        if (mouseItem.isEmpty() && ItemGasDrop.isGasDrop(slotStack)) {
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED
+                && mouseItem.isEmpty() && ItemGasDrop.isGasDrop(slotStack)) {
             // 气体空手操作需要已知容器类型，Mekanism 没有通用空容器，暂不发送
             ci.cancel();
         }

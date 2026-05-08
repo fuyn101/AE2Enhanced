@@ -36,7 +36,8 @@ public class MixinContainerCellWorkbench {
         if (held.isEmpty()) return;
 
         // 流体容器
-        if (held.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)) {
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED
+                && held.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)) {
             IFluidHandlerItem fh = held.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
             if (fh == null) return;
 

@@ -32,12 +32,12 @@ public class MixinGuiCellWorkbench {
         ItemStack stack = slot.getStack();
         String tooltip = null;
 
-        if (ItemFluidDrop.isFluidDrop(stack)) {
+        if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED && ItemFluidDrop.isFluidDrop(stack)) {
             net.minecraftforge.fluids.FluidStack fluid = ItemFluidDrop.getFluidStack(stack);
             if (fluid != null) {
                 tooltip = fluid.getLocalizedName();
             }
-        } else if (ItemGasDrop.isGasDrop(stack)) {
+        } else if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED && ItemGasDrop.isGasDrop(stack)) {
             String gasName = ItemGasDrop.getGasName(stack);
             if (gasName != null) {
                 tooltip = gasName;

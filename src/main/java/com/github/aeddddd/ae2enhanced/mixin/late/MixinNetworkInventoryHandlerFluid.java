@@ -53,6 +53,7 @@ public class MixinNetworkInventoryHandlerFluid {
 
     @Inject(method = "extractItems", at = @At("HEAD"), cancellable = true)
     private void onExtractItems(IAEStack request, Actionable mode, IActionSource src, CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!this.ae2enhanced$isItemChannel || this.ae2enhanced$fluidMonitor == null) return;
         if (!(request instanceof IAEItemStack)) return;
 
@@ -79,6 +80,7 @@ public class MixinNetworkInventoryHandlerFluid {
 
     @Inject(method = "injectItems", at = @At("HEAD"), cancellable = true)
     private void onInjectItems(IAEStack input, Actionable mode, IActionSource src, CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!this.ae2enhanced$isItemChannel || this.ae2enhanced$fluidMonitor == null) return;
         if (!(input instanceof IAEItemStack)) return;
 

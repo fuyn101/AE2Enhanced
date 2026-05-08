@@ -35,6 +35,7 @@ public class MixinTileIOPort {
 
     @Redirect(method = "transferContents", at = @At(value = "INVOKE", target = "Lappeng/api/storage/data/IAEStack;getStackSize()J", ordinal = 0))
     private long removeDropSize(IAEStack instance) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return instance.getStackSize();
         if (Boolean.TRUE.equals(checkingDrop.get()) && instance instanceof IAEItemStack) {
             ItemStack mcStack = ((IAEItemStack) instance).createItemStack();
             if (ItemFluidDrop.isFluidDrop(mcStack) || ItemGasDrop.isGasDrop(mcStack) || FakeEssentias.isEssentiaFakeItem(mcStack)) {

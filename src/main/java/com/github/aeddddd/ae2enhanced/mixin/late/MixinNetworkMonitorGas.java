@@ -52,6 +52,7 @@ public class MixinNetworkMonitorGas {
 
     @Inject(method = "getAvailableItems", at = @At("TAIL"))
     private void ae2enhanced$onGetAvailableItemsGas(IItemList out, CallbackInfoReturnable<IItemList> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
 
         IMEMonitor<IAEGasStack> gasMonitor = ae2enhanced$getGasMonitor();
@@ -73,6 +74,7 @@ public class MixinNetworkMonitorGas {
     @Inject(method = "extractItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onExtractItemsGas(IAEStack request, Actionable mode, IActionSource source,
                                                 CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
         if (!(request instanceof IAEItemStack)) return;
 
@@ -107,6 +109,7 @@ public class MixinNetworkMonitorGas {
     @Inject(method = "injectItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onInjectItemsGas(IAEStack input, Actionable mode, IActionSource source,
                                                CallbackInfoReturnable<IAEStack> cir) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (!ae2enhanced$isItemChannel()) return;
         if (!(input instanceof IAEItemStack)) return;
 

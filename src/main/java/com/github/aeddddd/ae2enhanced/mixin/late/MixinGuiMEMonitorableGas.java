@@ -24,6 +24,7 @@ public class MixinGuiMEMonitorableGas {
 
     @Inject(method = "renderHoveredToolTip", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onRenderTooltipGas(int mouseX, int mouseY, CallbackInfo ci) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         GuiContainer screen = (GuiContainer) (Object) this;
         Slot slot = screen.getSlotUnderMouse();
         if (!(slot instanceof SlotME) || !slot.getHasStack()) {

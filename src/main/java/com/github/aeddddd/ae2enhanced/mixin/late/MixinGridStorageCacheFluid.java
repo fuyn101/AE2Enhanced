@@ -54,6 +54,7 @@ public class MixinGridStorageCacheFluid {
 
     @SuppressWarnings("unchecked")
     private void postFluidChanges(Iterable<? extends IAEStack<?>> changes, IActionSource src) {
+        if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return;
         if (changes == null) return;
 
         try {
