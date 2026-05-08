@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.util;
 import appeng.api.AEApi;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.item.ItemStack;
 import thaumicenergistics.api.EssentiaStack;
@@ -23,9 +24,11 @@ public class FakeEssentias {
         String aspectTag = essentiaStack.getAspect().getTag();
         long amount = essentiaStack.getStackSize();
         ItemStack fakeItem = ItemEssentiaDrop.createStack(aspectTag, 1);
+        AE2Enhanced.LOGGER.info("[AE2E-PACK] aspect={} fakeItem.damage={}", aspectTag, fakeItem.getItemDamage());
         IAEItemStack result = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(fakeItem);
         if (result != null) {
             result.setStackSize(amount);
+            AE2Enhanced.LOGGER.info("[AE2E-PACK] result.damage={} result.stackSize={}", result.createItemStack().getItemDamage(), result.getStackSize());
         }
         return result;
     }

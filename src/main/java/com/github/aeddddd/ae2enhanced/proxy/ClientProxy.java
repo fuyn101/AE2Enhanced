@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.proxy;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.client.render.EssentiaItemRenderer;
+import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
@@ -13,9 +15,13 @@ import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
 import net.minecraft.block.Block;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
+import net.minecraftforge.client.event.ModelBakeEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
+import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -41,11 +47,57 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
+        // E2a：注册 EssentiaDrop 的内置物品渲染器
+        AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
+        ModItems.ESSENTIA_DROP.initModel();
+        AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
     }
 
     @Override
     public void postInit(FMLPostInitializationEvent event) {
         super.postInit(event);
+    }
+
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public static void onTextureStitch(TextureStitchEvent.Pre event) {
+        // 将 Thaumcraft 的所有 aspect 纹理注册到 texture atlas
+        try {
+            for (thaumcraft.api.aspects.Aspect aspect : thaumcraft.api.aspects.Aspect.aspects.values()) {
+                if (aspect != null && aspect.getImage() != null) {
+                    event.getMap().registerSprite(aspect.getImage());
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to register Thaumcraft aspect textures: {}", e.getMessage());
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public static void onModelBake(ModelBakeEvent event) {
+        // 将 essentia_drop 的模型替换为 BakedEssentiaPacketModel，使 isBuiltInRenderer()=true
+        // 从而触发 RenderItem 调用 Item 自己的 TileEntityItemStackRenderer
+        try {
+            net.minecraft.client.renderer.block.model.ModelManager modelManager = event.getModelManager();
+            java.lang.reflect.Field targetField = null;
+            for (java.lang.reflect.Field field : modelManager.getClass().getDeclaredFields()) {
+                if (field.getType().getName().contains("IRegistry")) {
+                    targetField = field;
+                    break;
+                }
+            }
+            if (targetField == null) return;
+            targetField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry =
+                    (net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel>) targetField.get(modelManager);
+
+            ModelResourceLocation location = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
+            registry.putObject(location, new EssentiaPacketModel.BakedEssentiaPacketModel());
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to replace essentia_drop model", e);
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -85,6 +137,11 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ModItems.CONFORMAL_CHARGE);
         registerItemModel(ModItems.DIFFERENTIAL_FORM_STABILIZER);
         registerItemModel(ModItems.STABLE_SPACETIME_MANIFOLD);
+        // EssentiaDrop：使用 CustomMeshDefinition 让所有 damage 值都映射到同一个模型路径，
+        // 避免 damage>0 时 ItemModelMesher 找不到模型而返回 missing model（紫黑缺失纹理）。
+        // 实际渲染由 BakedEssentiaPacketModel.isBuiltInRenderer() -> EssentiaItemRenderer 处理。
+        ModelLoader.setCustomMeshDefinition(ModItems.ESSENTIA_DROP, stack ->
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ModItems.UPGRADE_CARD, stack -> {

@@ -12,6 +12,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.me.cache.GridStorageCache;
 import appeng.me.cache.NetworkMonitor;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,6 +37,7 @@ public class MixinNetworkMonitor {
     @Shadow
     private IStorageChannel myChannel;
 
+
     /**
      * 判断当前 monitor 是否是物品存储通道。
      */
@@ -46,16 +48,16 @@ public class MixinNetworkMonitor {
 
     /**
      * 获取源质存储通道的 monitor。
+     * 注意：必须使用 getInventory() 而非 getInventoryHandler()，
+     * 前者返回 NetworkMonitor（IMEMonitor），后者返回 NetworkInventoryHandler（非 IMEMonitor）。
      */
     @SuppressWarnings("unchecked")
     private IMEMonitor<IAEEssentiaStack> ae2enhanced$getEssentiaMonitor() {
         try {
             IStorageChannel<IAEEssentiaStack> essentiaChannel = AEApi.instance().storage()
                     .getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
-            IMEInventoryHandler<IAEEssentiaStack> handler = this.myGridCache.getInventoryHandler(essentiaChannel);
-            if (handler instanceof IMEMonitor) {
-                return (IMEMonitor<IAEEssentiaStack>) handler;
-            }
+            // GridStorageCache.getInventory() 返回该通道的 NetworkMonitor（即 IMEMonitor）
+            return this.myGridCache.getInventory(essentiaChannel);
         } catch (Exception e) {
             // Thaumic Energistics 通道不可用
         }
@@ -70,20 +72,25 @@ public class MixinNetworkMonitor {
         if (!ae2enhanced$isItemChannel()) return;
 
         IMEMonitor<IAEEssentiaStack> essentiaMonitor = ae2enhanced$getEssentiaMonitor();
-        if (essentiaMonitor == null) return;
+        if (essentiaMonitor == null) {
+            return;
+        }
 
         IStorageChannel<IAEEssentiaStack> essentiaChannel = AEApi.instance().storage()
                 .getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
         IItemList<IAEEssentiaStack> essentiaList = essentiaChannel.createList();
         essentiaMonitor.getAvailableItems(essentiaList);
 
+        int added = 0;
         for (IAEEssentiaStack essentia : essentiaList) {
             if (essentia == null || essentia.getStackSize() <= 0) continue;
             IAEItemStack fakeItem = FakeEssentias.packEssentia(essentia);
             if (fakeItem != null) {
                 out.addStorage(fakeItem);
+                added++;
             }
         }
+
     }
 
     /**
@@ -96,11 +103,12 @@ public class MixinNetworkMonitor {
         if (!(request instanceof IAEItemStack)) return;
 
         IAEItemStack itemStack = (IAEItemStack) request;
-        if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
+        ItemStack mcStack = itemStack.createItemStack();
+        if (!FakeEssentias.isEssentiaFakeItem(mcStack)) return;
 
         IMEMonitor<IAEEssentiaStack> essentiaMonitor = ae2enhanced$getEssentiaMonitor();
         if (essentiaMonitor == null) {
-            cir.setReturnValue(request); // 无法提取，返回原请求
+            cir.setReturnValue(request);
             return;
         }
 
@@ -111,13 +119,16 @@ public class MixinNetworkMonitor {
         }
 
         IAEEssentiaStack notExtracted = essentiaMonitor.extractItems(essentiaRequest, mode, source);
-        if (notExtracted != null && notExtracted.getStackSize() > 0) {
-            // 部分未提取，转换回假物品返回
-            IAEItemStack fakeNotExtracted = FakeEssentias.packEssentia(notExtracted);
-            cir.setReturnValue(fakeNotExtracted);
+        long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
+        if (notExtractedSize == 0) {
+            // 全部提取成功：返回 stackSize=0 的 IAEItemStack
+            // AE2 会尝试放入 createItemStack()，count=0 即 ItemStack.EMPTY，不会进入背包
+            IAEItemStack emptyResult = itemStack.copy();
+            emptyResult.setStackSize(0);
+            cir.setReturnValue(emptyResult);
         } else {
-            // 全部提取成功
-            cir.setReturnValue(null);
+            // 部分或全部未提取：返回 request 让 AE2 认为提取失败
+            cir.setReturnValue(request);
         }
     }
 

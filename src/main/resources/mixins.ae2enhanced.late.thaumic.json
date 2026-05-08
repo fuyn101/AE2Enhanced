@@ -1,13 +1,19 @@
 {
   "package": "com.github.aeddddd.ae2enhanced.mixin.late",
   "refmap": "mixin.refmap.json",
+  "plugin": "com.github.aeddddd.ae2enhanced.mixin.ThaumicMixinPlugin",
   "target": "@env(DEFAULT)",
   "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "MixinNetworkMonitor",
+    "MixinInventoryPlayer",
+    "MixinAEBaseContainer"
+  ],
+  "client": [
     "MixinGuiMEMonitorable"
   ],
-  "client": [],
-  "server": []
+  "server": [
+    "MixinInventoryPlayer"
+  ]
 }

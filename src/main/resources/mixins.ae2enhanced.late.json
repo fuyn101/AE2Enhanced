@@ -9,7 +9,8 @@
     "MixinPatternEncoder",
     "MixinCraftingGridCache",
     "MixinCreativeCellInventory",
-    "MixinToolMatterCannon"
+    "MixinToolMatterCannon",
+    "MixinInventoryPlayer"
   ],
   "client": [
     "MixinGuiCraftAmount",
