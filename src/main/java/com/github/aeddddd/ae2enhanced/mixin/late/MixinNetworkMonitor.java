@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
@@ -26,6 +25,9 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
  * 在 ae2fc 完成流体/气体注入后，再注入源质假物品。
  * extractItems / injectItems 使用 HEAD + cancellable 优先拦截我们的假物品，
  * 非我们的假物品则放行给 ae2fc 或原始逻辑处理。
+ *
+ * 注意：本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中，
+ * 由 ThaumicMixinPlugin 条件加载。流体/气体逻辑在独立的 Mixin 中。
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkMonitor.class, remap = false, priority = 1100)
@@ -37,26 +39,16 @@ public class MixinNetworkMonitor {
     @Shadow
     private IStorageChannel myChannel;
 
-
-    /**
-     * 判断当前 monitor 是否是物品存储通道。
-     */
     private boolean ae2enhanced$isItemChannel() {
         return this.myChannel == AEApi.instance().storage().getStorageChannel(
                 appeng.api.storage.channels.IItemStorageChannel.class);
     }
 
-    /**
-     * 获取源质存储通道的 monitor。
-     * 注意：必须使用 getInventory() 而非 getInventoryHandler()，
-     * 前者返回 NetworkMonitor（IMEMonitor），后者返回 NetworkInventoryHandler（非 IMEMonitor）。
-     */
     @SuppressWarnings("unchecked")
     private IMEMonitor<IAEEssentiaStack> ae2enhanced$getEssentiaMonitor() {
         try {
             IStorageChannel<IAEEssentiaStack> essentiaChannel = AEApi.instance().storage()
                     .getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
-            // GridStorageCache.getInventory() 返回该通道的 NetworkMonitor（即 IMEMonitor）
             return this.myGridCache.getInventory(essentiaChannel);
         } catch (Exception e) {
             // Thaumic Energistics 通道不可用
@@ -64,9 +56,6 @@ public class MixinNetworkMonitor {
         return null;
     }
 
-    /**
-     * 在物品列表查询的末尾注入源质假物品。
-     */
     @Inject(method = "getAvailableItems", at = @At("TAIL"))
     private void ae2enhanced$onGetAvailableItems(IItemList out, CallbackInfoReturnable<IItemList> cir) {
         if (!ae2enhanced$isItemChannel()) return;
@@ -90,12 +79,8 @@ public class MixinNetworkMonitor {
                 added++;
             }
         }
-
     }
 
-    /**
-     * 拦截提取请求：如果是源质假物品，从源质网络中提取。
-     */
     @Inject(method = "extractItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onExtractItems(IAEStack request, Actionable mode, IActionSource source,
                                             CallbackInfoReturnable<IAEStack> cir) {
@@ -121,20 +106,14 @@ public class MixinNetworkMonitor {
         IAEEssentiaStack notExtracted = essentiaMonitor.extractItems(essentiaRequest, mode, source);
         long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
         if (notExtractedSize == 0) {
-            // 全部提取成功：返回 stackSize=0 的 IAEItemStack
-            // AE2 会尝试放入 createItemStack()，count=0 即 ItemStack.EMPTY，不会进入背包
             IAEItemStack emptyResult = itemStack.copy();
             emptyResult.setStackSize(0);
             cir.setReturnValue(emptyResult);
         } else {
-            // 部分或全部未提取：返回 request 让 AE2 认为提取失败
             cir.setReturnValue(request);
         }
     }
 
-    /**
-     * 拦截注入请求：如果是源质假物品，注入到源质网络中。
-     */
     @Inject(method = "injectItems", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onInjectItems(IAEStack input, Actionable mode, IActionSource source,
                                            CallbackInfoReturnable<IAEStack> cir) {
@@ -146,7 +125,7 @@ public class MixinNetworkMonitor {
 
         IMEMonitor<IAEEssentiaStack> essentiaMonitor = ae2enhanced$getEssentiaMonitor();
         if (essentiaMonitor == null) {
-            cir.setReturnValue(input); // 无法注入，返回原输入
+            cir.setReturnValue(input);
             return;
         }
 

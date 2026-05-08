@@ -10,7 +10,8 @@
     "MixinCraftingGridCache",
     "MixinCreativeCellInventory",
     "MixinToolMatterCannon",
-    "MixinInventoryPlayer"
+    "MixinInventoryPlayer",
+    "MixinNetworkMonitorFluid"
   ],
   "client": [
     "MixinGuiCraftAmount",

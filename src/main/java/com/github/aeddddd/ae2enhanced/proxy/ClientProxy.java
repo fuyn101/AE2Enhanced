@@ -47,10 +47,18 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
-        // E2a：注册 EssentiaDrop 的内置物品渲染器
+        // E2a：注册 EssentiaDrop / FluidDrop 的内置物品渲染器
         AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
         ModItems.ESSENTIA_DROP.initModel();
         AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
+        if (ModItems.FLUID_DROP != null) {
+            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for FLUID_DROP");
+            ModItems.FLUID_DROP.initModel();
+        }
+        if (ModItems.GAS_DROP != null) {
+            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for GAS_DROP");
+            ModItems.GAS_DROP.initModel();
+        }
     }
 
     @Override
@@ -93,8 +101,16 @@ public class ClientProxy extends CommonProxy {
             net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry =
                     (net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel>) targetField.get(modelManager);
 
-            ModelResourceLocation location = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
-            registry.putObject(location, new EssentiaPacketModel.BakedEssentiaPacketModel());
+            ModelResourceLocation locationEssentia = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
+            registry.putObject(locationEssentia, new EssentiaPacketModel.BakedEssentiaPacketModel());
+
+            ModelResourceLocation locationFluid = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":fluid_drop", "inventory");
+            registry.putObject(locationFluid, new EssentiaPacketModel.BakedEssentiaPacketModel());
+
+            if (ModItems.GAS_DROP != null) {
+                ModelResourceLocation locationGas = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":gas_drop", "inventory");
+                registry.putObject(locationGas, new EssentiaPacketModel.BakedEssentiaPacketModel());
+            }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to replace essentia_drop model", e);
         }
@@ -137,11 +153,19 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ModItems.CONFORMAL_CHARGE);
         registerItemModel(ModItems.DIFFERENTIAL_FORM_STABILIZER);
         registerItemModel(ModItems.STABLE_SPACETIME_MANIFOLD);
-        // EssentiaDrop：使用 CustomMeshDefinition 让所有 damage 值都映射到同一个模型路径，
-        // 避免 damage>0 时 ItemModelMesher 找不到模型而返回 missing model（紫黑缺失纹理）。
-        // 实际渲染由 BakedEssentiaPacketModel.isBuiltInRenderer() -> EssentiaItemRenderer 处理。
+        // EssentiaDrop：使用 CustomMeshDefinition 让所有 damage 值都映射到同一个模型路径
         ModelLoader.setCustomMeshDefinition(ModItems.ESSENTIA_DROP, stack ->
                 new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
+
+        // FluidDrop：同样使用 CustomMeshDefinition，所有 NBT 变体共用同一模型路径
+        ModelLoader.setCustomMeshDefinition(ModItems.FLUID_DROP, stack ->
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":fluid_drop", "inventory"));
+
+        // GasDrop：条件注册，仅在 Mekanism + mekeng 存在时
+        if (ModItems.GAS_DROP != null) {
+            ModelLoader.setCustomMeshDefinition(ModItems.GAS_DROP, stack ->
+                    new ModelResourceLocation(AE2Enhanced.MOD_ID + ":gas_drop", "inventory"));
+        }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ModItems.UPGRADE_CARD, stack -> {

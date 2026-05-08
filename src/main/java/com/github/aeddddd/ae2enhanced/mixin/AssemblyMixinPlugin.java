@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
 import net.minecraftforge.common.ForgeVersion;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import zone.rong.mixinbooter.ILateMixinLoader;
 
@@ -41,7 +42,13 @@ public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader 
 
     @Override
     public List<String> getMixinConfigs() {
-        // 总是返回两个配置文件；条件判断推迟到 IMixinConfigPlugin.shouldApplyMixin
-        return Arrays.asList("mixins.ae2enhanced.late.json", "mixins.ae2enhanced.late.thaumic.json");
+        List<String> configs = new ArrayList<>(Arrays.asList(
+                "mixins.ae2enhanced.late.json",
+                "mixins.ae2enhanced.late.thaumic.json"
+        ));
+        if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
+            configs.add("mixins.ae2enhanced.late.gas.json");
+        }
+        return configs;
     }
 }
