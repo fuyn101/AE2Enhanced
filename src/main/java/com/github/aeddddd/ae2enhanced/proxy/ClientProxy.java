@@ -48,9 +48,11 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
         // E2a：注册 EssentiaDrop / FluidDrop 的内置物品渲染器
-        AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
-        ModItems.ESSENTIA_DROP.initModel();
-        AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
+        if (ModItems.ESSENTIA_DROP != null) {
+            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
+            ModItems.ESSENTIA_DROP.initModel();
+            AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
+        }
         if (ModItems.FLUID_DROP != null) {
             AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for FLUID_DROP");
             ModItems.FLUID_DROP.initModel();
@@ -154,8 +156,10 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ModItems.DIFFERENTIAL_FORM_STABILIZER);
         registerItemModel(ModItems.STABLE_SPACETIME_MANIFOLD);
         // EssentiaDrop：使用 CustomMeshDefinition 让所有 damage 值都映射到同一个模型路径
-        ModelLoader.setCustomMeshDefinition(ModItems.ESSENTIA_DROP, stack ->
-                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
+        if (ModItems.ESSENTIA_DROP != null) {
+            ModelLoader.setCustomMeshDefinition(ModItems.ESSENTIA_DROP, stack ->
+                    new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
+        }
 
         // FluidDrop：同样使用 CustomMeshDefinition，所有 NBT 变体共用同一模型路径
         ModelLoader.setCustomMeshDefinition(ModItems.FLUID_DROP, stack ->

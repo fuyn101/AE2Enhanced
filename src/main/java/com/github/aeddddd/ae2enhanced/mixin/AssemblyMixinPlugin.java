@@ -46,9 +46,7 @@ public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader 
                 "mixins.ae2enhanced.late.json",
                 "mixins.ae2enhanced.late.thaumic.json"
         ));
-        if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
-            configs.add("mixins.ae2enhanced.late.gas.json");
-        }
+        configs.add("mixins.ae2enhanced.late.gas.json");
         return configs;
     }
 }

@@ -3,13 +3,11 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.me.SlotME;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
-import net.minecraft.client.Minecraft;
+import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import net.minecraft.client.gui.inventory.GuiContainer;
-import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,15 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * E2a：在标准 AE2 物品终端中渲染源质假物品的 tooltip。
- * 本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中，仅处理源质。
- * 流体/气体的 tooltip 由独立的 MixinGuiMEMonitorableFluid/Gas 处理。
+ * E2a：在标准 AE2 物品终端中渲染流体假物品的 tooltip。
+ * 本 mixin 位于 mixins.ae2enhanced.late.json 中，无条件加载。
  */
-@Mixin(value = GuiMEMonitorable.class, remap = false, priority = 1100)
-public class MixinGuiMEMonitorable {
+@Mixin(value = GuiMEMonitorable.class, remap = false, priority = 1099)
+public class MixinGuiMEMonitorableFluid {
 
     @Inject(method = "renderHoveredToolTip", at = @At("HEAD"), cancellable = true)
-    private void ae2enhanced$onRenderTooltip(int mouseX, int mouseY, CallbackInfo ci) {
+    private void ae2enhanced$onRenderTooltipFluid(int mouseX, int mouseY, CallbackInfo ci) {
         GuiContainer screen = (GuiContainer) (Object) this;
         Slot slot = screen.getSlotUnderMouse();
         if (!(slot instanceof SlotME) || !slot.getHasStack()) {
@@ -35,14 +32,14 @@ public class MixinGuiMEMonitorable {
         }
 
         ItemStack stack = slot.getStack();
-        if (!FakeEssentias.isEssentiaFakeItem(stack)) {
+        if (!ItemFluidDrop.isFluidDrop(stack)) {
             return;
         }
 
-        String aspectTag = ItemEssentiaDrop.getAspectTag(stack);
-        String aspectName = aspectTag != null ? aspectTag : "Unknown";
+        FluidStack fluid = ItemFluidDrop.getFluidStack(stack);
+        String name = fluid != null ? fluid.getLocalizedName() : "Unknown Fluid";
         List<String> tooltip = new ArrayList<>();
-        tooltip.add("\u00A7b" + "Essentia: " + aspectName);
+        tooltip.add("\u00A7b" + "Fluid: " + name);
 
         long amount = getAEStackSize(slot, stack);
         tooltip.add("\u00A77" + "Amount: " + amount);
@@ -59,24 +56,5 @@ public class MixinGuiMEMonitorable {
             }
         }
         return stack.getCount();
-    }
-
-    /**
-     * 阻止玩家将源质假物品从鼠标拖入 AE2 终端槽位。
-     */
-    @Inject(method = "func_184098_a", at = @At("HEAD"), cancellable = true)
-    private void ae2enhanced$onHandleMouseClickEssentia(Slot slot, int slotId, int mouseButton, ClickType clickType, CallbackInfo ci) {
-        if (!(slot instanceof SlotME)) {
-            return;
-        }
-
-        ItemStack mouseItem = Minecraft.getMinecraft().player.inventory.getItemStack();
-        if (mouseItem.isEmpty()) {
-            return;
-        }
-
-        if (FakeEssentias.isEssentiaFakeItem(mouseItem)) {
-            ci.cancel();
-        }
     }
 }

@@ -11,11 +11,14 @@
     "MixinCreativeCellInventory",
     "MixinToolMatterCannon",
     "MixinInventoryPlayer",
-    "MixinNetworkMonitorFluid"
+    "MixinNetworkMonitorFluid",
+    "MixinNetworkInventoryHandlerFluid"
   ],
   "client": [
     "MixinGuiCraftAmount",
-    "MixinGuiCraftConfirm"
+    "MixinGuiCraftConfirm",
+    "MixinGuiMEMonitorableFluid",
+    "MixinGuiMEMonitorableHandleClick"
   ],
   "server": []
 }

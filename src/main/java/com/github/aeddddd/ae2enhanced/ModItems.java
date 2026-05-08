@@ -28,7 +28,9 @@ public class ModItems {
         CONFORMAL_CHARGE = new ItemConformalCharge();
         DIFFERENTIAL_FORM_STABILIZER = new ItemDifferentialFormStabilizer();
         STABLE_SPACETIME_MANIFOLD = new ItemStableSpacetimeManifold();
-        ESSENTIA_DROP = new ItemEssentiaDrop();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
+            ESSENTIA_DROP = new ItemEssentiaDrop();
+        }
         FLUID_DROP = new ItemFluidDrop();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
             GAS_DROP = new ItemGasDrop();
@@ -41,7 +43,9 @@ public class ModItems {
         event.getRegistry().register(CONFORMAL_CHARGE);
         event.getRegistry().register(DIFFERENTIAL_FORM_STABILIZER);
         event.getRegistry().register(STABLE_SPACETIME_MANIFOLD);
-        event.getRegistry().register(ESSENTIA_DROP);
+        if (ESSENTIA_DROP != null) {
+            event.getRegistry().register(ESSENTIA_DROP);
+        }
         event.getRegistry().register(FLUID_DROP);
         if (GAS_DROP != null) {
             event.getRegistry().register(GAS_DROP);
