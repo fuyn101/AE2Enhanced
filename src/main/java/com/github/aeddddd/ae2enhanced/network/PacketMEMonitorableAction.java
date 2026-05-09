@@ -144,6 +144,9 @@ public class PacketMEMonitorableAction implements IMessage {
             // 从 NBT 重建 ItemStack，再用 FakeItemRegister 解析流体
             ItemStack definition = new ItemStack(message.getNbt());
             FluidStack targetFluid = FakeItemRegister.getStack(definition);
+            if (targetFluid != null) {
+                targetFluid.amount = Integer.MAX_VALUE;
+            }
 
             IMEMonitor<IAEFluidStack> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
@@ -188,6 +191,9 @@ public class PacketMEMonitorableAction implements IMessage {
 
             ItemStack definition = new ItemStack(message.getNbt());
             GasStack targetGas = FakeItemRegister.getStack(definition);
+            if (targetGas != null) {
+                targetGas.amount = Integer.MAX_VALUE;
+            }
 
             IMEMonitor<IAEGasStack> gasStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
 

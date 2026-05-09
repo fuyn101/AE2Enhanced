@@ -52,7 +52,9 @@ public class GasDropModel extends FluidDropModel {
     public static class Loader implements ICustomModelLoader {
         @Override
         public boolean accepts(ResourceLocation modelLocation) {
-            return modelLocation.equals(MODEL_LOCATION);
+            String loc = modelLocation.toString();
+            String expected = MODEL_LOCATION.toString();
+            return loc.equals(expected) || loc.startsWith(expected + "#");
         }
 
         @Override
