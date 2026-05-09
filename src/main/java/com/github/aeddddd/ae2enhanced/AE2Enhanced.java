@@ -5,6 +5,8 @@ import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import com.github.aeddddd.ae2enhanced.util.FakeFluids;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import com.github.aeddddd.ae2enhanced.network.PacketCraftRequestLong;
 import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
@@ -70,6 +72,10 @@ public class AE2Enhanced {
     public void preInit(FMLPreInitializationEvent event) {
         ConfigManager.sync(MOD_ID, net.minecraftforge.common.config.Config.Type.INSTANCE);
         ModItems.init();
+        FakeFluids.init();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
+            FakeGases.init();
+        }
         network = new SimpleNetworkWrapper(MOD_ID);
         network.registerMessage(PacketRequestAssembly.Handler.class, PacketRequestAssembly.class, 0, Side.SERVER);
         network.registerMessage(PacketPatternPage.Handler.class, PacketPatternPage.class, 1, Side.SERVER);

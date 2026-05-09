@@ -22,13 +22,13 @@ import appeng.me.helpers.PlayerSource;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
 import com.mekeng.github.common.me.storage.IGasStorageChannel;
 import io.netty.buffer.ByteBuf;
 import mekanism.api.gas.GasStack;
 import mekanism.api.gas.IGasItem;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
@@ -44,7 +44,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
  * E2a：直接容器提取/注入网络包。
- * 当玩家手持流体/气体容器点击终端假物品槽位，或空手点击时发送。
+ * 客户端发送 IAEItemStack.getDefinition() 的完整 NBT，服务器端用 FakeItemRegister 解析。
+ *
+ * 设计参考 ae2fc CpacketMEMonitorableAction。
  */
 public class PacketMEMonitorableAction implements IMessage {
 
@@ -55,29 +57,25 @@ public class PacketMEMonitorableAction implements IMessage {
 
     private byte type;
     private NBTTagCompound nbt;
-    private boolean shift;
 
     public PacketMEMonitorableAction() {
     }
 
-    public PacketMEMonitorableAction(byte type, NBTTagCompound nbt, boolean shift) {
+    public PacketMEMonitorableAction(byte type, NBTTagCompound nbt) {
         this.type = type;
         this.nbt = nbt;
-        this.shift = shift;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.type = buf.readByte();
         this.nbt = ByteBufUtils.readTag(buf);
-        this.shift = buf.readBoolean();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeByte(this.type);
         ByteBufUtils.writeTag(buf, this.nbt);
-        buf.writeBoolean(this.shift);
     }
 
     public byte getType() {
@@ -86,10 +84,6 @@ public class PacketMEMonitorableAction implements IMessage {
 
     public NBTTagCompound getNbt() {
         return nbt;
-    }
-
-    public boolean isShift() {
-        return shift;
     }
 
     public static class Handler implements IMessageHandler<PacketMEMonitorableAction, IMessage> {
@@ -106,17 +100,19 @@ public class PacketMEMonitorableAction implements IMessage {
             PlayerSource source = new PlayerSource(player, (IActionHost) cme.getTarget());
 
             ItemStack held = player.inventory.getItemStack();
+            ItemStack ch = held.copy();
+            ch.setCount(1);
 
             player.getServerWorld().addScheduledTask(() -> {
                 switch (message.getType()) {
                     case FLUID_WORK:
                         if (!held.isEmpty()) {
-                            fluidWork(message, held.copy(), grid, source, player);
+                            fluidWork(message, ch, grid, source, player);
                         }
                         break;
                     case GAS_WORK:
                         if (!held.isEmpty() && held.getItem() instanceof IGasItem) {
-                            gasWork(message, (IGasItem) held.getItem(), held.copy(), grid, source, player);
+                            gasWork(message, (IGasItem) held.getItem(), ch, grid, source, player);
                         }
                         break;
                     case FLUID_OPERATE:
@@ -145,18 +141,18 @@ public class PacketMEMonitorableAction implements IMessage {
             IFluidHandlerItem fh = FluidUtil.getFluidHandler(singleHeld);
             if (fh == null) return;
 
+            // 从 NBT 重建 ItemStack，再用 FakeItemRegister 解析流体
+            ItemStack definition = new ItemStack(message.getNbt());
+            FluidStack targetFluid = FakeItemRegister.getStack(definition);
+
             IMEMonitor<IAEFluidStack> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
             boolean drain = false;
             FluidStack allFluid = fh.drain(Integer.MAX_VALUE, false);
-            FluidStack targetFluid = null;
 
-            if (message.getNbt() != null && !message.getNbt().getKeySet().isEmpty()) {
-                targetFluid = FluidStack.loadFluidStackFromNBT(message.getNbt());
-                if (targetFluid != null && allFluid != null && allFluid.amount > 0 && !allFluid.isFluidEqual(targetFluid)) {
-                    drain = true;
-                }
-            } else {
+            if (targetFluid != null && allFluid != null && allFluid.amount > 0 && !allFluid.isFluidEqual(targetFluid)) {
+                drain = true;
+            } else if (targetFluid == null) {
                 drain = true;
             }
 
@@ -170,7 +166,6 @@ public class PacketMEMonitorableAction implements IMessage {
                 fluidStorage.injectItems(allAEFluid.setStackSize(size), Actionable.MODULATE, source);
                 fh.drain((int) size, true);
             } else {
-                if (targetFluid == null) return;
                 AEFluidStack targetAEFluid = AEFluidStack.fromFluidStack(targetFluid);
                 IAEFluidStack extracted = fluidStorage.extractItems(targetAEFluid, Actionable.SIMULATE, source);
                 if (extracted == null) return;
@@ -191,19 +186,18 @@ public class PacketMEMonitorableAction implements IMessage {
                 return;
             }
 
+            ItemStack definition = new ItemStack(message.getNbt());
+            GasStack targetGas = FakeItemRegister.getStack(definition);
+
             IMEMonitor<IAEGasStack> gasStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
 
             boolean drain = false;
             GasStack allGas = ig.getGas(singleHeld);
             int allAmount = allGas == null ? 0 : allGas.amount;
-            GasStack targetGas = null;
 
-            if (message.getNbt() != null && !message.getNbt().getKeySet().isEmpty()) {
-                targetGas = GasStack.readFromNBT(message.getNbt());
-                if (targetGas != null && allGas != null && allGas.amount > 0 && !allGas.isGasEqual(targetGas)) {
-                    drain = true;
-                }
-            } else {
+            if (targetGas != null && allGas != null && allGas.amount > 0 && !allGas.isGasEqual(targetGas)) {
+                drain = true;
+            } else if (targetGas == null) {
                 drain = true;
             }
 
@@ -242,11 +236,13 @@ public class PacketMEMonitorableAction implements IMessage {
         private static void fluidOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
                                               IActionSource source, EntityPlayerMP player) {
             if (!player.inventory.getItemStack().isEmpty()) return;
-            if (message.getNbt() == null || message.getNbt().getKeySet().isEmpty()) return;
 
-            FluidStack fluid = FluidStack.loadFluidStackFromNBT(message.getNbt());
+            ItemStack definition = new ItemStack(message.getNbt());
+            FluidStack fluid = FakeItemRegister.getStack(definition);
             if (fluid == null) return;
             fluid.amount = 1000;
+
+            boolean shift = message.getNbt() != null && message.getNbt().getBoolean("shift");
 
             IMEMonitor<IAEItemStack> itemStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             IMEMonitor<IAEFluidStack> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
@@ -264,8 +260,10 @@ public class PacketMEMonitorableAction implements IMessage {
             if (filled != 1000) return;
 
             ItemStack out = fh.getContainer();
-            if (message.isShift()) {
-                if (!player.inventory.addItemStackToInventory(out)) return;
+            if (shift) {
+                int slot = player.inventory.getFirstEmptyStack();
+                if (slot == -1) return;
+                player.inventory.setInventorySlotContents(slot, out);
             } else {
                 player.inventory.setItemStack(out);
             }

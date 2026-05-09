@@ -9,8 +9,7 @@
     "MixinNetworkMonitor",
     "MixinNetworkInventoryHandler",
     "MixinGridStorageCache",
-    "MixinInventoryPlayer",
-    "MixinAEBaseContainer"
+    "MixinInventoryPlayer"
   ],
   "client": [
     "MixinGuiMEMonitorable",

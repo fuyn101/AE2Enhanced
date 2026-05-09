@@ -1,51 +1,99 @@
 package com.github.aeddddd.ae2enhanced.util;
 
-import appeng.api.AEApi;
-import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.mekeng.github.common.me.data.IAEGasStack;
-import com.mekeng.github.common.me.storage.IGasStorageChannel;
-import mekanism.api.gas.Gas;
-import mekanism.api.gas.GasRegistry;
+import com.mekeng.github.common.me.data.impl.AEGasStack;
 import mekanism.api.gas.GasStack;
 import net.minecraft.item.ItemStack;
 
 /**
- * 气体假物品的打包/解包工具类。
- * 将 MekanismEnergistics 的 IAEGasStack 与标准 AE2 的 IAEItemStack 互相转换。
+ * 气体假物品的 FakeItemHandler 实现与工具方法。
  *
- * 注意：本类直接引用 mekeng / Mekanism 的类。
- * 由于位于条件加载的 mixin 配置中，仅在 Mekanism + mekeng 存在时才会被加载。
+ * 在模组初始化时调用 FakeGases.init() 注册 handler。
  */
-public class FakeGases {
+public final class FakeGases {
 
+    public static void init() {
+        FakeItemRegister.registerHandler(ItemGasDrop.class, new FakeItemHandler<GasStack, IAEGasStack>() {
+
+            @Override
+            public GasStack getStack(ItemStack stack) {
+                return ItemGasDrop.getGasStack(stack);
+            }
+
+            @Override
+            public GasStack getStack(IAEItemStack stack) {
+                return stack == null ? null : getStack(stack.createItemStack());
+            }
+
+            @Override
+            public IAEGasStack getAEStack(ItemStack stack) {
+                return getAEStack(AEItemStack.fromItemStack(stack));
+            }
+
+            @Override
+            public IAEGasStack getAEStack(IAEItemStack stack) {
+                if (stack == null) return null;
+                GasStack gas = getStack(stack.createItemStack());
+                if (gas == null || gas.getGas() == null) return null;
+                AEGasStack result = AEGasStack.of(gas);
+                if (result != null) {
+                    result.setStackSize(stack.getStackSize());
+                }
+                return result;
+            }
+
+            @Override
+            public ItemStack packStack(GasStack gas) {
+                return ItemGasDrop.createStack(gas);
+            }
+
+            @Override
+            public IAEItemStack packAEStack(GasStack gas) {
+                if (gas == null || gas.amount <= 0) return null;
+                IAEItemStack stack = AEItemStack.fromItemStack(packStack(gas));
+                if (stack == null) return null;
+                stack.setStackSize(gas.amount);
+                return stack;
+            }
+
+            @Override
+            public IAEItemStack packAEStackLong(IAEGasStack gas) {
+                if (gas == null || gas.getStackSize() <= 0) return null;
+                IAEItemStack stack = AEItemStack.fromItemStack(
+                        ItemGasDrop.createStack(new GasStack(gas.getGas(), 1)));
+                if (stack == null) return null;
+                stack.setStackSize(gas.getStackSize());
+                return stack;
+            }
+        });
+    }
+
+    public static boolean isGasFakeItem(ItemStack stack) {
+        return ItemGasDrop.isGasDrop(stack);
+    }
+
+    public static ItemStack packGas2Drops(GasStack stack) {
+        return FakeItemRegister.packStack(stack, ModItems.GAS_DROP);
+    }
+
+    public static IAEItemStack packGas2AEDrops(GasStack stack) {
+        return FakeItemRegister.packAEStack(stack, ModItems.GAS_DROP);
+    }
+
+    public static IAEItemStack packGas2AEDrops(IAEGasStack stack) {
+        return FakeItemRegister.packAEStackLong(stack, ModItems.GAS_DROP);
+    }
+
+    // 兼容方法：供 MixinNetworkMonitorGas / MixinNetworkInventoryHandlerGas 调用
     public static IAEItemStack packGas(IAEGasStack gasStack) {
-        if (gasStack == null || gasStack.getGasStack() == null) return null;
-        GasStack gas = gasStack.getGasStack();
-        String gasName = gas.getGas().getName();
-        ItemStack fakeItem = ItemGasDrop.createStack(gasName, 1);
-        IAEItemStack result = AEApi.instance().storage()
-                .getStorageChannel(IItemStorageChannel.class).createStack(fakeItem);
-        if (result != null) {
-            result.setStackSize(gasStack.getStackSize());
-        }
-        return result;
+        return packGas2AEDrops(gasStack);
     }
 
     public static IAEGasStack unpackGas(IAEItemStack itemStack) {
-        if (itemStack == null) return null;
-        ItemStack mcStack = itemStack.createItemStack();
-        String gasName = ItemGasDrop.getGasName(mcStack);
-        if (gasName == null) return null;
-        Gas gas = GasRegistry.getGas(gasName);
-        if (gas == null) return null;
-        GasStack gasStack = new GasStack(gas, 1);
-        IGasStorageChannel channel = AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
-        IAEGasStack result = channel.createStack(gasStack);
-        if (result != null) {
-            result.setStackSize(itemStack.getStackSize());
-        }
-        return result;
+        return FakeItemRegister.getAEStack(itemStack);
     }
 }

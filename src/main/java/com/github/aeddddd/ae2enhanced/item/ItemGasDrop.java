@@ -2,20 +2,24 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
-import com.github.aeddddd.ae2enhanced.client.render.GasItemRenderer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraft.util.NonNullList;
+import net.minecraft.creativetab.CreativeTabs;
+import mekanism.api.gas.Gas;
+import mekanism.api.gas.GasRegistry;
+import mekanism.api.gas.GasStack;
 
 /**
  * 气体假物品（Gas Drop）。
  * 用于在标准 AE2 物品终端中显示 Mekanism 气体存储。
  *
- * 关键设计：使用 NBT 存储气体名称字符串（不直接引用 Mekanism 类，便于条件加载）。
+ * 关键设计：使用 NBT 存储气体注册名，不直接依赖 metadata。
  */
 public class ItemGasDrop extends Item {
+
+    private static final String GAS_TAG = "GasName";
 
     public ItemGasDrop() {
         setRegistryName(AE2Enhanced.MOD_ID, "gas_drop");
@@ -26,13 +30,27 @@ public class ItemGasDrop extends Item {
     /**
      * 创建指定气体类型的假物品堆叠。
      */
-    public static ItemStack createStack(String gasName, int amount) {
-        ItemStack stack = new ItemStack(ModItems.GAS_DROP, 1);
+    public static ItemStack createStack(GasStack gas) {
+        if (gas == null || gas.getGas() == null || gas.amount <= 0) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = new ItemStack(ModItems.GAS_DROP, gas.amount);
         NBTTagCompound tag = new NBTTagCompound();
-        tag.setString("GasName", gasName);
-        tag.setInteger("Amt", amount);
+        tag.setString(GAS_TAG, gas.getGas().getName());
         stack.setTagCompound(tag);
         return stack;
+    }
+
+    /**
+     * 从 ItemStack 中提取 GasStack。
+     */
+    public static GasStack getGasStack(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof ItemGasDrop)) return null;
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null || !tag.hasKey(GAS_TAG, 8)) return null;
+        Gas gas = GasRegistry.getGas(tag.getString(GAS_TAG));
+        if (gas == null) return null;
+        return new GasStack(gas, stack.getCount());
     }
 
     /**
@@ -41,7 +59,7 @@ public class ItemGasDrop extends Item {
     public static String getGasName(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemGasDrop)) return null;
         NBTTagCompound tag = stack.getTagCompound();
-        return tag != null ? tag.getString("GasName") : null;
+        return tag != null ? tag.getString(GAS_TAG) : null;
     }
 
     /**
@@ -53,20 +71,12 @@ public class ItemGasDrop extends Item {
 
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
-        String gasName = getGasName(stack);
-        return gasName != null ? gasName : super.getItemStackDisplayName(stack);
+        GasStack gas = getGasStack(stack);
+        return gas != null ? gas.getGas().getLocalizedName() : super.getItemStackDisplayName(stack);
     }
 
     @Override
-    public void getSubItems(net.minecraft.creativetab.CreativeTabs tab, net.minecraft.util.NonNullList<ItemStack> items) {
+    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
         // 不返回任何子类型，避免 JEI 索引
-    }
-
-    /**
-     * 客户端初始化：注册自定义 TileEntityItemStackRenderer。
-     */
-    @SideOnly(Side.CLIENT)
-    public void initModel() {
-        this.setTileEntityItemStackRenderer(GasItemRenderer.INSTANCE);
     }
 }

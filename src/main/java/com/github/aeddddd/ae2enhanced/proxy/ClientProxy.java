@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.proxy;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
+import com.github.aeddddd.ae2enhanced.client.model.GasDropModel;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaItemRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
@@ -23,6 +25,7 @@ import net.minecraftforge.client.event.ModelBakeEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
+import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -48,19 +51,11 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
-        // E2a：注册 EssentiaDrop / FluidDrop 的内置物品渲染器
+        // E2a：注册 EssentiaDrop 的内置物品渲染器（流体/气体使用标准模型系统）
         if (ModItems.ESSENTIA_DROP != null) {
             AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
             ModItems.ESSENTIA_DROP.initModel();
             AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
-        }
-        if (ModItems.FLUID_DROP != null) {
-            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for FLUID_DROP");
-            ModItems.FLUID_DROP.initModel();
-        }
-        if (ModItems.GAS_DROP != null) {
-            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for GAS_DROP");
-            ModItems.GAS_DROP.initModel();
         }
     }
 
@@ -107,14 +102,6 @@ public class ClientProxy extends CommonProxy {
 
             ModelResourceLocation locationEssentia = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
             registry.putObject(locationEssentia, new EssentiaPacketModel.BakedEssentiaPacketModel());
-
-            ModelResourceLocation locationFluid = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":fluid_drop", "inventory");
-            registry.putObject(locationFluid, new EssentiaPacketModel.BakedEssentiaPacketModel());
-
-            if (ModItems.GAS_DROP != null) {
-                ModelResourceLocation locationGas = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":gas_drop", "inventory");
-                registry.putObject(locationGas, new EssentiaPacketModel.BakedEssentiaPacketModel());
-            }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to replace essentia_drop model", e);
         }
@@ -163,14 +150,15 @@ public class ClientProxy extends CommonProxy {
                     new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
         }
 
-        // FluidDrop：同样使用 CustomMeshDefinition，所有 NBT 变体共用同一模型路径
-        ModelLoader.setCustomMeshDefinition(ModItems.FLUID_DROP, stack ->
-                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":fluid_drop", "inventory"));
+        // 注册 FluidDrop / GasDrop 的自定义模型加载器
+        ModelLoaderRegistry.registerLoader(new FluidDropModel.Loader());
+        ModelLoader.setCustomModelResourceLocation(ModItems.FLUID_DROP, 0,
+                new ModelResourceLocation(FluidDropModel.MODEL_LOCATION, "inventory"));
 
-        // GasDrop：条件注册，仅在 Mekanism + mekeng 存在时
         if (ModItems.GAS_DROP != null) {
-            ModelLoader.setCustomMeshDefinition(ModItems.GAS_DROP, stack ->
-                    new ModelResourceLocation(AE2Enhanced.MOD_ID + ":gas_drop", "inventory"));
+            ModelLoaderRegistry.registerLoader(new GasDropModel.Loader());
+            ModelLoader.setCustomModelResourceLocation(ModItems.GAS_DROP, 0,
+                    new ModelResourceLocation(GasDropModel.MODEL_LOCATION, "inventory"));
         }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
