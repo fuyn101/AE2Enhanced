@@ -24,6 +24,7 @@ import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -70,6 +71,7 @@ public class ClientProxy extends CommonProxy {
 
     @SideOnly(Side.CLIENT)
     @SubscribeEvent
+    @Optional.Method(modid = "thaumcraft")
     public static void onTextureStitch(TextureStitchEvent.Pre event) {
         // 将 Thaumcraft 的所有 aspect 纹理注册到 texture atlas
         try {
