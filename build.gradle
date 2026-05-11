@@ -25,7 +25,7 @@ compileJava {
 sourceSets {
     main {
         java {
-            srcDir 'src/api/java'
+            srcDirs = ['src/main/java']
         }
     }
 }
@@ -83,6 +83,22 @@ processResources {
     }
 }
 
+// runClient 时自动检测 HEI：若 mods 文件夹中存在 HEI，则排除原版 JEI jar，
+// 避免原版 JEI 与 HEI 的类冲突；若只有原版 JEI，则保持兼容。
+afterEvaluate {
+    tasks.runClient {
+        doFirst {
+            def hasHEI = fileTree('run/mods').matching { include '**/HadEnoughItems*.jar' }.files.size() > 0
+            if (hasHEI) {
+                classpath = classpath.filter { file ->
+                    !file.name.contains('jei_1.12.2-4.16.1')
+                }
+                println "[AE2Enhanced] Detected HEI in run/mods, excluded vanilla JEI from runtime classpath."
+            }
+        }
+    }
+}
+
 jar {
     // 排除 JEI 内部类的编译期 stub，避免与运行时 JEI/HEI 的类冲突
     exclude 'mezz/jei/**'
@@ -90,8 +106,7 @@ jar {
         attributes([
             'FMLCorePluginContainsFMLMod': true,
             'ForceLoadAsMod': true,
-            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin',
-            'MixinConfigs': 'mixins.ae2enhanced.late.json,mixins.ae2enhanced.late.thaumic.json,mixins.ae2enhanced.late.gas.json'
+            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
         ])
     }
 }

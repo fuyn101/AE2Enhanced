@@ -21,13 +21,20 @@ public class GasMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void onLoad(String mixinPackage) {
+        // CleanroomMC 兼容：使用 getResource 检查类文件是否存在，避免 Class.forName 触发 transformer
+        // 导致类被 ActualClassLoader 标记为 invalid，进而导致 MekanismEnergistics 自身初始化失败
         try {
-            Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-            gasChannelLoaded = true;
-            LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel found, gas mixins ENABLED");
-        } catch (ClassNotFoundException e) {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            java.net.URL url = cl.getResource("com/mekeng/github/common/me/storage/IGasStorageChannel.class");
+            gasChannelLoaded = url != null;
+            if (gasChannelLoaded) {
+                LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel found, gas mixins ENABLED");
+            } else {
+                LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel NOT found, gas mixins DISABLED");
+            }
+        } catch (Exception e) {
             gasChannelLoaded = false;
-            LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel NOT found, gas mixins DISABLED");
+            LOGGER.info("[AE2E] GasMixinPlugin: detection failed, gas mixins DISABLED");
         }
     }
 

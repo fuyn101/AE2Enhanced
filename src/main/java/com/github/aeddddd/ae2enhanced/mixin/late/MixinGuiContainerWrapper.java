@@ -16,7 +16,7 @@ import java.awt.Rectangle;
  * 转换为对应的 FluidStack / GasStack / crystal essence ItemStack，
  * 使 JEI 的 R/U 查询能够正确识别。
  *
- * 复刻 ae2fc MixinGuiContainerWrapper，使用 MixinExtras @WrapOperation。
+ * 对齐 ae2fc 实现：使用 @Mixin(value) 类字面量 + 实例方法 handler。
  */
 @Mixin(value = GuiContainerWrapper.class, remap = false)
 public class MixinGuiContainerWrapper {
@@ -28,7 +28,7 @@ public class MixinGuiContainerWrapper {
             target = "Lmezz/jei/input/ClickedIngredient;create(Ljava/lang/Object;Ljava/awt/Rectangle;)Lmezz/jei/input/ClickedIngredient;"
         )
     )
-    private static <V> ClickedIngredient<V> ae2enhanced$wrapClickedIngredient(V ingredient, Rectangle area, Operation<ClickedIngredient<V>> original) {
+    private <V> ClickedIngredient<V> ae2enhanced$wrapClickedIngredient(V ingredient, Rectangle area, Operation<ClickedIngredient<V>> original) {
         return original.call(JeiIngredientHelper.wrapIngredient(ingredient), area);
     }
 }

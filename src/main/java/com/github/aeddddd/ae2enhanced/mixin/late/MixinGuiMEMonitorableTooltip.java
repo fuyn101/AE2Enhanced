@@ -6,7 +6,6 @@ import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import net.minecraft.client.gui.GuiScreen;
@@ -17,8 +16,10 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fluids.FluidStack;
-import org.spongepowered.asm.mixin.Intrinsic;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -32,11 +33,7 @@ import java.util.Locale;
  * - targeting GuiMEMonitorable（与 ae2fc 一致）
  * - 使用 remap=false + obfuscated 名 "func_191948_b"
  *   （AE2-UEL jar 保留 obfuscated 名，且 AEBaseGui 在开发环境中无 MCP 名 renderHoveredToolTip）
- * - 继承 GuiContainer 以便调用 super.renderHoveredToolTip（reobfJar 会全局重映射为 func_191948_b）
- * - 手持容器时：renderContainerToolTip
- * - 空手悬停流体槽位：rendererFluid
- * - 空手悬停气体槽位：rendererGas
- * - 空手悬停源质槽位：rendererEssentia
+ * - @Inject at HEAD + cancellable，替代错误的 @Intrinsic
  */
 @Mixin(value = GuiMEMonitorable.class, remap = false, priority = 1099)
 public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
@@ -45,10 +42,9 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
         super(container);
     }
 
-    @Intrinsic
-    public void func_191948_b(int mouseX, int mouseY) {
+    @Inject(method = "func_191948_b", at = @At("HEAD"), cancellable = true)
+    public void ae2enhanced$onRenderHoveredToolTip(int mouseX, int mouseY, CallbackInfo ci) {
         if (Ae2fcCompat.AE2FC_LOADED) {
-            super.renderHoveredToolTip(mouseX, mouseY);
             return;
         }
 
@@ -57,6 +53,7 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
             ItemStack mouseItem = this.mc.player.inventory.getItemStack();
             if (!mouseItem.isEmpty()) {
                 if (renderContainerToolTip(this, mouseX, mouseY)) {
+                    ci.cancel();
                     return;
                 }
             } else {
@@ -64,23 +61,25 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
                 if (aeStack != null) {
                     if (aeStack.getItem() == ModItems.FLUID_DROP) {
                         if (rendererFluid(this, aeStack, mouseX, mouseY)) {
+                            ci.cancel();
                             return;
                         }
                     }
                     if (ModItems.GAS_DROP != null && aeStack.getItem() == ModItems.GAS_DROP) {
                         if (rendererGas(this, aeStack, mouseX, mouseY)) {
+                            ci.cancel();
                             return;
                         }
                     }
                     if (ModItems.ESSENTIA_DROP != null && aeStack.getItem() == ModItems.ESSENTIA_DROP) {
                         if (rendererEssentia(this, aeStack, mouseX, mouseY)) {
+                            ci.cancel();
                             return;
                         }
                     }
                 }
             }
         }
-        super.renderHoveredToolTip(mouseX, mouseY);
     }
 
     /* ================================================================ */

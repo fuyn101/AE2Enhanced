@@ -20,13 +20,20 @@ public class ThaumicMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void onLoad(String mixinPackage) {
+        // CleanroomMC 兼容：使用 getResource 检查类文件是否存在，避免 Class.forName 触发 transformer
+        // 导致类被 ActualClassLoader 标记为 invalid，进而导致 Thaumic Energistics 自身初始化失败
         try {
-            Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-            thaumicEnergisticsLoaded = true;
-            LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel found, thaumic mixins ENABLED");
-        } catch (ClassNotFoundException e) {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            java.net.URL url = cl.getResource("thaumicenergistics/api/storage/IEssentiaStorageChannel.class");
+            thaumicEnergisticsLoaded = url != null;
+            if (thaumicEnergisticsLoaded) {
+                LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel found, thaumic mixins ENABLED");
+            } else {
+                LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel NOT found, thaumic mixins DISABLED");
+            }
+        } catch (Exception e) {
             thaumicEnergisticsLoaded = false;
-            LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel NOT found, thaumic mixins DISABLED");
+            LOGGER.info("[AE2E] ThaumicMixinPlugin: detection failed, thaumic mixins DISABLED");
         }
     }
 

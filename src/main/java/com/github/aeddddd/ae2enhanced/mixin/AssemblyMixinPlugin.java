@@ -1,19 +1,19 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
 import net.minecraftforge.common.ForgeVersion;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
-import zone.rong.mixinbooter.ILateMixinLoader;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * Coremod 空壳。
+ * ILateMixinLoader 功能已迁移到 {@link LateMixinLoader}，避免 coremod 过早加载
+ * 导致 CleanroomMC ActualClassLoader 将 JEI 内部类标记为 invalid。
+ */
 @IFMLLoadingPlugin.MCVersion(ForgeVersion.mcVersion)
 @IFMLLoadingPlugin.Name("AE2EnhancedMixinPlugin")
-public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader {
+public class AssemblyMixinPlugin implements IFMLLoadingPlugin {
 
     @Override
     public String[] getASMTransformerClass() {
@@ -38,14 +38,5 @@ public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader 
     @Override
     public String getAccessTransformerClass() {
         return null;
-    }
-
-    @Override
-    public List<String> getMixinConfigs() {
-        return Arrays.asList(
-                "mixins.ae2enhanced.late.json",
-                "mixins.ae2enhanced.late.thaumic.json",
-                "mixins.ae2enhanced.late.gas.json"
-        );
     }
 }
