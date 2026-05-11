@@ -1,46 +1,38 @@
 # AE2Enhanced
 
-AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组, 为后期游戏引入了多个大型多方块结构:
+AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组, 为后期游戏引入了多个大型多方块结构以及一系列实用物品:
 
-- **超因果装配枢纽** —— 类似 LazyAE 大型分子装配室的巨型合成阵列, 以极高的并行和速度执行合成样板.
-- **超维度仓储中枢** —— 突破 `long` 上限的无限容量存储结构, 支持物品、流体、气体(Mekanism)与源质(Thaumcraft), 数据持久化至外部文件, 避免存档膨胀.
+*当前版本:1.3.3,开发版本1.4.0-dev*
+>目前关于修改和实用物品的添加仍处于dev开发中,当完成开发后会发布Release
+
+## 多方块部分
+
+- **超因果装配枢纽** —— 类似 LazyAE 大型分子装配室的巨型合成阵列, 以极高的并行(最高并行上限达到 `Long.MAX_VALUE`)执行合成样板,并且额外提供样板自动上传模块.
+- **超维度仓储中枢** —— 达到 `BigInteger` 上限的无限容量存储结构, 支持物品、流体、气体(Mekanism)与源质(Thaumcraft), 数据持久化至外部文件, 避免存档膨胀, 并且不会因为存储大量NBT造成的卡顿和溢出问题.
 - **超因果计算核心** —— 超级合成 CPU, 拥有 `Long.MAX_VALUE` 合成存储容量和 16384 并行加速器槽位, 支持动态虚拟 CPU 集群池实现多订单并发.
 
 ---
 
-## 超因果装配枢纽
-
-基础运行参数为 **64 并行, 1 秒每次**, 相当于 `LazyAE` 大型分子装配室在不修改配置文件时的最强表现.
-
-**需要强调, 装配枢纽并行不依赖 CPU 并行!**
-
-安装全部 5 个并行升级后, 并行上限达到 `Long.MAX_VALUE`, 在绝大多数整合包中等价于无穷大(这甚至超过了 `1.12.2 AE` 终端的显示上限!).
-
-速度升级允许将冷却从默认的 `20 ticks` 压缩至 `1 tick`, 合成不再成为工厂发展的瓶颈.
-
-此外, 多方块提供了类似高版本 `EAEP` 装配矩阵上传核心的**自动上传模块**, 允许将编码好的合成样板自动上传到枢纽中, 同时具备重复检测功能, 重复样板不会二次上传.
+## 对AE2-uel的修改
+- 支持下单超过`Int.MAX_VALUE`的物品
+- 合成计划优化, 把高版本的合成计划中缺失物品置顶功能带回了`1.12.2`
+- 修改创造物品元件的存储物品数量为`Long.MAX_VALUE`
+- **更现代的ME终端**: 现在你可以丢掉流体终端,气体终端甚至源质终端, 现在所有的东西都会统一显示在一个终端中, 就像高版本那样(感谢 [AE2fc-rework-unofficial](https://github.com/Circulate233/AE2FluidCraft-Rework-Unofficial/tree/main) 的部分代码,我参考了部分实现方式, 并且保证了相关兼容性) 
+- 对于其他Qol改进(例如合成置顶), 可以使用 [RandomComplement](https://github.com/Circulate233/RandomComplement) 这个mod提供了许多高版本AE2功能
 
 ---
 
-## 超维度仓储中枢
-
-专为解决后期 AE2 网络存储容量瓶颈而设计.
-
-- **BigInteger 级容量**: 单结构容量理论上无上限, 彻底绕过 `int`/`long` 限制
-- **多类型兼容**: 原生支持物品、流体; 可选支持 Mekanism 气体与 Thaumcraft 源质(需安装对应模组)
-- **外部文件持久化**: 数据存储于 `<world>/ae2enhanced/storage/<uuid>.dat`, 避免因为存储大量NBT造成的卡顿和溢出问题.
-- **安全模式**: 文件异常时自动进入只读状态, 防止数据损坏, 并且支持安全的Mod版本更新, 不会因为更新mod丢失物品.
-- **第三方扩展**: 提供 `registerExternalAdapter()` API, 其他模组可接入自定义存储类型
-
----
-
-## 超因果计算核心
-
-第三阶段多方块结构, 充当 AE2 网络的**超级合成 CPU**.
-
-- **海量合成存储**: `Long.MAX_VALUE` 字节合成存储容量 —— 对绝大多数的实际订单而言等同于无限.
-- **16384 加速器容量**: 可通过 `config/ae2enhanced.cfg` 中的 `crafting.maxParallel` 配置.
-- **多订单并发**: 动态生成虚拟 `CraftingCPUCluster` 实例处理并发合成任务. **始终保留至少 1 个空闲 CPU**, 确保随时可下新订单; 订单完成后空闲的额外集群自动回收.
+## 额外添加的实用物品
+- **通用输入总线,输出总线** 允许使用单个总线完成所有类型的IO操作
+- **库存总线** 可以维持目标容器中物品的数量
+- 无线频道发生器, 允许把自身频道发送出去
+- 频道接收卡, 允许接收来自无线频道发生器的频道(不限维度和距离,配置可调)
+- ME接口镜像, 允许镜像ME接口
+- 通用内存卡, 具有普通内存卡的功能, 额外允许复制机器配置和升级卡, 允许批量更改, 允许连接ME接口镜像
+- ME发送节点, 允许批量无线发送物品(类似输出总线), 使用通用内存卡来设置范围
+- ME收取节点, ME发送节点的对应版本
+- 并发卡, 允许增加AE的IO设备的并行
+- ME收集节点, 允许从世界中收集物品到ME网络
 
 ---
 
@@ -58,34 +50,28 @@ AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组
 ### 计算核心
 虚拟 CPU 集群将实际合成委托给现有的网络装配室和 ME 接口, 最小化开销. 动态池确保资源仅在需要时分配, 且始终保留 1 个空闲 CPU 供终端下单使用.
 
-> 目前内置了气体(Mekanism)与源质(Thaumcraft)的支持, 在安装对应Mod后自动启用, 对于其他存储类型的支持可以在`issues`中提出, 并且提供了api便于扩展.
 
 ---
 
-## 配置文件
-
-位于 `config/ae2enhanced.cfg`, 提供以下可调参数:
-
-| 分类 | 参数 | 说明 |
-|---|---|---|
-| Storage | `flushIntervalSeconds` | 存储文件自动刷盘间隔 (秒, 默认 5) |
-| Render | `enableHyperdimensionalRenderer` | 是否启用特效渲染 (默认 true) |
-| Render | `renderDistance` | 最大渲染距离 (方块, 默认 64) |
-| BlackHole | `damageMode` | 黑洞伤害模式: ALL / NON_CREATIVE / NONE (默认 ALL) |
-| Crafting | `maxParallel` | 计算核心并行容量 (默认 16384) |
-
----
-
-## 需求
+## 前置相关
 
 - **Minecraft**: 1.12.2
 - **Forge**: 14.23.5.2768+
+
+**硬依赖**
 - **AE2-UEL**: v0.56.7+
 - **MixinBooter**: 8.9+
 
-可选前置:
-- **Mekanism + MekanismEnergistics** —— 启用气体存储支持
-- **Thaumcraft + Thaumic Energistics** —— 启用源质存储支持
+**可选**
+- **ctm** 提供连接纹理
+- **Mekanism + MekanismEnergistics** 启用气体存储支持
+- **Thaumcraft + Thaumic Energistics** 启用源质存储支持
+- **CraftTweak** 提供合成修改方法
+- **JEI/HEI** 相关支持
+
+**兼容**
+- **AE2fc-rework-unofficial** 不重复注册假流体
+
 
 ---
 
