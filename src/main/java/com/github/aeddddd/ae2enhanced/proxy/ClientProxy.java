@@ -16,6 +16,8 @@ import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
+import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
+import mekanism.api.gas.GasStack;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.IBakedModel;
@@ -56,6 +58,16 @@ public class ClientProxy extends CommonProxy {
             AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
             ModItems.ESSENTIA_DROP.initModel();
             AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
+        }
+        // E2a：注册气体假物品的 ItemColors，根据气体 tint 染色（复刻 ae2fc ClientProxy.init）
+        if (ModItems.GAS_DROP != null) {
+            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
+                if (tintIndex == 0) {
+                    return -1;
+                }
+                GasStack gas = FakeItemRegister.getStack(stack);
+                return gas != null ? gas.getGas().getTint() | 0xFF000000 : -1;
+            }, ModItems.GAS_DROP);
         }
     }
 

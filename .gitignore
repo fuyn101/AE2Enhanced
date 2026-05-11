@@ -38,6 +38,7 @@ bin/
 
 ### VS Code ###
 .vscode/
+*.code-workspace
 
 ### Project Docs (private) — DO NOT COMMIT ###
 Plan.md
@@ -78,7 +79,8 @@ Hyperdimensional Storage Nexus.json
 inspection_reports/
 
 ### Decompiled / Temp ###
-decompiled/
+*decompile*/
+
 
 ### Runtime generated (Mixin refmaps / decompiled classes) ###
 /appeng/
@@ -86,3 +88,4 @@ decompiled/
 /mekanism/
 /mixins.ae2enhanced.json
 /mixins.ae2fc.json
+log/

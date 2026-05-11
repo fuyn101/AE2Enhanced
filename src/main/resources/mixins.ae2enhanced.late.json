@@ -18,12 +18,14 @@
     "MixinTileIOPort"
   ],
   "client": [
-    "MixinGuiMEMonitorableHandleClick",
+    "MixinGuiMEMonitorableClick",
+    "MixinGuiMEMonitorableTooltip",
     "MixinGuiFluidTerminalHandleClick",
     "MixinGuiCraftAmount",
     "MixinGuiCraftConfirm",
-    "MixinGuiMEMonitorableFluid",
-    "MixinGuiCellWorkbench"
+    "MixinGuiCellWorkbench",
+    "MixinGuiContainerWrapper",
+    "MixinGuiScreenHelper"
   ],
   "server": []
 }

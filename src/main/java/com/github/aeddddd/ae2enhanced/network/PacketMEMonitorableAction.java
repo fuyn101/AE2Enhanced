@@ -198,8 +198,10 @@ public class PacketMEMonitorableAction implements IMessage {
                 return;
             }
 
-            ItemStack definition = new ItemStack(message.getNbt());
-            GasStack targetGas = FakeItemRegister.getStack(definition);
+            GasStack targetGas = null;
+            if (message.getNbt() != null && !message.getNbt().isEmpty()) {
+                targetGas = GasStack.readFromNBT(message.getNbt());
+            }
             if (targetGas != null) {
                 targetGas.amount = Integer.MAX_VALUE;
             }
@@ -224,8 +226,8 @@ public class PacketMEMonitorableAction implements IMessage {
                 long size = allAEGas.getStackSize() - (notInjected == null ? 0L : notInjected.getStackSize());
                 if (size <= 0) return;
                 gasStorage.injectItems(allAEGas.setStackSize(size), Actionable.MODULATE, source);
-                allGas.amount -= (int) size;
-                ig.setGas(singleHeld, allGas);
+                // 使用 IGasItem.removeGas 让 Mekanism 自行处理创造模式（创造模式不会减少储量）
+                ig.removeGas(singleHeld, (int) size);
             } else {
                 if (targetGas == null) return;
                 AEGasStack targetAEGas = AEGasStack.of(targetGas);
@@ -290,8 +292,34 @@ public class PacketMEMonitorableAction implements IMessage {
 
         private static void gasOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
                                             IActionSource source, EntityPlayerMP player) {
-            // 气体空手操作需要具体的气体容器物品类型，Mekanism 没有通用的"空气体容器"
-            // 此功能在 ae2fc 中也不完整，暂不实现
+            if (!player.inventory.getItemStack().isEmpty()) return;
+
+            GasStack gas = null;
+            if (message.getNbt() != null && !message.getNbt().isEmpty()) {
+                gas = GasStack.readFromNBT(message.getNbt());
+            }
+            if (gas == null || gas.getGas() == null) return;
+            gas.amount = 1000;
+
+            boolean shift = message.getNbt() != null && message.getNbt().getBoolean("shift");
+
+            IMEMonitor<IAEGasStack> gasStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
+            IAEGasStack extracted = gasStorage.extractItems(AEGasStack.of(gas), Actionable.SIMULATE, source);
+            if (extracted == null || extracted.getStackSize() < 1000L) return;
+
+            ItemStack out = com.github.aeddddd.ae2enhanced.item.ItemGasDrop.createStack(gas);
+            if (out.isEmpty()) return;
+
+            gasStorage.extractItems(AEGasStack.of(gas), Actionable.MODULATE, source);
+
+            if (shift) {
+                int slot = player.inventory.getFirstEmptyStack();
+                if (slot == -1) return;
+                player.inventory.setInventorySlotContents(slot, out);
+            } else {
+                player.inventory.setItemStack(out);
+            }
+            updateHeld(player);
         }
 
         private static void updateHeld(EntityPlayerMP player) {

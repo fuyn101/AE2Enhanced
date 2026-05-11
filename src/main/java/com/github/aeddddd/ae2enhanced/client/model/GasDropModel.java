@@ -116,9 +116,14 @@ public class GasDropModel extends FluidDropModel {
         private final List<BakedQuad> quads;
 
         public OverrideModel(GasStack gasStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
-            // 必须通过 TextureMap 获取 atlas sprite，直接用 Gas.getSprite() 可能返回未 stitch 的 sprite（导致白色）
-            this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(
-                    gasStack.getGas().getIcon().toString());
+            // 使用 TextureMap atlas sprite（与 ae2fc GasPacketModel.getSprite() 等效，
+            // 但在我们的环境中 Mekanism 的 sprite 缓存对大多数气体未初始化，getSprite() 返回 null/白色）
+            ResourceLocation icon = gasStack.getGas().getIcon();
+            if (icon != null) {
+                this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(icon.toString());
+            } else {
+                this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
+            }
             this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
         }
 

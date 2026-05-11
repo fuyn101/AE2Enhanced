@@ -22,6 +22,14 @@ compileJava {
     options.encoding = 'UTF-8'
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir 'src/api/java'
+        }
+    }
+}
+
 minecraft {
     version = '1.12.2-14.23.5.2768'
     runDir = 'run'
@@ -51,6 +59,7 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 
     deobfProvided 'mezz.jei:jei_1.12.2:4.16.1.302:api'
+    deobfProvided 'mezz.jei:jei_1.12.2:4.16.1.302'
     deobfProvided 'CraftTweaker2:CraftTweaker2-MC1120-Main:1.12-4.1.20.574'
 }
 
@@ -75,6 +84,8 @@ processResources {
 }
 
 jar {
+    // 排除 JEI 内部类的编译期 stub，避免与运行时 JEI/HEI 的类冲突
+    exclude 'mezz/jei/**'
     manifest {
         attributes([
             'FMLCorePluginContainsFMLMod': true,
