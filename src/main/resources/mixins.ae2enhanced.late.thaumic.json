@@ -8,14 +8,12 @@
   "mixins": [
     "MixinNetworkMonitor",
     "MixinNetworkInventoryHandler",
-    "MixinGridStorageCache",
-    "MixinInventoryPlayer"
+    "MixinGridStorageCache"
   ],
   "client": [
     "MixinGuiMEMonitorable",
     "MixinGuiArcaneTerminal"
   ],
   "server": [
-    "MixinInventoryPlayer"
   ]
 }

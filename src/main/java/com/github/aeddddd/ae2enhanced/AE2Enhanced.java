@@ -88,6 +88,24 @@ public class AE2Enhanced {
     public void init(FMLInitializationEvent event) {
         NetworkRegistry.INSTANCE.registerGuiHandler(instance, new GuiHandler());
         proxy.init(event);
+        // 诊断：检查 MixinGuiMEMonitorableHandleClick 是否被应用到 AEBaseGui
+        if (event.getSide().isClient()) {
+            try {
+                Class<?> cls = Class.forName("appeng.client.gui.AEBaseGui");
+                boolean found = false;
+                for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
+                    if (m.getName().contains("ae2enhanced")) {
+                        LOGGER.info("[AE2E-DIAG] AEBaseGui contains mixin method: {} {}", m.getName(), java.util.Arrays.toString(m.getParameterTypes()));
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    LOGGER.warn("[AE2E-DIAG] AEBaseGui DOES NOT contain any ae2enhanced mixin method — Mixin NOT APPLIED");
+                }
+            } catch (Exception e) {
+                LOGGER.error("[AE2E-DIAG] Failed to inspect AEBaseGui", e);
+            }
+        }
         LOGGER.info("[AE2E] init() called, registering singularity/black hole recipes...");
         registerSingularityRecipes();
         LOGGER.info("[AE2E] Registered {} black hole recipes", BlackHoleRecipeRegistry.getRecipes().size());

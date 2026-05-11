@@ -66,7 +66,13 @@ public class MixinContainerCellWorkbench {
         }
 
         // 气体容器（简化处理：不实现放入逻辑，只阻止默认行为）
-        if (held.getItem() instanceof mekanism.api.gas.IGasItem) {
+        boolean isGasItem = false;
+        try {
+            Class<?> gasItemClass = Class.forName("mekanism.api.gas.IGasItem");
+            isGasItem = gasItemClass.isInstance(held.getItem());
+        } catch (ClassNotFoundException ignored) {
+        }
+        if (isGasItem) {
             // 暂不实现气体容器放入 view cell
         }
     }

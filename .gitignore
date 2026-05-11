@@ -79,3 +79,10 @@ inspection_reports/
 
 ### Decompiled / Temp ###
 decompiled/
+
+### Runtime generated (Mixin refmaps / decompiled classes) ###
+/appeng/
+/com/
+/mekanism/
+/mixins.ae2enhanced.json
+/mixins.ae2fc.json

@@ -10,8 +10,6 @@
     "MixinNetworkInventoryHandlerGas",
     "MixinGridStorageCacheGas"
   ],
-  "client": [
-    "MixinGuiMEMonitorableGas"
-  ],
+  "client": [],
   "server": []
 }

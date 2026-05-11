@@ -156,7 +156,9 @@ public class StructurePlacementPreview {
         double maxDistSq = MAX_PREVIEW_DISTANCE * MAX_PREVIEW_DISTANCE;
         net.minecraft.world.World world = player.world;
 
-        for (TileEntity te : world.loadedTileEntityList) {
+        // 复制列表避免 ConcurrentModificationException（区块加载/卸载时 loadedTileEntityList 会被修改）
+        List<TileEntity> snapshot = new ArrayList<>(world.loadedTileEntityList);
+        for (TileEntity te : snapshot) {
             if (te.isInvalid()) continue;
             if (!(te instanceof TileAssemblyController)
                 && !(te instanceof TileHyperdimensionalController)

@@ -21,7 +21,6 @@ import appeng.helpers.InventoryAction;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
@@ -141,9 +140,10 @@ public class PacketMEMonitorableAction implements IMessage {
             IFluidHandlerItem fh = FluidUtil.getFluidHandler(singleHeld);
             if (fh == null) return;
 
-            // 从 NBT 重建 ItemStack，再用 FakeItemRegister 解析流体
-            ItemStack definition = new ItemStack(message.getNbt());
-            FluidStack targetFluid = FakeItemRegister.getStack(definition);
+            FluidStack targetFluid = null;
+            if (message.getNbt() != null && !message.getNbt().isEmpty()) {
+                targetFluid = FluidStack.loadFluidStackFromNBT(message.getNbt());
+            }
             if (targetFluid != null) {
                 targetFluid.amount = Integer.MAX_VALUE;
             }
@@ -178,7 +178,16 @@ public class PacketMEMonitorableAction implements IMessage {
                 fh.fill(extracted.getFluidStack(), true);
             }
 
-            updateHeld(player, fh.getContainer());
+            // 处理手持多个物品的情况（复现 ae2fc 逻辑：placeItemBackInInventory）
+            if (actualHeld.getCount() > 1) {
+                actualHeld.shrink(1);
+                ItemStack result = fh.getContainer();
+                result.setCount(1);
+                player.inventory.placeItemBackInInventory(player.world, result);
+            } else {
+                player.inventory.setItemStack(fh.getContainer());
+            }
+            updateHeld(player);
         }
 
         private static void gasWork(PacketMEMonitorableAction message, IGasItem ig, ItemStack singleHeld,
@@ -232,11 +241,11 @@ public class PacketMEMonitorableAction implements IMessage {
 
             if (actualHeld.getCount() > 1) {
                 actualHeld.shrink(1);
-                player.inventory.addItemStackToInventory(singleHeld);
+                player.inventory.placeItemBackInInventory(player.world, singleHeld);
             } else {
                 player.inventory.setItemStack(singleHeld);
             }
-            updateHeld(player, player.inventory.getItemStack());
+            updateHeld(player);
         }
 
         private static void fluidOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
@@ -276,7 +285,7 @@ public class PacketMEMonitorableAction implements IMessage {
 
             itemStorage.extractItems(bucketReq, Actionable.MODULATE, source);
             fluidStorage.extractItems(AEFluidStack.fromFluidStack(fluid).setStackSize(1000), Actionable.MODULATE, source);
-            updateHeld(player, player.inventory.getItemStack());
+            updateHeld(player);
         }
 
         private static void gasOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
@@ -285,8 +294,7 @@ public class PacketMEMonitorableAction implements IMessage {
             // 此功能在 ae2fc 中也不完整，暂不实现
         }
 
-        private static void updateHeld(EntityPlayerMP player, ItemStack stack) {
-            player.inventory.setItemStack(stack);
+        private static void updateHeld(EntityPlayerMP player) {
             if (Platform.isServer()) {
                 try {
                     NetworkHandler.instance().sendTo(

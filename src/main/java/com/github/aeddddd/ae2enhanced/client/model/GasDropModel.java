@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import mekanism.api.gas.GasStack;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
@@ -115,7 +116,9 @@ public class GasDropModel extends FluidDropModel {
         private final List<BakedQuad> quads;
 
         public OverrideModel(GasStack gasStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
-            this.texture = gasStack.getGas().getSprite();
+            // 必须通过 TextureMap 获取 atlas sprite，直接用 Gas.getSprite() 可能返回未 stitch 的 sprite（导致白色）
+            this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(
+                    gasStack.getGas().getIcon().toString());
             this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
         }
 

@@ -58,7 +58,9 @@ test {
     useJUnitPlatform()
 }
 
-// MixinGradle 0.6 + annotationProcessor 会自动处理 refmap，无需手动配置
+mixin {
+    add sourceSets.main, 'mixin.refmap.json'
+}
 
 processResources {
     inputs.property 'version', project.version
@@ -77,7 +79,8 @@ jar {
         attributes([
             'FMLCorePluginContainsFMLMod': true,
             'ForceLoadAsMod': true,
-            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
+            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin',
+            'MixinConfigs': 'mixins.ae2enhanced.late.json,mixins.ae2enhanced.late.thaumic.json,mixins.ae2enhanced.late.gas.json'
         ])
     }
 }

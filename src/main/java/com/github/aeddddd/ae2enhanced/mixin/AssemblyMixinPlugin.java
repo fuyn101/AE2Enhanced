@@ -42,11 +42,10 @@ public class AssemblyMixinPlugin implements IFMLLoadingPlugin, ILateMixinLoader 
 
     @Override
     public List<String> getMixinConfigs() {
-        List<String> configs = new ArrayList<>(Arrays.asList(
+        return Arrays.asList(
                 "mixins.ae2enhanced.late.json",
-                "mixins.ae2enhanced.late.thaumic.json"
-        ));
-        configs.add("mixins.ae2enhanced.late.gas.json");
-        return configs;
+                "mixins.ae2enhanced.late.thaumic.json",
+                "mixins.ae2enhanced.late.gas.json"
+        );
     }
 }
