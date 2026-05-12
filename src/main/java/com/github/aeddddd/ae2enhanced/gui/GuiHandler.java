@@ -1,11 +1,16 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartHost;
+import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
+import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -23,6 +28,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_HYPERDIMENSIONAL_UNFORMED = 3;
     public static final int GUI_COMPUTATION_FORMED = 4;
     public static final int GUI_COMPUTATION_UNFORMED = 5;
+    public static final int GUI_UNIVERSAL_IMPORT_BUS = 6;
 
     /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -73,6 +79,20 @@ public class GuiHandler implements IGuiHandler {
             }
             return null;
         }
+
+        // Part GUI：解码 side ordinal
+        int baseId = ID & 0xFF;
+        if (baseId == GUI_UNIVERSAL_IMPORT_BUS) {
+            int sideOrdinal = (ID >> 8) & 0xFF;
+            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
+            if (te instanceof IPartHost) {
+                IPart part = ((IPartHost) te).getPart(side);
+                if (part instanceof PartUniversalImportBus) {
+                    return new ContainerUniversalImportBus(player.inventory, (PartUniversalImportBus) part);
+                }
+            }
+        }
+
         return null;
     }
 
@@ -108,6 +128,20 @@ public class GuiHandler implements IGuiHandler {
                 return new GuiComputationUnformed(player.inventory, tile);
             }
         }
+
+        // Part GUI：解码 side ordinal
+        int baseId = ID & 0xFF;
+        if (baseId == GUI_UNIVERSAL_IMPORT_BUS) {
+            int sideOrdinal = (ID >> 8) & 0xFF;
+            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
+            if (te instanceof IPartHost) {
+                IPart part = ((IPartHost) te).getPart(side);
+                if (part instanceof PartUniversalImportBus) {
+                    return new GuiUniversalImportBus(player.inventory, (PartUniversalImportBus) part);
+                }
+            }
+        }
+
         return null;
     }
 }

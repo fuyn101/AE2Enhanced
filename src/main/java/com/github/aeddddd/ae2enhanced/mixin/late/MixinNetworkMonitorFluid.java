@@ -21,6 +21,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.lang.reflect.Method;
+import java.util.Collections;
+
 /**
  * E2a：在 AE2 物品网络的 NetworkMonitor 中注入流体假物品。
  * 与 ae2fc 的兼容策略：priority=1100（高于 ae2fc 默认 1000），
@@ -97,6 +100,12 @@ public class MixinNetworkMonitorFluid {
 
         IAEFluidStack notExtracted = fluidMonitor.extractItems(fluidRequest, mode, source);
         long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
+        long extractedSize = itemStack.getStackSize() - notExtractedSize;
+        if (extractedSize > 0 && mode == Actionable.MODULATE) {
+            IAEItemStack diff = itemStack.copy();
+            diff.setStackSize(-extractedSize);
+            ae2enhanced$notifyListeners(Collections.singletonList(diff), source);
+        }
         if (notExtractedSize == 0) {
             IAEItemStack emptyResult = itemStack.copy();
             emptyResult.setStackSize(0);
@@ -131,11 +140,29 @@ public class MixinNetworkMonitorFluid {
         }
 
         IAEFluidStack notInjected = fluidMonitor.injectItems(fluidInput, mode, source);
+        long notInjectedSize = notInjected != null ? notInjected.getStackSize() : 0;
+        long injectedSize = fluidInput.getStackSize() - notInjectedSize;
+        if (injectedSize > 0 && mode == Actionable.MODULATE) {
+            IAEItemStack diff = itemStack.copy();
+            diff.setStackSize(injectedSize);
+            ae2enhanced$notifyListeners(Collections.singletonList(diff), source);
+        }
         if (notInjected != null && notInjected.getStackSize() > 0) {
             IAEItemStack fakeNotInjected = FakeFluids.packFluid(notInjected);
             cir.setReturnValue(fakeNotInjected != null ? fakeNotInjected : input);
         } else {
             cir.setReturnValue(null);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void ae2enhanced$notifyListeners(Iterable<IAEItemStack> diff, IActionSource source) {
+        try {
+            Method m = NetworkMonitor.class.getDeclaredMethod("notifyListenersOfChange", Iterable.class, IActionSource.class);
+            m.setAccessible(true);
+            m.invoke((NetworkMonitor)(Object)this, diff, source);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

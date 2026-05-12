@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.proxy;
 
+import appeng.api.AEApi;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
@@ -12,6 +13,7 @@ import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
+import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -28,6 +30,7 @@ import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.ModelLoaderRegistry;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -59,12 +62,19 @@ public class ClientProxy extends CommonProxy {
             ModItems.ESSENTIA_DROP.initModel();
             AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
         }
+        // E2a：注册流体假物品的 ItemColors，根据流体颜色染色
+        if (ModItems.FLUID_DROP != null) {
+            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
+                FluidStack fluid = com.github.aeddddd.ae2enhanced.item.ItemFluidDrop.getFluidStack(stack);
+                if (fluid != null) {
+                    return fluid.getFluid().getColor(fluid);
+                }
+                return -1;
+            }, ModItems.FLUID_DROP);
+        }
         // E2a：注册气体假物品的 ItemColors，根据气体 tint 染色（复刻 ae2fc ClientProxy.init）
         if (ModItems.GAS_DROP != null) {
             Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
-                if (tintIndex == 0) {
-                    return -1;
-                }
                 GasStack gas = FakeItemRegister.getStack(stack);
                 return gas != null ? gas.getGas().getTint() | 0xFF000000 : -1;
             }, ModItems.GAS_DROP);
@@ -171,6 +181,12 @@ public class ClientProxy extends CommonProxy {
             ModelLoaderRegistry.registerLoader(new GasDropModel.Loader());
             ModelLoader.setCustomModelResourceLocation(ModItems.GAS_DROP, 0,
                     new ModelResourceLocation(GasDropModel.MODEL_LOCATION, "inventory"));
+        }
+
+        // E1a：注册通用输入总线的 Part 模型和物品模型
+        if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) {
+            AEApi.instance().registries().partModels().registerModels(PartUniversalImportBus.MODELS);
+            registerItemModel(ModItems.PART_UNIVERSAL_IMPORT_BUS);
         }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型

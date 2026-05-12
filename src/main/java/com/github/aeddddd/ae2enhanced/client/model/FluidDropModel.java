@@ -175,8 +175,24 @@ public class FluidDropModel implements IModel {
         private final List<BakedQuad> quads;
 
         public OverrideModel(FluidStack fluidStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
-            this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(
-                    fluidStack.getFluid().getStill(fluidStack).toString());
+            net.minecraftforge.fluids.Fluid fluid = fluidStack.getFluid();
+            TextureAtlasSprite sprite = null;
+            if (fluid.getStill(fluidStack) != null) {
+                sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(fluid.getStill(fluidStack).toString());
+            }
+            // fallback: 如果 still texture 缺失，尝试 flowing texture
+            if (sprite == null || "missingno".equals(sprite.getIconName())) {
+                if (fluid.getFlowing(fluidStack) != null) {
+                    TextureAtlasSprite flowing = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(fluid.getFlowing(fluidStack).toString());
+                    if (flowing != null && !"missingno".equals(flowing.getIconName())) {
+                        sprite = flowing;
+                    }
+                }
+            }
+            if (sprite == null) {
+                sprite = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
+            }
+            this.texture = sprite;
             this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
         }
 

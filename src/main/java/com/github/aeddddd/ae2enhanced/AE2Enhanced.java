@@ -7,10 +7,12 @@ import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import appeng.api.config.Upgrades;
 import com.github.aeddddd.ae2enhanced.network.PacketCraftRequestLong;
 import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.PacketRequestAssembly;
+import com.github.aeddddd.ae2enhanced.network.PacketUniversalBusConfig;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -81,6 +83,7 @@ public class AE2Enhanced {
         network.registerMessage(PacketPatternPage.Handler.class, PacketPatternPage.class, 1, Side.SERVER);
         network.registerMessage(PacketCraftRequestLong.Handler.class, PacketCraftRequestLong.class, 2, Side.SERVER);
         network.registerMessage(PacketMEMonitorableAction.Handler.class, PacketMEMonitorableAction.class, 3, Side.SERVER);
+        network.registerMessage(PacketUniversalBusConfig.Handler.class, PacketUniversalBusConfig.class, 4, Side.SERVER);
         proxy.preInit(event);
     }
 
@@ -106,6 +109,16 @@ public class AE2Enhanced {
                 LOGGER.error("[AE2E-DIAG] Failed to inspect AEBaseGui", e);
             }
         }
+        // E1a：注册通用输入总线支持的升级卡类型
+        if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) {
+            net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_IMPORT_BUS);
+            Upgrades.SPEED.registerItem(busStack, 4);
+            Upgrades.CAPACITY.registerItem(busStack, 5);
+            Upgrades.REDSTONE.registerItem(busStack, 1);
+            Upgrades.FUZZY.registerItem(busStack, 1);
+            Upgrades.CRAFTING.registerItem(busStack, 1);
+        }
+
         LOGGER.info("[AE2E] init() called, registering singularity/black hole recipes...");
         registerSingularityRecipes();
         LOGGER.info("[AE2E] Registered {} black hole recipes", BlackHoleRecipeRegistry.getRecipes().size());

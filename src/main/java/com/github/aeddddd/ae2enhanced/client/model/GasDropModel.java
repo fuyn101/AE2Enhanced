@@ -119,11 +119,28 @@ public class GasDropModel extends FluidDropModel {
             // 使用 TextureMap atlas sprite（与 ae2fc GasPacketModel.getSprite() 等效，
             // 但在我们的环境中 Mekanism 的 sprite 缓存对大多数气体未初始化，getSprite() 返回 null/白色）
             ResourceLocation icon = gasStack.getGas().getIcon();
+            TextureAtlasSprite sprite = null;
             if (icon != null) {
-                this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(icon.toString());
-            } else {
-                this.texture = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
+                sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(icon.toString());
             }
+            if (sprite == null || "missingno".equals(sprite.getIconName())) {
+                // fallback: 尝试 Mekanism 内部的 sprite 缓存
+                try {
+                    java.lang.reflect.Method getSprite = gasStack.getGas().getClass().getMethod("getSprite");
+                    Object cachedSprite = getSprite.invoke(gasStack.getGas());
+                    if (cachedSprite instanceof TextureAtlasSprite) {
+                        TextureAtlasSprite ts = (TextureAtlasSprite) cachedSprite;
+                        if (!"missingno".equals(ts.getIconName())) {
+                            sprite = ts;
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            if (sprite == null) {
+                sprite = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
+            }
+            this.texture = sprite;
             this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
         }
 

@@ -55,4 +55,26 @@ public class FakeEssentias {
     public static boolean isEssentiaFakeItem(ItemStack stack) {
         return ItemEssentiaDrop.isEssentiaDrop(stack);
     }
+
+    /**
+     * 反射方法：从源质容器（IEssentiaContainerItem）转换为 ItemEssentiaDrop。
+     * 供 Container / GhostIngredientTarget 调用，避免硬引用 Thaumcraft API。
+     */
+    public static ItemStack tryConvertContainerToFake(ItemStack held) {
+        if (held == null || held.isEmpty()) return null;
+        try {
+            Class<?> containerItemClass = Class.forName("thaumcraft.api.aspects.IEssentiaContainerItem");
+            if (!containerItemClass.isInstance(held.getItem())) return null;
+            Object containerItem = held.getItem();
+            Object aspectList = containerItemClass.getMethod("getAspects", ItemStack.class).invoke(containerItem, held);
+            if (aspectList == null) return null;
+            Object[] aspects = (Object[]) aspectList.getClass().getMethod("getAspects").invoke(aspectList);
+            if (aspects == null || aspects.length == 0) return null;
+            Object aspect = aspects[0];
+            String aspectTag = (String) aspect.getClass().getMethod("getTag").invoke(aspect);
+            return ItemEssentiaDrop.createStack(aspectTag, 1);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

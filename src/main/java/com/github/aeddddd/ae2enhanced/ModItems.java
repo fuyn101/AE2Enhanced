@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
+import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemStableSpacetimeManifold;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import net.minecraft.item.Item;
@@ -22,6 +23,7 @@ public class ModItems {
     public static ItemEssentiaDrop ESSENTIA_DROP;
     public static ItemFluidDrop FLUID_DROP;
     public static ItemGasDrop GAS_DROP;
+    public static ItemPartUniversalImportBus PART_UNIVERSAL_IMPORT_BUS;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -35,6 +37,7 @@ public class ModItems {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
             GAS_DROP = new ItemGasDrop();
         }
+        PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
     }
 
     @SubscribeEvent
@@ -50,5 +53,6 @@ public class ModItems {
         if (GAS_DROP != null) {
             event.getRegistry().register(GAS_DROP);
         }
+        event.getRegistry().register(PART_UNIVERSAL_IMPORT_BUS);
     }
 }

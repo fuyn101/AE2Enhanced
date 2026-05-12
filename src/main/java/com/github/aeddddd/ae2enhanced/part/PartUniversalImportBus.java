@@ -1,0 +1,743 @@
+package com.github.aeddddd.ae2enhanced.part;
+
+import appeng.api.config.FuzzyMode;
+import appeng.api.config.RedstoneMode;
+import appeng.api.config.SchedulingMode;
+import appeng.api.config.Settings;
+import appeng.api.config.Upgrades;
+import appeng.api.config.YesNo;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IEnergyGrid;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.parts.IPartCollisionHelper;
+import appeng.api.parts.IPartModel;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.channels.IFluidStorageChannel;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.util.AECableType;
+import appeng.api.util.AEPartLocation;
+import appeng.core.settings.TickRates;
+import appeng.fluids.util.AEFluidStack;
+import appeng.me.GridAccessException;
+import appeng.me.helpers.MachineSource;
+import appeng.items.parts.PartModels;
+import appeng.parts.PartModel;
+import appeng.parts.automation.PartUpgradeable;
+import appeng.tile.inventory.AppEngInternalAEInventory;
+import appeng.util.InventoryAdaptor;
+import appeng.util.Platform;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
+import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.FakeFluids;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.world.IBlockAccess;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.fml.common.Loader;
+
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+/**
+ * E1a：通用输入总线。
+ * 同时支持物品、流体、气体（Mekanism）、源质（Thaumcraft）的导入。
+ */
+public class PartUniversalImportBus extends PartUpgradeable implements IGridTickable {
+
+    @PartModels
+    public static final ResourceLocation[] MODELS = new ResourceLocation[]{
+            new ResourceLocation(AE2Enhanced.MOD_ID, "part/universal_import_bus_base"),
+            new ResourceLocation("appliedenergistics2", "part/import_bus_off"),
+            new ResourceLocation("appliedenergistics2", "part/import_bus_on"),
+            new ResourceLocation("appliedenergistics2", "part/import_bus_has_channel")
+    };
+
+    public static final IPartModel MODELS_OFF = new PartModel(new ResourceLocation[]{MODELS[0], MODELS[1]});
+    public static final IPartModel MODELS_ON = new PartModel(new ResourceLocation[]{MODELS[0], MODELS[2]});
+    public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(new ResourceLocation[]{MODELS[0], MODELS[3]});
+
+    public enum BusMode {
+        SEQUENTIAL,   // 固定顺序：物品→流体→气体→源质
+        ROUND_ROBIN,  // 轮询指针
+        RANDOM,       // 随机顺序
+        GREEDY        // 单 tick 内尽可能处理所有类型
+    }
+
+    private static final EnumSet<BusMode> MODES = EnumSet.allOf(BusMode.class);
+    private static final Random RAND = new Random();
+
+    private BusMode busMode = BusMode.SEQUENTIAL;
+    private int roundRobinIndex = 0;
+
+    private final AppEngInternalAEInventory config;
+    private final IActionSource source;
+
+    // Capability 缓存
+    private boolean hasItemCap = false;
+    private boolean hasFluidCap = false;
+    private boolean hasGasCap = false;
+    private boolean hasEssentiaCap = false;
+
+    public PartUniversalImportBus(ItemStack is) {
+        super(is);
+        this.config = new AppEngInternalAEInventory(this, 63);
+        this.source = new MachineSource(this);
+        this.getConfigManager().registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
+        this.getConfigManager().registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
+        this.getConfigManager().registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
+        this.getConfigManager().registerSetting(Settings.SCHEDULING_MODE, SchedulingMode.DEFAULT);
+    }
+
+    @Override
+    public TickingRequest getTickingRequest(@Nonnull IGridNode node) {
+        return new TickingRequest(TickRates.ImportBus.getMin(), TickRates.ImportBus.getMax(), this.isSleeping(), false);
+    }
+
+    protected boolean canDoBusWork() {
+        TileEntity self = this.getHost().getTile();
+        net.minecraft.util.math.BlockPos targetPos = self.getPos().offset(this.getSide().getFacing());
+        net.minecraft.world.World world = self.getWorld();
+        return world != null && world.getChunkProvider().getLoadedChunk(targetPos.getX() >> 4, targetPos.getZ() >> 4) != null;
+    }
+
+    @Override
+    public void upgradesChanged() {
+        this.updateState();
+    }
+
+    @Override
+    public void onNeighborChanged(IBlockAccess w, BlockPos pos, BlockPos neighbor) {
+        this.updateState();
+    }
+
+    private void updateState() {
+        try {
+            if (!this.isSleeping()) {
+                this.getProxy().getTick().wakeDevice(this.getProxy().getNode());
+            } else {
+                this.getProxy().getTick().sleepDevice(this.getProxy().getNode());
+            }
+        } catch (GridAccessException ignored) {
+        }
+    }
+
+    @Override
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
+        return this.doBusWork();
+    }
+
+    protected TickRateModulation doBusWork() {
+        if (!this.getProxy().isActive() || !this.canDoBusWork()) {
+            return TickRateModulation.IDLE;
+        }
+
+        if (this.isSleeping()) {
+            return TickRateModulation.IDLE;
+        }
+
+        TileEntity self = this.getHost().getTile();
+        TileEntity target = self.getWorld().getTileEntity(self.getPos().offset(this.getSide().getFacing()));
+        if (target == null) {
+            return TickRateModulation.SLOWER;
+        }
+
+        EnumFacing opposite = this.getSide().getFacing().getOpposite();
+
+        // 探测 Capability
+        this.hasItemCap = target.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, opposite);
+        this.hasFluidCap = target.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+        this.hasGasCap = Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")
+                && target.hasCapability(getGasCapability(), opposite);
+        this.hasEssentiaCap = Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")
+                && target instanceof thaumcraft.api.aspects.IEssentiaTransport;
+
+        if (!this.hasItemCap && !this.hasFluidCap && !this.hasGasCap && !this.hasEssentiaCap) {
+            return TickRateModulation.SLOWER;
+        }
+
+        boolean worked = false;
+        Set<ResourceType> filteredTypes = this.getFilteredTypes();
+        boolean hasFilter = !filteredTypes.isEmpty();
+
+        try {
+            List<ResourceType> order = this.getTypeOrder();
+            for (ResourceType type : order) {
+                // 若存在过滤，只处理过滤对应的类型
+                if (hasFilter && !filteredTypes.contains(type)) continue;
+
+                switch (type) {
+                    case ITEM:
+                        if (this.hasItemCap) worked |= this.importItems(target, opposite);
+                        break;
+                    case FLUID:
+                        if (this.hasFluidCap) worked |= this.importFluids(target, opposite);
+                        break;
+                    case GAS:
+                        if (this.hasGasCap) worked |= this.importGases(target, opposite);
+                        break;
+                    case ESSENTIA:
+                        if (this.hasEssentiaCap) worked |= this.importEssentias(target, opposite);
+                        break;
+                }
+                if (worked && this.busMode != BusMode.GREEDY) {
+                    break; // 非贪婪模式：导入成功即停
+                }
+            }
+        } catch (GridAccessException e) {
+            return TickRateModulation.SLOWER;
+        }
+
+        return worked ? TickRateModulation.FASTER : TickRateModulation.SLOWER;
+    }
+
+    // region Type Ordering
+
+    private enum ResourceType { ITEM, FLUID, GAS, ESSENTIA }
+
+    private List<ResourceType> getTypeOrder() {
+        List<ResourceType> list = new ArrayList<>();
+        if (this.hasItemCap) list.add(ResourceType.ITEM);
+        if (this.hasFluidCap) list.add(ResourceType.FLUID);
+        if (this.hasGasCap) list.add(ResourceType.GAS);
+        if (this.hasEssentiaCap) list.add(ResourceType.ESSENTIA);
+
+        switch (this.busMode) {
+            case SEQUENTIAL:
+                // 固定顺序：已经按 ITEM→FLUID→GAS→ESSENTIA 排好
+                return list;
+            case ROUND_ROBIN:
+                if (list.size() > 1) {
+                    Collections.rotate(list, -this.roundRobinIndex);
+                    this.roundRobinIndex = (this.roundRobinIndex + 1) % list.size();
+                }
+                return list;
+            case RANDOM:
+                Collections.shuffle(list, RAND);
+                return list;
+            case GREEDY:
+                return list;
+            default:
+                return list;
+        }
+    }
+
+    // endregion
+
+    // region Item Import
+
+    private boolean importItems(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        InventoryAdaptor adaptor = InventoryAdaptor.getAdaptor(target, opposite);
+        if (adaptor == null) return false;
+
+        IMEMonitor<IAEItemStack> inv = this.getProxy().getStorage().getInventory(
+                appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+        IEnergyGrid energy = this.getProxy().getEnergy();
+        FuzzyMode fzMode = (FuzzyMode) this.getConfigManager().getSetting(Settings.FUZZY_MODE);
+
+        long itemsToSend = this.calculateItemsToSend();
+        boolean configured = false;
+        boolean worked = false;
+
+        for (int x = 0; x < this.config.getSlots() && itemsToSend > 0; x++) {
+            IAEItemStack filter = this.config.getAEStackInSlot(x);
+            if (filter == null || isFakeItemFilter(filter)) continue;
+            configured = true;
+            while (itemsToSend > 0) {
+                if (!this.importItemStack(adaptor, filter, inv, energy, fzMode, itemsToSend)) break;
+                worked = true;
+                itemsToSend--;
+            }
+        }
+
+        if (!configured) {
+            // 无过滤配置：导入任意物品
+            while (itemsToSend > 0) {
+                if (!this.importItemStack(adaptor, null, inv, energy, fzMode, itemsToSend)) break;
+                worked = true;
+                itemsToSend--;
+            }
+        }
+
+        return worked;
+    }
+
+    private boolean importItemStack(InventoryAdaptor adaptor, IAEItemStack filter,
+                                     IMEMonitor<IAEItemStack> inv, IEnergyGrid energy,
+                                     FuzzyMode fzMode, long max) {
+        ItemStack filterStack = filter == null ? ItemStack.EMPTY : filter.getDefinition();
+        ItemStack stack = adaptor.removeItems(1, filterStack.isEmpty() ? ItemStack.EMPTY : filterStack, null);
+        if (stack.isEmpty()) return false;
+
+        IAEItemStack aeStack = AEItemStack.fromItemStack(stack);
+        if (aeStack == null) {
+            adaptor.addItems(stack); // 退回
+            return false;
+        }
+        aeStack.setStackSize(1);
+
+        IAEItemStack notInserted = Platform.poweredInsert(energy, inv, aeStack, this.source);
+        if (notInserted != null && notInserted.getStackSize() > 0) {
+            // 退回未成功部分
+            ItemStack spill = notInserted.createItemStack();
+            adaptor.addItems(spill);
+            if (notInserted.getStackSize() >= aeStack.getStackSize()) {
+                return false; // 完全失败
+            }
+        }
+        return true;
+    }
+
+    private long calculateItemsToSend() {
+        int speedUpgrades = this.getInstalledUpgrades(Upgrades.SPEED);
+        return Math.min((long) Math.pow(2, speedUpgrades), 64);
+    }
+
+    private int availableSlots() {
+        int capacityUpgrades = this.getInstalledUpgrades(Upgrades.CAPACITY);
+        return Math.min(18 + capacityUpgrades * 9, 63);
+    }
+
+    /**
+     * 根据过滤槽内容，判断当前配置了哪些资源类型的过滤。
+     * 若没有任何过滤，返回空集，表示接受所有类型。
+     */
+    private Set<ResourceType> getFilteredTypes() {
+        Set<ResourceType> types = EnumSet.noneOf(ResourceType.class);
+        for (int i = 0; i < 63; i++) {
+            IAEItemStack filter = this.config.getAEStackInSlot(i);
+            if (filter == null) continue;
+            ItemStack stack = filter.createItemStack();
+            if (stack.isEmpty()) continue;
+            if (ItemFluidDrop.isFluidDrop(stack)) {
+                types.add(ResourceType.FLUID);
+            } else if (ItemGasDrop.isGasDrop(stack)) {
+                types.add(ResourceType.GAS);
+            } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
+                types.add(ResourceType.ESSENTIA);
+            } else {
+                types.add(ResourceType.ITEM);
+            }
+        }
+        return types;
+    }
+
+    // endregion
+
+    // region Fluid Import
+
+    private boolean importFluids(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+        if (fh == null) return false;
+
+        IMEMonitor<IAEFluidStack> inv = this.getProxy().getStorage().getInventory(
+                appeng.api.AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+
+        // 先尝试按过滤导入
+        boolean configured = false;
+        boolean worked = false;
+
+        for (int x = 0; x < this.config.getSlots(); x++) {
+            IAEItemStack filter = this.config.getAEStackInSlot(x);
+            if (filter == null || !FakeFluids.isFluidFakeItem(filter.createItemStack())) continue;
+            configured = true;
+
+            IAEFluidStack wanted = FakeFluids.unpackFluid(filter);
+            if (wanted == null || wanted.getFluid() == null) continue;
+
+            FluidStack drained = fh.drain(new FluidStack(wanted.getFluid(), 1000), false);
+            if (drained == null || drained.amount <= 0) continue;
+            drained = canonicalizeFluidStack(drained);
+
+            IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(drained);
+            if (aeFluid == null) continue;
+
+            IAEFluidStack notInserted = inv.injectItems(aeFluid, appeng.api.config.Actionable.SIMULATE, this.source);
+            long canInsert = aeFluid.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+            if (canInsert <= 0) continue;
+
+            // 实际执行
+            FluidStack actual = fh.drain(new FluidStack(wanted.getFluid(), (int) canInsert), true);
+            if (actual != null && actual.amount > 0) {
+                actual = canonicalizeFluidStack(actual);
+                IAEFluidStack toInsert = AEFluidStack.fromFluidStack(actual);
+                inv.injectItems(toInsert, appeng.api.config.Actionable.MODULATE, this.source);
+                worked = true;
+                break; // 一次只处理一种流体
+            }
+        }
+
+        if (!configured) {
+            // 无过滤：导入任意流体
+            FluidStack drained = fh.drain(1000, false);
+            if (drained != null && drained.amount > 0) {
+                drained = canonicalizeFluidStack(drained);
+                IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(drained);
+                if (aeFluid != null) {
+                    IAEFluidStack notInserted = inv.injectItems(aeFluid, appeng.api.config.Actionable.SIMULATE, this.source);
+                    long canInsert = aeFluid.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+                    if (canInsert > 0) {
+                        FluidStack actual = fh.drain((int) canInsert, true);
+                        if (actual != null && actual.amount > 0) {
+                            actual = canonicalizeFluidStack(actual);
+                            inv.injectItems(AEFluidStack.fromFluidStack(actual), appeng.api.config.Actionable.MODULATE, this.source);
+                            worked = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return worked;
+    }
+
+    /**
+     * 规范化 FluidStack 的 Fluid 对象：某些 mod（如 Mekanism）的 IFluidHandler.drain()
+     * 可能返回非 FluidRegistry 标准实例的 Fluid 对象，导致 AE2 的 IAEFluidStack
+     * 匹配/同步异常。将其替换为 FluidRegistry 中的标准实例。
+     */
+    private static FluidStack canonicalizeFluidStack(FluidStack fluidStack) {
+        if (fluidStack == null || fluidStack.getFluid() == null) return fluidStack;
+        Fluid canonical = FluidRegistry.getFluid(fluidStack.getFluid().getName());
+        if (canonical != null && canonical != fluidStack.getFluid()) {
+            return new FluidStack(canonical, fluidStack.amount, fluidStack.tag);
+        }
+        return fluidStack;
+    }
+
+    // endregion
+
+    // region Gas Import
+
+    private boolean importGases(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        if (!Loader.isModLoaded("mekanism") || !Loader.isModLoaded("mekeng")) return false;
+
+        Object gasHandler = target.getCapability(getGasCapability(), opposite);
+        if (gasHandler == null) return false;
+
+        // 使用反射调用 IGasHandler 方法，避免硬依赖
+        try {
+            return importGasesReflective(gasHandler, opposite);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Gas import failed", e);
+            return false;
+        }
+    }
+
+    private boolean importGasesReflective(Object gasHandler, EnumFacing opposite) throws Exception {
+        Class<?> gasHandlerClass = Class.forName("mekanism.api.gas.IGasHandler");
+        Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+        java.lang.reflect.Field amountField = gasStackClass.getField("amount");
+
+        java.lang.reflect.Method drawGas = gasHandlerClass.getMethod("drawGas", EnumFacing.class, int.class, boolean.class);
+
+        IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv = null;
+        try {
+            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
+            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object gasChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), gasChannelClass);
+            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+            inv = (IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack>) getInv.invoke(this.getProxy().getStorage(), gasChannel);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to get gas inventory", e);
+            return false;
+        }
+
+        boolean configured = false;
+        boolean worked = false;
+
+        // 按过滤匹配
+        for (int x = 0; x < this.config.getSlots(); x++) {
+            IAEItemStack filter = this.config.getAEStackInSlot(x);
+            if (filter == null || !FakeGases.isGasFakeItem(filter.createItemStack())) continue;
+            configured = true;
+
+            com.mekeng.github.common.me.data.IAEGasStack wanted = FakeGases.unpackGas(filter);
+            if (wanted == null || wanted.getGas() == null) continue;
+
+            Object drained = drawGas.invoke(gasHandler, opposite, 1000, false);
+            if (drained == null) continue;
+
+            int amount = amountField.getInt(drained);
+            if (amount <= 0) continue;
+
+            com.mekeng.github.common.me.data.impl.AEGasStack aeGas =
+                    com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) drained);
+            if (aeGas == null) continue;
+
+            com.mekeng.github.common.me.data.IAEGasStack notInserted = inv.injectItems(aeGas, appeng.api.config.Actionable.SIMULATE, this.source);
+            long canInsert = aeGas.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+            if (canInsert <= 0) continue;
+
+            Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
+            if (actual != null) {
+                int actualAmount = amountField.getInt(actual);
+                if (actualAmount > 0) {
+                    com.mekeng.github.common.me.data.impl.AEGasStack toInsert =
+                            com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actual);
+                    inv.injectItems(toInsert, appeng.api.config.Actionable.MODULATE, this.source);
+                    worked = true;
+                    break;
+                }
+            }
+        }
+
+        // 无过滤：导入任意气体
+        if (!configured) {
+            Object drained = drawGas.invoke(gasHandler, opposite, 1000, false);
+            if (drained != null) {
+                int amount = amountField.getInt(drained);
+                if (amount > 0) {
+                    com.mekeng.github.common.me.data.impl.AEGasStack aeGas =
+                            com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) drained);
+                    if (aeGas != null) {
+                        com.mekeng.github.common.me.data.IAEGasStack notInserted = inv.injectItems(aeGas, appeng.api.config.Actionable.SIMULATE, this.source);
+                        long canInsert = aeGas.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+                        if (canInsert > 0) {
+                            Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
+                            if (actual != null) {
+                                int actualAmount = amountField.getInt(actual);
+                                if (actualAmount > 0) {
+                                    com.mekeng.github.common.me.data.impl.AEGasStack toInsert =
+                                            com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actual);
+                                    inv.injectItems(toInsert, appeng.api.config.Actionable.MODULATE, this.source);
+                                    worked = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return worked;
+    }
+
+    private net.minecraftforge.common.capabilities.Capability<?> getGasCapability() {
+        try {
+            return (net.minecraftforge.common.capabilities.Capability<?>)
+                    Class.forName("mekanism.common.capabilities.Capabilities")
+                            .getField("GAS_HANDLER_CAPABILITY")
+                            .get(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // endregion
+
+    // region Essentia Import
+
+    private boolean importEssentias(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
+        if (!(target instanceof thaumcraft.api.aspects.IEssentiaTransport)) return false;
+
+        try {
+            return importEssentiasReflective(target, opposite);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Essentia import failed", e);
+            return false;
+        }
+    }
+
+    private boolean importEssentiasReflective(TileEntity target, EnumFacing opposite) throws Exception {
+        thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
+        IMEMonitor<thaumicenergistics.api.storage.IAEEssentiaStack> inv = null;
+        try {
+            Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
+            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+            inv = (IMEMonitor<thaumicenergistics.api.storage.IAEEssentiaStack>) getInv.invoke(this.getProxy().getStorage(), essentiaChannel);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to get essentia inventory", e);
+            return false;
+        }
+
+        boolean worked = false;
+
+        for (int x = 0; x < this.config.getSlots(); x++) {
+            IAEItemStack filter = this.config.getAEStackInSlot(x);
+            if (filter == null || !FakeEssentias.isEssentiaFakeItem(filter.createItemStack())) continue;
+
+            thaumicenergistics.api.storage.IAEEssentiaStack wanted = FakeEssentias.unpackEssentia(filter);
+            if (wanted == null || wanted.getAspect() == null) continue;
+
+            // 检查相邻容器是否有该源质
+            int available = transport.getEssentiaAmount(opposite);
+            if (available <= 0) continue;
+
+            int toTake = Math.min(available, 64); // 一次最多 64
+            thaumicenergistics.api.EssentiaStack essStack = new thaumicenergistics.api.EssentiaStack(
+                    wanted.getAspect().getTag(), toTake);
+            thaumicenergistics.api.storage.IAEEssentiaStack aeEss =
+                    thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(essStack);
+            if (aeEss == null) continue;
+
+            thaumicenergistics.api.storage.IAEEssentiaStack notInserted = inv.injectItems(aeEss, appeng.api.config.Actionable.SIMULATE, this.source);
+            long canInsert = aeEss.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+            if (canInsert <= 0) continue;
+
+            int actual = transport.takeEssentia(wanted.getAspect(), (int) canInsert, opposite);
+            if (actual > 0) {
+                thaumicenergistics.api.EssentiaStack actualStack = new thaumicenergistics.api.EssentiaStack(
+                        wanted.getAspect().getTag(), actual);
+                thaumicenergistics.api.storage.IAEEssentiaStack toInsert =
+                        thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(actualStack);
+                inv.injectItems(toInsert, appeng.api.config.Actionable.MODULATE, this.source);
+                worked = true;
+                break;
+            }
+        }
+
+        return worked;
+    }
+
+    // endregion
+
+    // region Helpers
+
+    private boolean isFakeItemFilter(IAEItemStack filter) {
+        if (filter == null) return false;
+        ItemStack stack = filter.createItemStack();
+        return ItemFluidDrop.isFluidDrop(stack) || ItemGasDrop.isGasDrop(stack) || FakeEssentias.isEssentiaFakeItem(stack);
+    }
+
+    // endregion
+
+    // region NBT & Network
+
+    @Override
+    public void readFromNBT(NBTTagCompound data) {
+        super.readFromNBT(data);
+        if (data.hasKey("busMode")) {
+            int mode = data.getInteger("busMode");
+            if (mode >= 0 && mode < BusMode.values().length) {
+                this.busMode = BusMode.values()[mode];
+            }
+        }
+        if (data.hasKey("roundRobinIndex")) {
+            this.roundRobinIndex = data.getInteger("roundRobinIndex");
+        }
+        this.config.readFromNBT(data, "config");
+    }
+
+    @Override
+    public void writeToNBT(NBTTagCompound data) {
+        super.writeToNBT(data);
+        data.setInteger("busMode", this.busMode.ordinal());
+        data.setInteger("roundRobinIndex", this.roundRobinIndex);
+        this.config.writeToNBT(data, "config");
+    }
+
+    // endregion
+
+    // region GUI
+
+    @Override
+    public boolean onPartActivate(EntityPlayer player, EnumHand hand, Vec3d pos) {
+        if (!player.world.isRemote) {
+            TileEntity te = this.getHost().getTile();
+            int guiId = GuiHandler.GUI_UNIVERSAL_IMPORT_BUS | (this.getSide().ordinal() << 8);
+            player.openGui(AE2Enhanced.instance, guiId, te.getWorld(), te.getPos().getX(), te.getPos().getY(), te.getPos().getZ());
+        }
+        return true;
+    }
+
+    // endregion
+
+    // region Model & Collision
+
+    @Override
+    public void getBoxes(IPartCollisionHelper bch) {
+        bch.addBox(6.0, 6.0, 11.0, 10.0, 10.0, 13.0);
+        bch.addBox(5.0, 5.0, 13.0, 11.0, 11.0, 14.0);
+        bch.addBox(4.0, 4.0, 14.0, 12.0, 12.0, 16.0);
+    }
+
+    @Override
+    public float getCableConnectionLength(AECableType cable) {
+        return 5.0f;
+    }
+
+    @Nonnull
+    @Override
+    public IPartModel getStaticModels() {
+        if (this.isActive() && this.isPowered()) {
+            return MODELS_HAS_CHANNEL;
+        }
+        if (this.isPowered()) {
+            return MODELS_ON;
+        }
+        return MODELS_OFF;
+    }
+
+    // endregion
+
+    // region Getters / Setters
+
+    public BusMode getBusMode() {
+        return this.busMode;
+    }
+
+    public void setBusMode(BusMode mode) {
+        this.busMode = mode;
+        this.saveChanges();
+    }
+
+    public AppEngInternalAEInventory getConfig() {
+        return this.config;
+    }
+
+    @Override
+    public IItemHandler getInventoryByName(String name) {
+        if ("config".equals(name)) {
+            return this.config;
+        }
+        return super.getInventoryByName(name);
+    }
+
+    @Override
+    public void getDrops(List<ItemStack> drops, boolean wrenched) {
+        super.getDrops(drops, wrenched);
+        // 标准 AE2 行为：过滤槽物品不掉落（config 内容丢失）
+        // 若未来需要保留真实物品掉落，可在此过滤掉假物品：
+        // for (ItemStack is : this.config) {
+        //     if (!is.isEmpty() && !isFakeItemFilter(AEItemStack.fromItemStack(is))) {
+        //         drops.add(is);
+        //     }
+        // }
+    }
+
+
+
+    // endregion
+}
