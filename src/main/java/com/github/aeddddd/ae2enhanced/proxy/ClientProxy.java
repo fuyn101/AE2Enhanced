@@ -13,6 +13,7 @@ import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
+import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
@@ -187,6 +188,11 @@ public class ClientProxy extends CommonProxy {
         if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) {
             AEApi.instance().registries().partModels().registerModels(PartUniversalImportBus.MODELS);
             registerItemModel(ModItems.PART_UNIVERSAL_IMPORT_BUS);
+        }
+        // E1b：注册通用输出总线的 Part 模型和物品模型
+        if (ModItems.PART_UNIVERSAL_EXPORT_BUS != null) {
+            AEApi.instance().registries().partModels().registerModels(PartUniversalExportBus.MODELS);
+            registerItemModel(ModItems.PART_UNIVERSAL_EXPORT_BUS);
         }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型

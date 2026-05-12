@@ -153,3 +153,6 @@ gui.ae2enhanced.nexus.nexus_id.none=未生成
 gui.ae2enhanced.nexus.label.storage_types=存储种类: §e%s
 gui.ae2enhanced.nexus.label.storage_total=总存储数: §e%s
 gui.ae2enhanced.nexus.storage.empty=存储核心: §7空
+
+item.ae2enhanced.part_universal_export_bus.name=通用输出总线
+gui.ae2enhanced.universal_export_bus.name=通用输出总线

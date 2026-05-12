@@ -118,6 +118,15 @@ public class AE2Enhanced {
             Upgrades.FUZZY.registerItem(busStack, 1);
             Upgrades.CRAFTING.registerItem(busStack, 1);
         }
+        // E1b：注册通用输出总线支持的升级卡类型
+        if (ModItems.PART_UNIVERSAL_EXPORT_BUS != null) {
+            net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_EXPORT_BUS);
+            Upgrades.SPEED.registerItem(busStack, 4);
+            Upgrades.CAPACITY.registerItem(busStack, 5);
+            Upgrades.REDSTONE.registerItem(busStack, 1);
+            Upgrades.FUZZY.registerItem(busStack, 1);
+            Upgrades.CRAFTING.registerItem(busStack, 1);
+        }
 
         LOGGER.info("[AE2E] init() called, registering singularity/black hole recipes...");
         registerSingularityRecipes();

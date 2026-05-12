@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.network;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
+import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -48,6 +49,16 @@ public class PacketUniversalBusConfig implements IMessage {
                     PartUniversalImportBus part = container.getPart();
                     if (part != null) {
                         PartUniversalImportBus.BusMode[] modes = PartUniversalImportBus.BusMode.values();
+                        if (message.modeOrdinal >= 0 && message.modeOrdinal < modes.length) {
+                            part.setBusMode(modes[message.modeOrdinal]);
+                        }
+                    }
+                } else if (player.openContainer instanceof com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus) {
+                    com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus container =
+                            (com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus) player.openContainer;
+                    PartUniversalExportBus part = container.getPart();
+                    if (part != null) {
+                        PartUniversalExportBus.BusMode[] modes = PartUniversalExportBus.BusMode.values();
                         if (message.modeOrdinal >= 0 && message.modeOrdinal < modes.length) {
                             part.setBusMode(modes[message.modeOrdinal]);
                         }

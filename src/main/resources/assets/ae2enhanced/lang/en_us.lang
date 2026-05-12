@@ -155,3 +155,6 @@ gui.ae2enhanced.nexus.nexus_id.none=Not generated
 gui.ae2enhanced.nexus.label.storage_types=Storage Types: §e%s
 gui.ae2enhanced.nexus.label.storage_total=Total Stored: §e%s
 gui.ae2enhanced.nexus.storage.empty=Storage Core: §7Empty
+
+item.ae2enhanced.part_universal_export_bus.name=Universal Export Bus
+gui.ae2enhanced.universal_export_bus.name=Universal Export Bus
