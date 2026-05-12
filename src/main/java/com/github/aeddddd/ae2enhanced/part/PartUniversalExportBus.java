@@ -34,6 +34,7 @@ import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
+import com.google.common.collect.ImmutableList;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
@@ -272,7 +273,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
             toExtract.setStackSize(itemsToSend);
 
             if (this.getInstalledUpgrades(Upgrades.FUZZY) > 0) {
-                for (IAEItemStack o : inv.getStorageList().findFuzzy(toExtract, fzMode)) {
+                for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList().findFuzzy(toExtract, fzMode))) {
                     if (o.getStackSize() <= 0) continue;
                     long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
                     if (sent > 0) {
@@ -297,7 +298,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
             // No filter: export any item from network
             // This is tricky because we don't know what to extract.
             // We iterate the network storage and try to push each type.
-            for (IAEItemStack o : inv.getStorageList()) {
+            for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList())) {
                 if (o == null || o.getStackSize() <= 0 || isFakeItemFilter(o)) continue;
                 if (itemsToSend <= 0) break;
                 long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
@@ -414,7 +415,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
         if (!configured) {
             // No filter: export any fluid from network
-            for (IAEFluidStack fluid : inv.getStorageList()) {
+            for (IAEFluidStack fluid : ImmutableList.copyOf(inv.getStorageList())) {
                 if (fluid == null || fluid.getStackSize() <= 0) continue;
                 IAEFluidStack toExtract = fluid.copy();
                 toExtract.setStackSize(this.calculateFluidToSend());
@@ -512,7 +513,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         }
 
         if (!configured) {
-            for (com.mekeng.github.common.me.data.IAEGasStack gas : inv.getStorageList()) {
+            for (com.mekeng.github.common.me.data.IAEGasStack gas : ImmutableList.copyOf(inv.getStorageList())) {
                 if (gas == null || gas.getStackSize() <= 0) continue;
 
                 com.mekeng.github.common.me.data.IAEGasStack toExtract = gas.copy();
