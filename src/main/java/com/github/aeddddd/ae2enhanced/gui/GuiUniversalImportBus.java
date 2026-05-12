@@ -83,6 +83,19 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
     }
 
     @Override
+    public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
+        this.handleButtonVisibility();
+        this.bindTexture(this.getBackground());
+        this.drawTexturedModalRect(offsetX, offsetY, 0, 0, 177, this.ySize);
+        if (this.drawUpgrades()) {
+            this.drawTexturedModalRect(offsetX + 177, offsetY, 177, 0, 35, 14 + 4 * 18);
+        }
+        if (this.hasToolbox()) {
+            this.drawTexturedModalRect(offsetX + 178, offsetY + this.ySize - 90, 178, this.ySize - 90, 68, 68);
+        }
+    }
+
+    @Override
     protected String getBackground() {
         return "guis/storagebus.png"; // 复用存储总线背景（更大，适合 63 槽）
     }

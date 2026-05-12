@@ -7,11 +7,10 @@ import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
-import com.mekeng.github.common.me.data.IAEGasStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
@@ -36,11 +35,7 @@ import java.util.Locale;
  * - @Inject at HEAD + cancellable，替代错误的 @Intrinsic
  */
 @Mixin(value = GuiMEMonitorable.class, remap = false, priority = 1099)
-public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
-
-    public MixinGuiMEMonitorableTooltip(Container container) {
-        super(container);
-    }
+public abstract class MixinGuiMEMonitorableTooltip {
 
     @Inject(method = "func_191948_b", at = @At("HEAD"), cancellable = true)
     public void ae2enhanced$onRenderHoveredToolTip(int mouseX, int mouseY, CallbackInfo ci) {
@@ -48,11 +43,12 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
             return;
         }
 
-        Slot slot = this.getSlotUnderMouse();
+        GuiContainer screen = (GuiContainer) (Object) this;
+        Slot slot = screen.getSlotUnderMouse();
         if (slot instanceof SlotME && ((SlotME) slot).isEnabled()) {
-            ItemStack mouseItem = this.mc.player.inventory.getItemStack();
+            ItemStack mouseItem = Minecraft.getMinecraft().player.inventory.getItemStack();
             if (!mouseItem.isEmpty()) {
-                if (renderContainerToolTip(this, mouseX, mouseY)) {
+                if (renderContainerToolTip(screen, mouseX, mouseY)) {
                     ci.cancel();
                     return;
                 }
@@ -60,19 +56,19 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
                 IAEItemStack aeStack = ((SlotME) slot).getAEStack();
                 if (aeStack != null) {
                     if (aeStack.getItem() == ModItems.FLUID_DROP) {
-                        if (rendererFluid(this, aeStack, mouseX, mouseY)) {
+                        if (rendererFluid(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
                         }
                     }
                     if (ModItems.GAS_DROP != null && aeStack.getItem() == ModItems.GAS_DROP) {
-                        if (rendererGas(this, aeStack, mouseX, mouseY)) {
+                        if (rendererGas(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
                         }
                     }
                     if (ModItems.ESSENTIA_DROP != null && aeStack.getItem() == ModItems.ESSENTIA_DROP) {
-                        if (rendererEssentia(this, aeStack, mouseX, mouseY)) {
+                        if (rendererEssentia(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
                         }
@@ -122,27 +118,39 @@ public abstract class MixinGuiMEMonitorableTooltip extends GuiContainer {
     private static boolean rendererGas(GuiContainer gui, IAEItemStack aeStack, int mouseX, int mouseY) {
         if (aeStack == null || aeStack.getItem() != ModItems.GAS_DROP) return false;
 
-        IAEGasStack gasStack = FakeItemRegister.getAEStack(aeStack.copy().setStackSize(1));
-        if (gasStack == null) return false;
-        gasStack.setStackSize(aeStack.getStackSize());
+        try {
+            Object gasStack = FakeItemRegister.getAEStack(aeStack.copy().setStackSize(1));
+            if (gasStack == null) return false;
+            java.lang.reflect.Method setStackSize = gasStack.getClass().getMethod("setStackSize", long.class);
+            setStackSize.invoke(gasStack, aeStack.getStackSize());
 
-        List<String> tooltip = new ArrayList<>();
-        tooltip.add(gasStack.getGas().getLocalizedName());
-        tooltip.add(TextFormatting.BLUE.toString() + TextFormatting.ITALIC + "Mekanism");
+            java.lang.reflect.Method getGas = gasStack.getClass().getMethod("getGas");
+            Object gas = getGas.invoke(gasStack);
+            if (gas == null) return false;
+            java.lang.reflect.Method getLocalizedName = gas.getClass().getMethod("getLocalizedName");
+            String gasName = (String) getLocalizedName.invoke(gas);
 
-        boolean shift = GuiScreen.isShiftKeyDown();
-        long amount = gasStack.getStackSize();
-        String formattedAmount = shift
-                ? NumberFormat.getNumberInstance(Locale.US).format(amount) + " mB"
-                : NumberFormat.getNumberInstance(Locale.US).format((double) amount / 1000.0) + " B";
-        tooltip.add(TextFormatting.DARK_GRAY + I18n.format("tooltip.stored") + " : " + formattedAmount);
+            List<String> tooltip = new ArrayList<>();
+            tooltip.add(gasName);
+            tooltip.add(TextFormatting.BLUE.toString() + TextFormatting.ITALIC + "Mekanism");
 
-        if (aeStack.isCraftable()) {
-            tooltip.add(TextFormatting.GRAY + I18n.format("gui.tooltips.appliedenergistics2.ItemsCraftable"));
+            boolean shift = GuiScreen.isShiftKeyDown();
+            java.lang.reflect.Method getStackSize = gasStack.getClass().getMethod("getStackSize");
+            long amount = (long) getStackSize.invoke(gasStack);
+            String formattedAmount = shift
+                    ? NumberFormat.getNumberInstance(Locale.US).format(amount) + " mB"
+                    : NumberFormat.getNumberInstance(Locale.US).format((double) amount / 1000.0) + " B";
+            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("tooltip.stored") + " : " + formattedAmount);
+
+            if (aeStack.isCraftable()) {
+                tooltip.add(TextFormatting.GRAY + I18n.format("gui.tooltips.appliedenergistics2.ItemsCraftable"));
+            }
+
+            gui.drawHoveringText(tooltip, mouseX, mouseY);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
-
-        gui.drawHoveringText(tooltip, mouseX, mouseY);
-        return true;
     }
 
     /* ================================================================ */
