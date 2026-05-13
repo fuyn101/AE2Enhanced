@@ -9,7 +9,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.me.cache.GridStorageCache;
 import appeng.me.cache.NetworkMonitor;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -66,7 +66,7 @@ public class MixinGridStorageCache {
                 IAEEssentiaStack essentia = (IAEEssentiaStack) stack;
                 long size = essentia.getStackSize();
                 if (size == 0) continue;
-                IAEItemStack fake = FakeEssentias.packEssentia(essentia);
+                IAEItemStack fake = EssentiaBusHelper.packEssentia(essentia);
                 if (fake != null) {
                     fakeChanges.add(fake);
                 }

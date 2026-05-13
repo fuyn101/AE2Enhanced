@@ -12,6 +12,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.me.cache.SecurityCache;
 import appeng.me.storage.NetworkInventoryHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
+import com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -56,7 +57,7 @@ public class MixinNetworkInventoryHandler {
         IAEItemStack itemStack = (IAEItemStack) request;
         if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
 
-        IAEEssentiaStack essentiaRequest = FakeEssentias.unpackEssentia(itemStack);
+        IAEEssentiaStack essentiaRequest = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaRequest == null) {
             cir.setReturnValue(request);
             return;
@@ -81,7 +82,7 @@ public class MixinNetworkInventoryHandler {
         IAEItemStack itemStack = (IAEItemStack) input;
         if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
 
-        IAEEssentiaStack essentiaInput = FakeEssentias.unpackEssentia(itemStack);
+        IAEEssentiaStack essentiaInput = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaInput == null) {
             cir.setReturnValue(input);
             return;
@@ -89,7 +90,7 @@ public class MixinNetworkInventoryHandler {
 
         IAEEssentiaStack notInjected = this.ae2enhanced$essentiaMonitor.injectItems(essentiaInput, mode, src);
         if (notInjected != null && notInjected.getStackSize() > 0) {
-            IAEItemStack fakeNotInjected = FakeEssentias.packEssentia(notInjected);
+            IAEItemStack fakeNotInjected = EssentiaBusHelper.packEssentia(notInjected);
             cir.setReturnValue(fakeNotInjected != null ? fakeNotInjected : input);
         } else {
             cir.setReturnValue(null);

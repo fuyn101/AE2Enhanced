@@ -10,6 +10,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.me.cache.GridStorageCache;
 import appeng.me.cache.NetworkMonitor;
+import com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -76,7 +77,7 @@ public class MixinNetworkMonitor {
         int added = 0;
         for (IAEEssentiaStack essentia : essentiaList) {
             if (essentia == null || essentia.getStackSize() <= 0) continue;
-            IAEItemStack fakeItem = FakeEssentias.packEssentia(essentia);
+            IAEItemStack fakeItem = EssentiaBusHelper.packEssentia(essentia);
             if (fakeItem != null) {
                 out.addStorage(fakeItem);
                 added++;
@@ -100,7 +101,7 @@ public class MixinNetworkMonitor {
             return;
         }
 
-        IAEEssentiaStack essentiaRequest = FakeEssentias.unpackEssentia(itemStack);
+        IAEEssentiaStack essentiaRequest = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaRequest == null) {
             cir.setReturnValue(request);
             return;
@@ -138,7 +139,7 @@ public class MixinNetworkMonitor {
             return;
         }
 
-        IAEEssentiaStack essentiaInput = FakeEssentias.unpackEssentia(itemStack);
+        IAEEssentiaStack essentiaInput = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaInput == null) {
             cir.setReturnValue(input);
             return;
@@ -153,7 +154,7 @@ public class MixinNetworkMonitor {
             ae2enhanced$notifyListeners(Collections.singletonList(diff), source);
         }
         if (notInjected != null && notInjected.getStackSize() > 0) {
-            IAEItemStack fakeNotInjected = FakeEssentias.packEssentia(notInjected);
+            IAEItemStack fakeNotInjected = EssentiaBusHelper.packEssentia(notInjected);
             cir.setReturnValue(fakeNotInjected);
         } else {
             cir.setReturnValue(null);

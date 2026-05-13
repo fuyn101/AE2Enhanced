@@ -39,7 +39,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import net.minecraft.entity.player.EntityPlayer;
@@ -176,8 +176,15 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         this.hasFluidCap = target.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
         this.hasGasCap = Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")
                 && target.hasCapability(getGasCapability(), opposite);
-        this.hasEssentiaCap = Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")
-                && target instanceof thaumcraft.api.aspects.IEssentiaTransport;
+        this.hasEssentiaCap = false;
+        if (Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")) {
+            try {
+                Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
+                this.hasEssentiaCap = ieTransportClass.isInstance(target);
+            } catch (ClassNotFoundException e) {
+                this.hasEssentiaCap = false;
+            }
+        }
 
         if (!this.hasItemCap && !this.hasFluidCap && !this.hasGasCap && !this.hasEssentiaCap) {
             return TickRateModulation.SLOWER;
@@ -364,7 +371,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
                 types.add(ResourceType.FLUID);
             } else if (ItemGasDrop.isGasDrop(stack)) {
                 types.add(ResourceType.GAS);
-            } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
+            } else if (ItemEssentiaDrop.isEssentiaDrop(stack)) {
                 types.add(ResourceType.ESSENTIA);
             } else {
                 types.add(ResourceType.ITEM);
@@ -551,61 +558,23 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
     private boolean exportEssentias(TileEntity target, EnumFacing opposite) throws GridAccessException {
         if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
-        if (!(target instanceof thaumcraft.api.aspects.IEssentiaTransport)) return false;
+        try {
+            Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
+            if (!ieTransportClass.isInstance(target)) return false;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
 
         try {
-            return exportEssentiasReflective(target, opposite);
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            java.lang.reflect.Method method = helperClass.getMethod("exportEssentias",
+                    appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
+                    appeng.tile.inventory.AppEngInternalAEInventory.class, appeng.api.networking.security.IActionSource.class);
+            return (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite, this.config, this.source);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Essentia export failed", e);
             return false;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean exportEssentiasReflective(TileEntity target, EnumFacing opposite) throws Exception {
-        thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
-        IMEMonitor<thaumicenergistics.api.storage.IAEEssentiaStack> inv = null;
-        try {
-            Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-            java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-            Object essentiaChannel = getChannel.invoke(AEApi.instance().storage(), essentiaChannelClass);
-            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
-            inv = (IMEMonitor<thaumicenergistics.api.storage.IAEEssentiaStack>) getInv.invoke(this.getProxy().getStorage(), essentiaChannel);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to get essentia inventory", e);
-            return false;
-        }
-
-        boolean worked = false;
-
-        for (int x = 0; x < this.config.getSlots(); x++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(x);
-            if (filter == null || !FakeEssentias.isEssentiaFakeItem(filter.createItemStack())) continue;
-
-            thaumicenergistics.api.storage.IAEEssentiaStack wanted = FakeEssentias.unpackEssentia(filter);
-            if (wanted == null || wanted.getAspect() == null) continue;
-
-            int toSend = (int) Math.min(wanted.getStackSize(), 64);
-            thaumicenergistics.api.EssentiaStack essStack = new thaumicenergistics.api.EssentiaStack(
-                    wanted.getAspect().getTag(), toSend);
-            thaumicenergistics.api.storage.IAEEssentiaStack aeEss =
-                    thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(essStack);
-            if (aeEss == null) continue;
-
-            thaumicenergistics.api.storage.IAEEssentiaStack out = inv.extractItems(aeEss, Actionable.SIMULATE, this.source);
-            if (out == null || out.getStackSize() <= 0) continue;
-
-            int actual = transport.addEssentia(wanted.getAspect(), (int) out.getStackSize(), opposite);
-            if (actual > 0) {
-                essStack = new thaumicenergistics.api.EssentiaStack(wanted.getAspect().getTag(), actual);
-                aeEss = thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(essStack);
-                inv.extractItems(aeEss, Actionable.MODULATE, this.source);
-                worked = true;
-                break;
-            }
-        }
-
-        return worked;
     }
 
     // endregion
@@ -615,7 +584,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
     private boolean isFakeItemFilter(IAEItemStack filter) {
         if (filter == null) return false;
         ItemStack stack = filter.createItemStack();
-        return ItemFluidDrop.isFluidDrop(stack) || ItemGasDrop.isGasDrop(stack) || FakeEssentias.isEssentiaFakeItem(stack);
+        return ItemFluidDrop.isFluidDrop(stack) || ItemGasDrop.isGasDrop(stack) || ItemEssentiaDrop.isEssentiaDrop(stack);
     }
 
     private net.minecraftforge.common.capabilities.Capability<?> getGasCapability() {

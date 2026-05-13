@@ -1,53 +1,17 @@
 package com.github.aeddddd.ae2enhanced.util;
 
-import appeng.api.AEApi;
-import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.item.ItemStack;
-import thaumicenergistics.api.EssentiaStack;
-import thaumicenergistics.api.storage.IAEEssentiaStack;
-import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 /**
- * 源质假物品的打包/解包工具类。
- * 将 Thaumic Energistics 的 IAEEssentiaStack 与标准 AE2 的 IAEItemStack 互相转换。
+ * 源质假物品的安全工具类。
+ * 不包含任何对 thaumicenergistics 的直接类型引用，避免在 Part 类加载时触发
+ * thaumicenergistics 类缺失导致的 NoClassDefFoundError。
+ *
+ * 涉及 thaumicenergistics 类型的 pack/unpack 逻辑已移至 EssentiaBusHelper。
  */
 public class FakeEssentias {
-
-    /**
-     * 将源质栈打包为假物品 IAEItemStack，用于在物品终端中显示。
-     */
-    public static IAEItemStack packEssentia(IAEEssentiaStack essentiaStack) {
-        if (essentiaStack == null || essentiaStack.getAspect() == null) return null;
-        String aspectTag = essentiaStack.getAspect().getTag();
-        long amount = essentiaStack.getStackSize();
-        ItemStack fakeItem = ItemEssentiaDrop.createStack(aspectTag, 1);
-        AE2Enhanced.LOGGER.info("[AE2E-PACK] aspect={} fakeItem.damage={}", aspectTag, fakeItem.getItemDamage());
-        IAEItemStack result = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(fakeItem);
-        if (result != null) {
-            result.setStackSize(amount);
-            AE2Enhanced.LOGGER.info("[AE2E-PACK] result.damage={} result.stackSize={}", result.createItemStack().getItemDamage(), result.getStackSize());
-        }
-        return result;
-    }
-
-    /**
-     * 将假物品 IAEItemStack 还原为源质栈，用于 extract/inject 操作。
-     */
-    public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {
-        if (itemStack == null) return null;
-        ItemStack mcStack = itemStack.createItemStack();
-        String aspectTag = ItemEssentiaDrop.getAspectTag(mcStack);
-        if (aspectTag == null) return null;
-        EssentiaStack essStack = new EssentiaStack(aspectTag, 1);
-        IAEEssentiaStack result = AEEssentiaStack.fromEssentiaStack(essStack);
-        if (result != null) {
-            result.setStackSize(itemStack.getStackSize());
-        }
-        return result;
-    }
 
     /**
      * 判断 ItemStack 是否是源质假物品。
