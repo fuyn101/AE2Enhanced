@@ -1,94 +1,57 @@
 # AE2Enhanced
 
-> **Fold immense crafting timelines into a single tick.**
+AE2Enhanced is a late-game addon for **AE2 Unofficial Extended Life (AE2-UEL)** that introduces multiple massive multiblock structures and a series of utility items for the endgame:
+
+*Current version: 1.3.3, Dev version: 1.4.2-dev*
+> New features and utility items are still under active development in the dev branch. A Release will be published once development is complete.
 
 [中文版本 (Chinese)](/README_zh.md)
 
-AE2Enhanced is a late-game addon for **AE2 Unofficial Extended Life (AE2-UEL)** that introduces multiple massive multiblock structures for the endgame:
+## Multiblock Structures
 
-- **Supercausal Assembly Hub** — a 344-block crafting array similar to LazyAE's Large Molecular Assembler, allowing extreme parallelism and speed for crafting patterns.
-- **Hyperdimensional Storage Nexus** — an unlimited-capacity storage structure that bypasses the `long` limit, supporting items, fluids, Mekanism gases, and Thaumcraft essentia, with data persisted to external files to prevent save bloat.
+- **Supercausal Assembly Hub** — a 344-block crafting array similar to LazyAE's Large Molecular Assembler, allowing extreme parallelism (up to `Long.MAX_VALUE`) and automatic pattern uploading.
+- **Hyperdimensional Storage Nexus** — an unlimited-capacity storage structure using `BigInteger`, supporting items, fluids, Mekanism gases, and Thaumcraft essentia, with data persisted to external files to prevent save bloat.
 - **Supercausal Computation Core** — a super crafting CPU with `Long.MAX_VALUE` storage and 16384 parallel accelerator capacity, supporting multi-order concurrency via dynamic virtual CPU cluster pools.
 
 ---
 
-## Supercausal Assembly Hub
+## Modifications to AE2-UEL
 
-Base operation parameters: **64 parallel, 1 second per operation** — equivalent to LazyAE's Large Molecular Assembler at its strongest stock configuration.
-
-**Importantly, the Assembly Hub's parallelism does NOT depend on CPU co-processors!**
-
-With all 5 Parallel Extension Modules installed, parallelism reaches `Long.MAX_VALUE` — effectively infinite for virtually all modpacks (this even exceeds the AE2 terminal display limit in 1.12.2!).
-
-Speed Modules reduce the cooldown from the default `20 ticks` down to `1 tick`, so crafting is no longer a bottleneck for factory expansion.
-
-Additionally, the hub provides an **Auto-Upload Module** similar to AE2's Pattern Provider — encoded crafting patterns are automatically uploaded to the hub with duplicate detection. Duplicate patterns are silently ignored.
+- **Long-order support**: Allows crafting orders exceeding `Int.MAX_VALUE` items.
+- **Crafting plan optimization**: Brings back the "missing items on top" feature from modern AE2 versions to `1.12.2`.
+- **Creative cell buff**: Changes creative storage cell capacity to `Long.MAX_VALUE`.
+- **Modern ME Terminal**: You no longer need separate fluid, gas, or essentia terminals. Everything is displayed in a single unified terminal, just like in modern AE2 versions. *(Thanks to [AE2fc-rework-unofficial](https://github.com/Circulate233/AE2FluidCraft-Rework-Unofficial/tree/main) for partial implementation reference, with compatibility maintained.)*
+- For additional QoL improvements (e.g., crafting pinning), consider using [RandomComplement](https://github.com/Circulate233/RandomComplement), which provides many modern AE2 features.
 
 ---
 
-## Hyperdimensional Storage Nexus
+## Additional Utility Items(Dev version now)
 
-Designed to solve the late-game AE2 network storage capacity bottleneck.
-
-- **BigInteger-level capacity**: Single-structure capacity is theoretically unlimited, completely bypassing `int`/`long` restrictions.
-- **Multi-type compatibility**: Native support for items and fluids; optional support for Mekanism gases and Thaumcraft essentia (requires corresponding mods).
-- **External file persistence**: Data is stored in `<world>/ae2enhanced/storage/<uuid>.dat`, avoiding NBT overflow and tick lag caused by massive storage. Save file size is independent of stored capacity.
-- **Safe mode**: Automatically enters read-only state when file exceptions occur, preventing data corruption. Supports safe mod version updates — items will not be lost when updating the mod.
-- **Third-party extension**: Provides the `registerExternalAdapter()` API, allowing other mods to plug in custom storage types.
-
----
-
-## Supercausal Computation Core
-
-A third-stage multiblock structure that acts as a **super crafting CPU** for the AE2 network.
-
-- **Massive crafting storage**: `Long.MAX_VALUE` bytes of crafting storage — effectively unlimited for any practical order.
-- **16384 accelerator capacity**: Configurable via `AE2EnhancedConfig.crafting.maxParallel`.
-- **Multi-order concurrency**: Dynamically spawns virtual `CraftingCPUCluster` instances to handle concurrent crafting jobs. **Always maintains at least 1 idle CPU** to ensure new orders can be placed at any time; idle extra clusters are automatically recycled after orders complete.
-- **Network-native integration**: The core borrows the controller's AE2 network node directly, appearing as a native CPU to the network. No separate ME cable connection is required for the controller itself.
-- **ME Interface block**: A dedicated `super_crafting_interface` block acts as the cable access point for the structure.
-- **Dyson-sphere TESR**: Full-structure holographic projection with a solid core, tech grid, panels, energy streams, and orbital rings.
-- **Big-number formatting**: Z/Y units with scientific notation and Shift-toggle for precise quantity display.
-
-### Multi-order Support (Mixin Architecture)
-
-The Computation Core manages a pool of virtual `CraftingCPUCluster` instances via Mixin into AE2's `CraftingGridCache`:
-
-- `MixinCraftingGridCache` tracks `TileComputationCore` instances through `addNode`/`removeNode` lifecycle hooks.
-- After each `updateCPUClusters()` rebuild, virtual clusters are re-injected into `craftingCPUClusters`.
-- A fallback reflection-based injection runs every tick to ensure the terminal always sees the latest CPU pool.
-- `MixinCraftingCPUCluster` redirects `getCore()` / `isActive()` / `updateCraftingLogic()` for virtual clusters, enabling batch crafting with network inventory refill.
+- ✅ **Universal Import Bus / Export Bus** — allows all types of IO through a single bus.
+- 🚧 **Stock Bus** — maintains a specified item count in the target inventory. *(Not yet implemented)*
+- 🚧 **Wireless Channel Emitter** — broadcasts its channels wirelessly. *(Not yet implemented)*
+- 🚧 **Channel Receiver Card** — receives channels from the Wireless Channel Emitter (unlimited distance/dimensions, configurable). *(Not yet implemented)*
+- 🚧 **ME Interface Mirror** — mirrors an ME Interface. *(Not yet implemented)*
+- 🚧 **Universal Memory Card** — works like a standard memory card, plus copying machine configurations and upgrade cards, bulk editing, and linking ME Interface Mirrors. *(Not yet implemented)*
+- 🚧 **ME Sender Node** — wirelessly sends items in bulk (similar to an export bus), range set via the Universal Memory Card. *(Not yet implemented)*
+- 🚧 **ME Receiver Node** — counterpart to the ME Sender Node. *(Not yet implemented)*
+- 🚧 **Concurrency Card** — increases parallelism of AE2 IO devices. *(Not yet implemented)*
+- 🚧 **ME Collector Node** — collects items from the world into the ME network. *(Not yet implemented)*
 
 ---
 
 ## Performance
 
 ### Assembly Hub
-Uses a **hybrid virtual + real crafting mechanism**. Even for extremely large orders, **MSPT impact is negligible**. Nearly all AE2-craftable orders are fully supported.
+Uses a hybrid virtual + real crafting mechanism. Even for extremely large orders, `mspt` will not be significantly affected. Nearly all AE2-craftable orders are fully supported.
 
-> **Note on CraftTweaker:** When using `.reuse()` in CRT scripts, AE2 may still request the full amount during ordering since it does not recognize the item as non-consumed. This does not affect actual batch execution.
+> **Note on CraftTweaker:** When using `.reuse()` in CRT scripts, AE2 may still request the full amount during ordering since it does not recognize the item as non-consumed.
 
 ### Hyperdimensional Storage Nexus
-Uses an **asynchronous + incremental refresh model** with external file storage, fundamentally solving NBT overflow and tick lag issues while supporting extremely high storage capacity.
+Uses an asynchronous + incremental refresh model with external file storage, fundamentally solving NBT overflow and tick lag issues while supporting extremely high storage capacity.
 
 ### Computation Core
 Virtual CPU clusters minimize overhead by delegating actual crafting to existing network assemblers and ME interfaces. The dynamic pool ensures resources are only allocated when needed, and always keeps 1 idle CPU available for terminal ordering.
-
-> Built-in support for Mekanism gases and Thaumcraft essentia is automatically enabled when the corresponding mods are installed. Support for other storage types can be requested in `issues`, and an API is provided for easy extension.
-
----
-
-## Configuration
-
-Located at `config/ae2enhanced.cfg`, the following parameters are adjustable:
-
-| Category | Parameter | Description |
-|---|---|---|
-| Storage | `flushIntervalSeconds` | Auto-flush interval for the storage file (seconds, default: 5) |
-| Render | `enableHyperdimensionalRenderer` | Enable effect rendering (default: true) |
-| Render | `renderDistance` | Maximum render distance in blocks (default: 64) |
-| BlackHole | `damageMode` | Black hole damage mode: ALL / NON_CREATIVE / NONE (default: ALL) |
-| Crafting | `maxParallel` | Computation Core accelerator capacity (default: 16384) |
 
 ---
 
@@ -96,12 +59,20 @@ Located at `config/ae2enhanced.cfg`, the following parameters are adjustable:
 
 - **Minecraft**: 1.12.2
 - **Forge**: 14.23.5.2768+
-- **AE2-UEL**: v0.56.7+
-- **MixinBooter**: 8.9+ (automatically loaded as a dependency)
 
-Optional dependencies:
+**Hard Dependencies**
+- **AE2-UEL**: v0.56.7+
+- **MixinBooter**: 8.9+
+
+**Optional**
+- **CTM** — provides connected textures
 - **Mekanism + MekanismEnergistics** — enables gas storage support
 - **Thaumcraft + Thaumic Energistics** — enables essentia storage support
+- **CraftTweaker** — provides recipe modification methods
+- **JEI/HEI** — related support
+
+**Compatibility**
+- **AE2fc-rework-unofficial** — does not re-register fake fluids (compatible)
 
 ---
 
@@ -118,7 +89,7 @@ Compatible with **CleanroomMC**. Maintains good compatibility with other AE2 add
 
 ---
 
-### 🌀 Black Hole Crafting
+### Black Hole Crafting
 
 A unique crafting system that allows players to create a **Micro Singularity** and throw items into its event horizon to transmute them into desired materials.
 
