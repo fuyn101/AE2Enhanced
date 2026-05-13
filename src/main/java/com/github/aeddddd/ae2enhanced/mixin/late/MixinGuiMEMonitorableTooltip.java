@@ -184,13 +184,22 @@ public abstract class MixinGuiMEMonitorableTooltip {
             return true;
         }
 
-        // 气体容器
-        if (mouseItem.getItem() instanceof mekanism.api.gas.IGasItem) {
-            mekanism.api.gas.GasStack gas = ((mekanism.api.gas.IGasItem) mouseItem.getItem()).getGas(mouseItem);
-            if (gas != null && gas.amount > 0) {
-                renderInjectTooltip(gui, mouseX, mouseY, gas.getGas().getLocalizedName(), mouseItem.getDisplayName());
-                return true;
+        // 气体容器（反射，避免硬依赖 Mekanism）
+        try {
+            Class<?> iGasItemClass = Class.forName("mekanism.api.gas.IGasItem");
+            if (iGasItemClass.isInstance(mouseItem.getItem())) {
+                Object gas = iGasItemClass.getMethod("getGas", ItemStack.class).invoke(mouseItem.getItem(), mouseItem);
+                if (gas != null) {
+                    int amount = (int) gas.getClass().getField("amount").get(gas);
+                    if (amount > 0) {
+                        Object gasObj = gas.getClass().getMethod("getGas").invoke(gas);
+                        String gasName = (String) gasObj.getClass().getMethod("getLocalizedName").invoke(gasObj);
+                        renderInjectTooltip(gui, mouseX, mouseY, gasName, mouseItem.getDisplayName());
+                        return true;
+                    }
+                }
             }
+        } catch (Exception ignored) {
         }
 
         return false;

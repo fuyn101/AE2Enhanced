@@ -8,8 +8,6 @@ import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
-import mekanism.api.gas.GasStack;
-import mekanism.api.gas.IGasItem;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Slot;
@@ -102,9 +100,16 @@ public class MixinGuiMEMonitorableClick {
      */
     private boolean mek$handleMouseClick(SlotME s, ItemStack mouseItem) {
         boolean isGas = s.getAEStack() != null && s.getAEStack().getItem() == ModItems.GAS_DROP;
-        if (mouseItem.getItem() instanceof IGasItem && (isGas || getGasFromItem(mouseItem) != null)) {
-            GasStack gas = isGas ? FakeItemRegister.getStack(s.getAEStack()) : null;
-            NBTTagCompound nbt = gas != null ? gas.write(new NBTTagCompound()) : new NBTTagCompound();
+        if (isGas || getGasFromItem(mouseItem) != null) {
+            Object gas = isGas ? FakeItemRegister.getStack(s.getAEStack()) : null;
+            NBTTagCompound nbt = new NBTTagCompound();
+            if (gas != null) {
+                try {
+                    nbt = (NBTTagCompound) gas.getClass().getMethod("write", NBTTagCompound.class).invoke(gas, new NBTTagCompound());
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
             AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_WORK, nbt));
             return true;
         }
@@ -124,9 +129,15 @@ public class MixinGuiMEMonitorableClick {
         return null;
     }
 
-    private static GasStack getGasFromItem(ItemStack stack) {
-        if (!stack.isEmpty() && stack.getItem() instanceof IGasItem) {
-            return ((IGasItem) stack.getItem()).getGas(stack);
+    private static Object getGasFromItem(ItemStack stack) {
+        if (stack.isEmpty()) return null;
+        try {
+            Class<?> iGasItemClass = Class.forName("mekanism.api.gas.IGasItem");
+            if (iGasItemClass.isInstance(stack.getItem())) {
+                return iGasItemClass.getMethod("getGas", ItemStack.class).invoke(stack.getItem(), stack);
+            }
+        } catch (Exception e) {
+            // ignore
         }
         return null;
     }
