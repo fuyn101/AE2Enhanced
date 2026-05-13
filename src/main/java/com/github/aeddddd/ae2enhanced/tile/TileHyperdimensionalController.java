@@ -247,15 +247,31 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
 
             optionalStorage = new OptionalStorageManager();
             optionalStorage.init(storageFile);
-            if (optionalStorage.getGasAdapter() != null) {
-                storageFile.setGasStorageRef(optionalStorage.getGasAdapter().getStorageMap());
-                optionalStorage.getGasAdapter().setOnChangeCallback(this::refreshNetworkMonitor);
-                optionalStorage.getGasAdapter().setPostChangeCallback(this::postGasAlteration);
+            Object gasAdapter = optionalStorage.getGasAdapter();
+            if (gasAdapter != null) {
+                try {
+                    Object map = gasAdapter.getClass().getMethod("getStorageMap").invoke(gasAdapter);
+                    if (map instanceof java.util.Map) storageFile.setGasStorageRef((java.util.Map) map);
+                    Runnable refreshCallback = this::refreshNetworkMonitor;
+                    java.util.function.BiConsumer<Object, appeng.api.networking.security.IActionSource> gasCallback = this::postGasAlteration;
+                    gasAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(gasAdapter, refreshCallback);
+                    gasAdapter.getClass().getMethod("setPostChangeCallback", java.util.function.BiConsumer.class).invoke(gasAdapter, gasCallback);
+                } catch (Exception e) {
+                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to setup gas adapter callbacks", e);
+                }
             }
-            if (optionalStorage.getEssentiaAdapter() != null) {
-                storageFile.setEssentiaStorageRef(optionalStorage.getEssentiaAdapter().getStorageMap());
-                optionalStorage.getEssentiaAdapter().setOnChangeCallback(this::refreshNetworkMonitor);
-                optionalStorage.getEssentiaAdapter().setPostChangeCallback(this::postEssentiaAlteration);
+            Object essentiaAdapter = optionalStorage.getEssentiaAdapter();
+            if (essentiaAdapter != null) {
+                try {
+                    Object map = essentiaAdapter.getClass().getMethod("getStorageMap").invoke(essentiaAdapter);
+                    if (map instanceof java.util.Map) storageFile.setEssentiaStorageRef((java.util.Map) map);
+                    Runnable refreshCallback = this::refreshNetworkMonitor;
+                    java.util.function.BiConsumer<Object, appeng.api.networking.security.IActionSource> essentiaCallback = this::postEssentiaAlteration;
+                    essentiaAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(essentiaAdapter, refreshCallback);
+                    essentiaAdapter.getClass().getMethod("setPostChangeCallback", java.util.function.BiConsumer.class).invoke(essentiaAdapter, essentiaCallback);
+                } catch (Exception e) {
+                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to setup essentia adapter callbacks", e);
+                }
             }
         }
     }
@@ -334,33 +350,39 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
 
             // 刷新可选存储 monitor
             if (optionalStorage != null) {
-                try {
-                    if (optionalStorage.getGasAdapter() != null) {
-                        Object gasMonitor = storageGrid.getInventory(
-                            AEApi.instance().storage().getStorageChannel(com.mekeng.github.common.me.storage.IGasStorageChannel.class)
-                        );
+                Object gasAdapter = optionalStorage.getGasAdapter();
+                if (gasAdapter != null) {
+                    try {
+                        Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
+                        java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+                        Object gasChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), gasChannelClass);
+                        java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+                        Object gasMonitor = getInventory.invoke(storageGrid, gasChannel);
                         if (gasMonitor != null) {
                             FORCE_UPDATE_FIELD.setBoolean(gasMonitor, true);
                             if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(gasMonitor, true);
                             if (ON_TICK_METHOD != null) ON_TICK_METHOD.invoke(gasMonitor);
                         }
+                    } catch (ReflectiveOperationException | RuntimeException e) {
+                        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh gas monitor", e);
                     }
-                } catch (ReflectiveOperationException | RuntimeException e) {
-                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh gas monitor", e);
                 }
-                try {
-                    if (optionalStorage.getEssentiaAdapter() != null) {
-                        Object essentiaMonitor = storageGrid.getInventory(
-                            AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class)
-                        );
+                Object essentiaAdapter = optionalStorage.getEssentiaAdapter();
+                if (essentiaAdapter != null) {
+                    try {
+                        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+                        java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+                        Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
+                        java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+                        Object essentiaMonitor = getInventory.invoke(storageGrid, essentiaChannel);
                         if (essentiaMonitor != null) {
                             FORCE_UPDATE_FIELD.setBoolean(essentiaMonitor, true);
                             if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(essentiaMonitor, true);
                             if (ON_TICK_METHOD != null) ON_TICK_METHOD.invoke(essentiaMonitor);
                         }
+                    } catch (ReflectiveOperationException | RuntimeException e) {
+                        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh essentia monitor", e);
                     }
-                } catch (ReflectiveOperationException | RuntimeException e) {
-                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh essentia monitor", e);
                 }
             }
         } catch (ReflectiveOperationException | RuntimeException | appeng.me.GridAccessException e) {
@@ -403,29 +425,37 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
         }
     }
 
-    private void postGasAlteration(com.mekeng.github.common.me.data.IAEGasStack change, appeng.api.networking.security.IActionSource src) {
+    @SuppressWarnings("unchecked")
+    private void postGasAlteration(Object change, appeng.api.networking.security.IActionSource src) {
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            storageGrid.postAlterationOfStoredItems(
-                appeng.api.AEApi.instance().storage().getStorageChannel(com.mekeng.github.common.me.storage.IGasStorageChannel.class),
-                java.util.Collections.singletonList(change), src);
+            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
+            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object gasChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), gasChannelClass);
+            java.lang.reflect.Method postAlteration = storageGrid.getClass().getMethod("postAlterationOfStoredItems",
+                appeng.api.storage.IStorageChannel.class, java.util.List.class, appeng.api.networking.security.IActionSource.class);
+            postAlteration.invoke(storageGrid, gasChannel, java.util.Collections.singletonList(change), src);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post gas alteration", e);
         }
     }
 
-    private void postEssentiaAlteration(thaumicenergistics.api.storage.IAEEssentiaStack change, appeng.api.networking.security.IActionSource src) {
+    @SuppressWarnings("unchecked")
+    private void postEssentiaAlteration(Object change, appeng.api.networking.security.IActionSource src) {
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            storageGrid.postAlterationOfStoredItems(
-                appeng.api.AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class),
-                java.util.Collections.singletonList(change), src);
+            Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
+            java.lang.reflect.Method postAlteration = storageGrid.getClass().getMethod("postAlterationOfStoredItems",
+                appeng.api.storage.IStorageChannel.class, java.util.List.class, appeng.api.networking.security.IActionSource.class);
+            postAlteration.invoke(storageGrid, essentiaChannel, java.util.Collections.singletonList(change), src);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post essentia alteration", e);
         }
