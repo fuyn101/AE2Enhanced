@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
+import com.github.aeddddd.ae2enhanced.item.ItemPartStockingBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemStableSpacetimeManifold;
@@ -26,6 +27,7 @@ public class ModItems {
     public static ItemGasDrop GAS_DROP;
     public static ItemPartUniversalImportBus PART_UNIVERSAL_IMPORT_BUS;
     public static ItemPartUniversalExportBus PART_UNIVERSAL_EXPORT_BUS;
+    public static ItemPartStockingBus PART_STOCKING_BUS;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -41,6 +43,7 @@ public class ModItems {
         }
         PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
         PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();
+        PART_STOCKING_BUS = new ItemPartStockingBus();
     }
 
     @SubscribeEvent
@@ -58,5 +61,6 @@ public class ModItems {
         }
         event.getRegistry().register(PART_UNIVERSAL_IMPORT_BUS);
         event.getRegistry().register(PART_UNIVERSAL_EXPORT_BUS);
+        event.getRegistry().register(PART_STOCKING_BUS);
     }
 }

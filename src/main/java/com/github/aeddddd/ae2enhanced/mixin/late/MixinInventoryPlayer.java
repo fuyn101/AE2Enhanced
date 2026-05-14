@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * AE2 终端在提取时可能绕过 NetworkMonitor.extractItems 拦截，
  * 直接在容器层将假物品放入背包。此处兜底拦截。
  */
-@Mixin(value = InventoryPlayer.class, remap = false)
+@Mixin(value = InventoryPlayer.class)
 public class MixinInventoryPlayer {
 
     @Inject(method = "addItemStackToInventory", at = @At("HEAD"), cancellable = true)

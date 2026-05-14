@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
@@ -12,7 +14,7 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class ItemUpgradeCard extends Item {
+public class ItemUpgradeCard extends Item implements IUpgradeModule {
 
     public static final int COUNT = 6;
 
@@ -91,6 +93,15 @@ public class ItemUpgradeCard extends Item {
                 break;
             default:
                 tooltip.add(I18n.format("item.ae2enhanced.upgrade_card.reserved2.tooltip"));
+        }
+    }
+
+    @Override
+    public Upgrades getType(ItemStack is) {
+        switch (is.getMetadata()) {
+            case META_SPEED:      return Upgrades.SPEED;
+            case META_CAPACITY:   return Upgrades.CAPACITY;
+            default:              return null;
         }
     }
 

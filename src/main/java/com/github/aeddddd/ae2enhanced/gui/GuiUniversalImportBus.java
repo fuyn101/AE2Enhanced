@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
 import appeng.client.gui.implementations.GuiUpgradeable;
-import appeng.client.gui.widgets.GuiImgButton;
 import appeng.container.implementations.ContainerUpgradeable;
 import appeng.container.slot.SlotFake;
 import appeng.core.localization.GuiText;
@@ -78,7 +77,10 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
     protected void handleButtonVisibility() {
         super.handleButtonVisibility();
         if (this.busModeButton != null) {
-            this.busModeButton.visible = true; // 模式按钮始终可见
+            this.busModeButton.visible = true;
+        }
+        if (this.schedulingMode != null) {
+            this.schedulingMode.setVisibility(this.bc.getInstalledUpgrades(appeng.api.config.Upgrades.CAPACITY) > 0);
         }
     }
 
@@ -88,7 +90,9 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
         this.bindTexture(this.getBackground());
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, 177, this.ySize);
         if (this.drawUpgrades()) {
-            this.drawTexturedModalRect(offsetX + 177, offsetY, 177, 0, 35, 14 + this.cvb.availableUpgrades() * 18);
+            int upgradeHeight = 14 + this.cvb.availableUpgrades() * 18;
+            this.drawTexturedModalRect(offsetX + 177, offsetY, 177, 0, 35, upgradeHeight);
+            this.drawTexturedModalRect(offsetX + 177, offsetY + upgradeHeight, 177, 151, 35, 7);
         }
         if (this.hasToolbox()) {
             this.drawTexturedModalRect(offsetX + 178, offsetY + this.ySize - 90, 178, this.ySize - 90, 68, 68);

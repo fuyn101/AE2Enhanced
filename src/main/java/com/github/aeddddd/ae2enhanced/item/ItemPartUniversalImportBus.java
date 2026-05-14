@@ -12,8 +12,12 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import net.minecraft.client.resources.I18n;
+import net.minecraft.client.util.ITooltipFlag;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * E1a：通用输入总线的物品形态。
@@ -39,5 +43,10 @@ public class ItemPartUniversalImportBus extends Item implements IPartItem<PartUn
                                        @Nonnull EnumHand hand, @Nonnull EnumFacing side,
                                        float hitX, float hitY, float hitZ) {
         return AEApi.instance().partHelper().placeBus(player.getHeldItem(hand), pos, side, player, hand, world);
+    }
+
+    @Override
+    public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
+        tooltip.add(I18n.format("item.ae2enhanced.part_universal_import_bus.tooltip"));
     }
 }

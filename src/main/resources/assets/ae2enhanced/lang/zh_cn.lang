@@ -1,6 +1,7 @@
 itemGroup.ae2enhanced=AE2 Enhanced
 
 item.ae2enhanced.part_universal_import_bus.name=通用输入总线
+item.ae2enhanced.part_universal_import_bus.tooltip=§e通用输入总线 §7— 输入物品、流体、气体和源质
 gui.ae2enhanced.universal_import_bus.name=通用输入总线
 gui.ae2enhanced.bus_mode.sequential=依次
 gui.ae2enhanced.bus_mode.round_robin=轮询
@@ -155,4 +156,13 @@ gui.ae2enhanced.nexus.label.storage_total=总存储数: §e%s
 gui.ae2enhanced.nexus.storage.empty=存储核心: §7空
 
 item.ae2enhanced.part_universal_export_bus.name=通用输出总线
+item.ae2enhanced.part_universal_export_bus.tooltip=§e通用输出总线 §7— 输出物品、流体、气体和源质
 gui.ae2enhanced.universal_export_bus.name=通用输出总线
+
+item.ae2enhanced.part_stocking_bus.name=库存维持总线
+item.ae2enhanced.part_stocking_bus.tooltip=§e库存维持总线 §7— 将外部容器维持在指定数量
+gui.ae2enhanced.stocking_bus.name=库存维持总线
+gui.ae2enhanced.stocking_bus.tooltip.mode=模式: %s
+gui.ae2enhanced.stocking_bus.mode.bidirectional=双向维持
+gui.ae2enhanced.stocking_bus.mode.supply=仅补货
+gui.ae2enhanced.stocking_bus.mode.recover=仅回收

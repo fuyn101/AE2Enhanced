@@ -2,7 +2,7 @@
     "parent": "appliedenergistics2:item/part/part",
     "textures": {
         "sides": "appliedenergistics2:parts/import_bus_sides",
-        "front": "ae2enhanced:items/part/universal_import_bus"
+        "front": "ae2enhanced:items/part/stocking_bus"
     },
     "elements": [
         {

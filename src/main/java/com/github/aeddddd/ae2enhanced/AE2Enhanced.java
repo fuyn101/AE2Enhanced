@@ -12,6 +12,7 @@ import com.github.aeddddd.ae2enhanced.network.PacketCraftRequestLong;
 import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.PacketRequestAssembly;
+import com.github.aeddddd.ae2enhanced.network.PacketStockingBusConfig;
 import com.github.aeddddd.ae2enhanced.network.PacketUniversalBusConfig;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
 import net.minecraft.init.Blocks;
@@ -49,7 +50,7 @@ public class AE2Enhanced {
 
     public static final String MOD_ID = "ae2enhanced";
     public static final String MOD_NAME = "AE2Enhanced";
-    public static final String VERSION = "1.4.1-dev";
+    public static final String VERSION = "1.4.3-alpha";
 
     public static final String CLIENT_PROXY = "com.github.aeddddd.ae2enhanced.proxy.ClientProxy";
     public static final String SERVER_PROXY = "com.github.aeddddd.ae2enhanced.proxy.CommonProxy";
@@ -84,6 +85,7 @@ public class AE2Enhanced {
         network.registerMessage(PacketCraftRequestLong.Handler.class, PacketCraftRequestLong.class, 2, Side.SERVER);
         network.registerMessage(PacketMEMonitorableAction.Handler.class, PacketMEMonitorableAction.class, 3, Side.SERVER);
         network.registerMessage(PacketUniversalBusConfig.Handler.class, PacketUniversalBusConfig.class, 4, Side.SERVER);
+        network.registerMessage(PacketStockingBusConfig.Handler.class, PacketStockingBusConfig.class, 5, Side.SERVER);
         proxy.preInit(event);
     }
 
@@ -91,6 +93,35 @@ public class AE2Enhanced {
     public void init(FMLInitializationEvent event) {
         NetworkRegistry.INSTANCE.registerGuiHandler(instance, new GuiHandler());
         proxy.init(event);
+
+        // MixinBooter / CleanroomMC 环境检测
+        boolean hasMixinBooter = net.minecraftforge.fml.common.Loader.isModLoaded("mixinbooter");
+        boolean hasCleanroom = false;
+        try {
+            Class.forName("com.cleanroommc.common.launch.ActualClassLoader");
+            hasCleanroom = true;
+        } catch (ClassNotFoundException ignored) {
+            try {
+                Class.forName("com.cleanroommc.loader.ActualClassLoader");
+                hasCleanroom = true;
+            } catch (ClassNotFoundException ignored2) {}
+        }
+        if (!hasMixinBooter && !hasCleanroom) {
+            LOGGER.error("[AE2E] ============================================================");
+            LOGGER.error("[AE2E] CRITICAL: MixinBooter not detected!");
+            LOGGER.error("[AE2E] AE2Enhanced requires MixinBooter on standard Forge environments.");
+            LOGGER.error("[AE2E] Without it, all Mixin-based features will be silently disabled:");
+            LOGGER.error("[AE2E]   - Fluid/Gas/Essentia terminal display & interaction");
+            LOGGER.error("[AE2E]   - Batch crafting (long order support)");
+            LOGGER.error("[AE2E]   - Creative cell capacity override");
+            LOGGER.error("[AE2E]   - Stocking Bus / Universal Bus enhancements");
+            LOGGER.error("[AE2E] Please install MixinBooter:");
+            LOGGER.error("[AE2E]   https://www.curseforge.com/minecraft/mc-mods/mixinbooter");
+            LOGGER.error("[AE2E] ============================================================");
+        } else if (hasCleanroom) {
+            LOGGER.info("[AE2E] CleanroomMC detected, skipping MixinBooter requirement check.");
+        }
+
         // 诊断：检查 MixinGuiMEMonitorableHandleClick 是否被应用到 AEBaseGui
         if (event.getSide().isClient()) {
             try {
@@ -123,6 +154,15 @@ public class AE2Enhanced {
             net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_EXPORT_BUS);
             Upgrades.SPEED.registerItem(busStack, 4);
             Upgrades.CAPACITY.registerItem(busStack, 5);
+            Upgrades.REDSTONE.registerItem(busStack, 1);
+            Upgrades.FUZZY.registerItem(busStack, 1);
+            Upgrades.CRAFTING.registerItem(busStack, 1);
+        }
+        // Stocking 总线升级卡
+        if (ModItems.PART_STOCKING_BUS != null) {
+            net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_STOCKING_BUS);
+            Upgrades.SPEED.registerItem(busStack, 4);
+            Upgrades.CAPACITY.registerItem(busStack, 2);
             Upgrades.REDSTONE.registerItem(busStack, 1);
             Upgrades.FUZZY.registerItem(busStack, 1);
             Upgrades.CRAFTING.registerItem(busStack, 1);
