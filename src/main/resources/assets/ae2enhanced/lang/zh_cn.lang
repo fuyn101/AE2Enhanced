@@ -6,7 +6,7 @@ gui.ae2enhanced.universal_import_bus.name=通用输入总线
 gui.ae2enhanced.bus_mode.sequential=依次
 gui.ae2enhanced.bus_mode.round_robin=轮询
 gui.ae2enhanced.bus_mode.random=随机
-gui.ae2enhanced.bus_mode.greedy=贪婪
+gui.ae2enhanced.bus_mode.greedy=全力
 
 tile.ae2enhanced.assembly_controller.name=装配枢纽控制器
 tile.ae2enhanced.assembly_me_interface.name=装配枢纽 ME 接口

@@ -118,6 +118,11 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
     }
 
     @Override
+    protected int getUpgradeSlots() {
+        return 5;
+    }
+
+    @Override
     public TickingRequest getTickingRequest(@Nonnull IGridNode node) {
         return new TickingRequest(TickRates.ExportBus.getMin(), TickRates.ExportBus.getMax(), this.isSleeping(), false);
     }
