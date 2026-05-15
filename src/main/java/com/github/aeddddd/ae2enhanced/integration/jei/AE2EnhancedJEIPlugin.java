@@ -38,16 +38,16 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
             for (int meta = 0; meta < aspectCount; meta++) {
                 blacklist.addIngredientToBlacklist(new ItemStack(ModItems.ESSENTIA_DROP, 1, meta));
             }
-            AE2Enhanced.LOGGER.info("[AE2E-JEI] Hidden {} essentia drop variants from JEI", aspectCount);
+
         }
         if (ModItems.FLUID_DROP != null) {
             // 隐藏基础流体假物品（getSubItems 已返回空，黑名单确保基础物品也不显示）
             blacklist.addIngredientToBlacklist(new ItemStack(ModItems.FLUID_DROP));
-            AE2Enhanced.LOGGER.info("[AE2E-JEI] Hidden fluid drop from JEI");
+
         }
         if (ModItems.GAS_DROP != null) {
             blacklist.addIngredientToBlacklist(new ItemStack(ModItems.GAS_DROP));
-            AE2Enhanced.LOGGER.info("[AE2E-JEI] Hidden gas drop from JEI");
+
         }
 
         // 必须将 BlackHoleRecipe 包装为 BlackHoleRecipeWrapper，与 IRecipeCategory 的泛型匹配
@@ -56,6 +56,6 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
             wrappers.add(new BlackHoleRecipeWrapper(recipe));
         }
         registry.addRecipes(wrappers, BlackHoleRecipeCategory.UID);
-        AE2Enhanced.LOGGER.info("JEI 集成已注册，黑洞合成配方数量: {}", wrappers.size());
+
     }
 }

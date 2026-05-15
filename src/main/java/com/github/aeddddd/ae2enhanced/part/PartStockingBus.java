@@ -199,35 +199,27 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
                 if (isFluid) {
                     if (!hasFluidCap) {
-                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is fluid but target has no fluid cap", slot);
                         continue;
                     }
                     boolean result = this.handleFluidStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleFluidStocking slot {} target {} result {}", slot, targetAmount, result);
                     worked |= result;
                 } else if (isGas) {
                     if (!hasGasCap) {
-                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is gas but target has no gas cap", slot);
                         continue;
                     }
                     boolean result = this.handleGasStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleGasStocking slot {} target {} result {}", slot, targetAmount, result);
                     worked |= result;
                 } else if (isEssentia) {
                     if (!hasEssentiaCap) {
-                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is essentia but target has no essentia cap", slot);
                         continue;
                     }
                     boolean result = this.handleEssentiaStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleEssentiaStocking slot {} target {} result {}", slot, targetAmount, result);
                     worked |= result;
                 } else {
                     if (!hasItemCap) {
-                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is item but target has no item cap", slot);
                         continue;
                     }
                     boolean result = this.handleItemStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleItemStocking slot {} target {} result {}", slot, targetAmount, result);
                     worked |= result;
                 }
             }

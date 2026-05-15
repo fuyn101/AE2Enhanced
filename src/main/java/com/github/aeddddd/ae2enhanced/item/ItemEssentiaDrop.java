@@ -41,7 +41,6 @@ public class ItemEssentiaDrop extends Item {
         mapsInitialized = true;
 
         int aspectCount = Aspect.aspects != null ? Aspect.aspects.size() : -1;
-        AE2Enhanced.LOGGER.info("[AE2E] initAspectMaps: Aspect.aspects.size={}", aspectCount);
 
         List<String> tags = new ArrayList<>();
         if (Aspect.aspects != null) {
@@ -53,7 +52,7 @@ public class ItemEssentiaDrop extends Item {
         }
         Collections.sort(tags); // 确定性排序，确保客户端/服务器映射一致
 
-        AE2Enhanced.LOGGER.info("[AE2E] initAspectMaps: registered {} aspects", tags.size());
+
         int meta = 0;
         for (String tag : tags) {
             ASPECT_TO_META.put(tag, meta);

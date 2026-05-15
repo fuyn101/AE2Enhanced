@@ -26,14 +26,9 @@ public class ThaumicMixinPlugin implements IMixinConfigPlugin {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             java.net.URL url = cl.getResource("thaumicenergistics/api/storage/IEssentiaStorageChannel.class");
             thaumicEnergisticsLoaded = url != null;
-            if (thaumicEnergisticsLoaded) {
-                LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel found, thaumic mixins ENABLED");
-            } else {
-                LOGGER.info("[AE2E] ThaumicMixinPlugin: IEssentiaStorageChannel NOT found, thaumic mixins DISABLED");
-            }
+            // thaumicEnergisticsLoaded 已设置，日志已移除
         } catch (Exception e) {
             thaumicEnergisticsLoaded = false;
-            LOGGER.info("[AE2E] ThaumicMixinPlugin: detection failed, thaumic mixins DISABLED");
         }
     }
 

@@ -80,7 +80,6 @@ public class BlackHoleCraftTweaker {
             // CraftTweaker 可能在 init() 之前执行，此时配方尚未注册。
             // 加入延迟队列，由 AE2Enhanced.init() 注册完成后统一移除。
             BlackHoleRecipeRegistry.queueRemoval(id);
-            AE2Enhanced.LOGGER.info("[AE2E CT] removeRecipe('{}'): queued for delayed removal (recipes may not be registered yet)", id);
         }
 
         @Override

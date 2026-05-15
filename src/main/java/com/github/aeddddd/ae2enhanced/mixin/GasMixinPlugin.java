@@ -27,14 +27,9 @@ public class GasMixinPlugin implements IMixinConfigPlugin {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             java.net.URL url = cl.getResource("com/mekeng/github/common/me/storage/IGasStorageChannel.class");
             gasChannelLoaded = url != null;
-            if (gasChannelLoaded) {
-                LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel found, gas mixins ENABLED");
-            } else {
-                LOGGER.info("[AE2E] GasMixinPlugin: IGasStorageChannel NOT found, gas mixins DISABLED");
-            }
+            // gasChannelLoaded 已设置，日志已移除
         } catch (Exception e) {
             gasChannelLoaded = false;
-            LOGGER.info("[AE2E] GasMixinPlugin: detection failed, gas mixins DISABLED");
         }
     }
 

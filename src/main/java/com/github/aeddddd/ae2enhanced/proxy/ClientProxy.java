@@ -60,9 +60,7 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
         // E2a：注册 EssentiaDrop 的内置物品渲染器（流体/气体使用标准模型系统）
         if (ModItems.ESSENTIA_DROP != null) {
-            AE2Enhanced.LOGGER.info("[AE2E] Setting TEISR for ESSENTIA_DROP: item={}", ModItems.ESSENTIA_DROP);
             ModItems.ESSENTIA_DROP.initModel();
-            AE2Enhanced.LOGGER.info("[AE2E] TEISR set: renderer={}", ModItems.ESSENTIA_DROP.getTileEntityItemStackRenderer());
         }
         // E2a：注册流体假物品的 ItemColors，根据流体颜色染色
         if (ModItems.FLUID_DROP != null) {

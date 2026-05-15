@@ -49,8 +49,7 @@ public class BlackHoleRecipeRegistry {
     public static void applyPendingRemovals() {
         if (PENDING_REMOVALS.isEmpty()) return;
         for (String id : new HashSet<>(PENDING_REMOVALS)) {
-            boolean removed = removeById(id);
-            AE2Enhanced.LOGGER.info("[AE2E CT] applyPendingRemovals('{}'): {}", id, removed ? "removed" : "not found");
+            removeById(id);
         }
         PENDING_REMOVALS.clear();
     }

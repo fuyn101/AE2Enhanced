@@ -31,13 +31,7 @@ public class EssentiaItemRenderer extends TileEntityItemStackRenderer {
     public void renderByItem(ItemStack stack, float partialTicks) {
         String aspectTag = ItemEssentiaDrop.getAspectTag(stack);
         int damage = stack.getItemDamage();
-        if (aspectTag != null && loggedAspects.add(aspectTag)) {
-            AE2Enhanced.LOGGER.info("[AE2E-RENDER] First render for aspect: damage={} tag={}", damage, aspectTag);
-        }
         if (aspectTag == null) {
-            if (loggedAspects.add("null-" + damage)) {
-                AE2Enhanced.LOGGER.info("[AE2E-RENDER] aspectTag is null for damage={}", damage);
-            }
             return;
         }
         Aspect aspect = Aspect.getAspect(aspectTag);

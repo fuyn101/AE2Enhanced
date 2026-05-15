@@ -572,8 +572,7 @@ public class MixinCraftingCPUCluster {
                                 changed = true;
                                 controller.resetBatchCooldown();
 
-                                AE2Enhanced.LOGGER.debug("[AE2E Batch] Processed {}x real {} -> remaining={}",
-                                    actualBatchSize, details.getOutput(null, null).getDisplayName(), newRemaining);
+
                             } catch (Exception e) {
                                 AE2Enhanced.LOGGER.error("[AE2E] Real batch error: {}", e.toString());
                             } finally {
@@ -686,8 +685,7 @@ public class MixinCraftingCPUCluster {
                             virtualTasksExecuted++;
                             controller.resetBatchCooldown();
 
-                            AE2Enhanced.LOGGER.debug("[AE2E Batch] Processed {}x {} -> remaining={}",
-                                batchSize, details.getOutput(null, null).getDisplayName(), newRemaining);
+
                         } finally {
                             controller.setCurrentActionSource(null);
                         }
@@ -702,13 +700,10 @@ public class MixinCraftingCPUCluster {
             batchCallCount++;
             if (virtualTasksExecuted > 0) {
                 batchSuccessCount += virtualTasksExecuted;
-                AE2Enhanced.LOGGER.debug("[AE2E Batch] Executed {} virtual task(s) (found {} candidates, total calls={}, successes={})",
-                    virtualTasksExecuted, virtualTasksFound, batchCallCount, batchSuccessCount);
+
             } else if (anyOurTask && batchCallCount % 20 == 1) {
                 batchFailCount++;
-                AE2Enhanced.LOGGER.debug("[AE2E Batch] Call #{}: found our tasks but executed 0 (candidates={}, fails={}). " +
-                    "Possible causes: insufficient CPU inventory, pattern not cached as virtual, or canSubstitute.",
-                    batchCallCount, virtualTasksFound, batchFailCount);
+
             }
         }
     }

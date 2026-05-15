@@ -118,28 +118,8 @@ public class AE2Enhanced {
             LOGGER.error("[AE2E] Please install MixinBooter:");
             LOGGER.error("[AE2E]   https://www.curseforge.com/minecraft/mc-mods/mixinbooter");
             LOGGER.error("[AE2E] ============================================================");
-        } else if (hasCleanroom) {
-            LOGGER.info("[AE2E] CleanroomMC detected, skipping MixinBooter requirement check.");
         }
 
-        // 诊断：检查 MixinGuiMEMonitorableHandleClick 是否被应用到 AEBaseGui
-        if (event.getSide().isClient()) {
-            try {
-                Class<?> cls = Class.forName("appeng.client.gui.AEBaseGui");
-                boolean found = false;
-                for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
-                    if (m.getName().contains("ae2enhanced")) {
-                        LOGGER.info("[AE2E-DIAG] AEBaseGui contains mixin method: {} {}", m.getName(), java.util.Arrays.toString(m.getParameterTypes()));
-                        found = true;
-                    }
-                }
-                if (!found) {
-                    LOGGER.warn("[AE2E-DIAG] AEBaseGui DOES NOT contain any ae2enhanced mixin method — Mixin NOT APPLIED");
-                }
-            } catch (Exception e) {
-                LOGGER.error("[AE2E-DIAG] Failed to inspect AEBaseGui", e);
-            }
-        }
         // E1a：注册通用输入总线支持的升级卡类型
         if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) {
             net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_IMPORT_BUS);
@@ -168,9 +148,7 @@ public class AE2Enhanced {
             Upgrades.CRAFTING.registerItem(busStack, 1);
         }
 
-        LOGGER.info("[AE2E] init() called, registering singularity/black hole recipes...");
         registerSingularityRecipes();
-        LOGGER.info("[AE2E] Registered {} black hole recipes", BlackHoleRecipeRegistry.getRecipes().size());
         // 执行 CraftTweaker 延迟移除（CT 脚本可能在 init() 之前执行）
         BlackHoleRecipeRegistry.applyPendingRemovals();
         // 注册共形不变荷为物质炮弹药（weight 1E8 → 伤害 5,000,000）
@@ -272,7 +250,7 @@ public class AE2Enhanced {
             ritualInputs.add(new ItemStack(ae2Material, 64, 47));
             ritualInputs.add(new ItemStack(Items.NETHER_STAR, 4));
             SingularityRecipeRegistry.register(new SingularityRecipe("micro_singularity_ritual", ritualInputs));
-            AE2Enhanced.LOGGER.info("注册黑洞生成仪式配方: micro_singularity_ritual");
+
         } else {
             AE2Enhanced.LOGGER.warn("无法获取 AE2 材料物品，黑洞生成仪式配方未注册");
         }
@@ -326,7 +304,7 @@ public class AE2Enhanced {
                 new ItemStack(ModItems.CONFORMAL_CHARGE, 1)
         ));
 
-        AE2Enhanced.LOGGER.info("注册黑洞合成配方数量: {}", BlackHoleRecipeRegistry.getRecipes().size());
+
     }
 
 

@@ -22,13 +22,6 @@ public class MixinGuiFluidTerminalHandleClick {
 
     @Inject(method = "func_184098_a", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onHandleMouseClickFluid(Slot slot, int slotIdx, int mouseButton, ClickType clickType, CallbackInfo ci) {
-        AE2Enhanced.LOGGER.info("[AE2E-CLIENT-FLUID] GuiFluidTerminal.func_184098_a injected slot={} mouseButton={} clickType={}", slot, mouseButton, clickType);
-        if (!(slot instanceof SlotFluidME)) return;
-        if (clickType != ClickType.PICKUP) return;
-
-        SlotFluidME fluidSlot = (SlotFluidME) slot;
-        IAEFluidStack aeFluid = fluidSlot.getAEFluidStack();
-        AE2Enhanced.LOGGER.info("[AE2E-CLIENT-FLUID] SlotFluidME aeFluid={} hasStack={}", aeFluid, fluidSlot.func_75216_d());
-        // 暂不取消原生逻辑，仅记录日志以诊断问题
+        // 日志已移除，保留注入点以备未来扩展
     }
 }

@@ -71,7 +71,6 @@ public class MixinPatternEncoder {
             boolean uploaded = target.tryAutoUploadPattern(pattern);
             if (uploaded) {
                 patternSlotOUT.putStack(ItemStack.EMPTY);
-                AE2Enhanced.LOGGER.debug("[AE2E AutoUpload] Uploaded pattern to controller at {}", target.getPos());
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] AutoUpload unexpected error: {}", e.toString());
