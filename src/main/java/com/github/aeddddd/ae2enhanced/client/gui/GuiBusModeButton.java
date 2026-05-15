@@ -15,12 +15,11 @@ public class GuiBusModeButton extends GuiButton implements ITooltip {
 
     private static final ResourceLocation STATES_TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
 
-    private static final String[] ABBREVS = { "SEQ", "RR", "RND", "ALL" };
+    private static final String[] ABBREVS = { "SEQ", "RR", "RND" };
     private static final String[] NAME_KEYS = {
             "gui.ae2enhanced.bus_mode.sequential",
             "gui.ae2enhanced.bus_mode.round_robin",
-            "gui.ae2enhanced.bus_mode.random",
-            "gui.ae2enhanced.bus_mode.greedy"
+            "gui.ae2enhanced.bus_mode.random"
     };
 
     private int modeIndex = 0;
@@ -33,6 +32,10 @@ public class GuiBusModeButton extends GuiButton implements ITooltip {
         if (index >= 0 && index < ABBREVS.length) {
             this.modeIndex = index;
         }
+    }
+
+    public void cycleMode() {
+        this.modeIndex = (this.modeIndex + 1) % ABBREVS.length;
     }
 
     public int getModeIndex() {

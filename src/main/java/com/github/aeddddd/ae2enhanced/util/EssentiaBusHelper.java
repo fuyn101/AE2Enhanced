@@ -104,6 +104,88 @@ public class EssentiaBusHelper {
 
     // endregion
 
+    // region Import Bus (Single Slot)
+
+    @SuppressWarnings("unchecked")
+    public static boolean importEssentiaSlot(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
+                                              IAEItemStack filter, IActionSource source) throws Exception {
+        thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
+
+        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+        java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+        Object essentiaChannel = getChannel.invoke(AEApi.instance().storage(), essentiaChannelClass);
+
+        appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
+        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) storageGrid.getInventory((appeng.api.storage.IStorageChannel<?>) essentiaChannel);
+
+        if (filter == null || !ItemEssentiaDrop.isEssentiaDrop(filter.createItemStack())) return false;
+
+        IAEEssentiaStack wanted = unpackEssentia(filter);
+        if (wanted == null || wanted.getAspect() == null) return false;
+
+        int available = transport.getEssentiaAmount(opposite);
+        if (available <= 0) return false;
+
+        int toTake = Math.min(available, 64);
+        EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), toTake);
+        IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
+        if (aeEss == null) return false;
+
+        IAEEssentiaStack notInserted = inv.injectItems(aeEss, Actionable.SIMULATE, source);
+        long canInsert = aeEss.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+        if (canInsert <= 0) return false;
+
+        int actual = transport.takeEssentia(wanted.getAspect(), (int) canInsert, opposite);
+        if (actual > 0) {
+            EssentiaStack actualStack = new EssentiaStack(wanted.getAspect().getTag(), actual);
+            IAEEssentiaStack toInsert = AEEssentiaStack.fromEssentiaStack(actualStack);
+            inv.injectItems(toInsert, Actionable.MODULATE, source);
+            return true;
+        }
+        return false;
+    }
+
+    // endregion
+
+    // region Export Bus (Single Slot)
+
+    @SuppressWarnings("unchecked")
+    public static boolean exportEssentiaSlot(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
+                                              IAEItemStack filter, IActionSource source) throws Exception {
+        thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
+
+        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+        java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+        Object essentiaChannel = getChannel.invoke(AEApi.instance().storage(), essentiaChannelClass);
+
+        appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
+        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) storageGrid.getInventory((appeng.api.storage.IStorageChannel<?>) essentiaChannel);
+
+        if (filter == null || !ItemEssentiaDrop.isEssentiaDrop(filter.createItemStack())) return false;
+
+        IAEEssentiaStack wanted = unpackEssentia(filter);
+        if (wanted == null || wanted.getAspect() == null) return false;
+
+        int toSend = (int) Math.min(wanted.getStackSize(), 64);
+        EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), toSend);
+        IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
+        if (aeEss == null) return false;
+
+        IAEEssentiaStack out = inv.extractItems(aeEss, Actionable.SIMULATE, source);
+        if (out == null || out.getStackSize() <= 0) return false;
+
+        int actual = transport.addEssentia(wanted.getAspect(), (int) out.getStackSize(), opposite);
+        if (actual > 0) {
+            essStack = new EssentiaStack(wanted.getAspect().getTag(), actual);
+            aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
+            inv.extractItems(aeEss, Actionable.MODULATE, source);
+            return true;
+        }
+        return false;
+    }
+
+    // endregion
+
     // region Export Bus
 
     @SuppressWarnings("unchecked")

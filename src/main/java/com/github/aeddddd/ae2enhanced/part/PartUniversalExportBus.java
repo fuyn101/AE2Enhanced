@@ -62,10 +62,8 @@ import net.minecraftforge.fml.common.Loader;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 /**
  * E1b：通用输出总线。
@@ -88,11 +86,9 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
     public enum BusMode {
         SEQUENTIAL,
         ROUND_ROBIN,
-        RANDOM,
-        GREEDY
+        RANDOM
     }
 
-    private static final EnumSet<BusMode> MODES = EnumSet.allOf(BusMode.class);
     private static final Random RAND = new Random();
 
     private BusMode busMode = BusMode.SEQUENTIAL;
@@ -195,31 +191,45 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
             return TickRateModulation.SLOWER;
         }
 
+        List<Integer> activeSlots = new ArrayList<>();
+        int maxSlot = this.availableSlots();
+        for (int i = 0; i < maxSlot; i++) {
+            if (this.config.getAEStackInSlot(i) != null) {
+                activeSlots.add(i);
+            }
+        }
+
         boolean worked = false;
-        Set<ResourceType> filteredTypes = this.getFilteredTypes();
-        boolean hasFilter = !filteredTypes.isEmpty();
 
         try {
-            List<ResourceType> order = this.getTypeOrder();
-            for (ResourceType type : order) {
-                if (hasFilter && !filteredTypes.contains(type)) continue;
+            if (activeSlots.isEmpty()) {
+                if (this.hasItemCap) worked |= this.exportItemsUnfiltered(target, opposite);
+                if (this.hasFluidCap) worked |= this.exportFluidsUnfiltered(target, opposite);
+                if (this.hasGasCap) worked |= this.exportGasesUnfiltered(target, opposite);
+                if (this.hasEssentiaCap) worked |= this.exportEssentiasUnfiltered(target, opposite);
+            } else {
+                List<Integer> order = this.getSlotOrder(activeSlots);
+                for (int slot : order) {
+                    IAEItemStack filter = this.config.getAEStackInSlot(slot);
+                    if (filter == null) continue;
 
-                switch (type) {
-                    case ITEM:
-                        if (this.hasItemCap) worked |= this.exportItems(target, opposite);
-                        break;
-                    case FLUID:
-                        if (this.hasFluidCap) worked |= this.exportFluids(target, opposite);
-                        break;
-                    case GAS:
-                        if (this.hasGasCap) worked |= this.exportGases(target, opposite);
-                        break;
-                    case ESSENTIA:
-                        if (this.hasEssentiaCap) worked |= this.exportEssentias(target, opposite);
-                        break;
-                }
-                if (worked && this.busMode != BusMode.GREEDY) {
-                    break;
+                    ResourceType type = this.getSlotType(filter);
+                    if (type == null) continue;
+
+                    switch (type) {
+                        case ITEM:
+                            if (this.hasItemCap) worked |= this.exportItemSlot(target, opposite, filter);
+                            break;
+                        case FLUID:
+                            if (this.hasFluidCap) worked |= this.exportFluidSlot(target, opposite, filter);
+                            break;
+                        case GAS:
+                            if (this.hasGasCap) worked |= this.exportGasSlot(target, opposite, filter);
+                            break;
+                        case ESSENTIA:
+                            if (this.hasEssentiaCap) worked |= this.exportEssentiaSlot(target, opposite, filter);
+                            break;
+                    }
                 }
             }
         } catch (GridAccessException e) {
@@ -229,33 +239,38 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         return worked ? TickRateModulation.FASTER : TickRateModulation.SLOWER;
     }
 
-    // region Type Ordering
+    // region Slot Ordering
 
     private enum ResourceType { ITEM, FLUID, GAS, ESSENTIA }
 
-    private List<ResourceType> getTypeOrder() {
-        List<ResourceType> list = new ArrayList<>();
-        if (this.hasItemCap) list.add(ResourceType.ITEM);
-        if (this.hasFluidCap) list.add(ResourceType.FLUID);
-        if (this.hasGasCap) list.add(ResourceType.GAS);
-        if (this.hasEssentiaCap) list.add(ResourceType.ESSENTIA);
+    private ResourceType getSlotType(IAEItemStack filter) {
+        if (filter == null) return null;
+        ItemStack stack = filter.createItemStack();
+        if (stack.isEmpty()) return null;
+        if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
+        if (ItemGasDrop.isGasDrop(stack)) return ResourceType.GAS;
+        if (ItemEssentiaDrop.isEssentiaDrop(stack)) return ResourceType.ESSENTIA;
+        return ResourceType.ITEM;
+    }
 
+    private List<Integer> getSlotOrder(List<Integer> slots) {
         switch (this.busMode) {
             case SEQUENTIAL:
-                return list;
+                return slots;
             case ROUND_ROBIN:
-                if (list.size() > 1) {
-                    Collections.rotate(list, -this.roundRobinIndex);
-                    this.roundRobinIndex = (this.roundRobinIndex + 1) % list.size();
+                List<Integer> rotated = new ArrayList<>(slots);
+                if (rotated.size() > 1) {
+                    int idx = this.roundRobinIndex % rotated.size();
+                    Collections.rotate(rotated, -idx);
+                    this.roundRobinIndex = (this.roundRobinIndex + 1) % rotated.size();
                 }
-                return list;
+                return rotated;
             case RANDOM:
-                Collections.shuffle(list, RAND);
-                return list;
-            case GREEDY:
-                return list;
+                List<Integer> shuffled = new ArrayList<>(slots);
+                Collections.shuffle(shuffled, RAND);
+                return shuffled;
             default:
-                return list;
+                return slots;
         }
     }
 
@@ -263,7 +278,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
     // region Item Export
 
-    private boolean exportItems(TileEntity target, EnumFacing opposite) throws GridAccessException {
+    private boolean exportItemSlot(TileEntity target, EnumFacing opposite, IAEItemStack filter) throws GridAccessException {
         InventoryAdaptor adaptor = InventoryAdaptor.getAdaptor(target, opposite);
         if (adaptor == null) return false;
 
@@ -273,51 +288,53 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         FuzzyMode fzMode = (FuzzyMode) this.getConfigManager().getSetting(Settings.FUZZY_MODE);
 
         long itemsToSend = this.calculateItemsToSend();
-        boolean configured = false;
         boolean worked = false;
 
-        for (int x = 0; x < this.config.getSlots() && itemsToSend > 0; x++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(x);
-            if (filter == null || isFakeItemFilter(filter)) continue;
-            configured = true;
+        IAEItemStack toExtract = filter.copy();
+        toExtract.setStackSize(itemsToSend);
 
-            IAEItemStack toExtract = filter.copy();
-            toExtract.setStackSize(itemsToSend);
-
-            if (this.getInstalledUpgrades(Upgrades.FUZZY) > 0) {
-                for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList().findFuzzy(toExtract, fzMode))) {
-                    if (o.getStackSize() <= 0) continue;
-                    long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
-                    if (sent > 0) {
-                        itemsToSend -= sent;
-                        worked = true;
-                    }
-                    if (itemsToSend <= 0) break;
-                }
-            } else {
-                IAEItemStack o = inv.getStorageList().findPrecise(toExtract);
-                if (o != null && o.getStackSize() > 0) {
-                    long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
-                    if (sent > 0) {
-                        itemsToSend -= sent;
-                        worked = true;
-                    }
-                }
-            }
-        }
-
-        if (!configured) {
-            // No filter: export any item from network
-            // This is tricky because we don't know what to extract.
-            // We iterate the network storage and try to push each type.
-            for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList())) {
-                if (o == null || o.getStackSize() <= 0 || isFakeItemFilter(o)) continue;
-                if (itemsToSend <= 0) break;
+        if (this.getInstalledUpgrades(Upgrades.FUZZY) > 0) {
+            for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList().findFuzzy(toExtract, fzMode))) {
+                if (o.getStackSize() <= 0) continue;
                 long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
                 if (sent > 0) {
                     itemsToSend -= sent;
                     worked = true;
                 }
+                if (itemsToSend <= 0) break;
+            }
+        } else {
+            IAEItemStack o = inv.getStorageList().findPrecise(toExtract);
+            if (o != null && o.getStackSize() > 0) {
+                long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
+                if (sent > 0) {
+                    itemsToSend -= sent;
+                    worked = true;
+                }
+            }
+        }
+
+        return worked;
+    }
+
+    private boolean exportItemsUnfiltered(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        InventoryAdaptor adaptor = InventoryAdaptor.getAdaptor(target, opposite);
+        if (adaptor == null) return false;
+
+        IMEMonitor<IAEItemStack> inv = this.getProxy().getStorage().getInventory(
+                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+        IEnergyGrid energy = this.getProxy().getEnergy();
+
+        long itemsToSend = this.calculateItemsToSend();
+        boolean worked = false;
+
+        for (IAEItemStack o : ImmutableList.copyOf(inv.getStorageList())) {
+            if (o == null || o.getStackSize() <= 0 || isFakeItemFilter(o)) continue;
+            if (itemsToSend <= 0) break;
+            long sent = this.pushItemIntoTarget(adaptor, energy, inv, o, itemsToSend);
+            if (sent > 0) {
+                itemsToSend -= sent;
+                worked = true;
             }
         }
 
@@ -365,49 +382,47 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         return Math.min(18 + capacityUpgrades * 9, 63);
     }
 
-    private Set<ResourceType> getFilteredTypes() {
-        Set<ResourceType> types = EnumSet.noneOf(ResourceType.class);
-        for (int i = 0; i < 63; i++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(i);
-            if (filter == null) continue;
-            ItemStack stack = filter.createItemStack();
-            if (stack.isEmpty()) continue;
-            if (ItemFluidDrop.isFluidDrop(stack)) {
-                types.add(ResourceType.FLUID);
-            } else if (ItemGasDrop.isGasDrop(stack)) {
-                types.add(ResourceType.GAS);
-            } else if (ItemEssentiaDrop.isEssentiaDrop(stack)) {
-                types.add(ResourceType.ESSENTIA);
-            } else {
-                types.add(ResourceType.ITEM);
-            }
-        }
-        return types;
-    }
-
     // endregion
 
     // region Fluid Export
 
-    private boolean exportFluids(TileEntity target, EnumFacing opposite) throws GridAccessException {
+    private boolean exportFluidSlot(TileEntity target, EnumFacing opposite, IAEItemStack filter) throws GridAccessException {
         IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
         if (fh == null) return false;
 
         IMEMonitor<IAEFluidStack> inv = this.getProxy().getStorage().getInventory(
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
-        boolean configured = false;
-        boolean worked = false;
+        IAEFluidStack wanted = FakeFluids.unpackFluid(filter);
+        if (wanted == null || wanted.getFluid() == null) return false;
 
-        for (int x = 0; x < this.config.getSlots(); x++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(x);
-            if (filter == null || !FakeFluids.isFluidFakeItem(filter.createItemStack())) continue;
-            configured = true;
+        IAEFluidStack toExtract = wanted.copy();
+        toExtract.setStackSize(this.calculateFluidToSend());
 
-            IAEFluidStack wanted = FakeFluids.unpackFluid(filter);
-            if (wanted == null || wanted.getFluid() == null) continue;
+        IAEFluidStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
+        if (out == null || out.getStackSize() <= 0) return false;
 
-            IAEFluidStack toExtract = wanted.copy();
+        int wasInserted = fh.fill(out.getFluidStack(), false);
+        if (wasInserted <= 0) return false;
+
+        toExtract.setStackSize(wasInserted);
+        inv.extractItems(toExtract, Actionable.MODULATE, this.source);
+
+        FluidStack toFill = new FluidStack(out.getFluid(), wasInserted);
+        fh.fill(toFill, true);
+        return true;
+    }
+
+    private boolean exportFluidsUnfiltered(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+        if (fh == null) return false;
+
+        IMEMonitor<IAEFluidStack> inv = this.getProxy().getStorage().getInventory(
+                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+
+        for (IAEFluidStack fluid : ImmutableList.copyOf(inv.getStorageList())) {
+            if (fluid == null || fluid.getStackSize() <= 0) continue;
+            IAEFluidStack toExtract = fluid.copy();
             toExtract.setStackSize(this.calculateFluidToSend());
 
             IAEFluidStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
@@ -421,34 +436,10 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
             FluidStack toFill = new FluidStack(out.getFluid(), wasInserted);
             fh.fill(toFill, true);
-            worked = true;
-            break;
+            return true;
         }
 
-        if (!configured) {
-            // No filter: export any fluid from network
-            for (IAEFluidStack fluid : ImmutableList.copyOf(inv.getStorageList())) {
-                if (fluid == null || fluid.getStackSize() <= 0) continue;
-                IAEFluidStack toExtract = fluid.copy();
-                toExtract.setStackSize(this.calculateFluidToSend());
-
-                IAEFluidStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
-                if (out == null || out.getStackSize() <= 0) continue;
-
-                int wasInserted = fh.fill(out.getFluidStack(), false);
-                if (wasInserted <= 0) continue;
-
-                toExtract.setStackSize(wasInserted);
-                inv.extractItems(toExtract, Actionable.MODULATE, this.source);
-
-                FluidStack toFill = new FluidStack(out.getFluid(), wasInserted);
-                fh.fill(toFill, true);
-                worked = true;
-                break;
-            }
-        }
-
-        return worked;
+        return false;
     }
 
     private long calculateFluidToSend() {
@@ -460,22 +451,22 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
     // region Gas Export
 
-    private boolean exportGases(TileEntity target, EnumFacing opposite) throws GridAccessException {
+    private boolean exportGasSlot(TileEntity target, EnumFacing opposite, IAEItemStack filter) throws GridAccessException {
         if (!Loader.isModLoaded("mekanism") || !Loader.isModLoaded("mekeng")) return false;
 
         Object gasHandler = target.getCapability(getGasCapability(), opposite);
         if (gasHandler == null) return false;
 
         try {
-            return exportGasesReflective(gasHandler, opposite);
+            return exportGasSlotReflective(gasHandler, opposite, filter);
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Gas export failed", e);
+            AE2Enhanced.LOGGER.error("[AE2E] Gas export slot failed", e);
             return false;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private boolean exportGasesReflective(Object gasHandler, EnumFacing opposite) throws Exception {
+    private boolean exportGasSlotReflective(Object gasHandler, EnumFacing opposite, IAEItemStack filter) throws Exception {
         Class<?> gasHandlerClass = Class.forName("mekanism.api.gas.IGasHandler");
         Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
         java.lang.reflect.Field amountField = gasStackClass.getField("amount");
@@ -493,18 +484,65 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
             return false;
         }
 
-        boolean configured = false;
-        boolean worked = false;
+        com.mekeng.github.common.me.data.IAEGasStack wanted = FakeGases.unpackGas(filter);
+        if (wanted == null || wanted.getGas() == null) return false;
 
-        for (int x = 0; x < this.config.getSlots(); x++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(x);
-            if (filter == null || !FakeGases.isGasFakeItem(filter.createItemStack())) continue;
-            configured = true;
+        com.mekeng.github.common.me.data.IAEGasStack toExtract = wanted.copy();
+        toExtract.setStackSize(this.calculateGasToSend());
 
-            com.mekeng.github.common.me.data.IAEGasStack wanted = FakeGases.unpackGas(filter);
-            if (wanted == null || wanted.getGas() == null) continue;
+        com.mekeng.github.common.me.data.IAEGasStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
+        if (out == null || out.getStackSize() <= 0) return false;
 
-            com.mekeng.github.common.me.data.IAEGasStack toExtract = wanted.copy();
+        Object gasStack = out.getGasStack();
+        int wasInserted = (int) receiveGas.invoke(gasHandler, opposite, gasStack, false);
+        if (wasInserted <= 0) return false;
+
+        toExtract.setStackSize(wasInserted);
+        inv.extractItems(toExtract, Actionable.MODULATE, this.source);
+
+        Object actualGas = gasStackClass.getConstructor(gasStackClass.getClasses()[0], int.class)
+                .newInstance(out.getGasStack().getGas(), wasInserted);
+        receiveGas.invoke(gasHandler, opposite, actualGas, true);
+        return true;
+    }
+
+    private boolean exportGasesUnfiltered(TileEntity target, EnumFacing opposite) throws GridAccessException {
+        if (!Loader.isModLoaded("mekanism") || !Loader.isModLoaded("mekeng")) return false;
+
+        Object gasHandler = target.getCapability(getGasCapability(), opposite);
+        if (gasHandler == null) return false;
+
+        try {
+            return exportGasesUnfilteredReflective(gasHandler, opposite);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Gas export unfiltered failed", e);
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean exportGasesUnfilteredReflective(Object gasHandler, EnumFacing opposite) throws Exception {
+        Class<?> gasHandlerClass = Class.forName("mekanism.api.gas.IGasHandler");
+        Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+        java.lang.reflect.Field amountField = gasStackClass.getField("amount");
+        java.lang.reflect.Method receiveGas = gasHandlerClass.getMethod("receiveGas", EnumFacing.class, gasStackClass, boolean.class);
+
+        IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv = null;
+        try {
+            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
+            java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object gasChannel = getChannel.invoke(AEApi.instance().storage(), gasChannelClass);
+            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+            inv = (IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack>) getInv.invoke(this.getProxy().getStorage(), gasChannel);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to get gas inventory", e);
+            return false;
+        }
+
+        for (com.mekeng.github.common.me.data.IAEGasStack gas : ImmutableList.copyOf(inv.getStorageList())) {
+            if (gas == null || gas.getStackSize() <= 0) continue;
+
+            com.mekeng.github.common.me.data.IAEGasStack toExtract = gas.copy();
             toExtract.setStackSize(this.calculateGasToSend());
 
             com.mekeng.github.common.me.data.IAEGasStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
@@ -520,36 +558,10 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
             Object actualGas = gasStackClass.getConstructor(gasStackClass.getClasses()[0], int.class)
                     .newInstance(out.getGasStack().getGas(), wasInserted);
             receiveGas.invoke(gasHandler, opposite, actualGas, true);
-            worked = true;
-            break;
+            return true;
         }
 
-        if (!configured) {
-            for (com.mekeng.github.common.me.data.IAEGasStack gas : ImmutableList.copyOf(inv.getStorageList())) {
-                if (gas == null || gas.getStackSize() <= 0) continue;
-
-                com.mekeng.github.common.me.data.IAEGasStack toExtract = gas.copy();
-                toExtract.setStackSize(this.calculateGasToSend());
-
-                com.mekeng.github.common.me.data.IAEGasStack out = inv.extractItems(toExtract, Actionable.SIMULATE, this.source);
-                if (out == null || out.getStackSize() <= 0) continue;
-
-                Object gasStack = out.getGasStack();
-                int wasInserted = (int) receiveGas.invoke(gasHandler, opposite, gasStack, false);
-                if (wasInserted <= 0) continue;
-
-                toExtract.setStackSize(wasInserted);
-                inv.extractItems(toExtract, Actionable.MODULATE, this.source);
-
-                Object actualGas = gasStackClass.getConstructor(gasStackClass.getClasses()[0], int.class)
-                        .newInstance(out.getGasStack().getGas(), wasInserted);
-                receiveGas.invoke(gasHandler, opposite, actualGas, true);
-                worked = true;
-                break;
-            }
-        }
-
-        return worked;
+        return false;
     }
 
     private long calculateGasToSend() {
@@ -561,7 +573,28 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
 
     // region Essentia Export
 
-    private boolean exportEssentias(TileEntity target, EnumFacing opposite) throws GridAccessException {
+    private boolean exportEssentiaSlot(TileEntity target, EnumFacing opposite, IAEItemStack filter) throws GridAccessException {
+        if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
+        try {
+            Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
+            if (!ieTransportClass.isInstance(target)) return false;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+
+        try {
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            java.lang.reflect.Method method = helperClass.getMethod("exportEssentiaSlot",
+                    appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
+                    IAEItemStack.class, appeng.api.networking.security.IActionSource.class);
+            return (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite, filter, this.source);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Essentia export slot failed", e);
+            return false;
+        }
+    }
+
+    private boolean exportEssentiasUnfiltered(TileEntity target, EnumFacing opposite) throws GridAccessException {
         if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
         try {
             Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
@@ -577,7 +610,7 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
                     appeng.tile.inventory.AppEngInternalAEInventory.class, appeng.api.networking.security.IActionSource.class);
             return (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite, this.config, this.source);
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Essentia export failed", e);
+            AE2Enhanced.LOGGER.error("[AE2E] Essentia export unfiltered failed", e);
             return false;
         }
     }
