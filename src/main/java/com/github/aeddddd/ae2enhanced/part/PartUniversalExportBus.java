@@ -110,7 +110,6 @@ public class PartUniversalExportBus extends PartUpgradeable implements IGridTick
         this.getConfigManager().registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
         this.getConfigManager().registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
         this.getConfigManager().registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
-        this.getConfigManager().registerSetting(Settings.SCHEDULING_MODE, SchedulingMode.DEFAULT);
     }
 
     @Override

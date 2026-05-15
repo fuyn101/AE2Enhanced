@@ -95,7 +95,6 @@ public class ContainerUniversalImportBus extends ContainerUpgradeable implements
         if (Platform.isServer()) {
             this.setFuzzyMode((FuzzyMode) this.getUpgradeable().getConfigManager().getSetting(Settings.FUZZY_MODE));
             this.setCraftingMode((YesNo) this.getUpgradeable().getConfigManager().getSetting(Settings.CRAFT_ONLY));
-            this.setSchedulingMode((SchedulingMode) this.getUpgradeable().getConfigManager().getSetting(Settings.SCHEDULING_MODE));
             this.busModeOrdinal = this.part.getBusMode().ordinal();
         }
         this.standardDetectAndSendChanges();

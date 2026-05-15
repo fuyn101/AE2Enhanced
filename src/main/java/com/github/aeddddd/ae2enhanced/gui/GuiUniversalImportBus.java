@@ -43,6 +43,11 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
     @Override
     protected void addButtons() {
         super.addButtons();
+        // 移除 AE2 原生调度模式按钮，通用总线使用自己的 BusMode
+        if (this.schedulingMode != null) {
+            this.buttonList.remove(this.schedulingMode);
+            this.schedulingMode = null;
+        }
         // 模式按钮放在左侧最下方
         this.busModeButton = new GuiBusModeButton(this.guiLeft - 18, this.guiTop + 88);
         this.buttonList.add(this.busModeButton);
@@ -63,9 +68,6 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
         if (this.craftMode != null) {
             this.craftMode.set(this.cvb.getCraftingMode());
         }
-        if (this.schedulingMode != null) {
-            this.schedulingMode.set(this.cvb.getSchedulingMode());
-        }
 
         // 同步模式按钮状态
         if (this.busModeButton != null) {
@@ -78,9 +80,6 @@ public class GuiUniversalImportBus extends GuiUpgradeable {
         super.handleButtonVisibility();
         if (this.busModeButton != null) {
             this.busModeButton.visible = true;
-        }
-        if (this.schedulingMode != null) {
-            this.schedulingMode.setVisibility(this.bc.getInstalledUpgrades(appeng.api.config.Upgrades.CAPACITY) > 0);
         }
     }
 
