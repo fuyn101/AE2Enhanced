@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -32,8 +33,10 @@ public class GuiStockingBus extends GuiUpgradeable {
     private GuiButton modeButton;
 
     private static final String[] MODE_ABBREVS = { "BID", "SUP", "REC" };
-    private static final String[] MODE_NAMES = {
-        "Bidirectional", "Supply Only", "Recover Only"
+    private static final String[] MODE_NAME_KEYS = {
+        "gui.ae2enhanced.stocking_bus.mode.bidirectional",
+        "gui.ae2enhanced.stocking_bus.mode.supply",
+        "gui.ae2enhanced.stocking_bus.mode.recover"
     };
     private static final ResourceLocation STATES_TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
 
@@ -51,40 +54,6 @@ public class GuiStockingBus extends GuiUpgradeable {
         super.addButtons();
         this.modeButton = new ModeButton();
         this.buttonList.add(this.modeButton);
-    }
-
-    @Override
-    public void func_73863_a(int mouseX, int mouseY, float partialTicks) {
-        super.func_73863_a(mouseX, mouseY, partialTicks);
-        // 在 slot 绘制完成后绘制目标数量，避免与 Minecraft 默认数量重叠
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(this.guiLeft, this.guiTop, 0);
-        this.drawTargetAmounts();
-        GlStateManager.popMatrix();
-    }
-
-    private void drawTargetAmounts() {
-        for (int i = 0; i < 9; i++) {
-            int amount = this.container.getTargetAmount(i);
-            if (amount > 1) {
-                String text;
-                if (amount >= 1000000) {
-                    text = (amount / 1000000) + "M";
-                } else if (amount >= 1000) {
-                    text = (amount / 1000) + "k";
-                } else {
-                    text = String.valueOf(amount);
-                }
-                int sx = SLOT_X[i];
-                int sy = SLOT_Y[i];
-                int tw = this.fontRenderer.getStringWidth(text);
-                int x = sx + 19 - tw;
-                int y = sy + 10;
-                // 绘制灰色背景覆盖默认的物品数量显示区域
-                drawRect(x - 1, y - 1, x + tw + 1, y + 8, 0xFF555555);
-                this.fontRenderer.drawStringWithShadow(text, x, y, 0xFFFFFF);
-            }
-        }
     }
 
     @Override
@@ -188,10 +157,10 @@ public class GuiStockingBus extends GuiUpgradeable {
         @Override
         public String getMessage() {
             int modeIdx = container.modeOrdinal;
-            if (modeIdx >= 0 && modeIdx < MODE_NAMES.length) {
-                return "Mode: " + MODE_NAMES[modeIdx];
+            if (modeIdx >= 0 && modeIdx < MODE_NAME_KEYS.length) {
+                return I18n.format(MODE_NAME_KEYS[modeIdx]);
             }
-            return "Mode";
+            return I18n.format("gui.ae2enhanced.stocking_bus.mode.unknown");
         }
 
         @Override public int xPos() { return this.x; }

@@ -4,6 +4,7 @@ import appeng.client.gui.widgets.ITooltip;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 
 /**
@@ -15,8 +16,11 @@ public class GuiBusModeButton extends GuiButton implements ITooltip {
     private static final ResourceLocation STATES_TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
 
     private static final String[] ABBREVS = { "SEQ", "RR", "RND", "ALL" };
-    private static final String[] NAMES = {
-            "Sequential", "Round Robin", "Random", "Greedy"
+    private static final String[] NAME_KEYS = {
+            "gui.ae2enhanced.bus_mode.sequential",
+            "gui.ae2enhanced.bus_mode.round_robin",
+            "gui.ae2enhanced.bus_mode.random",
+            "gui.ae2enhanced.bus_mode.greedy"
     };
 
     private int modeIndex = 0;
@@ -56,7 +60,7 @@ public class GuiBusModeButton extends GuiButton implements ITooltip {
 
     @Override
     public String getMessage() {
-        return "Mode: " + NAMES[this.modeIndex];
+        return I18n.format(NAME_KEYS[this.modeIndex]);
     }
 
     @Override

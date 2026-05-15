@@ -63,12 +63,13 @@ public class ContainerUniversalImportBus extends ContainerUpgradeable implements
             }
         }
 
-        // 升级槽：4 槽
+        // 升级槽：5 槽
         IItemHandler upgrades = this.getUpgradeable().getInventoryByName("upgrades");
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 0, 187, 8, this.getInventoryPlayer()).setNotDraggable());
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 1, 187, 26, this.getInventoryPlayer()).setNotDraggable());
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 2, 187, 44, this.getInventoryPlayer()).setNotDraggable());
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 3, 187, 62, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 4, 187, 80, this.getInventoryPlayer()).setNotDraggable());
     }
 
     @Override
@@ -78,7 +79,7 @@ public class ContainerUniversalImportBus extends ContainerUpgradeable implements
 
     @Override
     public int availableUpgrades() {
-        return 4;
+        return 5;
     }
 
     @Override

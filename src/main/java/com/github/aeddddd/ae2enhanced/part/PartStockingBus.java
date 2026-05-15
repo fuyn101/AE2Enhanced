@@ -193,18 +193,42 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 ItemStack filterStack = filter.createItemStack();
                 if (filterStack.isEmpty()) continue;
 
-                if (ItemFluidDrop.isFluidDrop(filterStack)) {
-                    if (!hasFluidCap) continue;
-                    worked |= this.handleFluidStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                } else if (ItemGasDrop.isGasDrop(filterStack)) {
-                    if (!hasGasCap) continue;
-                    worked |= this.handleGasStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                } else if (ItemEssentiaDrop.isEssentiaDrop(filterStack)) {
-                    if (!hasEssentiaCap) continue;
-                    worked |= this.handleEssentiaStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                boolean isFluid = ItemFluidDrop.isFluidDrop(filterStack);
+                boolean isGas = ItemGasDrop.isGasDrop(filterStack);
+                boolean isEssentia = ItemEssentiaDrop.isEssentiaDrop(filterStack);
+
+                if (isFluid) {
+                    if (!hasFluidCap) {
+                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is fluid but target has no fluid cap", slot);
+                        continue;
+                    }
+                    boolean result = this.handleFluidStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleFluidStocking slot {} target {} result {}", slot, targetAmount, result);
+                    worked |= result;
+                } else if (isGas) {
+                    if (!hasGasCap) {
+                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is gas but target has no gas cap", slot);
+                        continue;
+                    }
+                    boolean result = this.handleGasStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleGasStocking slot {} target {} result {}", slot, targetAmount, result);
+                    worked |= result;
+                } else if (isEssentia) {
+                    if (!hasEssentiaCap) {
+                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is essentia but target has no essentia cap", slot);
+                        continue;
+                    }
+                    boolean result = this.handleEssentiaStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleEssentiaStocking slot {} target {} result {}", slot, targetAmount, result);
+                    worked |= result;
                 } else {
-                    if (!hasItemCap) continue;
-                    worked |= this.handleItemStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    if (!hasItemCap) {
+                        AE2Enhanced.LOGGER.debug("[AE2E] StockingBus slot {} is item but target has no item cap", slot);
+                        continue;
+                    }
+                    boolean result = this.handleItemStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.debug("[AE2E] StockingBus handleItemStocking slot {} target {} result {}", slot, targetAmount, result);
+                    worked |= result;
                 }
             }
         } catch (GridAccessException e) {
@@ -385,7 +409,10 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
         IAEFluidStack fluidFilter = FakeFluids.unpackFluid(filter);
-        if (fluidFilter == null || fluidFilter.getFluid() == null) return false;
+        if (fluidFilter == null || fluidFilter.getFluid() == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] StockingBus handleFluidStocking: unpackFluid returned null for filter {}", filter);
+            return false;
+        }
         Fluid targetFluid = fluidFilter.getFluid();
 
         long actual = countFluids(fh, targetFluid);
@@ -755,6 +782,10 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     public void setTargetAmount(int slot, long amount) {
         if (slot < 0 || slot >= CONFIG_SIZE) return;
         this.targetAmounts[slot] = Math.max(0, amount);
+        appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
+        if (aeStack != null) {
+            aeStack.setStackSize(this.targetAmounts[slot]);
+        }
         this.saveChanges();
     }
 
@@ -768,6 +799,22 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             return this.config;
         }
         return super.getInventoryByName(name);
+    }
+
+    @Override
+    public void onChangeInventory(net.minecraftforge.items.IItemHandler inv, int slot,
+                                   appeng.util.inv.InvOperation mc,
+                                   net.minecraft.item.ItemStack removedStack,
+                                   net.minecraft.item.ItemStack newStack) {
+        super.onChangeInventory(inv, slot, mc, removedStack, newStack);
+        if (inv == this.config && slot >= 0 && slot < CONFIG_SIZE) {
+            appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
+            if (aeStack != null) {
+                this.targetAmounts[slot] = aeStack.getStackSize();
+            } else {
+                this.targetAmounts[slot] = 1;
+            }
+        }
     }
 
     @Override

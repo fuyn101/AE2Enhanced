@@ -9,9 +9,9 @@ import appeng.api.config.YesNo;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerUpgradeable;
 import appeng.container.slot.IOptionalSlotHost;
-import appeng.container.slot.OptionalSlotFakeTypeOnly;
-import appeng.container.slot.SlotFakeTypeOnly;
 import appeng.container.slot.SlotRestrictedInput;
+import com.github.aeddddd.ae2enhanced.container.slot.OptionalSlotStockingConfig;
+import com.github.aeddddd.ae2enhanced.container.slot.SlotStockingConfig;
 import appeng.helpers.InventoryAction;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
@@ -59,15 +59,15 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
     protected void setupConfig() {
         this.setupUpgrades();
         IItemHandler config = this.getUpgradeable().getInventoryByName("config");
-        this.addSlotToContainer(new SlotFakeTypeOnly(config, 0, 80, 40));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 1, 80, 40, -1, 0, 1));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 2, 80, 40, 1, 0, 1));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 3, 80, 40, 0, -1, 1));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 4, 80, 40, 0, 1, 1));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 5, 80, 40, -1, -1, 2));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 6, 80, 40, 1, -1, 2));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 7, 80, 40, -1, 1, 2));
-        this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, 8, 80, 40, 1, 1, 2));
+        this.addSlotToContainer(new SlotStockingConfig(config, 0, 80, 40));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 1, 80, 40, -1, 0, 1));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 2, 80, 40, 1, 0, 1));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 3, 80, 40, 0, -1, 1));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 4, 80, 40, 0, 1, 1));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 5, 80, 40, -1, -1, 2));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 6, 80, 40, 1, -1, 2));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 7, 80, 40, -1, 1, 2));
+        this.addSlotToContainer(new OptionalSlotStockingConfig(config, this, 8, 80, 40, 1, 1, 2));
     }
 
     @Override
@@ -105,6 +105,13 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
             this.target6 = (int) Math.min(this.part.getTargetAmount(6), Integer.MAX_VALUE);
             this.target7 = (int) Math.min(this.part.getTargetAmount(7), Integer.MAX_VALUE);
             this.target8 = (int) Math.min(this.part.getTargetAmount(8), Integer.MAX_VALUE);
+            // 同步目标数量到 config inventory 的 stack size，让 slot 自然显示数量
+            for (int i = 0; i < 9; i++) {
+                appeng.api.storage.data.IAEItemStack aeStack = this.part.getConfig().getAEStackInSlot(i);
+                if (aeStack != null) {
+                    aeStack.setStackSize(this.part.getTargetAmount(i));
+                }
+            }
         }
         this.standardDetectAndSendChanges();
     }
@@ -140,6 +147,11 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
             case 6: this.target6 = amount; break;
             case 7: this.target7 = amount; break;
             case 8: this.target8 = amount; break;
+        }
+        // 同步到 config inventory 的 stack size
+        appeng.api.storage.data.IAEItemStack aeStack = this.part.getConfig().getAEStackInSlot(slot);
+        if (aeStack != null) {
+            aeStack.setStackSize(amount);
         }
     }
 

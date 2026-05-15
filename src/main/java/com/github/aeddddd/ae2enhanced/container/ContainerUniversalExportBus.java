@@ -66,6 +66,7 @@ public class ContainerUniversalExportBus extends ContainerUpgradeable implements
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 1, 187, 26, this.getInventoryPlayer()).setNotDraggable());
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 2, 187, 44, this.getInventoryPlayer()).setNotDraggable());
         this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 3, 187, 62, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 4, 187, 80, this.getInventoryPlayer()).setNotDraggable());
     }
 
     @Override
@@ -75,7 +76,7 @@ public class ContainerUniversalExportBus extends ContainerUpgradeable implements
 
     @Override
     public int availableUpgrades() {
-        return 4;
+        return 5;
     }
 
     @Override
