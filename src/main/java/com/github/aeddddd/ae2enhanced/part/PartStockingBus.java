@@ -405,30 +405,37 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         }
         Fluid targetFluid = fluidFilter.getFluid();
 
-        long actual = countFluids(fh, targetFluid);
-        long delta = targetAmount - actual;
-        boolean worked = false;
+        try {
+            long actual = countFluids(fh, targetFluid);
+            long delta = targetAmount - actual;
+            boolean worked = false;
 
-        if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
-            long toSupply = Math.min(delta, maxWork * 1000);
-            worked |= supplyFluid(fh, inv, targetFluid, toSupply);
+            if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
+                long toSupply = Math.min(delta, maxWork * 1000);
+                worked |= supplyFluid(fh, inv, targetFluid, toSupply);
+            }
+
+            if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
+                long toRecover = Math.min(-delta, maxWork * 1000);
+                worked |= recoverFluid(fh, inv, targetFluid, toRecover);
+            }
+
+            return worked;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Fluid stocking failed for {}", targetFluid.getName(), e);
+            return false;
         }
-
-        if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
-            long toRecover = Math.min(-delta, maxWork * 1000);
-            worked |= recoverFluid(fh, inv, targetFluid, toRecover);
-        }
-
-        return worked;
     }
 
     private long countFluids(IFluidHandler fh, Fluid targetFluid) {
         long count = 0;
         IFluidTankProperties[] tanks = fh.getTankProperties();
         if (tanks != null) {
+            String targetName = targetFluid.getName();
             for (IFluidTankProperties tank : tanks) {
                 FluidStack content = tank.getContents();
-                if (content != null && content.getFluid() == targetFluid) {
+                if (content != null && content.getFluid() != null
+                        && targetName.equals(content.getFluid().getName())) {
                     count += content.amount;
                 }
             }

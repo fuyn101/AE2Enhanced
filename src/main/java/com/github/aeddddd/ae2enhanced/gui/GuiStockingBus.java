@@ -81,8 +81,9 @@ public class GuiStockingBus extends GuiUpgradeable {
         if (this.modeButton != null) {
             this.modeButton.visible = true;
         }
+        // Stocking Bus 使用自有的 StockingMode，不显示 AE2 原生 Scheduling Mode
         if (this.schedulingMode != null) {
-            this.schedulingMode.setVisibility(this.bc.getInstalledUpgrades(appeng.api.config.Upgrades.CAPACITY) > 0);
+            this.schedulingMode.setVisibility(false);
         }
     }
 
