@@ -427,13 +427,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
                 long toSupply = Math.min(delta, maxWork * 1000);
                 AE2Enhanced.LOGGER.warn("[AE2E-TEST] fluid supply: toSupply={}", toSupply);
-                worked |= supplyFluid(fh, inv, targetFluid, toSupply);
+                worked |= supplyFluid(fh, inv, fluidFilter, toSupply);
             }
 
             if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
                 long toRecover = Math.min(-delta, maxWork * 1000);
                 AE2Enhanced.LOGGER.warn("[AE2E-TEST] fluid recover: toRecover={}", toRecover);
-                worked |= recoverFluid(fh, inv, targetFluid, toRecover);
+                worked |= recoverFluid(fh, inv, fluidFilter, toRecover);
             }
 
             AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleFluidStocking result: worked={}", worked);
@@ -460,40 +460,36 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         return count;
     }
 
-    private boolean supplyFluid(IFluidHandler fh, IMEMonitor<IAEFluidStack> inv, Fluid fluid, long amount) {
+    private boolean supplyFluid(IFluidHandler fh, IMEMonitor<IAEFluidStack> inv, IAEFluidStack fluidFilter, long amount) {
         if (amount <= 0) return false;
-        FluidStack wanted = new FluidStack(fluid, (int) Math.min(amount, Integer.MAX_VALUE));
-        wanted = canonicalizeFluidStack(wanted);
-
-        IAEFluidStack aeWanted = AEFluidStack.fromFluidStack(wanted);
-        if (aeWanted == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: aeWanted null");
-            return false;
-        }
+        IAEFluidStack aeWanted = fluidFilter.copy();
+        aeWanted.setStackSize(amount);
 
         IAEFluidStack notExtracted = inv.extractItems(aeWanted, Actionable.SIMULATE, this.source);
         long canExtract = aeWanted.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: canExtract={}", canExtract);
         if (canExtract <= 0) return false;
 
-        FluidStack toFill = new FluidStack(fluid, (int) canExtract);
+        FluidStack toFill = aeWanted.getFluidStack();
+        toFill.amount = (int) canExtract;
         toFill = canonicalizeFluidStack(toFill);
         int filled = fh.fill(toFill, false);
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: filled={}", filled);
         if (filled <= 0) return false;
 
-        FluidStack actualExtract = new FluidStack(fluid, filled);
-        actualExtract = canonicalizeFluidStack(actualExtract);
-        IAEFluidStack aeExtract = AEFluidStack.fromFluidStack(actualExtract);
+        toFill.amount = filled;
+        toFill = canonicalizeFluidStack(toFill);
+        IAEFluidStack aeExtract = AEFluidStack.fromFluidStack(toFill);
         inv.extractItems(aeExtract, Actionable.MODULATE, this.source);
-        fh.fill(actualExtract, true);
+        fh.fill(toFill, true);
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: SUCCESS extracted={}", filled);
         return true;
     }
 
-    private boolean recoverFluid(IFluidHandler fh, IMEMonitor<IAEFluidStack> inv, Fluid fluid, long amount) {
+    private boolean recoverFluid(IFluidHandler fh, IMEMonitor<IAEFluidStack> inv, IAEFluidStack fluidFilter, long amount) {
         if (amount <= 0) return false;
-        FluidStack toDrain = new FluidStack(fluid, (int) Math.min(amount, Integer.MAX_VALUE));
+        FluidStack toDrain = fluidFilter.getFluidStack();
+        toDrain.amount = (int) Math.min(amount, Integer.MAX_VALUE);
         toDrain = canonicalizeFluidStack(toDrain);
 
         FluidStack drained = fh.drain(toDrain, false);
@@ -514,7 +510,10 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: canInsert={}", canInsert);
         if (canInsert <= 0) return false;
 
-        FluidStack actualDrain = fh.drain(new FluidStack(fluid, (int) canInsert), true);
+        FluidStack actualDrain = fh.drain(fluidFilter.getFluidStack(), true);
+        if (actualDrain != null) {
+            actualDrain.amount = (int) Math.min(actualDrain.amount, (int) canInsert);
+        }
         if (actualDrain != null && actualDrain.amount > 0) {
             actualDrain = canonicalizeFluidStack(actualDrain);
             inv.injectItems(AEFluidStack.fromFluidStack(actualDrain), Actionable.MODULATE, this.source);
@@ -614,13 +613,12 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             return false;
         }
 
-        Object wantedGas = wanted.getGas();
-        Object supplyStack = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wantedGas, (int) Math.min(amount, Integer.MAX_VALUE));
-
         com.mekeng.github.common.me.data.impl.AEGasStack aeSupply =
-                com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) supplyStack);
+                com.mekeng.github.common.me.data.impl.AEGasStack.of(
+                        (mekanism.api.gas.GasStack) gasStackClass.getConstructor(gasClass, int.class)
+                                .newInstance(wanted.getGas(), 1));
         if (aeSupply == null) return false;
+        aeSupply.setStackSize((int) Math.min(amount, Integer.MAX_VALUE));
 
         com.mekeng.github.common.me.data.IAEGasStack notExtracted = inv.extractItems(aeSupply, Actionable.SIMULATE, this.source);
         long canExtract = aeSupply.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
@@ -628,13 +626,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (canExtract <= 0) return false;
 
         Object toReceive = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wantedGas, (int) canExtract);
+                .newInstance(wanted.getGas(), (int) canExtract);
         int received = (int) receiveGas.invoke(gasHandler, opposite, toReceive, false);
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyGas: received={}", received);
         if (received <= 0) return false;
 
         Object actualExtract = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wantedGas, received);
+                .newInstance(wanted.getGas(), received);
         com.mekeng.github.common.me.data.impl.AEGasStack aeExtract =
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualExtract);
         inv.extractItems(aeExtract, Actionable.MODULATE, this.source);
@@ -660,16 +658,15 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             return false;
         }
 
-        Object wantedGas = wanted.getGas();
         Object drained = drawGas.invoke(gasHandler, opposite, (int) Math.min(amount, Integer.MAX_VALUE), false);
         if (drained == null) return false;
         int drainedAmount = amountField.getInt(drained);
         if (drainedAmount <= 0) return false;
 
-        Object actualDraw = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wantedGas, drainedAmount);
         com.mekeng.github.common.me.data.impl.AEGasStack aeDraw =
-                com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualDraw);
+                com.mekeng.github.common.me.data.impl.AEGasStack.of(
+                        (mekanism.api.gas.GasStack) gasStackClass.getConstructor(gasClass, int.class)
+                                .newInstance(wanted.getGas(), drainedAmount));
         if (aeDraw == null) return false;
 
         com.mekeng.github.common.me.data.IAEGasStack notInserted = inv.injectItems(aeDraw, Actionable.SIMULATE, this.source);
@@ -677,15 +674,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: canInsert={}", canInsert);
         if (canInsert <= 0) return false;
 
-        Object realDraw = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wantedGas, (int) canInsert);
         Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
         if (actual != null) {
             int actualAmount = amountField.getInt(actual);
             AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: actualAmount={}", actualAmount);
             if (actualAmount > 0) {
                 Object toInsert = gasStackClass.getConstructor(gasClass, int.class)
-                        .newInstance(wantedGas, actualAmount);
+                        .newInstance(wanted.getGas(), actualAmount);
                 com.mekeng.github.common.me.data.impl.AEGasStack aeInsert =
                         com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) toInsert);
                 inv.injectItems(aeInsert, Actionable.MODULATE, this.source);
