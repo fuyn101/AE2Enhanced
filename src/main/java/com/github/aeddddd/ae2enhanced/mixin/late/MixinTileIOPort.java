@@ -6,9 +6,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.tile.storage.TileIOPort;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
-import net.minecraft.item.ItemStack;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -38,7 +36,10 @@ public class MixinTileIOPort {
         if (com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED) return instance.getStackSize();
         if (Boolean.TRUE.equals(checkingDrop.get()) && instance instanceof IAEItemStack) {
             ItemStack mcStack = ((IAEItemStack) instance).createItemStack();
-            if (ItemFluidDrop.isFluidDrop(mcStack) || ItemGasDrop.isGasDrop(mcStack) || FakeEssentias.isEssentiaFakeItem(mcStack)) {
+            String className = mcStack.getItem().getClass().getName();
+            if (ItemFluidDrop.isFluidDrop(mcStack)
+                    || "com.github.aeddddd.ae2enhanced.item.ItemGasDrop".equals(className)
+                    || FakeEssentias.isEssentiaFakeItem(mcStack)) {
                 return 0L;
             }
         }

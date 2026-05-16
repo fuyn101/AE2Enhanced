@@ -4,7 +4,6 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.container.AEBaseContainer;
 import appeng.helpers.InventoryAction;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MixinAEBaseContainer {
 
     private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
-
+    private static final String GAS_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
     @Inject(method = "doAction", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$preventFakeItemExtraction(EntityPlayerMP player, InventoryAction action, int slot, long id,
                                                         CallbackInfo ci) {
@@ -49,8 +48,8 @@ public class MixinAEBaseContainer {
             return;
         }
 
-        // 拦截气体假物品
-        if (ItemGasDrop.isGasDrop(mcStack)) {
+        // 拦截气体假物品（避免直接引用 ItemGasDrop 类）
+        if (GAS_DROP_CLASS.equals(itemClass)) {
             ci.cancel();
         }
     }

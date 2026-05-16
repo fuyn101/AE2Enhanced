@@ -1,9 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin.late;
 
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import net.minecraft.entity.player.InventoryPlayer;
+import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,8 +21,14 @@ public class MixinInventoryPlayer {
         if (stack.isEmpty()) return;
 
         if (stack.getItem() instanceof ItemEssentiaDrop ||
-            stack.getItem() instanceof ItemFluidDrop ||
-            stack.getItem() instanceof ItemGasDrop) {
+            stack.getItem() instanceof ItemFluidDrop) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        // 避免直接引用 ItemGasDrop 类（无 Mekanism 时 NoClassDefFoundError）
+        String className = stack.getItem().getClass().getName();
+        if ("com.github.aeddddd.ae2enhanced.item.ItemGasDrop".equals(className)) {
             cir.setReturnValue(false);
         }
     }

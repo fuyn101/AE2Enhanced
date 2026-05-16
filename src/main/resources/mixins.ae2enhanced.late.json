@@ -20,7 +20,6 @@
   "client": [
     "MixinGuiMEMonitorableClick",
     "MixinGuiMEMonitorableTooltip",
-    "MixinGuiFluidTerminalHandleClick",
     "MixinGuiCraftAmount",
     "MixinGuiCraftConfirm",
     "MixinGuiCellWorkbench",
