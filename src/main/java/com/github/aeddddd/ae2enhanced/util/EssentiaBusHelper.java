@@ -251,7 +251,11 @@ public class EssentiaBusHelper {
         IAEEssentiaStack wanted = unpackEssentia(filter);
         if (wanted == null || wanted.getAspect() == null) return false;
 
-        int actual = transport.getEssentiaAmount(opposite);
+        int actual = 0;
+        thaumcraft.api.aspects.Aspect faceAspect = transport.getEssentiaType(opposite);
+        if (faceAspect != null && faceAspect.equals(wanted.getAspect())) {
+            actual = transport.getEssentiaAmount(opposite);
+        }
         long delta = targetAmount - actual;
         boolean worked = false;
 

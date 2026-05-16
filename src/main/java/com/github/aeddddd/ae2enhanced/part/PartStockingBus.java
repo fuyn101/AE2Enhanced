@@ -4,7 +4,6 @@ import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.RedstoneMode;
-import appeng.api.config.SchedulingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
 import appeng.api.config.YesNo;
@@ -103,7 +102,6 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         this.getConfigManager().registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
         this.getConfigManager().registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
         this.getConfigManager().registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
-        this.getConfigManager().registerSetting(Settings.SCHEDULING_MODE, SchedulingMode.DEFAULT);
     }
 
     @Override
@@ -510,6 +508,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         try {
             Class<?> gasHandlerClass = Class.forName("mekanism.api.gas.IGasHandler");
             Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
             java.lang.reflect.Field amountField = gasStackClass.getField("amount");
             java.lang.reflect.Method drawGas = gasHandlerClass.getMethod("drawGas", EnumFacing.class, int.class, boolean.class);
             java.lang.reflect.Method receiveGas = gasHandlerClass.getMethod("receiveGas", EnumFacing.class, gasStackClass, boolean.class);
@@ -523,12 +522,12 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
             if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
                 long toSupply = Math.min(delta, maxWork * 1000);
-                worked |= supplyGas(gasHandler, drawGas, receiveGas, gasStackClass, amountField, opposite, wanted, toSupply);
+                worked |= supplyGas(gasHandler, drawGas, receiveGas, gasStackClass, gasClass, amountField, opposite, wanted, toSupply);
             }
 
             if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
                 long toRecover = Math.min(-delta, maxWork * 1000);
-                worked |= recoverGas(gasHandler, drawGas, gasStackClass, amountField, opposite, wanted, toRecover);
+                worked |= recoverGas(gasHandler, drawGas, gasStackClass, gasClass, amountField, opposite, wanted, toRecover);
             }
 
             return worked;
@@ -555,7 +554,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     @SuppressWarnings("unchecked")
     private boolean supplyGas(Object gasHandler, java.lang.reflect.Method drawGas, java.lang.reflect.Method receiveGas,
-                               Class<?> gasStackClass, java.lang.reflect.Field amountField,
+                               Class<?> gasStackClass, Class<?> gasClass, java.lang.reflect.Field amountField,
                                EnumFacing opposite, com.mekeng.github.common.me.data.IAEGasStack wanted, long amount)
             throws Exception {
         if (amount <= 0) return false;
@@ -572,7 +571,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         }
 
         Object wantedGas = wanted.getGas();
-        Object supplyStack = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+        Object supplyStack = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, (int) Math.min(amount, Integer.MAX_VALUE));
 
         com.mekeng.github.common.me.data.impl.AEGasStack aeSupply =
@@ -583,12 +582,12 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         long canExtract = aeSupply.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
         if (canExtract <= 0) return false;
 
-        Object toReceive = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+        Object toReceive = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, (int) canExtract);
         int received = (int) receiveGas.invoke(gasHandler, opposite, toReceive, false);
         if (received <= 0) return false;
 
-        Object actualExtract = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+        Object actualExtract = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, received);
         com.mekeng.github.common.me.data.impl.AEGasStack aeExtract =
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualExtract);
@@ -599,7 +598,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     @SuppressWarnings("unchecked")
     private boolean recoverGas(Object gasHandler, java.lang.reflect.Method drawGas, Class<?> gasStackClass,
-                                java.lang.reflect.Field amountField, EnumFacing opposite,
+                                Class<?> gasClass, java.lang.reflect.Field amountField, EnumFacing opposite,
                                 com.mekeng.github.common.me.data.IAEGasStack wanted, long amount) throws Exception {
         if (amount <= 0) return false;
 
@@ -620,7 +619,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         int drainedAmount = amountField.getInt(drained);
         if (drainedAmount <= 0) return false;
 
-        Object actualDraw = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+        Object actualDraw = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, drainedAmount);
         com.mekeng.github.common.me.data.impl.AEGasStack aeDraw =
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualDraw);
@@ -630,13 +629,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         long canInsert = aeDraw.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
         if (canInsert <= 0) return false;
 
-        Object realDraw = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+        Object realDraw = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, (int) canInsert);
         Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
         if (actual != null) {
             int actualAmount = amountField.getInt(actual);
             if (actualAmount > 0) {
-                Object toInsert = gasStackClass.getConstructor(wantedGas.getClass(), int.class)
+                Object toInsert = gasStackClass.getConstructor(gasClass, int.class)
                         .newInstance(wantedGas, actualAmount);
                 com.mekeng.github.common.me.data.impl.AEGasStack aeInsert =
                         com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) toInsert);
@@ -800,12 +799,12 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                                    net.minecraft.item.ItemStack newStack) {
         super.onChangeInventory(inv, slot, mc, removedStack, newStack);
         if (inv == this.config && slot >= 0 && slot < CONFIG_SIZE) {
-            appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
-            if (aeStack != null) {
-                this.targetAmounts[slot] = aeStack.getStackSize();
-            } else {
+            if (newStack.isEmpty()) {
+                // 取出物品时重置目标数量
                 this.targetAmounts[slot] = 1;
+                this.saveChanges();
             }
+            // 放入或替换物品时保留当前 targetAmount，避免覆盖 GUI 滚轮设置的值
         }
     }
 

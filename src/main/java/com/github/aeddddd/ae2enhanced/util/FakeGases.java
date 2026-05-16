@@ -110,7 +110,8 @@ public final class FakeGases {
             Object gas = ingredient;
             Object gasType = gasStackClass.getMethod("getGas").invoke(gas);
             int amount = (int) gasStackClass.getMethod("amount").invoke(gas);
-            Object newGasStack = gasStackClass.getConstructor(gasType.getClass(), int.class)
+            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+            Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
                     .newInstance(gasType, Math.min(amount, 1000));
             return packGas2AEDrops((GasStack) newGasStack);
         } catch (Exception e) {
@@ -135,7 +136,8 @@ public final class FakeGases {
                 if (gasStack != null) {
                     int amount = amountField.getInt(gasStack);
                     Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-                    Object newGasStack = gasStackClass.getConstructor(gasType.getClass(), int.class)
+                    Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+                    Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
                             .newInstance(gasType, Math.min(amount, 1000));
                     return packGas2AEDrops((GasStack) newGasStack);
                 }
@@ -151,7 +153,8 @@ public final class FakeGases {
                         int amount = amountField.getInt(gasStack);
                         if (amount > 0) {
                             Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-                            Object newGasStack = gasStackClass.getConstructor(gasType.getClass(), int.class)
+                            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+                            Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
                                     .newInstance(gasType, Math.min(amount, 1000));
                             return packGas2AEDrops((GasStack) newGasStack);
                         }

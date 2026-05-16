@@ -83,10 +83,13 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
     @Override
     public boolean isSlotEnabled(int idx) {
         int capacityUpgrades = this.part.getInstalledUpgrades(Upgrades.CAPACITY);
-        if (idx == 1 && capacityUpgrades > 0) {
-            return true;
+        switch (idx) {
+            case 1: case 2: return capacityUpgrades >= 1;
+            case 3: case 4: return capacityUpgrades >= 2;
+            case 5: case 6: return capacityUpgrades >= 3;
+            case 7: case 8: return capacityUpgrades >= 4;
+            default: return true;
         }
-        return idx == 2 && capacityUpgrades > 1;
     }
 
     @Override
@@ -210,7 +213,8 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
             if (gasStack == null) return null;
             int amount = amountField.getInt(gasStack);
             Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-            Object newGasStack = gasStackClass.getConstructor(gasType.getClass(), int.class)
+            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+            Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
                     .newInstance(gasType, Math.min(amount, 1000));
             Class<?> itemGasDropClass = Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop");
             return (ItemStack) itemGasDropClass.getMethod("createStack", gasStackClass).invoke(null, newGasStack);
