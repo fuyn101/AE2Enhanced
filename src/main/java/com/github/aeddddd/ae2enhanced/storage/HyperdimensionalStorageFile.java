@@ -4,14 +4,13 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.math.BigInteger;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -27,9 +26,10 @@ import java.util.concurrent.TimeUnit;
  * {
  *   version: 1 (int)
  *   nexusId: UUID (long[])
- *   items: NBTTagList {
- *     { id: "modid:item", Damage: 0s, Count: "12345678901234567890", tag?: NBTTagCompound }
- *   }
+ *   items: NBTTagList { ... }
+ *   fluids: NBTTagList { ... }
+ *   gases: NBTTagList { ... }
+ *   essentias: NBTTagList { ... }
  * }
  */
 public class HyperdimensionalStorageFile {
@@ -54,7 +54,16 @@ public class HyperdimensionalStorageFile {
     private volatile Map<GasDescriptor, BigInteger> gasStorageRef = null;
     private volatile Map<EssentiaDescriptor, BigInteger> essentiaStorageRef = null;
 
-    /** 初始化期间缓存读取的 NBT 根节点，避免 4 个 load* 方法重复读取同一文件 */
+    private final StorageSection<ItemDescriptor> itemSection =
+            new StorageSection<>("items", ItemDescriptor::fromNBT);
+    private final StorageSection<FluidDescriptor> fluidSection =
+            new StorageSection<>("fluids", FluidDescriptor::fromNBT);
+    private final StorageSection<GasDescriptor> gasSection =
+            new StorageSection<>("gases", GasDescriptor::fromNBT);
+    private final StorageSection<EssentiaDescriptor> essentiaSection =
+            new StorageSection<>("essentias", EssentiaDescriptor::fromNBT);
+
+    /** 初始化期间缓存读取的 NBT 根节点，避免多个 load 方法重复读取同一文件 */
     private NBTTagCompound loadCache = null;
 
     public HyperdimensionalStorageFile(World world, UUID nexusId) {
@@ -69,9 +78,6 @@ public class HyperdimensionalStorageFile {
         this.flushTask = FLUSH_EXECUTOR.scheduleWithFixedDelay(this::flush, flushInterval, flushInterval, TimeUnit.SECONDS);
     }
 
-    /**
-     * 从文件加载物品数据到目标 Map。若文件不存在则不做任何事（空存储）。
-     */
     private NBTTagCompound readRoot() {
         if (loadCache != null) return loadCache;
         if (!file.exists()) return null;
@@ -79,129 +85,57 @@ public class HyperdimensionalStorageFile {
             loadCache = CompressedStreamTools.read(file);
             return loadCache;
         } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
+            AE2Enhanced.LOGGER.error(
                 "[AE2E] Failed to read storage file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
             safeMode = true;
             return null;
         }
     }
 
+    private <D extends Descriptor> void loadSection(StorageSection<D> section, Map<D, BigInteger> target, String typeName) {
+        NBTTagCompound root = readRoot();
+        if (root == null) return;
+        try {
+            int version = root.getInteger("version");
+            if (version > CURRENT_VERSION) {
+                AE2Enhanced.LOGGER.error(
+                    "[AE2E] Storage file version {} > current {}. Refusing to load to prevent data corruption.",
+                    version, CURRENT_VERSION);
+                return;
+            }
+            section.load(root, target);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error(
+                "[AE2E] Failed to load {} storage from file: {}. Entering safe mode (read-only).", typeName, file.getAbsolutePath(), e);
+            safeMode = true;
+        }
+    }
+
     public void load(Map<ItemDescriptor, BigInteger> target) {
-        NBTTagCompound root = readRoot();
-        if (root == null) return;
-        try {
-            if (root == null) return;
-            int version = root.getInteger("version");
-            if (version > CURRENT_VERSION) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
-                    "[AE2E] Storage file version {} > current {}. " +
-                    "This file was created by a newer version of AE2Enhanced. " +
-                    "Refusing to load to prevent data corruption.", version, CURRENT_VERSION);
-                return;
-            }
-            NBTTagList items = root.getTagList("items", 10);
-            for (int i = 0; i < items.tagCount(); i++) {
-                NBTTagCompound tag = items.getCompoundTagAt(i);
-                ItemDescriptor descriptor = ItemDescriptor.fromNBT(tag);
-                if (descriptor == null) continue;
-                String countStr = tag.getString("Count");
-                BigInteger count;
-                try {
-                    count = new BigInteger(countStr);
-                } catch (NumberFormatException e) {
-                    continue;
-                }
-                target.put(descriptor, count);
-            }
-        } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
-                "[AE2E] Failed to load storage file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
-            safeMode = true;
-        }
+        loadSection(itemSection, target, "item");
     }
 
-    /**
-     * 从文件加载流体数据到目标 Map。若文件不存在则不做任何事（空存储）。
-     */
     public void loadFluids(Map<FluidDescriptor, BigInteger> target) {
-        NBTTagCompound root = readRoot();
-        if (root == null) return;
-        try {
-            if (root == null) return;
-            int version = root.getInteger("version");
-            if (version > CURRENT_VERSION) {
-                return;
-            }
-            if (!root.hasKey("fluids", 9)) return; // 旧版本可能没有 fluids
-            NBTTagList fluids = root.getTagList("fluids", 10);
-            for (int i = 0; i < fluids.tagCount(); i++) {
-                NBTTagCompound tag = fluids.getCompoundTagAt(i);
-                FluidDescriptor descriptor = FluidDescriptor.fromNBT(tag);
-                if (descriptor == null) continue;
-                String countStr = tag.getString("Count");
-                BigInteger count;
-                try {
-                    count = new BigInteger(countStr);
-                } catch (NumberFormatException e) {
-                    continue;
-                }
-                target.put(descriptor, count);
-            }
-        } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
-                "[AE2E] Failed to load fluid storage from file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
-            safeMode = true;
-        }
+        loadSection(fluidSection, target, "fluid");
     }
 
-    /**
-     * 将当前内存数据保存到文件（物品 + 流体）。
-     * @return true 表示保存成功，false 表示失败
-     */
+    public void loadGases(Map<GasDescriptor, BigInteger> target) {
+        loadSection(gasSection, target, "gas");
+    }
+
+    public void loadEssentias(Map<EssentiaDescriptor, BigInteger> target) {
+        loadSection(essentiaSection, target, "essentia");
+    }
+
     public boolean save() {
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger("version", CURRENT_VERSION);
         root.setUniqueId("nexusId", nexusId);
 
-        NBTTagList items = new NBTTagList();
-        if (storageRef != null) {
-            for (Map.Entry<ItemDescriptor, BigInteger> entry : storageRef.entrySet()) {
-                NBTTagCompound tag = entry.getKey().toNBT();
-                tag.setString("Count", entry.getValue().toString());
-                items.appendTag(tag);
-            }
-        }
-        root.setTag("items", items);
-
-        NBTTagList fluids = new NBTTagList();
-        if (fluidStorageRef != null) {
-            for (Map.Entry<FluidDescriptor, BigInteger> entry : fluidStorageRef.entrySet()) {
-                NBTTagCompound tag = entry.getKey().toNBT();
-                tag.setString("Count", entry.getValue().toString());
-                fluids.appendTag(tag);
-            }
-        }
-        root.setTag("fluids", fluids);
-
-        NBTTagList gases = new NBTTagList();
-        if (gasStorageRef != null) {
-            for (Map.Entry<GasDescriptor, BigInteger> entry : gasStorageRef.entrySet()) {
-                NBTTagCompound tag = entry.getKey().toNBT();
-                tag.setString("Count", entry.getValue().toString());
-                gases.appendTag(tag);
-            }
-        }
-        root.setTag("gases", gases);
-
-        NBTTagList essentias = new NBTTagList();
-        if (essentiaStorageRef != null) {
-            for (Map.Entry<EssentiaDescriptor, BigInteger> entry : essentiaStorageRef.entrySet()) {
-                NBTTagCompound tag = entry.getKey().toNBT();
-                tag.setString("Count", entry.getValue().toString());
-                essentias.appendTag(tag);
-            }
-        }
-        root.setTag("essentias", essentias);
+        itemSection.save(root, storageRef);
+        fluidSection.save(root, fluidStorageRef);
+        gasSection.save(root, gasStorageRef);
+        essentiaSection.save(root, essentiaStorageRef);
 
         File tmpFile = new File(file.getAbsolutePath() + ".tmp");
         try {
@@ -211,7 +145,7 @@ public class HyperdimensionalStorageFile {
                 StandardCopyOption.ATOMIC_MOVE);
             return true;
         } catch (IOException e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
+            AE2Enhanced.LOGGER.error(
                 "[AE2E] Failed to save storage file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
             safeMode = true;
             return false;
@@ -238,85 +172,13 @@ public class HyperdimensionalStorageFile {
         this.essentiaStorageRef = ref;
     }
 
-    /**
-     * 从文件加载气体数据到目标 Map。若文件不存在则不做任何事（空存储）。
-     */
-    public void loadGases(Map<GasDescriptor, BigInteger> target) {
-        NBTTagCompound root = readRoot();
-        if (root == null) return;
-        try {
-            if (root == null) return;
-            int version = root.getInteger("version");
-            if (version > CURRENT_VERSION) {
-                return;
-            }
-            if (!root.hasKey("gases", 9)) return; // 旧版本可能没有 gases
-            NBTTagList gases = root.getTagList("gases", 10);
-            for (int i = 0; i < gases.tagCount(); i++) {
-                NBTTagCompound tag = gases.getCompoundTagAt(i);
-                GasDescriptor descriptor = GasDescriptor.fromNBT(tag);
-                if (descriptor == null) continue;
-                String countStr = tag.getString("Count");
-                BigInteger count;
-                try {
-                    count = new BigInteger(countStr);
-                } catch (NumberFormatException e) {
-                    continue;
-                }
-                target.put(descriptor, count);
-            }
-        } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
-                "[AE2E] Failed to load gas storage from file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
-            safeMode = true;
-        }
-    }
-
     private void flush() {
         if (!dirty || closed) return;
         if (save()) {
             dirty = false;
         }
-        // save 失败时 dirty 保持 true，下次继续尝试
     }
 
-    /**
-     * 从文件加载源质数据到目标 Map。若文件不存在则不做任何事（空存储）。
-     */
-    public void loadEssentias(Map<EssentiaDescriptor, BigInteger> target) {
-        NBTTagCompound root = readRoot();
-        if (root == null) return;
-        try {
-            if (root == null) return;
-            int version = root.getInteger("version");
-            if (version > CURRENT_VERSION) {
-                return;
-            }
-            if (!root.hasKey("essentias", 9)) return; // 旧版本可能没有 essentias
-            NBTTagList essentias = root.getTagList("essentias", 10);
-            for (int i = 0; i < essentias.tagCount(); i++) {
-                NBTTagCompound tag = essentias.getCompoundTagAt(i);
-                EssentiaDescriptor descriptor = EssentiaDescriptor.fromNBT(tag);
-                if (descriptor == null) continue;
-                String countStr = tag.getString("Count");
-                BigInteger count;
-                try {
-                    count = new BigInteger(countStr);
-                } catch (NumberFormatException e) {
-                    continue;
-                }
-                target.put(descriptor, count);
-            }
-        } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
-                "[AE2E] Failed to load essentia storage from file: {}. Entering safe mode (read-only).", file.getAbsolutePath(), e);
-            safeMode = true;
-        }
-    }
-
-    /**
-     * 关闭文件句柄，强制刷盘一次。
-     */
     public void close() {
         if (closed) return;
         closed = true;

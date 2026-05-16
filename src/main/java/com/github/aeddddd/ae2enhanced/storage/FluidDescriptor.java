@@ -13,7 +13,7 @@ import java.util.Objects;
  * 流体描述符，用于在内存中作为存储 Map 的 Key。
  * 基于 Fluid registryName + NBT 内容做 equals/hashCode。
  */
-public class FluidDescriptor {
+public class FluidDescriptor implements Descriptor {
 
     private final Fluid fluid;
     private final NBTTagCompound nbt;

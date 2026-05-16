@@ -3,14 +3,15 @@ package com.github.aeddddd.ae2enhanced.storage;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IStorageChannel;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraftforge.fml.common.Loader;
 
-import java.math.BigInteger;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
 /**
@@ -23,22 +24,84 @@ import java.util.function.BiConsumer;
 public class OptionalStorageManager {
 
     /**
-     * 使用 Object 类型保存适配器实例，避免在 OptionalStorageManager 类加载时
-     * 连带触发 GasStorageAdapter / EssentiaStorageAdapter 的加载
-     * （这两个类的常量池中包含 mekanism / thaumicenergistics 的 CONSTANT_Class 引用）。
+     * 封装一个可选适配器的实例、对应 channel 类型，以及反射方法缓存。
      */
-    private Object gasAdapter;
-    private Object essentiaAdapter;
+    private static class OptionalAdapterWrapper {
+        final Object adapter;
+        final Class<?> channelClass;
+        private final Method getStorageMapMethod;
+        private final Method getTotalCountMethod;
+        private final Method isSafeModeMethod;
+        private final Method setOnChangeCallbackMethod;
+        private final Method setPostChangeCallbackMethod;
+
+        OptionalAdapterWrapper(Object adapter, Class<?> channelClass) throws NoSuchMethodException {
+            this.adapter = adapter;
+            this.channelClass = channelClass;
+            Class<?> clazz = adapter.getClass();
+            this.getStorageMapMethod = clazz.getMethod("getStorageMap");
+            this.getTotalCountMethod = clazz.getMethod("getTotalCount");
+            this.isSafeModeMethod = clazz.getMethod("isSafeMode");
+            this.setOnChangeCallbackMethod = clazz.getMethod("setOnChangeCallback", Runnable.class);
+            this.setPostChangeCallbackMethod = clazz.getMethod("setPostChangeCallback", BiConsumer.class);
+        }
+
+        boolean handlesChannel(Object channel) {
+            return channelClass.isInstance(channel);
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<Object, BigInteger> getStorageMap() {
+            try {
+                return (Map<Object, BigInteger>) getStorageMapMethod.invoke(adapter);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to get storage map", e);
+                return null;
+            }
+        }
+
+        BigInteger getTotalCount() {
+            try {
+                Object total = getTotalCountMethod.invoke(adapter);
+                return total instanceof BigInteger ? (BigInteger) total : BigInteger.ZERO;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to get total count", e);
+                return BigInteger.ZERO;
+            }
+        }
+
+        boolean isSafeMode() {
+            try {
+                Object result = isSafeModeMethod.invoke(adapter);
+                return result instanceof Boolean && (Boolean) result;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to get safe mode", e);
+                return false;
+            }
+        }
+
+        void setCallbacks(Runnable changeCallback, BiConsumer<?, IActionSource> postChange) {
+            try {
+                setOnChangeCallbackMethod.invoke(adapter, changeCallback);
+                setPostChangeCallbackMethod.invoke(adapter, postChange);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to set adapter callbacks", e);
+            }
+        }
+    }
+
+    private final List<OptionalAdapterWrapper> optionalAdapters = new CopyOnWriteArrayList<>();
 
     /**
      * 外部扩展注册表。其他 Mod 可通过 {@link #registerExternalAdapter} 注册自定义 IMEMonitor。
      */
-    private final List<Object> externalAdapters = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<Object> externalAdapters = new CopyOnWriteArrayList<>();
 
     /**
      * 反射方法缓存，避免每次 getHandlers() 都重复 getMethod()。
      */
-    private final Map<Class<?>, Method[]> methodCache = new ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<Class<?>, Method[]> methodCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     private Method[] getCachedMethods(Class<?> clazz) {
         return methodCache.computeIfAbsent(clazz, k -> {
@@ -54,49 +117,38 @@ public class OptionalStorageManager {
     }
 
     public void init(HyperdimensionalStorageFile file) {
-        if (Loader.isModLoaded("mekeng")) {
-            try {
-                Class<?> gasAdapterClass = Class.forName("com.github.aeddddd.ae2enhanced.storage.GasStorageAdapter");
-                gasAdapter = gasAdapterClass.getConstructor(HyperdimensionalStorageFile.class).newInstance(file);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
-                    "[AE2E] Failed to initialize gas storage adapter", e);
-            }
-        }
-        if (Loader.isModLoaded("thaumicenergistics")) {
-            try {
-                Class<?> essentiaAdapterClass = Class.forName("com.github.aeddddd.ae2enhanced.storage.EssentiaStorageAdapter");
-                essentiaAdapter = essentiaAdapterClass.getConstructor(HyperdimensionalStorageFile.class).newInstance(file);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
-                    "[AE2E] Failed to initialize essentia storage adapter", e);
-            }
+        initOptionalAdapter("mekeng",
+                "com.github.aeddddd.ae2enhanced.storage.GasStorageAdapter",
+                "com.mekeng.github.common.me.storage.IGasStorageChannel",
+                file);
+        initOptionalAdapter("thaumicenergistics",
+                "com.github.aeddddd.ae2enhanced.storage.EssentiaStorageAdapter",
+                "thaumicenergistics.api.storage.IEssentiaStorageChannel",
+                file);
+    }
+
+    private void initOptionalAdapter(String modId, String adapterClassName,
+                                      String channelClassName, HyperdimensionalStorageFile file) {
+        if (!Loader.isModLoaded(modId)) return;
+        try {
+            Class<?> adapterClass = Class.forName(adapterClassName);
+            Object adapter = adapterClass.getConstructor(HyperdimensionalStorageFile.class).newInstance(file);
+            Class<?> channelClass = Class.forName(channelClassName);
+            optionalAdapters.add(new OptionalAdapterWrapper(adapter, channelClass));
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to initialize optional adapter for {}", modId, e);
         }
     }
 
     /**
-     * 设置回调。通过反射调用适配器的 setOnChangeCallback / setPostChangeCallback，
-     * 避免编译期依赖可选 Mod 的类型。
+     * 设置回调。通过反射调用适配器的 setOnChangeCallback / setPostChangeCallback。
      */
     @SuppressWarnings("unchecked")
     public void setCallbacks(Runnable changeCallback,
                              BiConsumer<?, IActionSource> itemPostChange,
                              BiConsumer<?, IActionSource> fluidPostChange) {
-        if (gasAdapter != null) {
-            try {
-                gasAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(gasAdapter, changeCallback);
-                gasAdapter.getClass().getMethod("setPostChangeCallback", BiConsumer.class).invoke(gasAdapter, itemPostChange);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to set gas adapter callbacks", e);
-            }
-        }
-        if (essentiaAdapter != null) {
-            try {
-                essentiaAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(essentiaAdapter, changeCallback);
-                essentiaAdapter.getClass().getMethod("setPostChangeCallback", BiConsumer.class).invoke(essentiaAdapter, itemPostChange);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to set essentia adapter callbacks", e);
-            }
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            wrapper.setCallbacks(changeCallback, itemPostChange);
         }
     }
 
@@ -105,21 +157,11 @@ public class OptionalStorageManager {
      */
     @SuppressWarnings("unchecked")
     public List<IMEInventoryHandler> getHandlers(IStorageChannel<?> channel) {
-        try {
-            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-            if (gasAdapter != null && gasChannelClass.isInstance(channel)
-                    && gasAdapter instanceof IMEInventoryHandler) {
-                return Collections.singletonList((IMEInventoryHandler) gasAdapter);
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            if (wrapper.handlesChannel(channel) && wrapper.adapter instanceof IMEInventoryHandler) {
+                return Collections.singletonList((IMEInventoryHandler) wrapper.adapter);
             }
-        } catch (ClassNotFoundException ignored) {}
-
-        try {
-            Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-            if (essentiaAdapter != null && essentiaChannelClass.isInstance(channel)
-                    && essentiaAdapter instanceof IMEInventoryHandler) {
-                return Collections.singletonList((IMEInventoryHandler) essentiaAdapter);
-            }
-        } catch (ClassNotFoundException ignored) {}
+        }
 
         // 外部扩展适配器
         for (Object ext : externalAdapters) {
@@ -140,73 +182,35 @@ public class OptionalStorageManager {
 
     public int getTotalTypeCount() {
         int count = 0;
-        if (gasAdapter != null) {
-            try {
-                Object map = gasAdapter.getClass().getMethod("getStorageMap").invoke(gasAdapter);
-                if (map instanceof Map) count += ((Map<?, ?>) map).size();
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get gas type count", e);
-            }
-        }
-        if (essentiaAdapter != null) {
-            try {
-                Object map = essentiaAdapter.getClass().getMethod("getStorageMap").invoke(essentiaAdapter);
-                if (map instanceof Map) count += ((Map<?, ?>) map).size();
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get essentia type count", e);
-            }
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            Map<?, ?> map = wrapper.getStorageMap();
+            if (map != null) count += map.size();
         }
         return count;
     }
 
     public BigInteger getTotalCount() {
         BigInteger sum = BigInteger.ZERO;
-        if (gasAdapter != null) {
-            try {
-                Object total = gasAdapter.getClass().getMethod("getTotalCount").invoke(gasAdapter);
-                if (total instanceof BigInteger) sum = sum.add((BigInteger) total);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get gas total count", e);
-            }
-        }
-        if (essentiaAdapter != null) {
-            try {
-                Object total = essentiaAdapter.getClass().getMethod("getTotalCount").invoke(essentiaAdapter);
-                if (total instanceof BigInteger) sum = sum.add((BigInteger) total);
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get essentia total count", e);
-            }
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            sum = sum.add(wrapper.getTotalCount());
         }
         return sum;
     }
 
     public boolean isSafeMode() {
-        boolean safe = false;
-        if (gasAdapter != null) {
-            try {
-                Object result = gasAdapter.getClass().getMethod("isSafeMode").invoke(gasAdapter);
-                if (result instanceof Boolean) safe |= (Boolean) result;
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get gas safe mode", e);
-            }
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            if (wrapper.isSafeMode()) return true;
         }
-        if (essentiaAdapter != null) {
-            try {
-                Object result = essentiaAdapter.getClass().getMethod("isSafeMode").invoke(essentiaAdapter);
-                if (result instanceof Boolean) safe |= (Boolean) result;
-            } catch (Exception e) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get essentia safe mode", e);
-            }
-        }
-        return safe;
+        return false;
     }
 
     /**
      * 刷新所有可选 monitor（反射强制 NetworkMonitor 更新）。
      */
     public void refreshMonitors(java.util.function.Consumer<Object> refresher) {
-        if (gasAdapter != null) refresher.accept(gasAdapter);
-        if (essentiaAdapter != null) refresher.accept(essentiaAdapter);
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            refresher.accept(wrapper.adapter);
+        }
     }
 
     /**
@@ -219,16 +223,25 @@ public class OptionalStorageManager {
     }
 
     public Object getGasAdapter() {
-        return gasAdapter;
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            if (wrapper.channelClass.getName().contains("IGasStorageChannel")) {
+                return wrapper.adapter;
+            }
+        }
+        return null;
     }
 
     public Object getEssentiaAdapter() {
-        return essentiaAdapter;
+        for (OptionalAdapterWrapper wrapper : optionalAdapters) {
+            if (wrapper.channelClass.getName().contains("IEssentiaStorageChannel")) {
+                return wrapper.adapter;
+            }
+        }
+        return null;
     }
 
     public void close() {
-        gasAdapter = null;
-        essentiaAdapter = null;
+        optionalAdapters.clear();
         externalAdapters.clear();
         methodCache.clear();
     }

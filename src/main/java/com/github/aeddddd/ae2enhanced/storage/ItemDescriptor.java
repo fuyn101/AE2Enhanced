@@ -13,7 +13,7 @@ import java.util.Objects;
  * 物品描述符，用于在内存中作为存储 Map 的 Key。
  * 基于 Item registryName + meta + NBT 内容做 equals/hashCode，不依赖 NBTTagCompound 的引用相等。
  */
-public class ItemDescriptor {
+public class ItemDescriptor implements Descriptor {
 
     private final Item item;
     private final int meta;

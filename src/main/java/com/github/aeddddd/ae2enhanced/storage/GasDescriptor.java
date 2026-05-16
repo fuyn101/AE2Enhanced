@@ -13,7 +13,7 @@ import java.util.Objects;
 /**
  * 气体描述符，作为 Map 的 Key。基于 Mekanism Gas 名称。
  */
-public class GasDescriptor {
+public class GasDescriptor implements Descriptor {
     private final String gasName;
     private final int hash;
     private transient volatile IAEGasStack aeTemplate = null;

@@ -11,7 +11,7 @@ import java.util.Objects;
 /**
  * 源质描述符，作为 Map 的 Key。基于 Thaumcraft Aspect tag。
  */
-public class EssentiaDescriptor {
+public class EssentiaDescriptor implements Descriptor {
     private final String aspectTag;
     private final int hash;
     private transient volatile IAEEssentiaStack aeTemplate = null;
