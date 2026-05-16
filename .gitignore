@@ -47,6 +47,8 @@ PROGRESS.md
 TODO.md
 AUDIT_*.md
 FIX_PLAN.md
+REFACTOR_PLAN.md
+REFACTOR_*.md
 
 ### Mac OS ###
 .DS_Store
