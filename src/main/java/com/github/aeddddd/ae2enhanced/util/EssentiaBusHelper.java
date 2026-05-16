@@ -111,12 +111,9 @@ public class EssentiaBusHelper {
                                               IAEItemStack filter, IActionSource source) throws Exception {
         thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
 
-        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-        java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-        Object essentiaChannel = getChannel.invoke(AEApi.instance().storage(), essentiaChannelClass);
-
-        appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
-        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) storageGrid.getInventory((appeng.api.storage.IStorageChannel<?>) essentiaChannel);
+        @SuppressWarnings("unchecked")
+        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) EssentiaChannelAccessor.getEssentiaInventory(grid);
+        if (inv == null) return false;
 
         if (filter == null || !ItemEssentiaDrop.isEssentiaDrop(filter.createItemStack())) return false;
 

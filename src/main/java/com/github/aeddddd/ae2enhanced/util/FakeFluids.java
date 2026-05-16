@@ -100,4 +100,16 @@ public final class FakeFluids {
     public static IAEFluidStack unpackFluid(IAEItemStack itemStack) {
         return FakeItemRegister.getAEStack(itemStack);
     }
+
+    /**
+     * 规范化 FluidStack 的 Fluid 引用，确保使用 FluidRegistry 中的 canonical 实例。
+     * 这避免了不同来源的 FluidStack 因 Fluid 对象引用不同而导致匹配失败。
+     */
+    public static FluidStack canonicalizeFluidStack(FluidStack fluidStack) {
+        if (fluidStack == null || fluidStack.getFluid() == null) return fluidStack;
+        String name = fluidStack.getFluid().getName();
+        net.minecraftforge.fluids.Fluid canonical = FluidRegistry.getFluid(name);
+        if (canonical == null) return fluidStack;
+        return new FluidStack(canonical, fluidStack.amount, fluidStack.tag);
+    }
 }

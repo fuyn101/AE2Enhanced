@@ -38,8 +38,10 @@ import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
+import com.github.aeddddd.ae2enhanced.util.EssentiaChannelAccessor;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -52,14 +54,12 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.fluids.Fluid;
-import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.fml.common.Loader;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -84,6 +84,20 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         RECOVER_ONLY
     }
 
+    private enum ResourceType {
+        ITEM, FLUID, GAS, ESSENTIA
+    }
+
+    private interface StockingHandler {
+        boolean handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
+                       long targetAmount, long maxWork) throws GridAccessException;
+    }
+
+    @FunctionalInterface
+    private interface StockingOperation {
+        boolean apply(long amount) throws Exception;
+    }
+
     private static final int CONFIG_SIZE = 9;
 
     private final AppEngInternalAEInventory config;
@@ -91,6 +105,11 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     private final IActionSource source;
 
     private StockingMode mode = StockingMode.BIDIRECTIONAL;
+
+    private final StockingHandler itemHandler = new ItemStockingHandler();
+    private final StockingHandler fluidHandler = new FluidStockingHandler();
+    private final StockingHandler gasHandler = new GasStockingHandler();
+    private final StockingHandler essentiaHandler = new EssentiaStockingHandler();
 
     public PartStockingBus(ItemStack is) {
         super(is);
@@ -161,17 +180,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
         boolean hasItemCap = target.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, opposite);
         boolean hasFluidCap = target.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
-        boolean hasGasCap = Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")
-                && target.hasCapability(getGasCapability(), opposite);
-        boolean hasEssentiaCap = false;
-        if (Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")) {
-            try {
-                Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
-                hasEssentiaCap = ieTransportClass.isInstance(target);
-            } catch (ClassNotFoundException e) {
-                hasEssentiaCap = false;
-            }
-        }
+        boolean hasGasCap = GasReflectionHelper.isAvailable() && GasReflectionHelper.getGasHandler(target, opposite) != null;
+        boolean hasEssentiaCap = EssentiaChannelAccessor.isAvailable() && EssentiaChannelAccessor.isEssentiaTransport(target);
 
         if (!hasItemCap && !hasFluidCap && !hasGasCap && !hasEssentiaCap) {
             return TickRateModulation.SLOWER;
@@ -191,22 +201,24 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 ItemStack filterStack = filter.createItemStack();
                 if (filterStack.isEmpty()) continue;
 
-                boolean isFluid = ItemFluidDrop.isFluidDrop(filterStack);
-                boolean isGas = ItemGasDrop.isGasDrop(filterStack);
-                boolean isEssentia = ItemEssentiaDrop.isEssentiaDrop(filterStack);
-
-                if (isFluid) {
-                    if (!hasFluidCap) continue;
-                    worked |= this.handleFluidStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                } else if (isGas) {
-                    if (!hasGasCap) continue;
-                    worked |= this.handleGasStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                } else if (isEssentia) {
-                    if (!hasEssentiaCap) continue;
-                    worked |= this.handleEssentiaStocking(target, opposite, slot, filter, targetAmount, maxWork);
-                } else {
-                    if (!hasItemCap) continue;
-                    worked |= this.handleItemStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                switch (getSlotType(filter)) {
+                    case FLUID:
+                        if (!hasFluidCap) continue;
+                        worked |= this.fluidHandler.handle(target, opposite, filter, targetAmount, maxWork);
+                        break;
+                    case GAS:
+                        if (!hasGasCap) continue;
+                        worked |= this.gasHandler.handle(target, opposite, filter, targetAmount, maxWork);
+                        break;
+                    case ESSENTIA:
+                        if (!hasEssentiaCap) continue;
+                        worked |= this.essentiaHandler.handle(target, opposite, filter, targetAmount, maxWork);
+                        break;
+                    case ITEM:
+                    default:
+                        if (!hasItemCap) continue;
+                        worked |= this.itemHandler.handle(target, opposite, filter, targetAmount, maxWork);
+                        break;
                 }
             }
         } catch (GridAccessException e) {
@@ -221,35 +233,61 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         return Math.min((long) Math.pow(2, speedUpgrades), 64);
     }
 
-    // === Item Stocking ===
+    private ResourceType getSlotType(IAEItemStack filter) {
+        ItemStack stack = filter.createItemStack();
+        if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
+        if (ItemGasDrop.isGasDrop(stack)) return ResourceType.GAS;
+        if (ItemEssentiaDrop.isEssentiaDrop(stack)) return ResourceType.ESSENTIA;
+        return ResourceType.ITEM;
+    }
 
-    private boolean handleItemStocking(TileEntity target, EnumFacing opposite, int configSlot,
-                                        IAEItemStack filter, long targetAmount, long maxWork)
-            throws GridAccessException {
-        InventoryAdaptor adaptor = InventoryAdaptor.getAdaptor(target, opposite);
-        if (adaptor == null) return false;
-
-        IMEMonitor<IAEItemStack> inv = this.getProxy().getStorage().getInventory(
-                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-        IEnergyGrid energy = this.getProxy().getEnergy();
-        FuzzyMode fzMode = (FuzzyMode) this.getConfigManager().getSetting(Settings.FUZZY_MODE);
-        boolean fuzzy = this.getInstalledUpgrades(Upgrades.FUZZY) > 0;
-
-        long actual = countItems(target, opposite, filter, fuzzy, fzMode);
+    private boolean runStocking(long actual, long targetAmount, long maxWork,
+                                StockingOperation supply, StockingOperation recover) throws Exception {
         long delta = targetAmount - actual;
         boolean worked = false;
-
         if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
             long toSupply = Math.min(delta, maxWork);
-            worked |= supplyItems(adaptor, inv, energy, filter, toSupply, fuzzy, fzMode);
+            if (toSupply > 0) {
+                worked |= supply.apply(toSupply);
+            }
         }
-
         if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
             long toRecover = Math.min(-delta, maxWork);
-            worked |= recoverItems(adaptor, inv, energy, filter, toRecover, fuzzy, fzMode);
+            if (toRecover > 0) {
+                worked |= recover.apply(toRecover);
+            }
         }
-
         return worked;
+    }
+
+    // === Item Stocking ===
+
+    private class ItemStockingHandler implements StockingHandler {
+        @Override
+        public boolean handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
+                              long targetAmount, long maxWork) throws GridAccessException {
+            InventoryAdaptor adaptor = InventoryAdaptor.getAdaptor(target, opposite);
+            if (adaptor == null) return false;
+
+            IMEMonitor<IAEItemStack> inv = PartStockingBus.this.getProxy().getStorage().getInventory(
+                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+            IEnergyGrid energy = PartStockingBus.this.getProxy().getEnergy();
+            FuzzyMode fzMode = (FuzzyMode) PartStockingBus.this.getConfigManager().getSetting(Settings.FUZZY_MODE);
+            boolean fuzzy = PartStockingBus.this.getInstalledUpgrades(Upgrades.FUZZY) > 0;
+
+            long actual = countItems(target, opposite, filter, fuzzy, fzMode);
+            try {
+                return runStocking(actual, targetAmount, maxWork,
+                        toSupply -> supplyItems(adaptor, inv, energy, filter, toSupply, fuzzy, fzMode),
+                        toRecover -> recoverItems(adaptor, inv, energy, filter, toRecover, fuzzy, fzMode));
+            } catch (GridAccessException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                return false;
+            }
+        }
     }
 
     private long countItems(TileEntity target, EnumFacing opposite, IAEItemStack filter, boolean fuzzy, FuzzyMode fzMode) {
@@ -286,7 +324,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (fuzzy) {
             for (IAEItemStack candidate : ImmutableList.copyOf(inv.getStorageList().findFuzzy(filter, fzMode))) {
                 if (candidate.getStackSize() <= 0) continue;
-                long sent = pushItemIntoTarget(adaptor, energy, inv, candidate, remaining);
+                long sent = com.github.aeddddd.ae2enhanced.util.ItemPushHelper.pushItemIntoTarget(adaptor, energy, inv, candidate, remaining, this.source);
                 if (sent > 0) {
                     remaining -= sent;
                     worked = true;
@@ -296,7 +334,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         } else {
             IAEItemStack precise = inv.getStorageList().findPrecise(filter);
             if (precise != null && precise.getStackSize() > 0) {
-                long sent = pushItemIntoTarget(adaptor, energy, inv, precise, remaining);
+                long sent = com.github.aeddddd.ae2enhanced.util.ItemPushHelper.pushItemIntoTarget(adaptor, energy, inv, precise, remaining, this.source);
                 if (sent > 0) worked = true;
             }
         }
@@ -344,73 +382,36 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         return worked;
     }
 
-    private long pushItemIntoTarget(InventoryAdaptor d, IEnergyGrid energy,
-                                     IMEMonitor<IAEItemStack> inv, IAEItemStack org, long maxSend) {
-        ItemStack inputStack = org.getCachedItemStack(org.getStackSize());
-        ItemStack remaining = d.simulateAdd(inputStack);
-        if (!remaining.isEmpty()) {
-            org.setCachedItemStack(remaining);
-            if (remaining == inputStack) {
-                return 0;
-            }
-        }
-        long canFit = Math.min(maxSend, org.getStackSize() - (long) remaining.getCount());
-        if (canFit <= 0) return 0;
-
-        IAEItemStack ais = org.copy();
-        ais.setStackSize(canFit);
-        IAEItemStack itemsToAdd = Platform.poweredExtraction(energy, inv, ais, this.source);
-        if (itemsToAdd != null) {
-            inputStack.setCount((int) Math.min(Integer.MAX_VALUE, itemsToAdd.getStackSize()));
-            ItemStack failed = d.addItems(inputStack);
-            if (!failed.isEmpty()) {
-                ais.setStackSize(failed.getCount());
-                inv.injectItems(ais, Actionable.MODULATE, this.source);
-                return itemsToAdd.getStackSize() - failed.getCount();
-            }
-            return itemsToAdd.getStackSize();
-        } else {
-            org.setCachedItemStack(inputStack);
-            return 0;
-        }
-    }
-
     // === Fluid Stocking ===
 
-    private boolean handleFluidStocking(TileEntity target, EnumFacing opposite, int configSlot,
-                                         IAEItemStack filter, long targetAmount, long maxWork)
-            throws GridAccessException {
-        IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
-        if (fh == null) return false;
+    private class FluidStockingHandler implements StockingHandler {
+        @Override
+        public boolean handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
+                              long targetAmount, long maxWork) throws GridAccessException {
+            IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+            if (fh == null) return false;
 
-        IMEMonitor<IAEFluidStack> inv = this.getProxy().getStorage().getInventory(
-                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+            IMEMonitor<IAEFluidStack> inv = PartStockingBus.this.getProxy().getStorage().getInventory(
+                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
-        IAEFluidStack fluidFilter = FakeFluids.unpackFluid(filter);
-        if (fluidFilter == null || fluidFilter.getFluid() == null) {
-            return false;
-        }
-        Fluid targetFluid = fluidFilter.getFluid();
-
-        try {
-            long actual = countFluids(fh, targetFluid);
-            long delta = targetAmount - actual;
-            boolean worked = false;
-
-            if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
-                long toSupply = Math.min(delta, maxWork * 1000);
-                worked |= supplyFluid(fh, inv, fluidFilter, toSupply);
+            IAEFluidStack fluidFilter = FakeFluids.unpackFluid(filter);
+            if (fluidFilter == null || fluidFilter.getFluid() == null) {
+                return false;
             }
+            Fluid targetFluid = fluidFilter.getFluid();
 
-            if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
-                long toRecover = Math.min(-delta, maxWork * 1000);
-                worked |= recoverFluid(fh, inv, fluidFilter, toRecover);
+            try {
+                long actual = countFluids(fh, targetFluid);
+                long scaledMaxWork = maxWork * 1000;
+                return runStocking(actual, targetAmount, scaledMaxWork,
+                        toSupply -> supplyFluid(fh, inv, fluidFilter, toSupply),
+                        toRecover -> recoverFluid(fh, inv, fluidFilter, toRecover));
+            } catch (GridAccessException e) {
+                throw e;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Fluid stocking failed for {}", targetFluid.getName(), e);
+                return false;
             }
-
-            return worked;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Fluid stocking failed for {}", targetFluid.getName(), e);
-            return false;
         }
     }
 
@@ -443,7 +444,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         
         FluidStack filterStack = fluidFilter.getFluidStack();
         if (filterStack == null) return false;
-        filterStack = canonicalizeFluidStack(filterStack);
+        filterStack = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(filterStack);
         
         IAEFluidStack aeWanted = AEFluidStack.fromFluidStack(filterStack);
         if (aeWanted == null) return false;
@@ -470,13 +471,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         FluidStack toDrain = fluidFilter.getFluidStack();
         if (toDrain == null) return false;
         toDrain.amount = (int) Math.min(amount, Integer.MAX_VALUE);
-        toDrain = canonicalizeFluidStack(toDrain);
+        toDrain = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(toDrain);
 
         FluidStack drained = fh.drain(toDrain, false);
         if (drained == null || drained.amount <= 0) {
             return false;
         }
-        drained = canonicalizeFluidStack(drained);
+        drained = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(drained);
 
         IAEFluidStack aeDrained = AEFluidStack.fromFluidStack(drained);
         if (aeDrained == null) {
@@ -490,72 +491,58 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         toDrain.amount = (int) canInsert;
         FluidStack actualDrain = fh.drain(toDrain, true);
         if (actualDrain != null && actualDrain.amount > 0) {
-            actualDrain = canonicalizeFluidStack(actualDrain);
+            actualDrain = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(actualDrain);
             inv.injectItems(AEFluidStack.fromFluidStack(actualDrain), Actionable.MODULATE, this.source);
             return true;
         }
         return false;
     }
 
-    private static FluidStack canonicalizeFluidStack(FluidStack fluidStack) {
-        if (fluidStack == null || fluidStack.getFluid() == null) return fluidStack;
-        Fluid canonical = FluidRegistry.getFluid(fluidStack.getFluid().getName());
-        if (canonical != null && canonical != fluidStack.getFluid()) {
-            return new FluidStack(canonical, fluidStack.amount, fluidStack.tag);
-        }
-        return fluidStack;
-    }
-
     // === Gas Stocking ===
 
-    private boolean handleGasStocking(TileEntity target, EnumFacing opposite, int configSlot,
-                                       IAEItemStack filter, long targetAmount, long maxWork)
-            throws GridAccessException {
-        if (!Loader.isModLoaded("mekanism") || !Loader.isModLoaded("mekeng")) return false;
+    @SuppressWarnings("unchecked")
+    private class GasStockingHandler implements StockingHandler {
+        @Override
+        public boolean handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
+                              long targetAmount, long maxWork) throws GridAccessException {
+            if (!GasReflectionHelper.isAvailable()) return false;
+            Object gasHandler = GasReflectionHelper.getGasHandler(target, opposite);
+            if (gasHandler == null) return false;
 
-        Object gasHandler = target.getCapability(getGasCapability(), opposite);
-        if (gasHandler == null) return false;
-
-        try {
-            Class<?> gasHandlerClass = Class.forName("mekanism.api.gas.IGasHandler");
-            Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
-            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
-            java.lang.reflect.Field amountField = gasStackClass.getField("amount");
-            java.lang.reflect.Method drawGas = gasHandlerClass.getMethod("drawGas", EnumFacing.class, int.class, boolean.class);
-            java.lang.reflect.Method receiveGas = gasHandlerClass.getMethod("receiveGas", EnumFacing.class, gasStackClass, boolean.class);
+            IMEMonitor<?> rawInv = null;
+            try {
+                rawInv = GasReflectionHelper.getGasInventory(PartStockingBus.this.getProxy().getGrid());
+            } catch (Exception e) {
+                return false;
+            }
+            if (rawInv == null) return false;
+            IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv = 
+                    (IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack>) rawInv;
 
             com.mekeng.github.common.me.data.IAEGasStack wanted = FakeGases.unpackGas(filter);
             if (wanted == null || wanted.getGas() == null) return false;
 
-            long actual = countGas(gasHandler, drawGas, gasStackClass, amountField, opposite, wanted);
-            long delta = targetAmount - actual;
-            boolean worked = false;
-
-            if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
-                long toSupply = Math.min(delta, maxWork * 1000);
-                worked |= supplyGas(gasHandler, drawGas, receiveGas, gasStackClass, gasClass, amountField, opposite, wanted, toSupply);
+            try {
+                long actual = countGas(gasHandler, opposite, wanted);
+                long scaledMaxWork = maxWork * 1000;
+                return runStocking(actual, targetAmount, scaledMaxWork,
+                        toSupply -> supplyGas(gasHandler, opposite, inv, wanted, toSupply),
+                        toRecover -> recoverGas(gasHandler, opposite, inv, wanted, toRecover));
+            } catch (GridAccessException e) {
+                throw e;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Gas stocking failed", e);
+                return false;
             }
-
-            if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
-                long toRecover = Math.min(-delta, maxWork * 1000);
-                worked |= recoverGas(gasHandler, drawGas, gasStackClass, gasClass, amountField, opposite, wanted, toRecover);
-            }
-
-            return worked;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Gas stocking failed", e);
-            return false;
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private long countGas(Object gasHandler, java.lang.reflect.Method drawGas, Class<?> gasStackClass,
-                          java.lang.reflect.Field amountField, EnumFacing opposite,
+    private long countGas(Object gasHandler, EnumFacing opposite,
                           com.mekeng.github.common.me.data.IAEGasStack wanted) throws Exception {
-        Object drained = drawGas.invoke(gasHandler, opposite, Integer.MAX_VALUE, false);
+        Object drained = GasReflectionHelper.drawGas(gasHandler, opposite, Integer.MAX_VALUE, false);
         if (drained == null) return 0;
-        int amount = amountField.getInt(drained);
-        Object gasType = gasStackClass.getMethod("getGas").invoke(drained);
+        int amount = GasReflectionHelper.getGasAmount(drained);
+        Object gasType = GasReflectionHelper.getGasType(drained);
         Object wantedGasType = wanted.getGas();
         if (gasType != null && gasType.equals(wantedGasType)) {
             return amount;
@@ -563,27 +550,14 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         return 0;
     }
 
-    @SuppressWarnings("unchecked")
-    private boolean supplyGas(Object gasHandler, java.lang.reflect.Method drawGas, java.lang.reflect.Method receiveGas,
-                               Class<?> gasStackClass, Class<?> gasClass, java.lang.reflect.Field amountField,
-                               EnumFacing opposite, com.mekeng.github.common.me.data.IAEGasStack wanted, long amount)
-            throws Exception {
+    private boolean supplyGas(Object gasHandler, EnumFacing opposite,
+                              IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv,
+                              com.mekeng.github.common.me.data.IAEGasStack wanted, long amount) throws Exception {
         if (amount <= 0) return false;
 
-        IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv = null;
-        try {
-            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-            java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-            Object gasChannel = getChannel.invoke(AEApi.instance().storage(), gasChannelClass);
-            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
-            inv = (IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack>) getInv.invoke(this.getProxy().getStorage(), gasChannel);
-        } catch (Exception e) {
-            return false;
-        }
-
         int supplyAmount = (int) Math.min(amount, Integer.MAX_VALUE);
-        Object gasStackObj = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wanted.getGas(), supplyAmount);
+        Object gasStackObj = GasReflectionHelper.createGasStack(wanted.getGas(), supplyAmount);
+        if (gasStackObj == null) return false;
         com.mekeng.github.common.me.data.impl.AEGasStack aeSupply =
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) gasStackObj);
         if (aeSupply == null) return false;
@@ -592,59 +566,43 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         long canExtract = aeSupply.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
         if (canExtract <= 0) return false;
 
-        Object toReceive = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wanted.getGas(), (int) canExtract);
-        int received = (int) receiveGas.invoke(gasHandler, opposite, toReceive, false);
+        Object toReceive = GasReflectionHelper.createGasStack(wanted.getGas(), (int) canExtract);
+        int received = GasReflectionHelper.receiveGas(gasHandler, opposite, toReceive, false);
         if (received <= 0) return false;
 
-        Object actualExtract = gasStackClass.getConstructor(gasClass, int.class)
-                .newInstance(wanted.getGas(), received);
+        Object actualExtract = GasReflectionHelper.createGasStack(wanted.getGas(), received);
         com.mekeng.github.common.me.data.impl.AEGasStack aeExtract =
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualExtract);
         inv.extractItems(aeExtract, Actionable.MODULATE, this.source);
-        receiveGas.invoke(gasHandler, opposite, actualExtract, true);
+        GasReflectionHelper.receiveGas(gasHandler, opposite, actualExtract, true);
         return true;
     }
 
-    @SuppressWarnings("unchecked")
-    private boolean recoverGas(Object gasHandler, java.lang.reflect.Method drawGas, Class<?> gasStackClass,
-                                Class<?> gasClass, java.lang.reflect.Field amountField, EnumFacing opposite,
-                                com.mekeng.github.common.me.data.IAEGasStack wanted, long amount) throws Exception {
+    private boolean recoverGas(Object gasHandler, EnumFacing opposite,
+                               IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv,
+                               com.mekeng.github.common.me.data.IAEGasStack wanted, long amount) throws Exception {
         if (amount <= 0) return false;
 
-        IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack> inv = null;
-        try {
-            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-            java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-            Object gasChannel = getChannel.invoke(AEApi.instance().storage(), gasChannelClass);
-            java.lang.reflect.Method getInv = this.getProxy().getStorage().getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
-            inv = (IMEMonitor<com.mekeng.github.common.me.data.IAEGasStack>) getInv.invoke(this.getProxy().getStorage(), gasChannel);
-        } catch (Exception e) {
-            return false;
-        }
-
-        Object drained = drawGas.invoke(gasHandler, opposite, (int) Math.min(amount, Integer.MAX_VALUE), false);
+        Object drained = GasReflectionHelper.drawGas(gasHandler, opposite, (int) Math.min(amount, Integer.MAX_VALUE), false);
         if (drained == null) return false;
-        int drainedAmount = amountField.getInt(drained);
+        int drainedAmount = GasReflectionHelper.getGasAmount(drained);
         if (drainedAmount <= 0) return false;
 
+        Object gasStackObj = GasReflectionHelper.createGasStack(wanted.getGas(), drainedAmount);
         com.mekeng.github.common.me.data.impl.AEGasStack aeDraw =
-                com.mekeng.github.common.me.data.impl.AEGasStack.of(
-                        (mekanism.api.gas.GasStack) gasStackClass.getConstructor(gasClass, int.class)
-                                .newInstance(wanted.getGas(), drainedAmount));
+                com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) gasStackObj);
         if (aeDraw == null) return false;
 
         com.mekeng.github.common.me.data.IAEGasStack notInserted = inv.injectItems(aeDraw, Actionable.SIMULATE, this.source);
         long canInsert = aeDraw.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
         if (canInsert <= 0) return false;
 
-        Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
+        Object actual = GasReflectionHelper.drawGas(gasHandler, opposite, (int) canInsert, true);
         if (actual != null) {
-            int actualAmount = amountField.getInt(actual);
+            int actualAmount = GasReflectionHelper.getGasAmount(actual);
             actualAmount = (int) Math.min(actualAmount, canInsert);
             if (actualAmount > 0) {
-                Object toInsert = gasStackClass.getConstructor(gasClass, int.class)
-                        .newInstance(wanted.getGas(), actualAmount);
+                Object toInsert = GasReflectionHelper.createGasStack(wanted.getGas(), actualAmount);
                 com.mekeng.github.common.me.data.impl.AEGasStack aeInsert =
                         com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) toInsert);
                 inv.injectItems(aeInsert, Actionable.MODULATE, this.source);
@@ -654,44 +612,27 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         return false;
     }
 
-    private net.minecraftforge.common.capabilities.Capability<?> getGasCapability() {
-        try {
-            return (net.minecraftforge.common.capabilities.Capability<?>)
-                    Class.forName("mekanism.common.capabilities.Capabilities")
-                            .getField("GAS_HANDLER_CAPABILITY")
-                            .get(null);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     // === Essentia Stocking ===
 
-    private boolean handleEssentiaStocking(TileEntity target, EnumFacing opposite, int configSlot,
-                                            IAEItemStack filter, long targetAmount, long maxWork)
-            throws GridAccessException {
-        if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
-        try {
-            Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
-            if (!ieTransportClass.isInstance(target)) {
+    private class EssentiaStockingHandler implements StockingHandler {
+        @Override
+        public boolean handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
+                              long targetAmount, long maxWork) throws GridAccessException {
+            try {
+                Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+                java.lang.reflect.Method method = helperClass.getMethod("stockEssentias",
+                        appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
+                        IAEItemStack.class, long.class, long.class, int.class, IActionSource.class);
+                return (Boolean) method.invoke(null, PartStockingBus.this.getProxy().getGrid(), target, opposite,
+                        filter, targetAmount, maxWork, PartStockingBus.this.mode.ordinal(), PartStockingBus.this.source);
+            } catch (NoSuchMethodException e) {
+                return false;
+            } catch (GridAccessException e) {
+                throw e;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Essentia stocking failed", e);
                 return false;
             }
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-
-        try {
-            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
-            java.lang.reflect.Method method = helperClass.getMethod("stockEssentias",
-                    appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
-                    IAEItemStack.class, long.class, long.class, int.class, IActionSource.class);
-            return (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite,
-                    filter, targetAmount, maxWork, this.mode.ordinal(), this.source);
-        } catch (NoSuchMethodException e) {
-            return false;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Essentia stocking failed", e);
-            return false;
         }
     }
 
