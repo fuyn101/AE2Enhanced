@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
+import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,9 +76,7 @@ public class MixinGridStorageCacheFluid {
 
             if (fakeChanges.isEmpty()) return;
 
-            Method postChangeMethod = NetworkMonitor.class.getDeclaredMethod("postChange", boolean.class, Iterable.class, IActionSource.class);
-            postChangeMethod.setAccessible(true);
-            postChangeMethod.invoke(itemMonitor, true, fakeChanges, src);
+            MixinReflectionHelper.postChange(itemMonitor, true, fakeChanges, src);
         } catch (Exception e) {
             // 反射调用失败，静默处理
         }
