@@ -179,6 +179,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
         boolean worked = false;
         long maxWork = this.calculateItemsToSend();
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] StockingBus doBusWork: hasItem={}, hasFluid={}, hasGas={}, hasEssentia={}, maxWork={}",
+                hasItemCap, hasFluidCap, hasGasCap, hasEssentiaCap, maxWork);
 
         try {
             for (int slot = 0; slot < CONFIG_SIZE && maxWork > 0; slot++) {
@@ -195,29 +197,39 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 boolean isGas = ItemGasDrop.isGasDrop(filterStack);
                 boolean isEssentia = ItemEssentiaDrop.isEssentiaDrop(filterStack);
 
+                String type = isFluid ? "fluid" : (isGas ? "gas" : (isEssentia ? "essentia" : "item"));
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] StockingBus slot={}, type={}, targetAmount={}", slot, type, targetAmount);
                 if (isFluid) {
                     if (!hasFluidCap) {
+                        AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} skipped: no fluid cap", slot);
                         continue;
                     }
                     boolean result = this.handleFluidStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} fluid result={}", slot, result);
                     worked |= result;
                 } else if (isGas) {
                     if (!hasGasCap) {
+                        AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} skipped: no gas cap", slot);
                         continue;
                     }
                     boolean result = this.handleGasStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} gas result={}", slot, result);
                     worked |= result;
                 } else if (isEssentia) {
                     if (!hasEssentiaCap) {
+                        AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} skipped: no essentia cap", slot);
                         continue;
                     }
                     boolean result = this.handleEssentiaStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} essentia result={}", slot, result);
                     worked |= result;
                 } else {
                     if (!hasItemCap) {
+                        AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} skipped: no item cap", slot);
                         continue;
                     }
                     boolean result = this.handleItemStocking(target, opposite, slot, filter, targetAmount, maxWork);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] slot={} item result={}", slot, result);
                     worked |= result;
                 }
             }
@@ -409,17 +421,22 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             long actual = countFluids(fh, targetFluid);
             long delta = targetAmount - actual;
             boolean worked = false;
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleFluidStocking: fluid={}, actual={}, delta={}, mode={}",
+                    targetFluid.getName(), actual, delta, this.mode);
 
             if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
                 long toSupply = Math.min(delta, maxWork * 1000);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] fluid supply: toSupply={}", toSupply);
                 worked |= supplyFluid(fh, inv, targetFluid, toSupply);
             }
 
             if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
                 long toRecover = Math.min(-delta, maxWork * 1000);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] fluid recover: toRecover={}", toRecover);
                 worked |= recoverFluid(fh, inv, targetFluid, toRecover);
             }
 
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleFluidStocking result: worked={}", worked);
             return worked;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Fluid stocking failed for {}", targetFluid.getName(), e);
@@ -449,15 +466,20 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         wanted = canonicalizeFluidStack(wanted);
 
         IAEFluidStack aeWanted = AEFluidStack.fromFluidStack(wanted);
-        if (aeWanted == null) return false;
+        if (aeWanted == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: aeWanted null");
+            return false;
+        }
 
         IAEFluidStack notExtracted = inv.extractItems(aeWanted, Actionable.SIMULATE, this.source);
         long canExtract = aeWanted.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: canExtract={}", canExtract);
         if (canExtract <= 0) return false;
 
         FluidStack toFill = new FluidStack(fluid, (int) canExtract);
         toFill = canonicalizeFluidStack(toFill);
         int filled = fh.fill(toFill, false);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: filled={}", filled);
         if (filled <= 0) return false;
 
         FluidStack actualExtract = new FluidStack(fluid, filled);
@@ -465,6 +487,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         IAEFluidStack aeExtract = AEFluidStack.fromFluidStack(actualExtract);
         inv.extractItems(aeExtract, Actionable.MODULATE, this.source);
         fh.fill(actualExtract, true);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyFluid: SUCCESS extracted={}", filled);
         return true;
     }
 
@@ -474,22 +497,31 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         toDrain = canonicalizeFluidStack(toDrain);
 
         FluidStack drained = fh.drain(toDrain, false);
-        if (drained == null || drained.amount <= 0) return false;
+        if (drained == null || drained.amount <= 0) {
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: simulate drain returned null/0");
+            return false;
+        }
         drained = canonicalizeFluidStack(drained);
 
         IAEFluidStack aeDrained = AEFluidStack.fromFluidStack(drained);
-        if (aeDrained == null) return false;
+        if (aeDrained == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: aeDrained null");
+            return false;
+        }
 
         IAEFluidStack notInserted = inv.injectItems(aeDrained, Actionable.SIMULATE, this.source);
         long canInsert = aeDrained.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: canInsert={}", canInsert);
         if (canInsert <= 0) return false;
 
         FluidStack actualDrain = fh.drain(new FluidStack(fluid, (int) canInsert), true);
         if (actualDrain != null && actualDrain.amount > 0) {
             actualDrain = canonicalizeFluidStack(actualDrain);
             inv.injectItems(AEFluidStack.fromFluidStack(actualDrain), Actionable.MODULATE, this.source);
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: SUCCESS drained={}", actualDrain.amount);
             return true;
         }
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverFluid: actualDrain null/0");
         return false;
     }
 
@@ -526,17 +558,22 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             long actual = countGas(gasHandler, drawGas, gasStackClass, amountField, opposite, wanted);
             long delta = targetAmount - actual;
             boolean worked = false;
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleGasStocking: gas={}, actual={}, delta={}, mode={}",
+                    wanted.getGas(), actual, delta, this.mode);
 
             if (delta > 0 && this.mode != StockingMode.RECOVER_ONLY) {
                 long toSupply = Math.min(delta, maxWork * 1000);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] gas supply: toSupply={}", toSupply);
                 worked |= supplyGas(gasHandler, drawGas, receiveGas, gasStackClass, gasClass, amountField, opposite, wanted, toSupply);
             }
 
             if (delta < 0 && this.mode != StockingMode.SUPPLY_ONLY) {
                 long toRecover = Math.min(-delta, maxWork * 1000);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] gas recover: toRecover={}", toRecover);
                 worked |= recoverGas(gasHandler, drawGas, gasStackClass, gasClass, amountField, opposite, wanted, toRecover);
             }
 
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleGasStocking result: worked={}", worked);
             return worked;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Gas stocking failed", e);
@@ -587,11 +624,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
         com.mekeng.github.common.me.data.IAEGasStack notExtracted = inv.extractItems(aeSupply, Actionable.SIMULATE, this.source);
         long canExtract = aeSupply.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyGas: canExtract={}", canExtract);
         if (canExtract <= 0) return false;
 
         Object toReceive = gasStackClass.getConstructor(gasClass, int.class)
                 .newInstance(wantedGas, (int) canExtract);
         int received = (int) receiveGas.invoke(gasHandler, opposite, toReceive, false);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyGas: received={}", received);
         if (received <= 0) return false;
 
         Object actualExtract = gasStackClass.getConstructor(gasClass, int.class)
@@ -600,6 +639,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) actualExtract);
         inv.extractItems(aeExtract, Actionable.MODULATE, this.source);
         receiveGas.invoke(gasHandler, opposite, actualExtract, true);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] supplyGas: SUCCESS received={}", received);
         return true;
     }
 
@@ -634,6 +674,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
         com.mekeng.github.common.me.data.IAEGasStack notInserted = inv.injectItems(aeDraw, Actionable.SIMULATE, this.source);
         long canInsert = aeDraw.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: canInsert={}", canInsert);
         if (canInsert <= 0) return false;
 
         Object realDraw = gasStackClass.getConstructor(gasClass, int.class)
@@ -641,15 +682,18 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         Object actual = drawGas.invoke(gasHandler, opposite, (int) canInsert, true);
         if (actual != null) {
             int actualAmount = amountField.getInt(actual);
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: actualAmount={}", actualAmount);
             if (actualAmount > 0) {
                 Object toInsert = gasStackClass.getConstructor(gasClass, int.class)
                         .newInstance(wantedGas, actualAmount);
                 com.mekeng.github.common.me.data.impl.AEGasStack aeInsert =
                         com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) toInsert);
                 inv.injectItems(aeInsert, Actionable.MODULATE, this.source);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: SUCCESS actualAmount={}", actualAmount);
                 return true;
             }
         }
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] recoverGas: actual null or actualAmount=0");
         return false;
     }
 
@@ -672,7 +716,10 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (!Loader.isModLoaded("thaumcraft") || !Loader.isModLoaded("thaumicenergistics")) return false;
         try {
             Class<?> ieTransportClass = Class.forName("thaumcraft.api.aspects.IEssentiaTransport");
-            if (!ieTransportClass.isInstance(target)) return false;
+            if (!ieTransportClass.isInstance(target)) {
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleEssentiaStocking: target not IEssentiaTransport");
+                return false;
+            }
         } catch (ClassNotFoundException e) {
             return false;
         }
@@ -682,8 +729,12 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             java.lang.reflect.Method method = helperClass.getMethod("stockEssentias",
                     appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                     IAEItemStack.class, long.class, long.class, int.class, IActionSource.class);
-            return (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite,
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleEssentiaStocking: calling stockEssentias targetAmount={}, maxWork={}, mode={}",
+                    targetAmount, maxWork, this.mode.ordinal());
+            boolean result = (Boolean) method.invoke(null, this.getProxy().getGrid(), target, opposite,
                     filter, targetAmount, maxWork, this.mode.ordinal(), this.source);
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] handleEssentiaStocking result={}", result);
+            return result;
         } catch (NoSuchMethodException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] EssentiaBusHelper.stockEssentias not found, skipping essentia stocking");
             return false;

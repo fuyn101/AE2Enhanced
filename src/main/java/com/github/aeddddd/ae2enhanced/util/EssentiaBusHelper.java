@@ -249,7 +249,10 @@ public class EssentiaBusHelper {
         IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) storageGrid.getInventory((appeng.api.storage.IStorageChannel<?>) essentiaChannel);
 
         IAEEssentiaStack wanted = unpackEssentia(filter);
-        if (wanted == null || wanted.getAspect() == null) return false;
+        if (wanted == null || wanted.getAspect() == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias: wanted null or no aspect");
+            return false;
+        }
 
         int actual = 0;
         thaumcraft.api.aspects.Aspect faceAspect = transport.getEssentiaType(opposite);
@@ -258,6 +261,8 @@ public class EssentiaBusHelper {
         }
         long delta = targetAmount - actual;
         boolean worked = false;
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias: aspect={}, actual={}, delta={}, mode={}",
+                wanted.getAspect().getTag(), actual, delta, modeOrdinal);
 
         // 补货：网络 → 外部
         if (delta > 0 && modeOrdinal != 2) { // RECOVER_ONLY = 2
@@ -267,8 +272,10 @@ public class EssentiaBusHelper {
             if (aeEss != null) {
                 IAEEssentiaStack out = inv.extractItems(aeEss, Actionable.SIMULATE, source);
                 long canExtract = aeEss.getStackSize() - (out != null ? out.getStackSize() : 0);
+                AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias supply: toSupply={}, canExtract={}", toSupply, canExtract);
                 if (canExtract > 0) {
                     int added = transport.addEssentia(wanted.getAspect(), (int) canExtract, opposite);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias supply: added={}", added);
                     if (added > 0) {
                         EssentiaStack actualStack = new EssentiaStack(wanted.getAspect().getTag(), added);
                         IAEEssentiaStack toExtract = AEEssentiaStack.fromEssentiaStack(actualStack);
@@ -283,12 +290,14 @@ public class EssentiaBusHelper {
         if (delta < 0 && modeOrdinal != 1) { // SUPPLY_ONLY = 1
             int toRecover = (int) Math.min(-delta, maxWork);
             int taken = transport.takeEssentia(wanted.getAspect(), toRecover, opposite);
+            AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias recover: toRecover={}, taken={}", toRecover, taken);
             if (taken > 0) {
                 EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), taken);
                 IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
                 if (aeEss != null) {
                     IAEEssentiaStack notInserted = inv.injectItems(aeEss, Actionable.SIMULATE, source);
                     long canInsert = aeEss.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
+                    AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias recover: canInsert={}", canInsert);
                     if (canInsert > 0) {
                         if (canInsert < taken) {
                             // 部分插入，退回剩余（如果能退回）
@@ -304,6 +313,7 @@ public class EssentiaBusHelper {
             }
         }
 
+        AE2Enhanced.LOGGER.warn("[AE2E-TEST] stockEssentias result: worked={}", worked);
         return worked;
     }
 
