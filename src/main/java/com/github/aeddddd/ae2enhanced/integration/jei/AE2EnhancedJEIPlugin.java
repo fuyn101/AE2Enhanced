@@ -34,11 +34,9 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
 
         // E2a：将假物品加入 JEI 黑名单，避免在物品列表中显示
         if (ModItems.ESSENTIA_DROP != null) {
-            int aspectCount = ItemEssentiaDrop.getAspectCount();
-            for (int meta = 0; meta < aspectCount; meta++) {
-                blacklist.addIngredientToBlacklist(new ItemStack(ModItems.ESSENTIA_DROP, 1, meta));
+            for (ItemStack stack : ItemEssentiaDrop.getAllAspectStacks()) {
+                blacklist.addIngredientToBlacklist(stack);
             }
-
         }
         if (ModItems.FLUID_DROP != null) {
             // 隐藏基础流体假物品（getSubItems 已返回空，黑名单确保基础物品也不显示）

@@ -5,84 +5,45 @@ import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaItemRenderer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import thaumcraft.api.aspects.Aspect;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 源质假物品（Essentia Drop）。
  * 用于在标准 AE2 物品终端中显示源质存储。
  *
- * 关键设计：使用 ItemStack 的 metadata（itemDamage）来编码 aspect 类型，而非 NBT。
- * 原因：AEItemStackRegistry 的 equals/hashCode 不包含 NBT，导致 NBT 在 NetworkMonitor
- * 的序列化/反序列化中丢失。metadata 会被 AEItemStack 完整保留并通过网络同步。
+ * 使用 NBT 中的 "AspectTag" 字段编码源质类型，符合 AGENTS.md 规范。
+ * AE2-UEL 的 AEItemStack.isSameType 会完整比较 item、meta 和 NBT tag，
+ * 因此 NBT 在 NetworkMonitor 的序列化/反序列化及网络同步中完全保留。
  */
 public class ItemEssentiaDrop extends Item {
 
-    private static final Map<String, Integer> ASPECT_TO_META = new HashMap<>();
-    private static final Map<Integer, String> META_TO_ASPECT = new HashMap<>();
-    private static boolean mapsInitialized = false;
+    private static final String NBT_ASPECT_TAG = "AspectTag";
 
     public ItemEssentiaDrop() {
         setRegistryName(AE2Enhanced.MOD_ID, "essentia_drop");
         setTranslationKey(AE2Enhanced.MOD_ID + ".essentia_drop");
         setCreativeTab(null);
-        setHasSubtypes(true); // 使用 metadata 区分 aspect，避免显示为损坏状态
-    }
-
-    private static synchronized void initAspectMaps() {
-        if (mapsInitialized) return;
-        mapsInitialized = true;
-
-        int aspectCount = Aspect.aspects != null ? Aspect.aspects.size() : -1;
-
-        List<String> tags = new ArrayList<>();
-        if (Aspect.aspects != null) {
-            for (Aspect aspect : Aspect.aspects.values()) {
-                if (aspect != null && aspect.getTag() != null) {
-                    tags.add(aspect.getTag());
-                }
-            }
-        }
-        Collections.sort(tags); // 确定性排序，确保客户端/服务器映射一致
-
-
-        int meta = 0;
-        for (String tag : tags) {
-            ASPECT_TO_META.put(tag, meta);
-            META_TO_ASPECT.put(meta, tag);
-            meta++;
-        }
-    }
-
-    public static int getAspectMeta(String aspectTag) {
-        initAspectMaps();
-        return ASPECT_TO_META.getOrDefault(aspectTag, 0);
-    }
-
-    public static int getAspectCount() {
-        initAspectMaps();
-        return ASPECT_TO_META.size();
-    }
-
-    public static String getAspectTagFromMeta(int meta) {
-        initAspectMaps();
-        return META_TO_ASPECT.get(meta);
+        setHasSubtypes(false); // 不再使用 metadata，全部通过 NBT 区分
     }
 
     /**
      * 创建指定源质类型的假物品堆叠。
      */
     public static ItemStack createStack(String aspectTag, int amount) {
-        initAspectMaps();
-        int meta = getAspectMeta(aspectTag);
-        return new ItemStack(ModItems.ESSENTIA_DROP, amount, meta);
+        ItemStack stack = new ItemStack(ModItems.ESSENTIA_DROP, amount);
+        if (aspectTag != null && !aspectTag.isEmpty()) {
+            NBTTagCompound tag = new NBTTagCompound();
+            tag.setString(NBT_ASPECT_TAG, aspectTag);
+            stack.setTagCompound(tag);
+        }
+        return stack;
     }
 
     /**
@@ -90,7 +51,11 @@ public class ItemEssentiaDrop extends Item {
      */
     public static String getAspectTag(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemEssentiaDrop)) return null;
-        return getAspectTagFromMeta(stack.getItemDamage());
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag != null && tag.hasKey(NBT_ASPECT_TAG, 8)) {
+            return tag.getString(NBT_ASPECT_TAG);
+        }
+        return null;
     }
 
     @Override
@@ -104,15 +69,33 @@ public class ItemEssentiaDrop extends Item {
     }
 
     /**
+     * 返回所有已注册源质类型的 ItemStack 列表（每个堆叠数量为 1）。
+     * 供 JEI 黑名单等外部代码调用，避免直接依赖 Aspect.aspects。
+     */
+    public static List<ItemStack> getAllAspectStacks() {
+        List<ItemStack> result = new ArrayList<>();
+        List<String> tags = new ArrayList<>();
+        if (Aspect.aspects != null) {
+            for (Aspect aspect : Aspect.aspects.values()) {
+                if (aspect != null && aspect.getTag() != null) {
+                    tags.add(aspect.getTag());
+                }
+            }
+        }
+        Collections.sort(tags);
+        for (String tag : tags) {
+            result.add(createStack(tag, 1));
+        }
+        return result;
+    }
+
+    /**
      * 为 JEI / 创造模式标签页提供所有子类型，使 JEI 能枚举所有 aspect 变体。
      */
     @Override
     public void getSubItems(net.minecraft.creativetab.CreativeTabs tab, net.minecraft.util.NonNullList<ItemStack> items) {
         if (this.isInCreativeTab(tab)) {
-            initAspectMaps();
-            for (String tag : ASPECT_TO_META.keySet()) {
-                items.add(createStack(tag, 1));
-            }
+            items.addAll(getAllAspectStacks());
         }
     }
 
