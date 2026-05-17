@@ -118,6 +118,16 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         }
     }
 
+    @Override
+    protected void onProxyInvalidate() {
+        removeCpuPoolFromCraftingGridCache();
+    }
+
+    @Override
+    protected void onProxyChunkUnload() {
+        removeCpuPoolFromCraftingGridCache();
+    }
+
     public void disassemble() {
         IGridNode node = getProxy().getNode();
         this.formed = false;
@@ -130,6 +140,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
                 AE2Enhanced.LOGGER.error("[AE2E] Error cancelling CraftingCPUCluster on disassemble: {}", e.toString());
             }
         }
+        removeCpuPoolFromCraftingGridCache();
         cpuPool.clear();
 
         unbindMeInterface();
@@ -482,6 +493,33 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] injectCpuPoolIntoCraftingGridCache failed", e);
+        }
+    }
+
+    private void removeCpuPoolFromCraftingGridCache() {
+        try {
+            IGridNode node = getProxy().getNode();
+            if (node == null || node.getGrid() == null) return;
+            appeng.me.cache.CraftingGridCache cache;
+            try {
+                cache = node.getGrid().getCache(appeng.me.cache.CraftingGridCache.class);
+            } catch (NullPointerException e) {
+                return;
+            }
+            if (cache == null) return;
+            java.lang.reflect.Field field = appeng.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster> set =
+                (java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
+            if (set == null) return;
+            for (appeng.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
+                if (cpu != null) {
+                    set.remove(cpu);
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] removeCpuPoolFromCraftingGridCache failed", e);
         }
     }
 }
