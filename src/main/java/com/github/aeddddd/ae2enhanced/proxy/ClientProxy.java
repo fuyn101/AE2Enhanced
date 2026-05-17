@@ -5,8 +5,6 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
-import com.github.aeddddd.ae2enhanced.client.model.GasDropModel;
-import com.github.aeddddd.ae2enhanced.client.render.EssentiaItemRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
@@ -21,7 +19,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
-import mekanism.api.gas.GasStack;
+
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.IBakedModel;
@@ -60,7 +58,12 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
         // E2a：注册 EssentiaDrop 的内置物品渲染器（流体/气体使用标准模型系统）
         if (ModItems.ESSENTIA_DROP != null) {
-            ModItems.ESSENTIA_DROP.initModel();
+            try {
+                java.lang.reflect.Method initModel = ModItems.ESSENTIA_DROP.getClass().getMethod("initModel");
+                initModel.invoke(ModItems.ESSENTIA_DROP);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to init essentia drop model", e);
+            }
         }
         // E2a：注册流体假物品的 ItemColors，根据流体颜色染色
         if (ModItems.FLUID_DROP != null) {
@@ -75,8 +78,18 @@ public class ClientProxy extends CommonProxy {
         // E2a：注册气体假物品的 ItemColors，根据气体 tint 染色（复刻 ae2fc ClientProxy.init）
         if (ModItems.GAS_DROP != null) {
             Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
-                GasStack gas = FakeItemRegister.getStack(stack);
-                return gas != null ? gas.getGas().getTint() | 0xFF000000 : -1;
+                try {
+                    Object gas = FakeItemRegister.getStack(stack);
+                    if (gas != null) {
+                        Object gasType = gas.getClass().getMethod("getGas").invoke(gas);
+                        if (gasType != null) {
+                            int tint = (int) gasType.getClass().getMethod("getTint").invoke(gasType);
+                            return tint | 0xFF000000;
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+                return -1;
             }, ModItems.GAS_DROP);
         }
     }
@@ -178,9 +191,14 @@ public class ClientProxy extends CommonProxy {
                 new ModelResourceLocation(FluidDropModel.MODEL_LOCATION, "inventory"));
 
         if (ModItems.GAS_DROP != null) {
-            ModelLoaderRegistry.registerLoader(new GasDropModel.Loader());
-            ModelLoader.setCustomModelResourceLocation(ModItems.GAS_DROP, 0,
-                    new ModelResourceLocation(GasDropModel.MODEL_LOCATION, "inventory"));
+            try {
+                Class<?> loaderClass = Class.forName("com.github.aeddddd.ae2enhanced.client.model.GasDropModel$Loader");
+                ModelLoaderRegistry.registerLoader((net.minecraftforge.client.model.ICustomModelLoader) loaderClass.newInstance());
+                ModelLoader.setCustomModelResourceLocation(ModItems.GAS_DROP, 0,
+                        new ModelResourceLocation(AE2Enhanced.MOD_ID + ":gas_drop", "inventory"));
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to register gas drop model", e);
+            }
         }
 
         // E1a：注册通用输入总线的 Part 模型和物品模型

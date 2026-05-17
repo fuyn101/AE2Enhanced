@@ -2,9 +2,7 @@ package com.github.aeddddd.ae2enhanced;
 
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemPartStockingBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
@@ -22,9 +20,9 @@ public class ModItems {
     public static ItemConformalCharge CONFORMAL_CHARGE;
     public static ItemDifferentialFormStabilizer DIFFERENTIAL_FORM_STABILIZER;
     public static ItemStableSpacetimeManifold STABLE_SPACETIME_MANIFOLD;
-    public static ItemEssentiaDrop ESSENTIA_DROP;
+    public static Item ESSENTIA_DROP;
     public static ItemFluidDrop FLUID_DROP;
-    public static ItemGasDrop GAS_DROP;
+    public static Item GAS_DROP;
     public static ItemPartUniversalImportBus PART_UNIVERSAL_IMPORT_BUS;
     public static ItemPartUniversalExportBus PART_UNIVERSAL_EXPORT_BUS;
     public static ItemPartStockingBus PART_STOCKING_BUS;
@@ -34,12 +32,20 @@ public class ModItems {
         CONFORMAL_CHARGE = new ItemConformalCharge();
         DIFFERENTIAL_FORM_STABILIZER = new ItemDifferentialFormStabilizer();
         STABLE_SPACETIME_MANIFOLD = new ItemStableSpacetimeManifold();
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
-            ESSENTIA_DROP = new ItemEssentiaDrop();
+        try {
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
+                ESSENTIA_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop").newInstance();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemEssentiaDrop", e);
         }
         FLUID_DROP = new ItemFluidDrop();
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
-            GAS_DROP = new ItemGasDrop();
+        try {
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
+                GAS_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop").newInstance();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemGasDrop", e);
         }
         PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
         PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();

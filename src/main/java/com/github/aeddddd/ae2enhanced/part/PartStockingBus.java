@@ -37,10 +37,10 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.EssentiaChannelAccessor;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
-import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.GasFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.entity.player.EntityPlayer;
@@ -244,9 +244,9 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
         if (isAeFluidDummy(stack)) return ResourceType.FLUID;
         if (isAe2fcFluidDrop(stack)) return ResourceType.FLUID;
-        if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (GasFakeItemChecks.isGasFakeItemSafe(stack)) return ResourceType.GAS;
         if (isAe2fcGasDrop(stack)) return ResourceType.GAS;
-        if (FakeEssentias.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
+        if (EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         if (isTheDummyAspect(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
     }

@@ -6,7 +6,7 @@ import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -161,7 +161,7 @@ public abstract class MixinGuiMEMonitorableTooltip {
         if (aeStack == null || ModItems.ESSENTIA_DROP == null || aeStack.getItem() != ModItems.ESSENTIA_DROP) {
             return false;
         }
-        String aspectTag = FakeEssentias.tryGetAspectTag(aeStack.createItemStack());
+        String aspectTag = EssentiaFakeItemChecks.tryGetAspectTag(aeStack.createItemStack());
         String aspectName = aspectTag != null ? aspectTag : "Unknown";
         List<String> tooltip = new ArrayList<>();
         tooltip.add("\u00A7b" + "Essentia: " + aspectName);

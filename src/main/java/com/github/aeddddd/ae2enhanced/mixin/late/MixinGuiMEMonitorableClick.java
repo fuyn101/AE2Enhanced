@@ -6,7 +6,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.inventory.ClickType;
@@ -65,7 +65,7 @@ public class MixinGuiMEMonitorableClick {
                 return;
             }
 
-            if (ModItems.ESSENTIA_DROP != null && FakeEssentias.isEssentiaFakeItem(mouseItem)) {
+            if (ModItems.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
                 ci.cancel();
                 return;
             }
