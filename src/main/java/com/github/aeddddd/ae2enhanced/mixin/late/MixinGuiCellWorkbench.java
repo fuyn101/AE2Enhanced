@@ -3,8 +3,8 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.client.gui.implementations.GuiCellWorkbench;
 import appeng.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -37,13 +37,13 @@ public class MixinGuiCellWorkbench {
             if (fluid != null) {
                 tooltip = fluid.getLocalizedName();
             }
-        } else if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED && ItemGasDrop.isGasDrop(stack)) {
-            String gasName = ItemGasDrop.getGasName(stack);
+        } else if (!com.github.aeddddd.ae2enhanced.util.Ae2fcCompat.AE2FC_LOADED && FakeGases.isGasFakeItemSafe(stack)) {
+            String gasName = FakeGases.tryGetGasName(stack);
             if (gasName != null) {
                 tooltip = gasName;
             }
         } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
-            String aspectTag = com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop.getAspectTag(stack);
+            String aspectTag = FakeEssentias.tryGetAspectTag(stack);
             if (aspectTag != null) {
                 tooltip = "Essentia: " + aspectTag;
             }

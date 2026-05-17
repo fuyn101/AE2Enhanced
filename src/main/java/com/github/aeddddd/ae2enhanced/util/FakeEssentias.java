@@ -1,23 +1,108 @@
 package com.github.aeddddd.ae2enhanced.util;
 
 import appeng.api.storage.data.IAEItemStack;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.item.ItemStack;
+import thaumicenergistics.api.EssentiaStack;
+import thaumicenergistics.api.storage.IAEEssentiaStack;
+import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 /**
- * 源质假物品的安全工具类。
- * 不包含任何对 thaumicenergistics 的直接类型引用，避免在 Part 类加载时触发
- * thaumicenergistics 类缺失导致的 NoClassDefFoundError。
+ * 源质假物品的安全工具类与 FakeItemHandler 注册。
  *
- * 涉及 thaumicenergistics 类型的 pack/unpack 逻辑已移至 EssentiaBusHelper。
+ * 安全方法（isEssentiaFakeItem / tryGetAspectTag / tryConvertContainerToFake）
+ * 使用字符串比较或反射，避免在 Thaumcraft 不存在时触发 NoClassDefFoundError。
+ *
+ * init() 方法在 Thaumcraft 存在时由 AE2Enhanced.preInit() 调用，
+ * 注册 FakeItemHandler 使 Essentia 接入 FakeItemRegister 统一路径。
  */
 public class FakeEssentias {
 
+    private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
+
+    /**
+     * 在模组初始化时注册源质 FakeItemHandler。
+     * 仅在 Thaumcraft 存在时调用（由 AE2Enhanced.preInit() 控制）。
+     */
+    public static void init() {
+        FakeItemRegister.registerHandler(ItemEssentiaDrop.class, new FakeItemHandler<IAEEssentiaStack, IAEEssentiaStack>() {
+
+            @Override
+            public IAEEssentiaStack getStack(ItemStack stack) {
+                if (stack.isEmpty()) return null;
+                String aspectTag = ItemEssentiaDrop.getAspectTag(stack);
+                if (aspectTag == null) return null;
+                EssentiaStack essStack = new EssentiaStack(aspectTag, 1);
+                IAEEssentiaStack result = AEEssentiaStack.fromEssentiaStack(essStack);
+                if (result != null) {
+                    result.setStackSize(stack.getCount());
+                }
+                return result;
+            }
+
+            @Override
+            public IAEEssentiaStack getStack(IAEItemStack stack) {
+                return stack == null ? null : getStack(stack.createItemStack());
+            }
+
+            @Override
+            public IAEEssentiaStack getAEStack(ItemStack stack) {
+                return getStack(stack);
+            }
+
+            @Override
+            public IAEEssentiaStack getAEStack(IAEItemStack stack) {
+                return getStack(stack);
+            }
+
+            @Override
+            public ItemStack packStack(IAEEssentiaStack essentia) {
+                if (essentia == null || essentia.getAspect() == null) return null;
+                return ItemEssentiaDrop.createStack(essentia.getAspect().getTag(), (int) essentia.getStackSize());
+            }
+
+            @Override
+            public IAEItemStack packAEStack(IAEEssentiaStack essentia) {
+                if (essentia == null || essentia.getAspect() == null) return null;
+                ItemStack fakeItem = ItemEssentiaDrop.createStack(essentia.getAspect().getTag(), 1);
+                IAEItemStack result = AEItemStack.fromItemStack(fakeItem);
+                if (result != null) {
+                    result.setStackSize(essentia.getStackSize());
+                }
+                return result;
+            }
+
+            @Override
+            public IAEItemStack packAEStackLong(IAEEssentiaStack essentia) {
+                return packAEStack(essentia);
+            }
+        });
+    }
+
     /**
      * 判断 ItemStack 是否是源质假物品。
+     * 使用字符串比较而非直接引用 ItemEssentiaDrop 类，避免 Thaumcraft 不存在时
+     * 触发 NoClassDefFoundError。
      */
     public static boolean isEssentiaFakeItem(ItemStack stack) {
-        return ItemEssentiaDrop.isEssentiaDrop(stack);
+        return !stack.isEmpty() && ESSENTIA_DROP_CLASS.equals(stack.getItem().getClass().getName());
+    }
+
+    /**
+     * 安全获取源质假物品的 aspect 标签。
+     * 使用反射调用 ItemEssentiaDrop.getAspectTag，仅在确认是源质假物品后调用。
+     * 由于方法延迟链接，Thaumcraft 不存在时此方法不会被调用（isEssentiaFakeItem 先返回 false）。
+     */
+    public static String tryGetAspectTag(ItemStack stack) {
+        if (!isEssentiaFakeItem(stack)) return null;
+        try {
+            Class<?> clazz = Class.forName(ESSENTIA_DROP_CLASS);
+            return (String) clazz.getMethod("getAspectTag", ItemStack.class).invoke(null, stack);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -36,7 +121,10 @@ public class FakeEssentias {
             if (aspects == null || aspects.length == 0) return null;
             Object aspect = aspects[0];
             String aspectTag = (String) aspect.getClass().getMethod("getTag").invoke(aspect);
-            return ItemEssentiaDrop.createStack(aspectTag, 1);
+            // 安全调用 ItemEssentiaDrop.createStack（仅在 Thaumcraft 存在时执行到此处）
+            Class<?> essentiaDropClass = Class.forName(ESSENTIA_DROP_CLASS);
+            return (ItemStack) essentiaDropClass.getMethod("createStack", String.class, int.class)
+                    .invoke(null, aspectTag, 1);
         } catch (Exception e) {
             return null;
         }

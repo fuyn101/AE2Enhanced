@@ -4,7 +4,6 @@ import appeng.container.implementations.ContainerCellWorkbench;
 import appeng.container.slot.SlotFake;
 import appeng.helpers.InventoryAction;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;

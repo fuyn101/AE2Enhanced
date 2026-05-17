@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import appeng.api.config.Upgrades;
@@ -78,6 +79,9 @@ public class AE2Enhanced {
         FakeFluids.init();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
             FakeGases.init();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
+            FakeEssentias.init();
         }
         network = new SimpleNetworkWrapper(MOD_ID);
         network.registerMessage(PacketRequestAssembly.Handler.class, PacketRequestAssembly.class, 0, Side.SERVER);

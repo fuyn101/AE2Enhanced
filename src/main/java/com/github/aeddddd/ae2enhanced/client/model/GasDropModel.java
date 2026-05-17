@@ -87,7 +87,7 @@ public class GasDropModel extends FluidDropModel {
     protected static class OverrideCache extends ItemOverrideList {
         private final BakedGasDropModel parent;
         private final VertexFormat vertexFormat;
-        private final Map<String, OverrideModel> cache = new HashMap<>();
+        private final Map<String, IBakedModel> cache = new HashMap<>();
 
         public OverrideCache(BakedGasDropModel parent, VertexFormat vertexFormat) {
             super(Collections.emptyList());
@@ -105,26 +105,18 @@ public class GasDropModel extends FluidDropModel {
             return gas != null ? resolve(gas) : originalModel;
         }
 
-        public OverrideModel resolve(GasStack gas) {
+        public IBakedModel resolve(GasStack gas) {
             String key = gas.getGas().getName();
-            return cache.computeIfAbsent(key, k -> new OverrideModel(gas, parent.modelTransform, vertexFormat));
+            return cache.computeIfAbsent(key, k -> buildModel(gas, parent.modelTransform, vertexFormat));
         }
-    }
 
-    protected static class OverrideModel implements IBakedModel {
-        private final TextureAtlasSprite texture;
-        private final List<BakedQuad> quads;
-
-        public OverrideModel(GasStack gasStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
-            // 使用 TextureMap atlas sprite（与 ae2fc GasPacketModel.getSprite() 等效，
-            // 但在我们的环境中 Mekanism 的 sprite 缓存对大多数气体未初始化，getSprite() 返回 null/白色）
+        private static IBakedModel buildModel(GasStack gasStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
             ResourceLocation icon = gasStack.getGas().getIcon();
             TextureAtlasSprite sprite = null;
             if (icon != null) {
                 sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(icon.toString());
             }
             if (sprite == null || "missingno".equals(sprite.getIconName())) {
-                // fallback: 尝试 Mekanism 内部的 sprite 缓存
                 try {
                     java.lang.reflect.Method getSprite = gasStack.getGas().getClass().getMethod("getSprite");
                     Object cachedSprite = getSprite.invoke(gasStack.getGas());
@@ -140,46 +132,8 @@ public class GasDropModel extends FluidDropModel {
             if (sprite == null) {
                 sprite = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
             }
-            this.texture = sprite;
-            this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
-        }
-
-        @Nonnull
-        @Override
-        public List<BakedQuad> getQuads(@Nullable IBlockState state, @Nullable EnumFacing side, long rand) {
-            return quads;
-        }
-
-        @Override
-        public boolean isAmbientOcclusion() {
-            return false;
-        }
-
-        @Override
-        public boolean isGui3d() {
-            return false;
-        }
-
-        @Override
-        public boolean isBuiltInRenderer() {
-            return false;
-        }
-
-        @Override
-        public TextureAtlasSprite getParticleTexture() {
-            return texture;
-        }
-
-        @Nonnull
-        @Override
-        public ItemCameraTransforms getItemCameraTransforms() {
-            return FluidDropModel.CAMERA_TRANSFORMS;
-        }
-
-        @Nonnull
-        @Override
-        public ItemOverrideList getOverrides() {
-            return ItemOverrideList.NONE;
+            List<BakedQuad> quads = ItemLayerModel.getQuadsForSprite(1, sprite, vertexFormat, modelTransform);
+            return new SimpleTextureBakedModel(sprite, quads, FluidDropModel.CAMERA_TRANSFORMS);
         }
     }
 }

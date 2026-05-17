@@ -1,12 +1,8 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.NonNullList;
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -18,14 +14,12 @@ import net.minecraftforge.fluids.FluidStack;
  * 关键设计：使用 NBT 存储流体注册名，与 ae2fc 保持一致。
  * 不依赖 metadata，避免 AEItemStack.createItemStack() 在 stackSize=0 时丢失类型信息。
  */
-public class ItemFluidDrop extends Item {
+public class ItemFluidDrop extends AbstractNbtDrop {
 
     private static final String FLUID_TAG = "FluidName";
 
     public ItemFluidDrop() {
-        setRegistryName(AE2Enhanced.MOD_ID, "fluid_drop");
-        setTranslationKey(AE2Enhanced.MOD_ID + ".fluid_drop");
-        setCreativeTab(null);
+        super("fluid_drop");
     }
 
     /**
@@ -63,6 +57,7 @@ public class ItemFluidDrop extends Item {
 
     /**
      * 判断 ItemStack 是否是流体假物品。
+     * ItemFluidDrop 不依赖可选模组，instanceof 安全。
      */
     public static boolean isFluidDrop(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof ItemFluidDrop;
@@ -72,10 +67,5 @@ public class ItemFluidDrop extends Item {
     public String getItemStackDisplayName(ItemStack stack) {
         FluidStack fluid = getFluidStack(stack);
         return fluid != null ? fluid.getLocalizedName() : super.getItemStackDisplayName(stack);
-    }
-
-    @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        // 不返回任何子类型，避免 JEI 索引
     }
 }

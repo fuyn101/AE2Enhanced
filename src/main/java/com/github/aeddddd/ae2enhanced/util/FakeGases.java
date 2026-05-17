@@ -17,6 +17,8 @@ import net.minecraftforge.fml.common.Loader;
  */
 public final class FakeGases {
 
+    private static final String GAS_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
+
     public static void init() {
         FakeItemRegister.registerHandler(ItemGasDrop.class, new FakeItemHandler<GasStack, IAEGasStack>() {
 
@@ -73,8 +75,32 @@ public final class FakeGases {
         });
     }
 
+    /**
+     * 判断 ItemStack 是否是气体假物品。
+     * 注意：本方法直接引用 ItemGasDrop，仅供条件配置（gas.json）中的代码使用。
+     * 无条件配置中的代码应使用 {@link #isGasFakeItemSafe(ItemStack)}。
+     */
     public static boolean isGasFakeItem(ItemStack stack) {
         return ItemGasDrop.isGasDrop(stack);
+    }
+
+    /**
+     * 安全判断 ItemStack 是否是气体假物品。
+     * 使用字符串比较而非直接引用 ItemGasDrop 类，避免 Mekanism 不存在时
+     * 触发 NoClassDefFoundError。
+     */
+    public static boolean isGasFakeItemSafe(ItemStack stack) {
+        return !stack.isEmpty() && GAS_DROP_CLASS.equals(stack.getItem().getClass().getName());
+    }
+
+    /**
+     * 安全获取气体假物品的气体注册名。
+     * 直接从 NBT 读取，不加载 ItemGasDrop 类。
+     */
+    public static String tryGetGasName(ItemStack stack) {
+        if (!isGasFakeItemSafe(stack)) return null;
+        net.minecraft.nbt.NBTTagCompound tag = stack.getTagCompound();
+        return tag != null ? tag.getString("GasName") : null;
     }
 
     public static ItemStack packGas2Drops(GasStack stack) {
@@ -110,10 +136,7 @@ public final class FakeGases {
             Object gas = ingredient;
             Object gasType = gasStackClass.getMethod("getGas").invoke(gas);
             int amount = (int) gasStackClass.getMethod("amount").invoke(gas);
-            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
-            Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
-                    .newInstance(gasType, Math.min(amount, 1000));
-            return packGas2AEDrops((GasStack) newGasStack);
+            return packGas2AEDrops((GasStack) createGasStackReflection(gasStackClass, gasType, Math.min(amount, 1000)));
         } catch (Exception e) {
             return null;
         }
@@ -136,10 +159,7 @@ public final class FakeGases {
                 if (gasStack != null) {
                     int amount = amountField.getInt(gasStack);
                     Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-                    Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
-                    Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
-                            .newInstance(gasType, Math.min(amount, 1000));
-                    return packGas2AEDrops((GasStack) newGasStack);
+                    return packGas2AEDrops((GasStack) createGasStackReflection(gasStackClass, gasType, Math.min(amount, 1000)));
                 }
             }
             // 回退：从 NBT "mekData" -> "stored" 读取 GasStack
@@ -153,10 +173,7 @@ public final class FakeGases {
                         int amount = amountField.getInt(gasStack);
                         if (amount > 0) {
                             Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-                            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
-                            Object newGasStack = gasStackClass.getConstructor(gasClass, int.class)
-                                    .newInstance(gasType, Math.min(amount, 1000));
-                            return packGas2AEDrops((GasStack) newGasStack);
+                            return packGas2AEDrops((GasStack) createGasStackReflection(gasStackClass, gasType, Math.min(amount, 1000)));
                         }
                     }
                 }
@@ -165,5 +182,13 @@ public final class FakeGases {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 反射创建 GasStack 的共享逻辑，消除 tryPackJEIGas / tryPackJEIGasFromItem 中的重复代码。
+     */
+    private static Object createGasStackReflection(Class<?> gasStackClass, Object gasType, int amount) throws Exception {
+        Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+        return gasStackClass.getConstructor(gasClass, int.class).newInstance(gasType, amount);
     }
 }

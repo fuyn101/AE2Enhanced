@@ -146,7 +146,7 @@ public class FluidDropModel implements IModel {
     protected static class OverrideCache extends ItemOverrideList {
         private final BakedFluidDropModel parent;
         private final VertexFormat vertexFormat;
-        private final Map<String, OverrideModel> cache = new HashMap<>();
+        private final Map<String, IBakedModel> cache = new HashMap<>();
 
         public OverrideCache(BakedFluidDropModel parent, VertexFormat vertexFormat) {
             super(Collections.emptyList());
@@ -164,17 +164,12 @@ public class FluidDropModel implements IModel {
             return fluid != null ? resolve(fluid) : originalModel;
         }
 
-        public OverrideModel resolve(FluidStack fluid) {
+        public IBakedModel resolve(FluidStack fluid) {
             String key = fluid.getFluid().getName();
-            return cache.computeIfAbsent(key, k -> new OverrideModel(fluid, parent.modelTransform, vertexFormat));
+            return cache.computeIfAbsent(key, k -> buildModel(fluid, parent.modelTransform, vertexFormat));
         }
-    }
 
-    protected static class OverrideModel implements IBakedModel {
-        private final TextureAtlasSprite texture;
-        private final List<BakedQuad> quads;
-
-        public OverrideModel(FluidStack fluidStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
+        private static IBakedModel buildModel(FluidStack fluidStack, Optional<TRSRTransformation> modelTransform, VertexFormat vertexFormat) {
             net.minecraftforge.fluids.Fluid fluid = fluidStack.getFluid();
             TextureAtlasSprite sprite = null;
             if (fluid.getStill(fluidStack) != null) {
@@ -192,46 +187,8 @@ public class FluidDropModel implements IModel {
             if (sprite == null) {
                 sprite = Minecraft.getMinecraft().getTextureMapBlocks().getMissingSprite();
             }
-            this.texture = sprite;
-            this.quads = ItemLayerModel.getQuadsForSprite(1, this.texture, vertexFormat, modelTransform);
-        }
-
-        @Nonnull
-        @Override
-        public List<BakedQuad> getQuads(@Nullable IBlockState state, @Nullable EnumFacing side, long rand) {
-            return quads;
-        }
-
-        @Override
-        public boolean isAmbientOcclusion() {
-            return false;
-        }
-
-        @Override
-        public boolean isGui3d() {
-            return false;
-        }
-
-        @Override
-        public boolean isBuiltInRenderer() {
-            return false;
-        }
-
-        @Override
-        public TextureAtlasSprite getParticleTexture() {
-            return texture;
-        }
-
-        @Nonnull
-        @Override
-        public ItemCameraTransforms getItemCameraTransforms() {
-            return CAMERA_TRANSFORMS;
-        }
-
-        @Nonnull
-        @Override
-        public ItemOverrideList getOverrides() {
-            return ItemOverrideList.NONE;
+            List<BakedQuad> quads = ItemLayerModel.getQuadsForSprite(1, sprite, vertexFormat, modelTransform);
+            return new SimpleTextureBakedModel(sprite, quads, CAMERA_TRANSFORMS);
         }
     }
 }

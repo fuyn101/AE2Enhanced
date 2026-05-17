@@ -3,8 +3,8 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -44,13 +44,13 @@ public class MixinGuiArcaneTerminal {
             String name = fluid != null ? fluid.getLocalizedName() : "Unknown Fluid";
             tooltip.add("\u00A7b" + "Fluid: " + name);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());
-        } else if (ItemGasDrop.isGasDrop(stack)) {
-            String gasName = ItemGasDrop.getGasName(stack);
+        } else if (FakeGases.isGasFakeItemSafe(stack)) {
+            String gasName = FakeGases.tryGetGasName(stack);
             String name = gasName != null ? gasName : "Unknown Gas";
             tooltip.add("\u00A7b" + "Gas: " + name);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());
         } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
-            String aspectTag = com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop.getAspectTag(stack);
+            String aspectTag = FakeEssentias.tryGetAspectTag(stack);
             String aspectName = aspectTag != null ? aspectTag : "Unknown";
             tooltip.add("\u00A7b" + "Essentia: " + aspectName);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());

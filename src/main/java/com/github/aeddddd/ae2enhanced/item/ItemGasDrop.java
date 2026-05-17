@@ -1,15 +1,11 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.NonNullList;
-import net.minecraft.creativetab.CreativeTabs;
 import mekanism.api.gas.Gas;
 import mekanism.api.gas.GasRegistry;
 import mekanism.api.gas.GasStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 /**
  * 气体假物品（Gas Drop）。
@@ -17,14 +13,13 @@ import mekanism.api.gas.GasStack;
  *
  * 关键设计：使用 NBT 存储气体注册名，不直接依赖 metadata。
  */
-public class ItemGasDrop extends Item {
+public class ItemGasDrop extends AbstractNbtDrop {
 
-    private static final String GAS_TAG = "GasName";
+    public static final String GAS_TAG = "GasName";
+    private static final String CLASS_NAME = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
 
     public ItemGasDrop() {
-        setRegistryName(AE2Enhanced.MOD_ID, "gas_drop");
-        setTranslationKey(AE2Enhanced.MOD_ID + ".gas_drop");
-        setCreativeTab(null);
+        super("gas_drop");
     }
 
     /**
@@ -64,19 +59,16 @@ public class ItemGasDrop extends Item {
 
     /**
      * 判断 ItemStack 是否是气体假物品。
+     * 使用 AbstractNbtDrop.isDrop 进行字符串类名比较，避免在 Mekanism 缺失时
+     * 触发 ItemGasDrop 类初始化导致的 NoClassDefFoundError。
      */
     public static boolean isGasDrop(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof ItemGasDrop;
+        return isDrop(stack, CLASS_NAME);
     }
 
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
         GasStack gas = getGasStack(stack);
         return gas != null ? gas.getGas().getLocalizedName() : super.getItemStackDisplayName(stack);
-    }
-
-    @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        // 不返回任何子类型，避免 JEI 索引
     }
 }

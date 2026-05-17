@@ -20,10 +20,10 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.automation.PartUpgradeable;
 import appeng.tile.inventory.AppEngInternalAEInventory;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.util.CapabilityProbe;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -235,8 +235,8 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         ItemStack stack = filter.createItemStack();
         if (stack.isEmpty()) return null;
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
-        if (ItemGasDrop.isGasDrop(stack)) return ResourceType.GAS;
-        if (ItemEssentiaDrop.isEssentiaDrop(stack)) return ResourceType.ESSENTIA;
+        if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (FakeEssentias.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
     }
 
@@ -278,7 +278,7 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
     protected boolean isFakeItemFilter(IAEItemStack filter) {
         if (filter == null) return false;
         ItemStack stack = filter.createItemStack();
-        return ItemFluidDrop.isFluidDrop(stack) || ItemGasDrop.isGasDrop(stack) || ItemEssentiaDrop.isEssentiaDrop(stack);
+        return ItemFluidDrop.isFluidDrop(stack) || FakeGases.isGasFakeItemSafe(stack) || FakeEssentias.isEssentiaFakeItem(stack);
     }
 
     // endregion

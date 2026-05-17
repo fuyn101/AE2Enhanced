@@ -15,6 +15,7 @@
     "MixinGridStorageCacheFluid",
     "MixinAEBaseContainer",
     "MixinContainerCellWorkbench",
+    "MixinInventoryPlayer",
     "MixinTileIOPort"
   ],
   "client": [

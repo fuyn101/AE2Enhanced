@@ -36,9 +36,9 @@ import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.util.EssentiaChannelAccessor;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import com.github.aeddddd.ae2enhanced.util.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.FakeGases;
 import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
@@ -236,8 +236,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     private ResourceType getSlotType(IAEItemStack filter) {
         ItemStack stack = filter.createItemStack();
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
-        if (ItemGasDrop.isGasDrop(stack)) return ResourceType.GAS;
-        if (ItemEssentiaDrop.isEssentiaDrop(stack)) return ResourceType.ESSENTIA;
+        if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (FakeEssentias.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
     }
 
