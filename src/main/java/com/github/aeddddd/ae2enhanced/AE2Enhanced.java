@@ -146,7 +146,7 @@ public class AE2Enhanced {
         if (ModItems.PART_STOCKING_BUS != null) {
             net.minecraft.item.ItemStack busStack = new net.minecraft.item.ItemStack(ModItems.PART_STOCKING_BUS);
             Upgrades.SPEED.registerItem(busStack, 4);
-            Upgrades.CAPACITY.registerItem(busStack, 2);
+            Upgrades.CAPACITY.registerItem(busStack, 4);
             Upgrades.REDSTONE.registerItem(busStack, 1);
             Upgrades.FUZZY.registerItem(busStack, 1);
             Upgrades.CRAFTING.registerItem(busStack, 1);

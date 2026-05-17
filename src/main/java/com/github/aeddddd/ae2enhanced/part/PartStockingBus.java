@@ -230,7 +230,10 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     private long calculateItemsToSend() {
         int speedUpgrades = this.getInstalledUpgrades(Upgrades.SPEED);
-        return Math.min((long) Math.pow(2, speedUpgrades), 64);
+        int capacityUpgrades = this.getInstalledUpgrades(Upgrades.CAPACITY);
+        long base = Math.min((long) Math.pow(2, speedUpgrades), 64);
+        long multiplier = Math.min((long) Math.pow(2, capacityUpgrades), 16);
+        return base * multiplier;
     }
 
     private ResourceType getSlotType(IAEItemStack filter) {

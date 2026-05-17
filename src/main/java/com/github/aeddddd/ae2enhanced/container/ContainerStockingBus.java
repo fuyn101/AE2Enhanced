@@ -84,8 +84,10 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
     public boolean isSlotEnabled(int idx) {
         int capacityUpgrades = this.part.getInstalledUpgrades(Upgrades.CAPACITY);
         switch (idx) {
-            case 1: case 2: case 3: case 4: return capacityUpgrades >= 1;
-            case 5: case 6: case 7: case 8: return capacityUpgrades >= 2;
+            case 1: case 2: return capacityUpgrades >= 1;
+            case 3: case 4: return capacityUpgrades >= 2;
+            case 5: case 6: return capacityUpgrades >= 3;
+            case 7: case 8: return capacityUpgrades >= 4;
             default: return true;
         }
     }
