@@ -7,7 +7,6 @@ import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.me.GridAccessException;
 import appeng.tile.inventory.AppEngInternalAEInventory;
-import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -26,11 +25,29 @@ public class EssentiaBusHelper {
     // region FakeEssentias 功能（供 Mixin / Helper 自身使用）
 
     public static IAEItemStack packEssentia(IAEEssentiaStack essentiaStack) {
-        return FakeItemRegister.packAEStack(essentiaStack, ModItems.ESSENTIA_DROP);
+        if (essentiaStack == null || essentiaStack.getAspect() == null) return null;
+        String aspectTag = essentiaStack.getAspect().getTag();
+        long amount = essentiaStack.getStackSize();
+        ItemStack fakeItem = ItemEssentiaDrop.createStack(aspectTag, 1);
+        IAEItemStack result = AEApi.instance().storage().getStorageChannel(
+                appeng.api.storage.channels.IItemStorageChannel.class).createStack(fakeItem);
+        if (result != null) {
+            result.setStackSize(amount);
+        }
+        return result;
     }
 
     public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {
-        return FakeItemRegister.getStack(itemStack);
+        if (itemStack == null) return null;
+        ItemStack mcStack = itemStack.createItemStack();
+        String aspectTag = ItemEssentiaDrop.getAspectTag(mcStack);
+        if (aspectTag == null) return null;
+        EssentiaStack essStack = new EssentiaStack(aspectTag, 1);
+        IAEEssentiaStack result = AEEssentiaStack.fromEssentiaStack(essStack);
+        if (result != null) {
+            result.setStackSize(itemStack.getStackSize());
+        }
+        return result;
     }
 
     // endregion
