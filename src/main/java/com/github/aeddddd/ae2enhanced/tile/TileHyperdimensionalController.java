@@ -284,74 +284,51 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
 
-            // 刷新物品 monitor
-            appeng.api.storage.IMEMonitor<appeng.api.storage.data.IAEItemStack> itemMonitor = storageGrid.getInventory(
+            refreshSingleMonitor(storageGrid.getInventory(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class)
-            );
-            if (itemMonitor != null) {
-                FORCE_UPDATE_FIELD.setBoolean(itemMonitor, true);
-                if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(itemMonitor, true);
-                if (ON_TICK_METHOD != null) {
-                    ON_TICK_METHOD.invoke(itemMonitor);
-                } else {
-                    FORCE_UPDATE_METHOD.invoke(itemMonitor);
-                }
-            }
-
-            // 刷新流体 monitor
-            appeng.api.storage.IMEMonitor<appeng.api.storage.data.IAEFluidStack> fluidMonitor = storageGrid.getInventory(
+            ));
+            refreshSingleMonitor(storageGrid.getInventory(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class)
-            );
-            if (fluidMonitor != null) {
-                FORCE_UPDATE_FIELD.setBoolean(fluidMonitor, true);
-                if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(fluidMonitor, true);
-                if (ON_TICK_METHOD != null) {
-                    ON_TICK_METHOD.invoke(fluidMonitor);
-                } else {
-                    FORCE_UPDATE_METHOD.invoke(fluidMonitor);
-                }
-            }
+            ));
 
-            // 刷新可选存储 monitor
             if (optionalStorage != null) {
-                Object gasAdapter = optionalStorage.getGasAdapter();
-                if (gasAdapter != null) {
-                    try {
-                        Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-                        java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-                        Object gasChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), gasChannelClass);
-                        java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
-                        Object gasMonitor = getInventory.invoke(storageGrid, gasChannel);
-                        if (gasMonitor != null) {
-                            FORCE_UPDATE_FIELD.setBoolean(gasMonitor, true);
-                            if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(gasMonitor, true);
-                            if (ON_TICK_METHOD != null) ON_TICK_METHOD.invoke(gasMonitor);
-                        }
-                    } catch (ReflectiveOperationException | RuntimeException e) {
-                        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh gas monitor", e);
-                    }
-                }
-                Object essentiaAdapter = optionalStorage.getEssentiaAdapter();
-                if (essentiaAdapter != null) {
-                    try {
-                        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-                        java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-                        Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
-                        java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
-                        Object essentiaMonitor = getInventory.invoke(storageGrid, essentiaChannel);
-                        if (essentiaMonitor != null) {
-                            FORCE_UPDATE_FIELD.setBoolean(essentiaMonitor, true);
-                            if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(essentiaMonitor, true);
-                            if (ON_TICK_METHOD != null) ON_TICK_METHOD.invoke(essentiaMonitor);
-                        }
-                    } catch (ReflectiveOperationException | RuntimeException e) {
-                        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh essentia monitor", e);
-                    }
-                }
+                refreshOptionalMonitor(storageGrid, optionalStorage.getGasAdapter(),
+                        "com.mekeng.github.common.me.storage.IGasStorageChannel", "gas");
+                refreshOptionalMonitor(storageGrid, optionalStorage.getEssentiaAdapter(),
+                        "thaumicenergistics.api.storage.IEssentiaStorageChannel", "essentia");
             }
-        } catch (ReflectiveOperationException | RuntimeException | appeng.me.GridAccessException e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
-                "[AE2E] Failed to refresh NetworkMonitor cache", e);
+        } catch (RuntimeException | appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh NetworkMonitor cache", e);
+        }
+    }
+
+    private void refreshSingleMonitor(Object monitor) {
+        if (monitor == null) return;
+        try {
+            FORCE_UPDATE_FIELD.setBoolean(monitor, true);
+            if (SEND_EVENT_FIELD != null) SEND_EVENT_FIELD.setBoolean(monitor, true);
+            if (ON_TICK_METHOD != null) {
+                ON_TICK_METHOD.invoke(monitor);
+            } else {
+                FORCE_UPDATE_METHOD.invoke(monitor);
+            }
+        } catch (ReflectiveOperationException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh monitor", e);
+        }
+    }
+
+    private void refreshOptionalMonitor(appeng.api.networking.storage.IStorageGrid storageGrid,
+                                         Object adapter, String channelClassName, String typeName) {
+        if (adapter == null) return;
+        try {
+            Class<?> channelClass = Class.forName(channelClassName);
+            java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
+            Object channel = getChannel.invoke(AEApi.instance().storage(), channelClass);
+            java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
+            Object monitor = getInventory.invoke(storageGrid, channel);
+            refreshSingleMonitor(monitor);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh {} monitor", typeName, e);
         }
     }
 

@@ -41,62 +41,29 @@ public class EssentiaBusHelper {
     public static boolean importEssentias(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
                                            AppEngInternalAEInventory config, IActionSource source) throws Exception {
         thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
-
-        Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-        java.lang.reflect.Method getChannel = AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-        Object essentiaChannel = getChannel.invoke(AEApi.instance().storage(), essentiaChannelClass);
-
-        appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
-        @SuppressWarnings("unchecked")
-        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) storageGrid.getInventory((appeng.api.storage.IStorageChannel<?>) essentiaChannel);
-
-        boolean worked = false;
+        IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) EssentiaChannelAccessor.getEssentiaInventory(grid);
+        if (inv == null) return false;
 
         for (int x = 0; x < config.getSlots(); x++) {
-            IAEItemStack filter = config.getAEStackInSlot(x);
-            if (filter == null || !ItemEssentiaDrop.isEssentiaDrop(filter.createItemStack())) continue;
-
-            IAEEssentiaStack wanted = unpackEssentia(filter);
-            if (wanted == null || wanted.getAspect() == null) continue;
-
-            int available = transport.getEssentiaAmount(opposite);
-            if (available <= 0) continue;
-
-            int toTake = Math.min(available, 64);
-            EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), toTake);
-            IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
-            if (aeEss == null) continue;
-
-            IAEEssentiaStack notInserted = inv.injectItems(aeEss, Actionable.SIMULATE, source);
-            long canInsert = aeEss.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
-            if (canInsert <= 0) continue;
-
-            int actual = transport.takeEssentia(wanted.getAspect(), (int) canInsert, opposite);
-            if (actual > 0) {
-                EssentiaStack actualStack = new EssentiaStack(wanted.getAspect().getTag(), actual);
-                IAEEssentiaStack toInsert = AEEssentiaStack.fromEssentiaStack(actualStack);
-                inv.injectItems(toInsert, Actionable.MODULATE, source);
-                worked = true;
-                break;
+            if (tryImportEssentiaSlot(transport, inv, config.getAEStackInSlot(x), opposite, source)) {
+                return true;
             }
         }
-
-        return worked;
+        return false;
     }
-
-    // endregion
-
-    // region Import Bus (Single Slot)
 
     @SuppressWarnings("unchecked")
     public static boolean importEssentiaSlot(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
                                               IAEItemStack filter, IActionSource source) throws Exception {
         thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
-
-        @SuppressWarnings("unchecked")
         IMEMonitor<IAEEssentiaStack> inv = (IMEMonitor<IAEEssentiaStack>) EssentiaChannelAccessor.getEssentiaInventory(grid);
         if (inv == null) return false;
+        return tryImportEssentiaSlot(transport, inv, filter, opposite, source);
+    }
 
+    private static boolean tryImportEssentiaSlot(thaumcraft.api.aspects.IEssentiaTransport transport,
+                                                  IMEMonitor<IAEEssentiaStack> inv, IAEItemStack filter,
+                                                  EnumFacing opposite, IActionSource source) {
         if (filter == null || !ItemEssentiaDrop.isEssentiaDrop(filter.createItemStack())) return false;
 
         IAEEssentiaStack wanted = unpackEssentia(filter);
