@@ -21,13 +21,13 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -72,176 +72,77 @@ public class MixinCraftingCPUCluster {
 
     // ==================== Overwrites for Virtual Clusters ====================
 
-    /**
-     * @author AE2Enhanced
-     * @reason Redirect isActive to TileComputationCore proxy node when this cluster belongs to a Computation Core.
-     */
-    @Overwrite
-    public boolean isActive() {
+    @Inject(method = "isActive", at = @At("HEAD"), cancellable = true)
+    private void onIsActive(CallbackInfoReturnable<Boolean> cir) {
         if (ae2enhanced$computationCore != null) {
             IGridNode node = ae2enhanced$computationCore.getActionableNode();
-            return node != null && node.isActive();
+            cir.setReturnValue(node != null && node.isActive());
         }
-        TileCraftingTile core = this.getCore();
-        if (core == null) {
-            return false;
-        }
-        IGridNode node = core.getActionableNode();
-        if (node == null) {
-            return false;
-        }
-        return node.isActive();
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason Redirect markDirty to TileComputationCore instead of TileCraftingTile for virtual clusters.
-     */
-    @Overwrite
-    private void markDirty() {
+    @Inject(method = "markDirty", at = @At("HEAD"), cancellable = true)
+    private void onMarkDirty(CallbackInfo ci) {
         if (ae2enhanced$computationCore != null) {
             ae2enhanced$computationCore.markDirty();
-            return;
+            ci.cancel();
         }
-        this.getCore().saveChanges();
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason Redirect getGrid to TileComputationCore proxy for virtual clusters.
-     */
-    @Overwrite
-    private IGrid getGrid() {
+    @Inject(method = "getGrid", at = @At("HEAD"), cancellable = true)
+    private void onGetGrid(CallbackInfoReturnable<IGrid> cir) {
         if (ae2enhanced$computationCore != null) {
             IGridNode node = ae2enhanced$computationCore.getActionableNode();
-            return node != null ? node.getGrid() : null;
+            cir.setReturnValue(node != null ? node.getGrid() : null);
         }
-        for (TileCraftingTile r : this.tiles) {
-            IGridNode gn = r.getActionableNode();
-            if (gn == null || gn.getGrid() == null) continue;
-            return r.getActionableNode().getGrid();
-        }
-        return null;
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason Redirect getWorld to TileComputationCore for virtual clusters.
-     */
-    @Overwrite
-    private World getWorld() {
+    @Inject(method = "getWorld", at = @At("HEAD"), cancellable = true)
+    private void onGetWorld(CallbackInfoReturnable<World> cir) {
         if (ae2enhanced$computationCore != null) {
-            return ae2enhanced$computationCore.getWorld();
+            cir.setReturnValue(ae2enhanced$computationCore.getWorld());
         }
-        return this.getCore().getWorld();
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason Prevent ClassCastException when machineSrc points to TileComputationCore instead of TileCraftingTile.
-     */
-    @Overwrite
-    private TileCraftingTile getCore() {
+    @Inject(method = "getCore", at = @At("HEAD"), cancellable = true)
+    private void onGetCore(CallbackInfoReturnable<TileCraftingTile> cir) {
         if (ae2enhanced$computationCore != null) {
-            return null;
+            cir.setReturnValue(null);
         }
-        if (this.machineSrc == null) {
-            return null;
-        }
-        return (TileCraftingTile) this.machineSrc.machine().orElse(null);
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason Set fixed localized name for virtual clusters instead of reading from physical tiles.
-     */
-    @Overwrite
-    public void updateName() {
+    @Inject(method = "updateName", at = @At("HEAD"), cancellable = true)
+    public void onUpdateName(CallbackInfo ci) {
         if (ae2enhanced$computationCore != null) {
             this.myName = net.minecraft.util.text.translation.I18n.translateToLocal("tile.ae2enhanced.computation_core.name");
-            return;
-        }
-        StringBuilder sb = new StringBuilder();
-        for (TileCraftingTile te : this.tiles) {
-            if (!te.hasCustomInventoryName()) continue;
-            if (sb.length() > 0) {
-                sb.append(' ');
-            }
-            sb.append(te.getCustomInventoryName());
-        }
-        this.myName = sb.toString();
-    }
-
-    /**
-     * @author AE2Enhanced
-     * @reason No-op for virtual clusters — there is no physical cluster to break.
-     */
-    @Overwrite
-    public void breakCluster() {
-        if (ae2enhanced$computationCore != null) {
-            return;
-        }
-        TileCraftingTile t = this.getCore();
-        if (t != null) {
-            t.breakCluster();
+            ci.cancel();
         }
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason No-op for virtual clusters — there is no physical core tile to restore state on.
-     */
-    @Overwrite
-    void done() {
+    @Inject(method = "breakCluster", at = @At("HEAD"), cancellable = true)
+    public void onBreakCluster(CallbackInfo ci) {
         if (ae2enhanced$computationCore != null) {
-            return;
-        }
-        TileCraftingTile core = this.getCore();
-        core.setCoreBlock(true);
-        if (core.getPreviousState() != null) {
-            ((CraftingCPUCluster) (Object) this).readFromNBT(core.getPreviousState());
-            core.setPreviousState(null);
-        }
-        this.updateCPU();
-        this.updateName();
-    }
-
-    /**
-     * @author AE2Enhanced
-     * @reason No-op for virtual clusters — avoid marking them as destroyed so they remain visible in terminals.
-     */
-    @Overwrite
-    public void destroy() {
-        if (ae2enhanced$computationCore != null) {
-            return;
-        }
-        if (this.isDestroyed) {
-            return;
-        }
-        this.isDestroyed = true;
-        boolean posted = false;
-        for (TileCraftingTile r : this.tiles) {
-            IGrid g;
-            IGridNode n = r.getActionableNode();
-            if (n != null && !posted && (g = n.getGrid()) != null) {
-                g.postEvent(new appeng.api.networking.events.MENetworkCraftingCpuChange(n));
-                posted = true;
-            }
-            r.updateStatus(null);
+            ci.cancel();
         }
     }
 
-    /**
-     * @author AE2Enhanced
-     * @reason No-op for virtual clusters — there are no physical tiles to update metadata on.
-     */
-    @Overwrite
-    public void updateStatus(boolean updateGrid) {
+    @Inject(method = "done", at = @At("HEAD"), cancellable = true)
+    void onDone(CallbackInfo ci) {
         if (ae2enhanced$computationCore != null) {
-            return;
+            ci.cancel();
         }
-        for (TileCraftingTile r : this.tiles) {
-            r.updateMeta(true);
+    }
+
+    @Inject(method = "destroy", at = @At("HEAD"), cancellable = true)
+    public void onDestroy(CallbackInfo ci) {
+        if (ae2enhanced$computationCore != null) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "updateStatus", at = @At("HEAD"), cancellable = true)
+    public void onUpdateStatus(boolean updateGrid, CallbackInfo ci) {
+        if (ae2enhanced$computationCore != null) {
+            ci.cancel();
         }
     }
 
