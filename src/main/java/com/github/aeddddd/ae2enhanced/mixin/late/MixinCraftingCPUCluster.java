@@ -343,7 +343,7 @@ public class MixinCraftingCPUCluster {
                                 appeng.api.config.Actionable MODULATE = appeng.api.config.Actionable.MODULATE;
 
                                 TileAssemblyController.PatternBatchInfo info = controller.getPatternBatchInfo(details, meInv, source);
-                                if (info == null || info.recipe == null) break;
+                                if (info == null || info.recipe == null || info.slotTemplates == null || info.catalystSlots == null) break;
 
                                 if (info.transformSlots != null && info.transformSlots.cardinality() > 0) {
                                     actualBatchSize = 1;

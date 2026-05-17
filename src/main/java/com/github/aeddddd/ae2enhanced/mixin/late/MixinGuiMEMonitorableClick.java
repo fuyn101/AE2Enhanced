@@ -75,7 +75,8 @@ public class MixinGuiMEMonitorableClick {
         // ae2fc 精确条件：mouseButton != 2 && (!craftable || mouseButton != 0 || stackSize != 0 && !ctrlDown)
         if (s.getAEStack() != null
                 && (s.getAEStack().getItem() == ModItems.FLUID_DROP
-                    || (ModItems.GAS_DROP != null && s.getAEStack().getItem() == ModItems.GAS_DROP))
+                    || (ModItems.GAS_DROP != null && s.getAEStack().getItem() == ModItems.GAS_DROP)
+                    || (ModItems.ESSENTIA_DROP != null && s.getAEStack().getItem() == ModItems.ESSENTIA_DROP))
                 && mouseButton != 2
                 && (!s.getAEStack().isCraftable()
                     || mouseButton != 0
@@ -89,6 +90,9 @@ public class MixinGuiMEMonitorableClick {
                 NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
                 nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
                 AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_OPERATE, nbt));
+            } else if (ModItems.ESSENTIA_DROP != null && s.getAEStack().getItem() == ModItems.ESSENTIA_DROP) {
+                // 源质暂不支持空手持提取，直接取消点击防止客户端执行默认逻辑
+                // 服务器端由 MixinAEBaseContainer 兜底拦截
             }
             ci.cancel();
             return;

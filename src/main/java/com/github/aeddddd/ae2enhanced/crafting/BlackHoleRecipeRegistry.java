@@ -2,21 +2,21 @@ package com.github.aeddddd.ae2enhanced.crafting;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 黑洞合成配方注册表。
  */
 public class BlackHoleRecipeRegistry {
 
-    private static final List<BlackHoleRecipe> RECIPES = new ArrayList<>();
+    private static final List<BlackHoleRecipe> RECIPES = new CopyOnWriteArrayList<>();
 
     /** 延迟移除队列：CraftTweaker 脚本可能在配方注册前执行 */
-    private static final Set<String> PENDING_REMOVALS = new HashSet<>();
+    private static final Set<String> PENDING_REMOVALS = ConcurrentHashMap.newKeySet();
 
     public static void register(BlackHoleRecipe recipe) {
         RECIPES.add(recipe);
@@ -39,7 +39,7 @@ public class BlackHoleRecipeRegistry {
     }
 
     public static List<BlackHoleRecipe> getRecipes() {
-        return new ArrayList<>(RECIPES);
+        return new java.util.ArrayList<>(RECIPES);
     }
 
     public static void queueRemoval(String id) {
@@ -48,7 +48,7 @@ public class BlackHoleRecipeRegistry {
 
     public static void applyPendingRemovals() {
         if (PENDING_REMOVALS.isEmpty()) return;
-        for (String id : new HashSet<>(PENDING_REMOVALS)) {
+        for (String id : PENDING_REMOVALS) {
             removeById(id);
         }
         PENDING_REMOVALS.clear();

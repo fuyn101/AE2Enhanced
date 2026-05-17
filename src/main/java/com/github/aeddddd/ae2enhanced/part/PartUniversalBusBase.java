@@ -278,7 +278,36 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
     protected boolean isFakeItemFilter(IAEItemStack filter) {
         if (filter == null) return false;
         ItemStack stack = filter.createItemStack();
-        return ItemFluidDrop.isFluidDrop(stack) || FakeGases.isGasFakeItemSafe(stack) || FakeEssentias.isEssentiaFakeItem(stack);
+        if (ItemFluidDrop.isFluidDrop(stack)) return true;
+        if (isAeFluidDummy(stack)) return true;
+        if (isAe2fcFluidDrop(stack)) return true;
+        if (FakeGases.isGasFakeItemSafe(stack)) return true;
+        if (isAe2fcGasDrop(stack)) return true;
+        if (com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return true;
+        if (isTheDummyAspect(stack)) return true;
+        return false;
+    }
+
+    private static boolean isAeFluidDummy(ItemStack stack) {
+        return !stack.isEmpty() && "appeng.fluids.items.FluidDummyItem".equals(stack.getItem().getClass().getName());
+    }
+
+    private static boolean isAe2fcFluidDrop(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName();
+        return "com.glodblock.github.common.item.ItemFluidDrop".equals(name)
+                || "com.glodblock.github.common.item.ItemFluidPacket".equals(name);
+    }
+
+    private static boolean isAe2fcGasDrop(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName();
+        return "com.glodblock.github.common.item.ItemGasDrop".equals(name)
+                || "com.glodblock.github.common.item.ItemGasPacket".equals(name);
+    }
+
+    private static boolean isTheDummyAspect(ItemStack stack) {
+        return !stack.isEmpty() && "thaumicenergistics.item.ItemDummyAspect".equals(stack.getItem().getClass().getName());
     }
 
     // endregion

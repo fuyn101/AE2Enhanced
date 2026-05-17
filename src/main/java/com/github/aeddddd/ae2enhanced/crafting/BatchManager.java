@@ -25,6 +25,9 @@ public class BatchManager {
         long fullBatches = divRem[0].longValueExact();
         long remainder = divRem[1].longValueExact();
 
+        if (fullBatches > Integer.MAX_VALUE - (remainder > 0 ? 1 : 0)) {
+            throw new IllegalArgumentException("Batch count exceeds maximum array size");
+        }
         int size = (int) fullBatches + (remainder > 0 ? 1 : 0);
         long[] result = new long[size];
         for (int i = 0; i < fullBatches; i++) {
@@ -52,6 +55,9 @@ public class BatchManager {
         long fullBatches = divRem[0].longValueExact();
         long remainder = divRem[1].longValueExact();
 
+        if (fullBatches > Integer.MAX_VALUE - (remainder > 0 ? 1 : 0)) {
+            throw new IllegalArgumentException("Batch count exceeds maximum array size");
+        }
         int size = (int) fullBatches + (remainder > 0 ? 1 : 0);
         long[] result = new long[size];
         for (int i = 0; i < fullBatches; i++) {

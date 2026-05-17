@@ -23,6 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -89,11 +90,14 @@ public class MixinCraftingGridCache {
         int injected = 0;
         for (TileComputationCore core : ae2enhanced$computationCores) {
             if (core.isFormed()) {
-                for (CraftingCPUCluster cpu : core.getCpuPool()) {
-                    this.craftingCPUClusters.add(cpu);
-                    injected++;
-                    if (cpu.getLastCraftingLink() != null) {
-                        this.addLink((CraftingLink) cpu.getLastCraftingLink());
+                List<CraftingCPUCluster> pool = core.getCpuPool();
+                if (pool != null) {
+                    for (CraftingCPUCluster cpu : pool) {
+                        this.craftingCPUClusters.add(cpu);
+                        injected++;
+                        if (cpu.getLastCraftingLink() != null) {
+                            this.addLink((CraftingLink) cpu.getLastCraftingLink());
+                        }
                     }
                 }
             }
@@ -132,7 +136,8 @@ public class MixinCraftingGridCache {
     private void ae2enhanced$hasCpu(ICraftingCPU cpu, CallbackInfoReturnable<Boolean> cir) {
         if (cpu instanceof CraftingCPUCluster) {
             for (TileComputationCore core : ae2enhanced$computationCores) {
-                if (core.getCpuPool().contains(cpu)) {
+                List<CraftingCPUCluster> pool = core.getCpuPool();
+                if (pool != null && pool.contains(cpu)) {
                     cir.setReturnValue(true);
                     return;
                 }

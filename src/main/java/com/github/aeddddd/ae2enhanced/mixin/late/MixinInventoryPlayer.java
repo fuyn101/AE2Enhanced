@@ -16,14 +16,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 本 mixin 使用 AbstractNbtDrop.isDrop 进行字符串类名比较，避免直接引用
  * 条件类（ItemGasDrop / ItemEssentiaDrop）导致 NoClassDefFoundError。
  */
-@Mixin(value = InventoryPlayer.class)
+@Mixin(value = InventoryPlayer.class, remap = false)
 public class MixinInventoryPlayer {
 
     private static final String FLUID_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemFluidDrop";
     private static final String GAS_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
     private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
 
-    @Inject(method = "addItemStackToInventory", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "func_70441_a", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onAddItemStack(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (stack.isEmpty()) return;
 

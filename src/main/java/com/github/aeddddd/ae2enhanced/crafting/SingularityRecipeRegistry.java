@@ -3,15 +3,15 @@ package com.github.aeddddd.ae2enhanced.crafting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 黑洞合成配方注册表。
  */
 public class SingularityRecipeRegistry {
 
-    private static final List<SingularityRecipe> RECIPES = new ArrayList<>();
+    private static final List<SingularityRecipe> RECIPES = new CopyOnWriteArrayList<>();
 
     public static void register(SingularityRecipe recipe) {
         RECIPES.add(recipe);
@@ -30,6 +30,6 @@ public class SingularityRecipeRegistry {
     }
 
     public static List<SingularityRecipe> getRecipes() {
-        return new ArrayList<>(RECIPES);
+        return new java.util.ArrayList<>(RECIPES);
     }
 }
