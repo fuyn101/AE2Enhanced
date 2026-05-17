@@ -20,12 +20,7 @@ import appeng.me.helpers.PlayerSource;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
-import com.mekeng.github.common.me.data.IAEGasStack;
-import com.mekeng.github.common.me.data.impl.AEGasStack;
-import com.mekeng.github.common.me.storage.IGasStorageChannel;
 import io.netty.buffer.ByteBuf;
-import mekanism.api.gas.GasStack;
-import mekanism.api.gas.IGasItem;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
@@ -88,19 +83,26 @@ public class PacketMEMonitorableAction implements IMessage {
         @Override
         public IMessage onMessage(PacketMEMonitorableAction message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            Container c = player.openContainer;
-            if (!(c instanceof ContainerMEMonitorable)) {
-                return null;
-            }
-            ContainerMEMonitorable cme = (ContainerMEMonitorable) c;
-            IStorageGrid grid = cme.getNetworkNode().getGrid().getCache(IStorageGrid.class);
-            PlayerSource source = new PlayerSource(player, (IActionHost) cme.getTarget());
-
-            ItemStack held = player.inventory.getItemStack();
-            ItemStack ch = held.copy();
-            ch.setCount(1);
-
             player.getServerWorld().addScheduledTask(() -> {
+                Container c = player.openContainer;
+                if (!(c instanceof ContainerMEMonitorable)) {
+                    return;
+                }
+                ContainerMEMonitorable cme = (ContainerMEMonitorable) c;
+                if (cme.getNetworkNode() == null || cme.getNetworkNode().getGrid() == null) {
+                    return;
+                }
+                IStorageGrid grid = cme.getNetworkNode().getGrid().getCache(IStorageGrid.class);
+                Object target = cme.getTarget();
+                if (!(target instanceof IActionHost)) {
+                    return;
+                }
+                PlayerSource source = new PlayerSource(player, (IActionHost) target);
+
+                ItemStack held = player.inventory.getItemStack();
+                ItemStack ch = held.copy();
+                ch.setCount(1);
+
                 switch (message.getType()) {
                     case FLUID_WORK:
                         if (!held.isEmpty()) {
@@ -108,8 +110,8 @@ public class PacketMEMonitorableAction implements IMessage {
                         }
                         break;
                     case GAS_WORK:
-                        if (!held.isEmpty() && held.getItem() instanceof IGasItem) {
-                            gasWork(message, (IGasItem) held.getItem(), ch, grid, source, player);
+                        if (!held.isEmpty()) {
+                            gasWorkReflect(message, ch, grid, source, player);
                         }
                         break;
                     case FLUID_OPERATE:
@@ -119,7 +121,7 @@ public class PacketMEMonitorableAction implements IMessage {
                         break;
                     case GAS_OPERATE:
                         if (held.isEmpty()) {
-                            gasOperateWork(message, grid, source, player);
+                            gasOperateWorkReflect(message, grid, source, player);
                         }
                         break;
                 }
@@ -188,64 +190,17 @@ public class PacketMEMonitorableAction implements IMessage {
             updateHeld(player);
         }
 
-        private static void gasWork(PacketMEMonitorableAction message, IGasItem ig, ItemStack singleHeld,
-                                     IStorageGrid grid, IActionSource source, EntityPlayerMP player) {
-            ItemStack actualHeld = player.inventory.getItemStack();
-            if (!ItemStack.areItemsEqual(singleHeld, actualHeld) || !ItemStack.areItemStackTagsEqual(singleHeld, actualHeld)
-                    || actualHeld.isEmpty()) {
-                return;
+        private static void gasWorkReflect(PacketMEMonitorableAction message, ItemStack singleHeld,
+                                              IStorageGrid grid, PlayerSource source, EntityPlayerMP player) {
+            try {
+                Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableActionGasHelper");
+                java.lang.reflect.Method method = helperClass.getMethod("gasWork",
+                        PacketMEMonitorableAction.class, ItemStack.class,
+                        IStorageGrid.class, PlayerSource.class, EntityPlayerMP.class);
+                method.invoke(null, message, singleHeld, grid, source, player);
+            } catch (Exception e) {
+                AELog.error(e);
             }
-
-            GasStack targetGas = null;
-            if (message.getNbt() != null && !message.getNbt().isEmpty()) {
-                targetGas = GasStack.readFromNBT(message.getNbt());
-            }
-            if (targetGas != null) {
-                targetGas.amount = Integer.MAX_VALUE;
-            }
-
-            IMEMonitor<IAEGasStack> gasStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
-
-            boolean drain = false;
-            GasStack allGas = ig.getGas(singleHeld);
-            int allAmount = allGas == null ? 0 : allGas.amount;
-
-            if (targetGas != null && allGas != null && allGas.amount > 0 && !allGas.isGasEqual(targetGas)) {
-                drain = true;
-            } else if (targetGas == null) {
-                drain = true;
-            }
-
-            if (drain) {
-                if (allGas == null) return;
-                AEGasStack allAEGas = AEGasStack.of(allGas);
-                if (allAEGas == null) return;
-                IAEGasStack notInjected = gasStorage.injectItems(allAEGas, Actionable.SIMULATE, source);
-                long size = allAEGas.getStackSize() - (notInjected == null ? 0L : notInjected.getStackSize());
-                if (size <= 0) return;
-                gasStorage.injectItems(allAEGas.setStackSize(size), Actionable.MODULATE, source);
-                // 使用 IGasItem.removeGas 让 Mekanism 自行处理创造模式（创造模式不会减少储量）
-                ig.removeGas(singleHeld, (int) size);
-            } else {
-                if (targetGas == null) return;
-                AEGasStack targetAEGas = AEGasStack.of(targetGas);
-                if (targetAEGas == null) return;
-                IAEGasStack extracted = gasStorage.extractItems(targetAEGas, Actionable.SIMULATE, source);
-                if (extracted == null) return;
-                int size = Math.min(ig.getMaxGas(singleHeld) - allAmount, (int) extracted.getStackSize());
-                if (size <= 0) return;
-                gasStorage.extractItems(targetAEGas.setStackSize(size), Actionable.MODULATE, source);
-                targetGas.amount = size + allAmount;
-                ig.setGas(singleHeld, targetGas);
-            }
-
-            if (actualHeld.getCount() > 1) {
-                actualHeld.shrink(1);
-                player.inventory.placeItemBackInInventory(player.world, singleHeld);
-            } else {
-                player.inventory.setItemStack(singleHeld);
-            }
-            updateHeld(player);
         }
 
         private static void fluidOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
@@ -271,7 +226,7 @@ public class PacketMEMonitorableAction implements IMessage {
 
             IFluidHandlerItem fh = FluidUtil.getFluidHandler(bucket.createItemStack());
             if (fh == null) return;
-            int filled = fh.fill(aeFluid.getFluidStack(), true);
+            int filled = fh.fill(aeFluid.getFluidStack(), false);
             if (filled != 1000) return;
 
             ItemStack out = fh.getContainer();
@@ -283,44 +238,25 @@ public class PacketMEMonitorableAction implements IMessage {
                 player.inventory.setItemStack(out);
             }
 
+            fh.fill(aeFluid.getFluidStack(), true); // 真正执行填充
             itemStorage.extractItems(bucketReq, Actionable.MODULATE, source);
             fluidStorage.extractItems(AEFluidStack.fromFluidStack(fluid).setStackSize(1000), Actionable.MODULATE, source);
             updateHeld(player);
         }
 
-        private static void gasOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
-                                            IActionSource source, EntityPlayerMP player) {
-            if (!player.inventory.getItemStack().isEmpty()) return;
-
-            GasStack gas = null;
-            if (message.getNbt() != null && !message.getNbt().isEmpty()) {
-                gas = GasStack.readFromNBT(message.getNbt());
+        private static void gasOperateWorkReflect(PacketMEMonitorableAction message, IStorageGrid grid,
+                                                     PlayerSource source, EntityPlayerMP player) {
+            try {
+                Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableActionGasHelper");
+                java.lang.reflect.Method method = helperClass.getMethod("gasOperateWork",
+                        PacketMEMonitorableAction.class, IStorageGrid.class, PlayerSource.class, EntityPlayerMP.class);
+                method.invoke(null, message, grid, source, player);
+            } catch (Exception e) {
+                AELog.error(e);
             }
-            if (gas == null || gas.getGas() == null) return;
-            gas.amount = 1000;
-
-            boolean shift = message.getNbt() != null && message.getNbt().getBoolean("shift");
-
-            IMEMonitor<IAEGasStack> gasStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
-            IAEGasStack extracted = gasStorage.extractItems(AEGasStack.of(gas), Actionable.SIMULATE, source);
-            if (extracted == null || extracted.getStackSize() < 1000L) return;
-
-            ItemStack out = com.github.aeddddd.ae2enhanced.item.ItemGasDrop.createStack(gas);
-            if (out.isEmpty()) return;
-
-            gasStorage.extractItems(AEGasStack.of(gas), Actionable.MODULATE, source);
-
-            if (shift) {
-                int slot = player.inventory.getFirstEmptyStack();
-                if (slot == -1) return;
-                player.inventory.setInventorySlotContents(slot, out);
-            } else {
-                player.inventory.setItemStack(out);
-            }
-            updateHeld(player);
         }
 
-        private static void updateHeld(EntityPlayerMP player) {
+        public static void updateHeld(EntityPlayerMP player) {
             if (Platform.isServer()) {
                 try {
                     NetworkHandler.instance().sendTo(
