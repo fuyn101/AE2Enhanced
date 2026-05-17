@@ -3,20 +3,18 @@ package com.github.aeddddd.ae2enhanced.gui;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiTechPanel;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GuiAssemblyFormed extends GuiContainer {
-
+public class GuiAssemblyFormed extends GuiTechPanel {
 
     private final TileAssemblyController tile;
     private GuiButtonTech patternButton;
@@ -40,57 +38,9 @@ public class GuiAssemblyFormed extends GuiContainer {
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-
-        // 主背景
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
-
-        // 内面板区域
-        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 170, GuiColors.PANEL_LIGHT);
-
-        // 顶部高亮条
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
-
-        // 外边框
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
-
-        // 角落装饰
-        int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
-
-        // 内面板边框
-        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 27, GuiColors.BORDER_DIM);
-        drawRect(guiLeft + 10, guiTop + 169, guiLeft + xSize - 10, guiTop + 170, GuiColors.BORDER_DIM);
-
-        // 绘制所有 slot 边框
+        drawTechPanelFrame();
+        drawInnerPanel(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 170);
         drawSlotBorders(mouseX, mouseY);
-    }
-
-    private void drawSlotBorders(int mouseX, int mouseY) {
-        for (Slot slot : this.inventorySlots.inventorySlots) {
-            if (!slot.isEnabled()) continue;
-            int x = guiLeft + slot.xPos;
-            int y = guiTop + slot.yPos;
-
-            // 判定鼠标是否悬停在这个 slot 上
-            boolean hovered = this.isPointInRegion(slot.xPos, slot.yPos, 16, 16, mouseX, mouseY);
-            int color = hovered ? GuiColors.SLOT_HOVER : GuiColors.SLOT_BORDER;
-
-            // 外边框
-            drawRect(x - 1, y - 1, x + 18, y, color);
-            drawRect(x - 1, y + 16, x + 18, y + 17, color);
-            drawRect(x - 1, y, x, y + 16, color);
-            drawRect(x + 16, y, x + 17, y + 16, color);
-        }
     }
 
     @Override
@@ -103,26 +53,21 @@ public class GuiAssemblyFormed extends GuiContainer {
     @Override
     protected void actionPerformed(GuiButton button) {
         if (button.id == 0) {
-            // 通过 PacketPatternPage 让服务端打开样板 GUI，确保第一次打开与翻页使用完全相同的代码路径
             AE2Enhanced.network.sendToServer(new PacketPatternPage(tile.getPos(), 0));
         }
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        // 标题
         String title = I18n.format("gui.ae2enhanced.formed.title");
         int titleWidth = fontRenderer.getStringWidth(title);
         fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, GuiColors.ACCENT);
 
-        // 升级槽标签
         String upgradeLabel = I18n.format("gui.ae2enhanced.formed.upgrades");
         fontRenderer.drawString(upgradeLabel, 16, 28, GuiColors.TEXT_DIM);
 
-        // 分隔线
         drawRect(16, 40, 78, 41, GuiColors.ACCENT_SOFT);
 
-        // 并行状态
         long parallelCap = tile.getParallelCap();
         String parallelText;
         if (parallelCap >= Long.MAX_VALUE / 2) {
@@ -132,11 +77,9 @@ public class GuiAssemblyFormed extends GuiContainer {
         }
         fontRenderer.drawString(parallelText, 16, 130, GuiColors.TEXT_DIM);
 
-        // 活跃任务数
         String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
         fontRenderer.drawString(jobs, 16, 142, GuiColors.TEXT_DIM);
 
-        // 网络状态
         String netStatus;
         int netColor;
         if (tile.isNetworkActive()) {
@@ -152,12 +95,10 @@ public class GuiAssemblyFormed extends GuiContainer {
         int nw = fontRenderer.getStringWidth(netStatus);
         fontRenderer.drawString(netStatus, xSize - 16 - nw, 130, netColor);
 
-        // 背包上方分隔线
         drawRect(16, 176, xSize - 16, 177, GuiColors.ACCENT_SOFT);
     }
 
     private boolean drawCustomTooltips(int mouseX, int mouseY) {
-        // 升级槽按槽位显示 tooltip，已安装高亮
         int[][] upgradeSlots = {
             {16, 38}, {36, 38}, {56, 38},
             {16, 58}, {36, 58}, {56, 58}
@@ -175,32 +116,32 @@ public class GuiAssemblyFormed extends GuiContainer {
             int sy = upgradeSlots[i][1];
             if (isPointInRegion(sx, sy, 16, 16, mouseX, mouseY)) {
                 List<String> lines = new ArrayList<>();
-                Slot slot = this.inventorySlots.inventorySlots.get(i);
+                net.minecraft.inventory.Slot slot = this.inventorySlots.inventorySlots.get(i);
                 boolean installed = slot != null && slot.getHasStack();
                 int count = installed ? slot.getStack().getCount() : 0;
                 String name = I18n.format(upgradeKeys[i]);
                 if (installed) {
                     lines.add("§a● §r" + name);
                     switch (i) {
-                        case 0: // 并行
+                        case 0:
                             long parallel = tile.getParallelCap();
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.parallel.status",
                                 parallel >= Long.MAX_VALUE / 2 ? "∞" : String.valueOf(parallel)) + "§r");
                             break;
-                        case 1: // 速度
+                        case 1:
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.speed.status", tile.getCraftingTicks()) + "§r");
                             break;
-                        case 2: // 效率
+                        case 2:
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.efficiency.status", count) + "§r");
                             break;
-                        case 3: // 容量
+                        case 3:
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.capacity.status",
                                 tile.getPatternPages(), tile.getPatternSlotCount()) + "§r");
                             break;
-                        case 4: // 上传
+                        case 4:
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.upload.status") + "§r");
                             break;
-                        case 5: // 预留2
+                        case 5:
                             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.upgrades.reserved2.status") + "§r");
                             break;
                     }
@@ -231,7 +172,6 @@ public class GuiAssemblyFormed extends GuiContainer {
                 return true;
             }
         }
-        // 样板存储按钮 tooltip
         if (patternButton != null && patternButton.isMouseOver()) {
             List<String> lines = new ArrayList<>();
             lines.add(I18n.format("gui.ae2enhanced.tooltip.patterns"));
@@ -239,7 +179,6 @@ public class GuiAssemblyFormed extends GuiContainer {
             this.drawHoveringText(lines, mouseX, mouseY);
             return true;
         }
-        // 网络状态区域 tooltip
         if (isPointInRegion(140, 125, 120, 20, mouseX, mouseY)) {
             List<String> lines = new ArrayList<>();
             if (tile.isNetworkActive()) {
