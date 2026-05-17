@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
@@ -13,14 +14,6 @@ import net.minecraft.inventory.Slot;
 
 public class GuiAssemblyPattern extends GuiContainer {
 
-    private static final int PANEL_BG = 0xFF1a1a2e;
-    private static final int PANEL_LIGHT = 0xFF16213e;
-    private static final int BORDER_DIM = 0xFF0f3460;
-    private static final int SLOT_BORDER = 0xFF333355;
-    private static final int SLOT_HOVER = 0xFF555577;
-    private static final int ACCENT = 0xFF00d4ff;
-    private static final int ACCENT_SOFT = 0xFF0f4c75;
-    private static final int TEXT_DIM = 0xFF88aaaa;
 
     private static final int PREV_BUTTON_ID = 1;
     private static final int NEXT_BUTTON_ID = 2;
@@ -49,34 +42,34 @@ public class GuiAssemblyPattern extends GuiContainer {
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, PANEL_BG);
-        drawRect(guiLeft + 8, guiTop + 22, guiLeft + 332, guiTop + 146, PANEL_LIGHT);
-        drawRect(guiLeft + 87, guiTop + 150, guiLeft + 253, guiTop + 208, PANEL_LIGHT);
-        drawRect(guiLeft + 87, guiTop + 208, guiLeft + 253, guiTop + 230, PANEL_LIGHT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
+        drawRect(guiLeft + 8, guiTop + 22, guiLeft + 332, guiTop + 146, GuiColors.PANEL_LIGHT);
+        drawRect(guiLeft + 87, guiTop + 150, guiLeft + 253, guiTop + 208, GuiColors.PANEL_LIGHT);
+        drawRect(guiLeft + 87, guiTop + 208, guiLeft + 253, guiTop + 230, GuiColors.PANEL_LIGHT);
 
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
 
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
 
         int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
 
-        drawRect(guiLeft + 8, guiTop + 22, guiLeft + 332, guiTop + 23, BORDER_DIM);
-        drawRect(guiLeft + 8, guiTop + 145, guiLeft + 332, guiTop + 146, BORDER_DIM);
-        drawRect(guiLeft + 87, guiTop + 150, guiLeft + 253, guiTop + 151, BORDER_DIM);
-        drawRect(guiLeft + 87, guiTop + 207, guiLeft + 253, guiTop + 208, BORDER_DIM);
-        drawRect(guiLeft + 87, guiTop + 208, guiLeft + 253, guiTop + 209, BORDER_DIM);
-        drawRect(guiLeft + 87, guiTop + 229, guiLeft + 253, guiTop + 230, BORDER_DIM);
+        drawRect(guiLeft + 8, guiTop + 22, guiLeft + 332, guiTop + 23, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 8, guiTop + 145, guiLeft + 332, guiTop + 146, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 87, guiTop + 150, guiLeft + 253, guiTop + 151, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 87, guiTop + 207, guiLeft + 253, guiTop + 208, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 87, guiTop + 208, guiLeft + 253, guiTop + 209, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 87, guiTop + 229, guiLeft + 253, guiTop + 230, GuiColors.BORDER_DIM);
 
         drawSlotBorders(mouseX, mouseY);
     }
@@ -87,7 +80,7 @@ public class GuiAssemblyPattern extends GuiContainer {
             int x = guiLeft + slot.xPos;
             int y = guiTop + slot.yPos;
             boolean hovered = this.isPointInRegion(slot.xPos, slot.yPos, 16, 16, mouseX, mouseY);
-            int color = hovered ? SLOT_HOVER : SLOT_BORDER;
+            int color = hovered ? GuiColors.SLOT_HOVER : GuiColors.SLOT_BORDER;
             drawRect(x - 1, y - 1, x + 18, y, color);
             drawRect(x - 1, y + 16, x + 18, y + 17, color);
             drawRect(x - 1, y, x, y + 16, color);
@@ -153,11 +146,11 @@ public class GuiAssemblyPattern extends GuiContainer {
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         String title = I18n.format("gui.ae2enhanced.pattern.title");
         this.fontRenderer.drawString(title,
-                (this.xSize - this.fontRenderer.getStringWidth(title)) / 2, 8, ACCENT);
+                (this.xSize - this.fontRenderer.getStringWidth(title)) / 2, 8, GuiColors.ACCENT);
 
         String pageStr = I18n.format("gui.ae2enhanced.pattern.page",
                 page + 1, tile.getPatternPages());
         this.fontRenderer.drawString(pageStr,
-                (this.xSize - this.fontRenderer.getStringWidth(pageStr)) / 2, 200, TEXT_DIM);
+                (this.xSize - this.fontRenderer.getStringWidth(pageStr)) / 2, 200, GuiColors.TEXT_DIM);
     }
 }

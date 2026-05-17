@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.gui;
 
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.gui.GuiButton;
@@ -16,18 +17,6 @@ import java.util.List;
 
 public class GuiAssemblyFormed extends GuiContainer {
 
-    private static final int PANEL_BG = 0xFF1a1a2e;
-    private static final int PANEL_LIGHT = 0xFF16213e;
-    private static final int BORDER_DIM = 0xFF0f3460;
-    private static final int SLOT_BORDER = 0xFF333355;
-    private static final int SLOT_HOVER = 0xFF555577;
-    private static final int ACCENT = 0xFF00d4ff;
-    private static final int ACCENT_SOFT = 0xFF0f4c75;
-    private static final int TEXT_MAIN = 0xFFe0e0e0;
-    private static final int TEXT_SUCCESS = 0xFF55ff88;
-    private static final int TEXT_DIM = 0xFF88aaaa;
-    private static final int TEXT_WARN = 0xFFffaa55;
-    private static final int TEXT_ERROR = 0xFFff5555;
 
     private final TileAssemblyController tile;
     private GuiButtonTech patternButton;
@@ -53,34 +42,34 @@ public class GuiAssemblyFormed extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // 主背景
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, PANEL_BG);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
 
         // 内面板区域
-        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 170, PANEL_LIGHT);
+        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 170, GuiColors.PANEL_LIGHT);
 
         // 顶部高亮条
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
 
         // 外边框
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
 
         // 角落装饰
         int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
 
         // 内面板边框
-        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 27, BORDER_DIM);
-        drawRect(guiLeft + 10, guiTop + 169, guiLeft + xSize - 10, guiTop + 170, BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 27, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + 169, guiLeft + xSize - 10, guiTop + 170, GuiColors.BORDER_DIM);
 
         // 绘制所有 slot 边框
         drawSlotBorders(mouseX, mouseY);
@@ -94,7 +83,7 @@ public class GuiAssemblyFormed extends GuiContainer {
 
             // 判定鼠标是否悬停在这个 slot 上
             boolean hovered = this.isPointInRegion(slot.xPos, slot.yPos, 16, 16, mouseX, mouseY);
-            int color = hovered ? SLOT_HOVER : SLOT_BORDER;
+            int color = hovered ? GuiColors.SLOT_HOVER : GuiColors.SLOT_BORDER;
 
             // 外边框
             drawRect(x - 1, y - 1, x + 18, y, color);
@@ -124,14 +113,14 @@ public class GuiAssemblyFormed extends GuiContainer {
         // 标题
         String title = I18n.format("gui.ae2enhanced.formed.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, ACCENT);
+        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, GuiColors.ACCENT);
 
         // 升级槽标签
         String upgradeLabel = I18n.format("gui.ae2enhanced.formed.upgrades");
-        fontRenderer.drawString(upgradeLabel, 16, 28, TEXT_DIM);
+        fontRenderer.drawString(upgradeLabel, 16, 28, GuiColors.TEXT_DIM);
 
         // 分隔线
-        drawRect(16, 40, 78, 41, ACCENT_SOFT);
+        drawRect(16, 40, 78, 41, GuiColors.ACCENT_SOFT);
 
         // 并行状态
         long parallelCap = tile.getParallelCap();
@@ -141,30 +130,30 @@ public class GuiAssemblyFormed extends GuiContainer {
         } else {
             parallelText = I18n.format("gui.ae2enhanced.formed.parallel", parallelCap);
         }
-        fontRenderer.drawString(parallelText, 16, 130, TEXT_DIM);
+        fontRenderer.drawString(parallelText, 16, 130, GuiColors.TEXT_DIM);
 
         // 活跃任务数
         String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
-        fontRenderer.drawString(jobs, 16, 142, TEXT_DIM);
+        fontRenderer.drawString(jobs, 16, 142, GuiColors.TEXT_DIM);
 
         // 网络状态
         String netStatus;
         int netColor;
         if (tile.isNetworkActive()) {
             netStatus = I18n.format("gui.ae2enhanced.formed.network.active");
-            netColor = TEXT_SUCCESS;
+            netColor = GuiColors.TEXT_SUCCESS;
         } else if (tile.isNetworkPowered()) {
             netStatus = I18n.format("gui.ae2enhanced.formed.network.booting");
-            netColor = TEXT_WARN;
+            netColor = GuiColors.TEXT_WARN;
         } else {
             netStatus = I18n.format("gui.ae2enhanced.formed.network.offline");
-            netColor = TEXT_ERROR;
+            netColor = GuiColors.TEXT_ERROR;
         }
         int nw = fontRenderer.getStringWidth(netStatus);
         fontRenderer.drawString(netStatus, xSize - 16 - nw, 130, netColor);
 
         // 背包上方分隔线
-        drawRect(16, 176, xSize - 16, 177, ACCENT_SOFT);
+        drawRect(16, 176, xSize - 16, 177, GuiColors.ACCENT_SOFT);
     }
 
     private boolean drawCustomTooltips(int mouseX, int mouseY) {

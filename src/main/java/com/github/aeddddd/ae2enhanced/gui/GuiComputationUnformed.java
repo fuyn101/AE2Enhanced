@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.network.PacketRequestAssembly;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
@@ -24,15 +25,6 @@ import java.util.Map;
  */
 public class GuiComputationUnformed extends GuiContainer {
 
-    private static final int PANEL_BG = 0xFF1a1a2e;
-    private static final int PANEL_LIGHT = 0xFF16213e;
-    private static final int BORDER_DIM = 0xFF0f3460;
-    private static final int ACCENT = 0xFF00d4ff;
-    private static final int ACCENT_SOFT = 0xFF0f4c75;
-    private static final int TEXT_MAIN = 0xFFe0e0e0;
-    private static final int TEXT_ERROR = 0xFFff5555;
-    private static final int TEXT_SUCCESS = 0xFF55ff88;
-    private static final int TEXT_WARN = 0xFFffaa55;
 
     private final TileComputationCore tile;
     private GuiButtonTech assembleButton;
@@ -114,56 +106,56 @@ public class GuiComputationUnformed extends GuiContainer {
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, PANEL_BG);
-        drawRect(guiLeft + 10, guiTop + 40, guiLeft + xSize - 10, guiTop + 140, PANEL_LIGHT);
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
+        drawRect(guiLeft + 10, guiTop + 40, guiLeft + xSize - 10, guiTop + 140, GuiColors.PANEL_LIGHT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
 
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
 
         int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
 
-        drawRect(guiLeft + 10, guiTop + 40, guiLeft + xSize - 10, guiTop + 41, BORDER_DIM);
-        drawRect(guiLeft + 10, guiTop + 139, guiLeft + xSize - 10, guiTop + 140, BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + 40, guiLeft + xSize - 10, guiTop + 41, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + 139, guiLeft + xSize - 10, guiTop + 140, GuiColors.BORDER_DIM);
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         String title = I18n.format("gui.ae2enhanced.computation.unformed.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 12, ACCENT);
+        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 12, GuiColors.ACCENT);
 
         String subtitle = I18n.format("tile.ae2enhanced.computation_core.name");
         int subWidth = fontRenderer.getStringWidth(subtitle);
         fontRenderer.drawString(subtitle, (xSize - subWidth) / 2, 28, 0xFF88ccdd);
 
-        drawRect(16, 36, xSize - 16, 37, ACCENT_SOFT);
+        drawRect(16, 36, xSize - 16, 37, GuiColors.ACCENT_SOFT);
 
         if (missingMap.isEmpty()) {
             String ready = I18n.format("gui.ae2enhanced.unformed.ready");
             int rw = fontRenderer.getStringWidth(ready);
-            fontRenderer.drawString(ready, (xSize - rw) / 2, 54, TEXT_SUCCESS);
+            fontRenderer.drawString(ready, (xSize - rw) / 2, 54, GuiColors.TEXT_SUCCESS);
 
             String hint = I18n.format("gui.ae2enhanced.unformed.hint");
             int hw = fontRenderer.getStringWidth(hint);
             fontRenderer.drawString(hint, (xSize - hw) / 2, 70, 0xFF88aaaa);
         } else {
             String missingTitle = I18n.format("gui.ae2enhanced.unformed.missing");
-            fontRenderer.drawString(missingTitle, 26, 46, TEXT_WARN);
+            fontRenderer.drawString(missingTitle, 26, 46, GuiColors.TEXT_WARN);
 
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.unformed.header.material"), 36, 58, 0xFF88aabb);
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.unformed.header.quantity"), xSize - 90, 58, 0xFF88aabb);
-            drawRect(30, 70, xSize - 30, 71, BORDER_DIM);
+            drawRect(30, 70, xSize - 30, 71, GuiColors.BORDER_DIM);
 
             int y = 76;
             for (Map.Entry<Block, Integer> entry : missingMap.entrySet()) {
@@ -172,9 +164,9 @@ public class GuiComputationUnformed extends GuiContainer {
                 ItemStack stack = new ItemStack(block, 1);
                 String name = stack.getDisplayName();
 
-                fontRenderer.drawString(name, 36, y, TEXT_MAIN);
+                fontRenderer.drawString(name, 36, y, GuiColors.TEXT_MAIN);
                 String countStr = "x" + count;
-                fontRenderer.drawString(countStr, xSize - 36 - fontRenderer.getStringWidth(countStr), y, TEXT_ERROR);
+                fontRenderer.drawString(countStr, xSize - 36 - fontRenderer.getStringWidth(countStr), y, GuiColors.TEXT_ERROR);
                 y += 16;
             }
         }
@@ -182,14 +174,14 @@ public class GuiComputationUnformed extends GuiContainer {
         if (missingMap.isEmpty()) {
             String status = I18n.format("gui.ae2enhanced.unformed.status.ready");
             int sw = fontRenderer.getStringWidth(status);
-            fontRenderer.drawString(status, (xSize - sw) / 2, 134, TEXT_SUCCESS);
+            fontRenderer.drawString(status, (xSize - sw) / 2, 134, GuiColors.TEXT_SUCCESS);
         } else {
             String status = I18n.format("gui.ae2enhanced.unformed.status.missing");
             int sw = fontRenderer.getStringWidth(status);
-            fontRenderer.drawString(status, (xSize - sw) / 2, 134, TEXT_ERROR);
+            fontRenderer.drawString(status, (xSize - sw) / 2, 134, GuiColors.TEXT_ERROR);
         }
 
-        drawRect(16, 170, xSize - 16, 171, ACCENT_SOFT);
+        drawRect(16, 170, xSize - 16, 171, GuiColors.ACCENT_SOFT);
     }
 
     @Override

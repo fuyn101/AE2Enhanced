@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
+import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
@@ -15,15 +16,6 @@ import java.io.IOException;
  */
 public class GuiHyperdimensionalNexus extends GuiScreen {
 
-    private static final int PANEL_BG = 0xFF1a1a2e;
-    private static final int PANEL_LIGHT = 0xFF16213e;
-    private static final int BORDER_DIM = 0xFF0f3460;
-    private static final int ACCENT = 0xFF00d4ff;
-    private static final int ACCENT_SOFT = 0xFF0f4c75;
-    private static final int TEXT_MAIN = 0xFFe0e0e0;
-    private static final int TEXT_ERROR = 0xFFff5555;
-    private static final int TEXT_SUCCESS = 0xFF55ff88;
-    private static final int TEXT_WARN = 0xFFffaa55;
 
     private final TileHyperdimensionalController tile;
     private int xSize = 240;
@@ -48,40 +40,40 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // 主背景
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, PANEL_BG);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
 
         // 顶部高亮条
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
 
         // 外边框
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
 
         // 角落装饰
         int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
+        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
 
         // 内面板区域
-        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + ySize - 10, PANEL_LIGHT);
-        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + 37, BORDER_DIM);
-        drawRect(guiLeft + 10, guiTop + ySize - 11, guiLeft + xSize - 10, guiTop + ySize - 10, BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + ySize - 10, GuiColors.PANEL_LIGHT);
+        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + 37, GuiColors.BORDER_DIM);
+        drawRect(guiLeft + 10, guiTop + ySize - 11, guiLeft + xSize - 10, guiTop + ySize - 10, GuiColors.BORDER_DIM);
 
         // 标题
         String title = I18n.format("gui.ae2enhanced.nexus.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, guiLeft + (xSize - titleWidth) / 2, guiTop + 8, ACCENT);
+        fontRenderer.drawString(title, guiLeft + (xSize - titleWidth) / 2, guiTop + 8, GuiColors.ACCENT);
 
         // 分隔线
-        drawRect(guiLeft + 16, guiTop + 22, guiLeft + xSize - 16, guiTop + 23, ACCENT_SOFT);
+        drawRect(guiLeft + 16, guiTop + 22, guiLeft + xSize - 16, guiTop + 23, GuiColors.ACCENT_SOFT);
 
         // 安全模式警告横幅
         if (tile != null && tile.getClientSafeMode()) {
@@ -93,7 +85,7 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         }
 
         if (tile == null) {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"), guiLeft + 20, guiTop + 40, TEXT_ERROR);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"), guiLeft + 20, guiTop + 40, GuiColors.TEXT_ERROR);
             super.drawScreen(mouseX, mouseY, partialTicks);
             return;
         }
@@ -109,21 +101,21 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         String formedStr = tile.isFormed()
                 ? I18n.format("gui.ae2enhanced.nexus.structure.formed")
                 : I18n.format("gui.ae2enhanced.nexus.structure.unformed");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.structure", formedStr), x, y, TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.structure", formedStr), x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
         // 网络状态
         String networkStr = tile.isNetworkActive()
                 ? I18n.format("gui.ae2enhanced.nexus.network.online")
                 : I18n.format("gui.ae2enhanced.nexus.network.offline");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.network", networkStr), x, y, TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.network", networkStr), x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
         // 能源状态
         String powerStr = tile.isNetworkPowered()
                 ? I18n.format("gui.ae2enhanced.nexus.power.ok")
                 : I18n.format("gui.ae2enhanced.nexus.power.none");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.power", powerStr), x, y, TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.power", powerStr), x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
         // Nexus ID
@@ -134,7 +126,7 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         } else {
             nexusLabel = I18n.format("gui.ae2enhanced.nexus.label.nexus_id", I18n.format("gui.ae2enhanced.nexus.nexus_id.none"));
         }
-        fontRenderer.drawString(nexusLabel, x, y, TEXT_MAIN);
+        fontRenderer.drawString(nexusLabel, x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
         // 存储统计（客户端同步字段，含物品+流体）
@@ -148,13 +140,13 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         int storageYStart = y;
         int storageYEnd;
         if (types > 0) {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.storage_types", types), x, y, TEXT_MAIN);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.storage_types", types), x, y, GuiColors.TEXT_MAIN);
             y += lineHeight;
             String totalLine = I18n.format("gui.ae2enhanced.nexus.label.storage_total", total);
-            fontRenderer.drawString(totalLine, x, y, TEXT_MAIN);
+            fontRenderer.drawString(totalLine, x, y, GuiColors.TEXT_MAIN);
             storageYEnd = y + lineHeight;
         } else {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, TEXT_MAIN);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, GuiColors.TEXT_MAIN);
             storageYEnd = y + lineHeight;
         }
 
