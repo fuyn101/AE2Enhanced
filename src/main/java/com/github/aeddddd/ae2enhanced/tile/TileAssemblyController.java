@@ -62,7 +62,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 
-public class TileAssemblyController extends TileEntity implements ICraftingProvider, ITickable, IGridProxyable {
+public class TileAssemblyController extends TileAENetworkBase implements ICraftingProvider, ITickable {
 
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 96; // 16×6
@@ -82,8 +82,7 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
     private int tickCounter = 0;
     private boolean formed = false;
     private BlockPos activeMeInterfacePos = null;
-    private AENetworkProxy proxy;
-    private boolean needsReady = false;
+
     private boolean networkActive = false;
     private boolean networkPowered = false;
     private int batchCooldown = 0;
@@ -408,35 +407,14 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
         return activeMeInterfacePos;
     }
 
-    // ---- IGridProxyable / IGridHost (控制器集中代理) ----
-
-    private AENetworkProxy createProxy() {
-        AENetworkProxy p = new AENetworkProxy(this, "assembly_controller",
-            new net.minecraft.item.ItemStack(ModBlocks.ASSEMBLY_CONTROLLER), true);
-        p.setValidSides(java.util.EnumSet.allOf(EnumFacing.class));
-        return p;
+    @Override
+    protected String getProxyName() {
+        return "assembly_controller";
     }
 
     @Override
-    public AENetworkProxy getProxy() {
-        if (proxy == null) {
-            proxy = createProxy();
-        }
-        return proxy;
-    }
-
-    @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
-    }
-
-    @Override
-    public void gridChanged() {
-    }
-
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        return getProxy().getNode();
+    protected ItemStack getProxyRepresentation() {
+        return new ItemStack(ModBlocks.ASSEMBLY_CONTROLLER);
     }
 
     @Nonnull
@@ -448,28 +426,6 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
     @Override
     public void securityBreak() {
         disassemble();
-    }
-
-    @Override
-    public void validate() {
-        super.validate();
-        needsReady = true;
-    }
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
-        if (proxy != null) {
-            proxy.invalidate();
-        }
-    }
-
-    @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
-        if (proxy != null) {
-            proxy.onChunkUnload();
-        }
     }
 
     public void assemble() {
@@ -536,7 +492,7 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
 
         // 网络代理就绪
         if (needsReady && formed) {
-            needsReady = false;
+            clearNeedsReady();
             getProxy().onReady();
         }
 
@@ -821,7 +777,6 @@ public class TileAssemblyController extends TileEntity implements ICraftingProvi
     /**
      * 真实轨道：特例合成（含耐久扣减、容器返还等）。
      * 输出和剩余物品均加入 pendingOutputs，由 tryInjectPendingOutputs 统一注入。
-     * TODO: InventoryCrafting 中工具的实际耐久扣减逻辑待细化
      */
     private boolean executeRealCrafting(ICraftingPatternDetails patternDetails, InventoryCrafting table,
                                         IRecipe recipe, NonNullList<ItemStack> remaining) {

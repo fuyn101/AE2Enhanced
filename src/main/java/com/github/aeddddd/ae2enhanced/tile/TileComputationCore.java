@@ -25,6 +25,7 @@ import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockSuperCraftingInterface;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
@@ -51,7 +52,7 @@ import java.util.List;
  * <p>每个计算核心维护一个 {@code cpuPool}，其中索引 0 为常驻集群，其余为动态生成的额外集群。
  * 当多个订单并发时，终端会自动看到多个 CPU；订单完成后空闲的额外集群会被自动回收。</p>
  */
-public class TileComputationCore extends TileEntity implements IGridProxyable, IActionHost, ITickable {
+public class TileComputationCore extends TileAENetworkBase implements IActionHost, ITickable {
 
     public static final int MAX_PARALLEL = 16384;
     private static final String NBT_CPU_POOL = "cpuPool";
@@ -60,9 +61,7 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
     private boolean formed = false;
     private int parallelLimit = 0;
 
-    // AE2 网络代理
-    private AENetworkProxy proxy;
-    private boolean needsReady = false;
+
 
     // CPU 集群池：索引 0 为常驻集群，>0 为动态集群
     private final List<CraftingCPUCluster> cpuPool = new ArrayList<>();
@@ -152,7 +151,7 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
         if (world == null || world.isRemote) return;
 
         if (needsReady && formed) {
-            needsReady = false;
+            clearNeedsReady();
             getProxy().onReady();
             bindMeInterface();
         }
@@ -347,35 +346,14 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
         return cluster;
     }
 
-    // ---------- IGridProxyable ----------
-
-    private AENetworkProxy createProxy() {
-        AENetworkProxy p = new AENetworkProxy(this, "computation_core",
-                new net.minecraft.item.ItemStack(ModBlocks.COMPUTATION_CORE), true);
-        p.setValidSides(java.util.EnumSet.allOf(net.minecraft.util.EnumFacing.class));
-        return p;
+    @Override
+    protected String getProxyName() {
+        return "computation_core";
     }
 
     @Override
-    public AENetworkProxy getProxy() {
-        if (proxy == null) {
-            proxy = createProxy();
-        }
-        return proxy;
-    }
-
-    @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
-    }
-
-    @Override
-    public void gridChanged() {
-    }
-
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        return getProxy().getNode();
+    protected ItemStack getProxyRepresentation() {
+        return new ItemStack(ModBlocks.COMPUTATION_CORE);
     }
 
     @Nonnull
@@ -386,30 +364,6 @@ public class TileComputationCore extends TileEntity implements IGridProxyable, I
 
     @Override
     public void securityBreak() {
-    }
-
-    // ---------- 网络代理生命周期 ----------
-
-    @Override
-    public void validate() {
-        super.validate();
-        this.needsReady = true;
-    }
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
-        if (proxy != null) {
-            proxy.invalidate();
-        }
-    }
-
-    @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
-        if (proxy != null) {
-            proxy.onChunkUnload();
-        }
     }
 
     // ---------- NBT / 同步 ----------

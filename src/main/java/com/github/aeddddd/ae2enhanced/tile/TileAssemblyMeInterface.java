@@ -16,74 +16,18 @@ import net.minecraft.util.math.BlockPos;
 
 import javax.annotation.Nonnull;
 
-public class TileAssemblyMeInterface extends TileEntity implements IGridProxyable, ICraftingProvider {
+public class TileAssemblyMeInterface extends TileDelegatedProxyBase<TileAssemblyController> implements ICraftingProvider {
 
-    private BlockPos controllerPos;
 
-    public void setControllerPos(BlockPos pos) {
-        this.controllerPos = pos;
-        markDirty();
-    }
 
-    public BlockPos getControllerPos() {
-        return controllerPos;
+    @Override
+    protected Class<TileAssemblyController> getControllerClass() {
+        return TileAssemblyController.class;
     }
 
     @Override
-    public AENetworkProxy getProxy() {
-        TileAssemblyController controller = getController();
-        if (controller != null) {
-            return controller.getProxy();
-        }
-        return null;
-    }
-
-    @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
-    }
-
-    @Override
-    public void gridChanged() {
-    }
-
-    // IGridHost
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        if (controllerPos == null || world == null) return null;
-        TileEntity te = world.getTileEntity(controllerPos);
-        if (te instanceof TileAssemblyController && ((TileAssemblyController) te).isFormed()) {
-            TileAssemblyController controller = (TileAssemblyController) te;
-            AENetworkProxy proxy = controller.getProxy();
-            if (proxy != null) {
-                return proxy.getNode();
-            }
-        }
-        return null;
-    }
-
-    @Nonnull
-    @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
-        if (controllerPos == null || world == null) return AECableType.NONE;
-        TileEntity te = world.getTileEntity(controllerPos);
-        if (te instanceof TileAssemblyController) {
-            TileAssemblyController controller = (TileAssemblyController) te;
-            if (controller.isFormed()) {
-                return AECableType.SMART;
-            }
-        }
-        return AECableType.NONE;
-    }
-
-    @Override
-    public void securityBreak() {
-        if (controllerPos != null && world != null) {
-            TileEntity te = world.getTileEntity(controllerPos);
-            if (te instanceof TileAssemblyController) {
-                ((TileAssemblyController) te).disassemble();
-            }
-        }
+    protected boolean isControllerFormed(TileAssemblyController controller) {
+        return controller.isFormed();
     }
 
     // ICraftingMedium
@@ -114,32 +58,5 @@ public class TileAssemblyMeInterface extends TileEntity implements IGridProxyabl
         }
     }
 
-    public TileAssemblyController getController() {
-        if (controllerPos == null || world == null) return null;
-        TileEntity te = world.getTileEntity(controllerPos);
-        return te instanceof TileAssemblyController ? (TileAssemblyController) te : null;
-    }
 
-    @Override
-    public void readFromNBT(NBTTagCompound compound) {
-        super.readFromNBT(compound);
-        if (compound.hasKey("controllerX")) {
-            controllerPos = new BlockPos(
-                compound.getInteger("controllerX"),
-                compound.getInteger("controllerY"),
-                compound.getInteger("controllerZ")
-            );
-        }
-    }
-
-    @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound compound) {
-        super.writeToNBT(compound);
-        if (controllerPos != null) {
-            compound.setInteger("controllerX", controllerPos.getX());
-            compound.setInteger("controllerY", controllerPos.getY());
-            compound.setInteger("controllerZ", controllerPos.getZ());
-        }
-        return compound;
-    }
 }

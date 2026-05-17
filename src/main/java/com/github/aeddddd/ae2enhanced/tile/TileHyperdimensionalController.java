@@ -19,6 +19,7 @@ import com.github.aeddddd.ae2enhanced.storage.SimpleMEMonitor;
 import appeng.api.AEApi;
 import appeng.api.storage.IMEInventoryHandler;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -37,11 +38,10 @@ import java.util.UUID;
  * 超维度仓储中枢核心控制器。
  * 实现 IGridProxyable + ICellContainer，AE2-UEL 通过 ICellContainer 发现存储。
  */
-public class TileHyperdimensionalController extends TileEntity implements IGridProxyable, ICellContainer, ITickable {
+public class TileHyperdimensionalController extends TileAENetworkBase implements ICellContainer, ITickable {
 
     private boolean formed = false;
-    private boolean needsReady = false;
-    private AENetworkProxy proxy;
+
     private UUID nexusId;
     private HyperdimensionalStorageFile storageFile;
     private ItemStorageAdapter itemAdapter;
@@ -81,41 +81,19 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
         return itemMonitor;
     }
 
-    // ---- IGridProxyable / IGridHost ----
-
-    private AENetworkProxy createProxy() {
-        AENetworkProxy p = new AENetworkProxy(this, "hyperdimensional_controller",
-            new net.minecraft.item.ItemStack(ModBlocks.HYPERDIMENSIONAL_CONTROLLER), true);
-        p.setValidSides(java.util.EnumSet.allOf(EnumFacing.class));
-        return p;
+    @Override
+    protected String getProxyName() {
+        return "hyperdimensional_controller";
     }
 
     @Override
-    public AENetworkProxy getProxy() {
-        if (proxy == null) {
-            proxy = createProxy();
-        }
-        return proxy;
-    }
-
-    @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
-    }
-
-    @Override
-    public void gridChanged() {
-    }
-
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        return getProxy().getNode();
+    protected ItemStack getProxyRepresentation() {
+        return new ItemStack(ModBlocks.HYPERDIMENSIONAL_CONTROLLER);
     }
 
     @Nonnull
     @Override
     public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
-        // 控制器本身不允许线缆直接连接，AE 接入必须通过 ME 接口
         return AECableType.NONE;
     }
 
@@ -166,26 +144,12 @@ public class TileHyperdimensionalController extends TileEntity implements IGridP
     // ---- Lifecycle ----
 
     @Override
-    public void validate() {
-        super.validate();
-        needsReady = true;
-    }
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
-        if (proxy != null) {
-            proxy.invalidate();
-        }
+    protected void onProxyInvalidate() {
         closeStorage();
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
-        if (proxy != null) {
-            proxy.onChunkUnload();
-        }
+    protected void onProxyChunkUnload() {
         closeStorage();
     }
 
