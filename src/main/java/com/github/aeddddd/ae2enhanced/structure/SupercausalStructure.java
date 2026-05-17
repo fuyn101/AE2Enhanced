@@ -971,16 +971,15 @@ public class SupercausalStructure {
         }
 
         boolean passed = missing.isEmpty();
-        int parallel = passed ? computeParallel(causalCount) : 0;
+        int parallel = passed ? computeParallel() : 0;
 
         return new ValidationResult(passed, missing, causalCount, parallel);
     }
 
     /**
-     * 根据因果锚定核心数量计算并行上限。
-     * 当前直接返回配置值 maxParallel（默认 16384）。
+     * 返回配置的并行合成上限（默认 16384）。
      */
-    public static int computeParallel(int causalCount) {
+    public static int computeParallel() {
         return AE2EnhancedConfig.crafting.maxParallel;
     }
 

@@ -205,20 +205,6 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
         return false;
     }
 
-    /**
-     * 规范化 FluidStack 的 Fluid 对象：某些 mod（如 Mekanism）的 IFluidHandler.drain()
-     * 可能返回非 FluidRegistry 标准实例的 Fluid 对象，导致 AE2 的 IAEFluidStack
-     * 匹配/同步异常。将其替换为 FluidRegistry 中的标准实例。
-     */
-    private static FluidStack canonicalizeFluidStack(FluidStack fluidStack) {
-        if (fluidStack == null || fluidStack.getFluid() == null) return fluidStack;
-        Fluid canonical = FluidRegistry.getFluid(fluidStack.getFluid().getName());
-        if (canonical != null && canonical != fluidStack.getFluid()) {
-            return new FluidStack(canonical, fluidStack.amount, fluidStack.tag);
-        }
-        return fluidStack;
-    }
-
     // endregion
 
     // region Gas Import

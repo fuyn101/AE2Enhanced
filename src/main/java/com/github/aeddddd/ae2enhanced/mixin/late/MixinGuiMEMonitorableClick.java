@@ -111,7 +111,7 @@ public class MixinGuiMEMonitorableClick {
                 try {
                     nbt = (NBTTagCompound) gas.getClass().getMethod("write", NBTTagCompound.class).invoke(gas, new NBTTagCompound());
                 } catch (Exception e) {
-                    // ignore
+                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to serialize gas NBT in GUI click", e);
                 }
             }
             AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_WORK, nbt));
@@ -141,7 +141,7 @@ public class MixinGuiMEMonitorableClick {
                 return iGasItemClass.getMethod("getGas", ItemStack.class).invoke(stack.getItem(), stack);
             }
         } catch (Exception e) {
-            // ignore
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get gas from item", e);
         }
         return null;
     }

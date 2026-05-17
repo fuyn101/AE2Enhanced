@@ -150,6 +150,7 @@ public abstract class MixinGuiMEMonitorableTooltip {
             gui.drawHoveringText(tooltip, mouseX, mouseY);
             return true;
         } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to render gas tooltip", e);
             return false;
         }
     }
@@ -200,7 +201,8 @@ public abstract class MixinGuiMEMonitorableTooltip {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get gas from container in tooltip", e);
         }
 
         return false;

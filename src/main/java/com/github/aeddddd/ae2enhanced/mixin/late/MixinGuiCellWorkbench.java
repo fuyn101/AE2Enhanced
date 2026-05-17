@@ -21,7 +21,7 @@ import java.util.Collections;
 @Mixin(value = GuiCellWorkbench.class, remap = false)
 public class MixinGuiCellWorkbench {
 
-    @Inject(method = "renderHoveredToolTip", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "func_191948_b", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onRenderTooltip(int mouseX, int mouseY, CallbackInfo ci) {
         GuiContainer screen = (GuiContainer) (Object) this;
         Slot slot = screen.getSlotUnderMouse();

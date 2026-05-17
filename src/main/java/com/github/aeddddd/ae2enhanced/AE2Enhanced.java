@@ -65,6 +65,18 @@ public class AE2Enhanced {
     public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
     public static SimpleNetworkWrapper network;
 
+    private static final java.lang.reflect.Method DAMAGE_ENTITY_METHOD;
+    static {
+        java.lang.reflect.Method m = null;
+        try {
+            m = EntityLivingBase.class.getDeclaredMethod("func_70665_d", DamageSource.class, float.class);
+            m.setAccessible(true);
+        } catch (Exception e) {
+            LOGGER.error("[AE2E] Failed to cache damageEntity method", e);
+        }
+        DAMAGE_ENTITY_METHOD = m;
+    }
+
     public static final CreativeTabs CREATIVE_TAB = new CreativeTabs(MOD_ID) {
         @Override
         public ItemStack createIcon() {
@@ -207,25 +219,27 @@ public class AE2Enhanced {
         }
 
         // ② 处决伤害：反射调用 damageEntity 绕过 Forge 事件系统（限伤/无敌帧）
-        try {
-            java.lang.reflect.Method m = EntityLivingBase.class.getDeclaredMethod(
-                    "func_70665_d", DamageSource.class, float.class);
-            m.setAccessible(true);
-            DamageSource exec = new DamageSource("ae2enhanced_conformal");
-            exec.setDamageIsAbsolute();
-            m.invoke(entity, exec, Float.MAX_VALUE);
-        } catch (Exception e) {
-            // fallback：直接清空生命值
+        if (DAMAGE_ENTITY_METHOD != null) {
+            try {
+                DamageSource exec = new DamageSource("ae2enhanced_conformal");
+                exec.setDamageIsAbsolute();
+                DAMAGE_ENTITY_METHOD.invoke(entity, exec, Float.MAX_VALUE);
+            } catch (Exception e) {
+                LOGGER.warn("[AE2E] Conformal damage reflection failed, falling back", e);
+                entity.setHealth(0.0f);
+            }
+        } else {
             entity.setHealth(0.0f);
         }
 
         // ③ 虚空伤害（同样反射绕过限伤）
-        try {
-            java.lang.reflect.Method m = EntityLivingBase.class.getDeclaredMethod(
-                    "func_70665_d", DamageSource.class, float.class);
-            m.setAccessible(true);
-            m.invoke(entity, DamageSource.OUT_OF_WORLD, Float.MAX_VALUE);
-        } catch (Exception ignored) {}
+        if (DAMAGE_ENTITY_METHOD != null) {
+            try {
+                DAMAGE_ENTITY_METHOD.invoke(entity, DamageSource.OUT_OF_WORLD, Float.MAX_VALUE);
+            } catch (Exception e) {
+                LOGGER.warn("[AE2E] Void damage reflection failed", e);
+            }
+        }
 
         // ④ 击退（由伤害源实体施加）
         if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
