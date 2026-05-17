@@ -1,12 +1,9 @@
 package com.github.aeddddd.ae2enhanced.storage;
 
 import appeng.api.AEApi;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import net.minecraft.item.ItemStack;
-
 import java.math.BigInteger;
 
 /**
