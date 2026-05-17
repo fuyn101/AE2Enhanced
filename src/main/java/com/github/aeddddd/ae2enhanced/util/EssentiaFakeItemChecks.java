@@ -38,4 +38,28 @@ public final class EssentiaFakeItemChecks {
             return null;
         }
     }
+
+    /**
+     * 反射方法：从源质容器（IEssentiaContainerItem）转换为 ItemEssentiaDrop。
+     * 本方法不依赖 ThaumicEnergistics 类存在于常量池，全部通过反射访问。
+     */
+    public static ItemStack tryConvertContainerToFake(ItemStack held) {
+        if (held == null || held.isEmpty()) return null;
+        try {
+            Class<?> containerItemClass = Class.forName("thaumcraft.api.aspects.IEssentiaContainerItem");
+            if (!containerItemClass.isInstance(held.getItem())) return null;
+            Object containerItem = held.getItem();
+            Object aspectList = containerItemClass.getMethod("getAspects", ItemStack.class).invoke(containerItem, held);
+            if (aspectList == null) return null;
+            Object[] aspects = (Object[]) aspectList.getClass().getMethod("getAspects").invoke(aspectList);
+            if (aspects == null || aspects.length == 0) return null;
+            Object aspect = aspects[0];
+            String aspectTag = (String) aspect.getClass().getMethod("getTag").invoke(aspect);
+            Class<?> essentiaDropClass = Class.forName(ESSENTIA_DROP_CLASS);
+            return (ItemStack) essentiaDropClass.getMethod("createStack", String.class, int.class)
+                    .invoke(null, aspectTag, 1);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

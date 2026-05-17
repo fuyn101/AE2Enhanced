@@ -97,7 +97,7 @@ public class HyperdimensionalStructure {
         for (BlockPos rel : relativeSet) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) {
-                return false;
+                continue; // chunk 未加载，保持当前状态，不判定为缺失
             }
             if (world.getBlockState(actual).getBlock() != expected) {
                 return false;

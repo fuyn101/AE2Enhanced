@@ -137,7 +137,7 @@ public class StructureEventHandler {
             }
             return true;
         } else if (block instanceof BlockComputationCore) {
-            EnumFacing facing = state.getValue(BlockComputationCore.FACING);
+            EnumFacing facing = state.getValue(BlockComputationCore.FACING).getOpposite();
             for (BlockPos rel : SupercausalStructure.ALL_STRUCTURE_SET) {
                 BlockPos actual = controllerPos.add(SupercausalStructure.rotate(rel, facing));
                 if (!world.isBlockLoaded(actual)) return false;

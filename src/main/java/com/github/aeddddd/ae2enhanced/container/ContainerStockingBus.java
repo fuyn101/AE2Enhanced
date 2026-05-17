@@ -16,10 +16,8 @@ import appeng.helpers.InventoryAction;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
@@ -84,11 +82,11 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
     @Override
     public boolean isSlotEnabled(int idx) {
         int capacityUpgrades = this.part.getInstalledUpgrades(Upgrades.CAPACITY);
+        // idx 实际上是 OptionalSlotStockingConfig 构造函数中传入的 groupNum：
+        // slot 1-4 的 groupNum = 1，slot 5-8 的 groupNum = 2
         switch (idx) {
-            case 1: case 2: return capacityUpgrades >= 1;
-            case 3: case 4: return capacityUpgrades >= 2;
-            case 5: case 6: return capacityUpgrades >= 3;
-            case 7: case 8: return capacityUpgrades >= 4;
+            case 1: return capacityUpgrades >= 1;
+            case 2: return capacityUpgrades >= 2;
             default: return true;
         }
     }
@@ -209,7 +207,7 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
         ItemStack gasFake = tryConvertGasToFake(held);
         if (gasFake != null) return gasFake;
 
-        ItemStack essentiaFake = FakeEssentias.tryConvertContainerToFake(held);
+        ItemStack essentiaFake = EssentiaFakeItemChecks.tryConvertContainerToFake(held);
         if (essentiaFake != null) return essentiaFake;
 
         return null;

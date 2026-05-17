@@ -4,6 +4,7 @@ import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.RedstoneMode;
+import appeng.api.config.SchedulingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
 import appeng.api.config.YesNo;
@@ -124,6 +125,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         this.getConfigManager().registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
         this.getConfigManager().registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
         this.getConfigManager().registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
+        this.getConfigManager().registerSetting(Settings.SCHEDULING_MODE, SchedulingMode.DEFAULT);
     }
 
     @Override
@@ -691,9 +693,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         }
         for (int i = 0; i < CONFIG_SIZE; i++) {
             this.targetAmounts[i] = data.getLong("targetAmount_" + i);
-            if (this.targetAmounts[i] <= 0) {
-                this.targetAmounts[i] = 1;
-            }
+            // 不再强制将 0 覆写为 1，允许保存/加载时保持清除状态
         }
         this.config.readFromNBT(data, "config");
     }

@@ -178,7 +178,7 @@ public final class FakeGases {
             if (!gasStackClass.isInstance(ingredient)) return null;
             Object gas = ingredient;
             Object gasType = gasStackClass.getMethod("getGas").invoke(gas);
-            int amount = (int) gasStackClass.getMethod("amount").invoke(gas);
+            int amount = gasStackClass.getField("amount").getInt(gas);
             return packGas2AEDrops((GasStack) createGasStackReflection(gasStackClass, gasType, Math.min(amount, 1000)));
         } catch (Exception e) {
             return null;
