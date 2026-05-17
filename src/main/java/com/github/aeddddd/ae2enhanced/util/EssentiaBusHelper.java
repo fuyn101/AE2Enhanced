@@ -230,23 +230,21 @@ public class EssentiaBusHelper {
         // 回收：外部 → 网络
         if (delta < 0 && modeOrdinal != 1) { // SUPPLY_ONLY = 1
             int toRecover = (int) Math.min(-delta, maxWork);
-            int taken = transport.takeEssentia(wanted.getAspect(), toRecover, opposite);
-            if (taken > 0) {
-                EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), taken);
+            toRecover = (int) Math.min(toRecover, actual);
+            if (toRecover > 0) {
+                EssentiaStack essStack = new EssentiaStack(wanted.getAspect().getTag(), toRecover);
                 IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
                 if (aeEss != null) {
                     IAEEssentiaStack notInserted = inv.injectItems(aeEss, Actionable.SIMULATE, source);
                     long canInsert = aeEss.getStackSize() - (notInserted != null ? notInserted.getStackSize() : 0);
                     if (canInsert > 0) {
-                        if (canInsert < taken) {
-                            // 部分插入，退回剩余（如果能退回）
-                            // IEssentiaTransport 没有直接退回方法，这里简化处理
-                            // 实际游戏中这种情况很少见
+                        int taken = transport.takeEssentia(wanted.getAspect(), (int) canInsert, opposite);
+                        if (taken > 0) {
+                            EssentiaStack insertStack = new EssentiaStack(wanted.getAspect().getTag(), taken);
+                            IAEEssentiaStack toInsert = AEEssentiaStack.fromEssentiaStack(insertStack);
+                            inv.injectItems(toInsert, Actionable.MODULATE, source);
+                            worked = true;
                         }
-                        EssentiaStack insertStack = new EssentiaStack(wanted.getAspect().getTag(), (int) canInsert);
-                        IAEEssentiaStack toInsert = AEEssentiaStack.fromEssentiaStack(insertStack);
-                        inv.injectItems(toInsert, Actionable.MODULATE, source);
-                        worked = true;
                     }
                 }
             }

@@ -106,6 +106,9 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     private StockingMode mode = StockingMode.BIDIRECTIONAL;
 
+    // 用于避免 onChangeInventory 在滚轮清除 config slot 时循环重置 targetAmount
+    private transient boolean ignoreConfigChange = false;
+
     private final StockingHandler itemHandler = new ItemStockingHandler();
     private final StockingHandler fluidHandler = new FluidStockingHandler();
     private final StockingHandler gasHandler = new GasStockingHandler();
@@ -432,11 +435,16 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             }
         }
         if (count == 0) {
-            FluidStack probe = new FluidStack(targetFluid, Integer.MAX_VALUE);
-            FluidStack drained = fh.drain(probe, false);
-            if (drained != null && drained.getFluid() != null
-                    && targetFluid.getName().equals(drained.getFluid().getName())) {
-                count = drained.amount;
+            // 尝试用不同 amount 进行 drain 探测，某些容器的 drain 可能不支持 MAX_VALUE
+            int[] probeAmounts = {Integer.MAX_VALUE, 1000, 1};
+            for (int amount : probeAmounts) {
+                FluidStack probe = new FluidStack(targetFluid, amount);
+                FluidStack drained = fh.drain(probe, false);
+                if (drained != null && drained.getFluid() != null
+                        && targetFluid.getName().equals(drained.getFluid().getName())) {
+                    count = drained.amount;
+                    break;
+                }
             }
         }
         return count;
@@ -473,6 +481,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (amount <= 0) return false;
         FluidStack toDrain = fluidFilter.getFluidStack();
         if (toDrain == null) return false;
+        toDrain = toDrain.copy();
         toDrain.amount = (int) Math.min(amount, Integer.MAX_VALUE);
         toDrain = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(toDrain);
 
@@ -542,13 +551,17 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     private long countGas(Object gasHandler, EnumFacing opposite,
                           com.mekeng.github.common.me.data.IAEGasStack wanted) throws Exception {
-        Object drained = GasReflectionHelper.drawGas(gasHandler, opposite, Integer.MAX_VALUE, false);
-        if (drained == null) return 0;
-        int amount = GasReflectionHelper.getGasAmount(drained);
-        Object gasType = GasReflectionHelper.getGasType(drained);
-        Object wantedGasType = wanted.getGas();
-        if (gasType != null && gasType.equals(wantedGasType)) {
-            return amount;
+        int[] probeAmounts = {Integer.MAX_VALUE, 1000, 1};
+        for (int amount : probeAmounts) {
+            Object drained = GasReflectionHelper.drawGas(gasHandler, opposite, amount, false);
+            if (drained != null) {
+                int drainedAmount = GasReflectionHelper.getGasAmount(drained);
+                Object gasType = GasReflectionHelper.getGasType(drained);
+                Object wantedGasType = wanted.getGas();
+                if (gasType != null && gasType.equals(wantedGasType)) {
+                    return drainedAmount;
+                }
+            }
         }
         return 0;
     }
@@ -726,9 +739,19 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     public void setTargetAmount(int slot, long amount) {
         if (slot < 0 || slot >= CONFIG_SIZE) return;
         this.targetAmounts[slot] = Math.max(0, amount);
-        appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
-        if (aeStack != null) {
-            aeStack.setStackSize(this.targetAmounts[slot]);
+        if (this.targetAmounts[slot] == 0) {
+            // 数量为0时清除 config slot，真正取消标记
+            this.ignoreConfigChange = true;
+            try {
+                this.config.setStackInSlot(slot, ItemStack.EMPTY);
+            } finally {
+                this.ignoreConfigChange = false;
+            }
+        } else {
+            appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
+            if (aeStack != null) {
+                aeStack.setStackSize(this.targetAmounts[slot]);
+            }
         }
         this.saveChanges();
     }
@@ -751,9 +774,16 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                                    net.minecraft.item.ItemStack removedStack,
                                    net.minecraft.item.ItemStack newStack) {
         super.onChangeInventory(inv, slot, mc, removedStack, newStack);
+        if (this.ignoreConfigChange) return;
         if (inv == this.config && slot >= 0 && slot < CONFIG_SIZE) {
             if (newStack.isEmpty()) {
-                // 取出物品时重置目标数量
+                // 手动取出物品时重置目标数量
+                if (this.targetAmounts[slot] > 0) {
+                    this.targetAmounts[slot] = 1;
+                    this.saveChanges();
+                }
+            } else if (this.targetAmounts[slot] <= 0) {
+                // 新放入物品且之前已被清除，重置为默认值1
                 this.targetAmounts[slot] = 1;
                 this.saveChanges();
             }
