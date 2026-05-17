@@ -9,6 +9,7 @@ import appeng.me.GridAccessException;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
+import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -30,7 +31,7 @@ public class EssentiaBusHelper {
     }
 
     public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {
-        return FakeItemRegister.getAEStack(itemStack);
+        return FakeEssentias.unpackEssentia(itemStack);
     }
 
     // endregion

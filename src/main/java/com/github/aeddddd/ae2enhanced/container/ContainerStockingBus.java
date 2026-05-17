@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.container.slot.OptionalSlotStockingConfig;
 import com.github.aeddddd.ae2enhanced.container.slot.SlotStockingConfig;
 import appeng.helpers.InventoryAction;
 import appeng.util.Platform;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
@@ -193,12 +194,116 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
             }
         }
 
+        ItemStack fluidDrop = tryConvertFluidDummyToFake(held);
+        if (fluidDrop != null) return fluidDrop;
+
+        ItemStack ae2fcFluid = tryConvertAe2fcFluidToFake(held);
+        if (ae2fcFluid != null) return ae2fcFluid;
+
+        ItemStack ae2fcGas = tryConvertAe2fcGasToFake(held);
+        if (ae2fcGas != null) return ae2fcGas;
+
+        ItemStack dummyAspect = tryConvertDummyAspectToFake(held);
+        if (dummyAspect != null) return dummyAspect;
+
         ItemStack gasFake = tryConvertGasToFake(held);
         if (gasFake != null) return gasFake;
 
         ItemStack essentiaFake = FakeEssentias.tryConvertContainerToFake(held);
         if (essentiaFake != null) return essentiaFake;
 
+        return null;
+    }
+
+    private static ItemStack tryConvertFluidDummyToFake(ItemStack held) {
+        if (held.isEmpty()) return null;
+        if (!"appeng.fluids.items.FluidDummyItem".equals(held.getItem().getClass().getName())) return null;
+        try {
+            Class<?> fluidDummyClass = Class.forName("appeng.fluids.items.FluidDummyItem");
+            java.lang.reflect.Method getFluidStack = fluidDummyClass.getMethod("getFluidStack", ItemStack.class);
+            FluidStack fluid = (FluidStack) getFluidStack.invoke(held.getItem(), held);
+            if (fluid != null && fluid.getFluid() != null) {
+                return ItemFluidDrop.createStack(new FluidStack(fluid.getFluid(), 1));
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to convert FluidDummyItem", e);
+        }
+        return null;
+    }
+
+    private static ItemStack tryConvertAe2fcFluidToFake(ItemStack held) {
+        if (held.isEmpty()) return null;
+        String name = held.getItem().getClass().getName();
+        if (!"com.glodblock.github.common.item.ItemFluidDrop".equals(name)
+                && !"com.glodblock.github.common.item.ItemFluidPacket".equals(name)) return null;
+        try {
+            FluidStack fluid = com.github.aeddddd.ae2enhanced.util.FakeFluids.unpackAe2fcFluid(held);
+            if (fluid != null && fluid.getFluid() != null) {
+                return ItemFluidDrop.createStack(new FluidStack(fluid.getFluid(), 1));
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to convert ae2fc fluid item", e);
+        }
+        return null;
+    }
+
+    private static ItemStack tryConvertAe2fcGasToFake(ItemStack held) {
+        if (held.isEmpty()) return null;
+        String name = held.getItem().getClass().getName();
+        if (!"com.glodblock.github.common.item.ItemGasDrop".equals(name)
+                && !"com.glodblock.github.common.item.ItemGasPacket".equals(name)) return null;
+        try {
+            if (held.hasTagCompound()) {
+                net.minecraft.nbt.NBTTagCompound tag = held.getTagCompound();
+                String gasName = null;
+                if (tag.hasKey("Gas", 8)) {
+                    gasName = tag.getString("Gas");
+                } else if (tag.hasKey("GasStack", 10)) {
+                    Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+                    Object gasStack = gasStackClass.getMethod("readFromNBT", net.minecraft.nbt.NBTTagCompound.class)
+                            .invoke(null, tag.getCompoundTag("GasStack"));
+                    if (gasStack != null) {
+                        Object gas = gasStackClass.getMethod("getGas").invoke(gasStack);
+                        if (gas != null) {
+                            gasName = (String) gas.getClass().getMethod("getName").invoke(gas);
+                        }
+                    }
+                }
+                if (gasName != null) {
+                    Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
+                    Object gas = gasRegistryClass.getMethod("getGas", String.class).invoke(null, gasName);
+                    if (gas != null) {
+                        Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+                        Object gasStack = gasStackClass.getConstructor(gas.getClass(), int.class)
+                                .newInstance(gas, 1);
+                        Class<?> itemGasDropClass = Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop");
+                        return (ItemStack) itemGasDropClass.getMethod("createStack", gasStackClass)
+                                .invoke(null, gasStack);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to convert ae2fc gas item", e);
+        }
+        return null;
+    }
+
+    private static ItemStack tryConvertDummyAspectToFake(ItemStack held) {
+        if (held.isEmpty()) return null;
+        if (!"thaumicenergistics.item.ItemDummyAspect".equals(held.getItem().getClass().getName())) return null;
+        try {
+            if (held.hasTagCompound()) {
+                net.minecraft.nbt.NBTTagCompound tag = held.getTagCompound();
+                if (tag.hasKey("aspect", 8)) {
+                    String aspectTag = tag.getString("aspect");
+                    Class<?> essentiaDropClass = Class.forName("com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop");
+                    return (ItemStack) essentiaDropClass.getMethod("createStack", String.class, int.class)
+                            .invoke(null, aspectTag, 1);
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to convert ItemDummyAspect", e);
+        }
         return null;
     }
 

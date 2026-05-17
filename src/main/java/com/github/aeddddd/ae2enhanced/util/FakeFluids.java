@@ -7,9 +7,11 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.fluids.util.AEFluidStack;
 import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
@@ -98,7 +100,70 @@ public final class FakeFluids {
     }
 
     public static IAEFluidStack unpackFluid(IAEItemStack itemStack) {
-        return FakeItemRegister.getAEStack(itemStack);
+        if (itemStack == null) return null;
+        ItemStack stack = itemStack.createItemStack();
+        if (ItemFluidDrop.isFluidDrop(stack)) {
+            return FakeItemRegister.getAEStack(itemStack);
+        }
+        // 兼容 AE2 UEL 的 FluidDummyItem（从终端拖动流体时会得到此物品）
+        if ("appeng.fluids.items.FluidDummyItem".equals(stack.getItem().getClass().getName())) {
+            try {
+                Class<?> fluidDummyClass = Class.forName("appeng.fluids.items.FluidDummyItem");
+                java.lang.reflect.Method getFluidStack = fluidDummyClass.getMethod("getFluidStack", ItemStack.class);
+                FluidStack fluid = (FluidStack) getFluidStack.invoke(stack.getItem(), stack);
+                if (fluid != null && fluid.getFluid() != null) {
+                    AEFluidStack result = AEFluidStack.fromFluidStack(fluid);
+                    if (result != null) {
+                        result.setStackSize(itemStack.getStackSize());
+                    }
+                    return result;
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to unpack FluidDummyItem", e);
+            }
+        }
+        // 兼容 ae2fc 的 ItemFluidDrop / ItemFluidPacket
+        String itemClass = stack.getItem().getClass().getName();
+        if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
+                || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+            try {
+                FluidStack fluid = unpackAe2fcFluid(stack);
+                if (fluid != null && fluid.getFluid() != null) {
+                    AEFluidStack result = AEFluidStack.fromFluidStack(fluid);
+                    if (result != null) {
+                        result.setStackSize(itemStack.getStackSize());
+                    }
+                    return result;
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to unpack ae2fc fluid item", e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从 ae2fc 的 ItemFluidDrop / ItemFluidPacket 中解析 FluidStack。
+     * 暴露为 public 供 Container 的转换逻辑复用。
+     */
+    public static FluidStack unpackAe2fcFluid(ItemStack stack) {
+        if (!stack.hasTagCompound()) return null;
+        NBTTagCompound tag = stack.getTagCompound();
+        // ItemFluidPacket: FluidStack 存储在 "FluidStack" NBT 中
+        if (tag.hasKey("FluidStack", 10)) {
+            return FluidStack.loadFluidStackFromNBT(tag.getCompoundTag("FluidStack"));
+        }
+        // ItemFluidDrop: Fluid 名称存储在 "Fluid" 中，amount 为 stack count
+        if (tag.hasKey("Fluid", 8)) {
+            net.minecraftforge.fluids.Fluid fluid = FluidRegistry.getFluid(tag.getString("Fluid"));
+            if (fluid == null) return null;
+            FluidStack result = new FluidStack(fluid, stack.getCount());
+            if (tag.hasKey("FluidTag", 10)) {
+                result.tag = tag.getCompoundTag("FluidTag");
+            }
+            return result;
+        }
+        return null;
     }
 
     /**

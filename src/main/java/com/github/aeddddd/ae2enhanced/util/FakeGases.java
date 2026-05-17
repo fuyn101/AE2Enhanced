@@ -8,6 +8,7 @@ import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
 import mekanism.api.gas.GasStack;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.common.Loader;
 
 /**
@@ -121,7 +122,49 @@ public final class FakeGases {
     }
 
     public static IAEGasStack unpackGas(IAEItemStack itemStack) {
-        return FakeItemRegister.getAEStack(itemStack);
+        if (itemStack == null) return null;
+        ItemStack stack = itemStack.createItemStack();
+        if (isGasFakeItemSafe(stack)) {
+            return FakeItemRegister.getAEStack(itemStack);
+        }
+        // 兼容 ae2fc 的 ItemGasDrop / ItemGasPacket
+        String itemClass = stack.getItem().getClass().getName();
+        if ("com.glodblock.github.common.item.ItemGasDrop".equals(itemClass)
+                || "com.glodblock.github.common.item.ItemGasPacket".equals(itemClass)) {
+            try {
+                GasStack gasStack = unpackAe2fcGas(stack);
+                if (gasStack != null && gasStack.getGas() != null) {
+                    AEGasStack result = AEGasStack.of(gasStack);
+                    if (result != null) {
+                        result.setStackSize(itemStack.getStackSize());
+                    }
+                    return result;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static GasStack unpackAe2fcGas(ItemStack stack) throws Exception {
+        if (!stack.hasTagCompound()) return null;
+        NBTTagCompound tag = stack.getTagCompound();
+        // ItemGasPacket: GasStack 存储在 "GasStack" NBT 中
+        if (tag.hasKey("GasStack", 10)) {
+            return GasStack.readFromNBT(tag.getCompoundTag("GasStack"));
+        }
+        // ItemGasDrop: Gas 名称存储在 "Gas" 中，amount 为 stack count
+        if (tag.hasKey("Gas", 8)) {
+            String gasName = tag.getString("Gas");
+            Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
+            Object gas = gasRegistryClass.getMethod("getGas", String.class).invoke(null, gasName);
+            if (gas != null) {
+                Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+                Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+                return (GasStack) gasStackClass.getConstructor(gasClass, int.class).newInstance(gas, stack.getCount());
+            }
+        }
+        return null;
     }
 
     /**

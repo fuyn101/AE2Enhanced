@@ -242,9 +242,35 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     private ResourceType getSlotType(IAEItemStack filter) {
         ItemStack stack = filter.createItemStack();
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
+        if (isAeFluidDummy(stack)) return ResourceType.FLUID;
+        if (isAe2fcFluidDrop(stack)) return ResourceType.FLUID;
         if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (isAe2fcGasDrop(stack)) return ResourceType.GAS;
         if (FakeEssentias.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
+        if (isTheDummyAspect(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
+    }
+
+    private static boolean isAeFluidDummy(ItemStack stack) {
+        return !stack.isEmpty() && "appeng.fluids.items.FluidDummyItem".equals(stack.getItem().getClass().getName());
+    }
+
+    private static boolean isAe2fcFluidDrop(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName();
+        return "com.glodblock.github.common.item.ItemFluidDrop".equals(name)
+                || "com.glodblock.github.common.item.ItemFluidPacket".equals(name);
+    }
+
+    private static boolean isAe2fcGasDrop(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName();
+        return "com.glodblock.github.common.item.ItemGasDrop".equals(name)
+                || "com.glodblock.github.common.item.ItemGasPacket".equals(name);
+    }
+
+    private static boolean isTheDummyAspect(ItemStack stack) {
+        return !stack.isEmpty() && "thaumicenergistics.item.ItemDummyAspect".equals(stack.getItem().getClass().getName());
     }
 
     private boolean runStocking(long actual, long targetAmount, long maxWork,

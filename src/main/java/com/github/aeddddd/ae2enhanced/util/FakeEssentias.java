@@ -86,6 +86,34 @@ public class FakeEssentias {
      * 使用字符串比较而非直接引用 ItemEssentiaDrop 类，避免 Thaumcraft 不存在时
      * 触发 NoClassDefFoundError。
      */
+    /**
+     * 从 IAEItemStack 中解析 IAEEssentiaStack。
+     * 支持 ItemEssentiaDrop 和 Thaumic Energistics 的 ItemDummyAspect。
+     */
+    public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {
+        if (itemStack == null) return null;
+        ItemStack stack = itemStack.createItemStack();
+        if (isEssentiaFakeItem(stack)) {
+            return FakeItemRegister.getAEStack(itemStack);
+        }
+        // 兼容 Thaumic Energistics 的 ItemDummyAspect
+        if ("thaumicenergistics.item.ItemDummyAspect".equals(stack.getItem().getClass().getName())) {
+            try {
+                if (stack.hasTagCompound()) {
+                    net.minecraft.nbt.NBTTagCompound tag = stack.getTagCompound();
+                    if (tag.hasKey("aspect", 8)) {
+                        String aspectTag = tag.getString("aspect");
+                        EssentiaStack essStack = new EssentiaStack(aspectTag, (int) itemStack.getStackSize());
+                        IAEEssentiaStack result = AEEssentiaStack.fromEssentiaStack(essStack);
+                        return result;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
     public static boolean isEssentiaFakeItem(ItemStack stack) {
         return !stack.isEmpty() && ESSENTIA_DROP_CLASS.equals(stack.getItem().getClass().getName());
     }
