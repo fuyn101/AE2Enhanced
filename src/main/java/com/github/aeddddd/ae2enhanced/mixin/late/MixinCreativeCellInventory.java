@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.At;
  *
  * <p>参考：GTNH Applied-Energistics-2-Unofficial PR#708</p>
  */
-@Mixin(CreativeCellInventory.class)
+@Mixin(value = CreativeCellInventory.class, priority = 100)
 public abstract class MixinCreativeCellInventory {
 
     @WrapOperation(
