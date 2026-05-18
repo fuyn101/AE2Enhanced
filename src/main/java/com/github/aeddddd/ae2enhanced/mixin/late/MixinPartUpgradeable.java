@@ -1,8 +1,10 @@
 package com.github.aeddddd.ae2enhanced.mixin.late;
 
 import appeng.api.AEApi;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.me.GridAccessException;
@@ -113,6 +115,19 @@ public abstract class MixinPartUpgradeable {
             try {
                 IGridConnection conn = AEApi.instance().grid().createGridConnection(node, transmitterNode);
                 AE2E_REMOTE_CONNECTIONS.put(node, conn);
+                AE2Enhanced.LOGGER.info("[AE2E] Created wireless grid connection for {} -> transmitter at {}", self.getClass().getSimpleName(), pos);
+
+                // AE2 的 createGridConnection 在 addConnection 之前调用 repath()，
+                // 导致路径系统看不到这条新连接，从而无法分配频道。
+                // 手动再触发一次 repath() 以修正路径计算。
+                IGrid grid = node.getGrid();
+                if (grid != null) {
+                    IPathingGrid pathing = grid.getCache(IPathingGrid.class);
+                    if (pathing != null) {
+                        pathing.repath();
+                        AE2Enhanced.LOGGER.info("[AE2E] Triggered manual repath() for wireless connection");
+                    }
+                }
             } catch (Exception e) {
                 AE2Enhanced.LOGGER.warn("[AE2E] Failed to create wireless channel connection", e);
             }
