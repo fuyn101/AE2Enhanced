@@ -36,11 +36,10 @@ import java.util.EnumSet;
  */
 public class TileWirelessChannelTransmitter extends TileAENetworkBase implements ITickable {
 
-    public static final int SLOT_INPUT = 0;
-    public static final int SLOT_OUTPUT = 1;
+    public static final int SLOT_CARD = 0;
 
     private EnumFacing forward = EnumFacing.NORTH;
-    private final ItemStackHandler inventory = new ItemStackHandler(2) {
+    private final ItemStackHandler inventory = new ItemStackHandler(1) {
         @Override
         public int getSlotLimit(int slot) {
             return 1;
@@ -53,11 +52,7 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
         @Override
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-            if (slot == SLOT_INPUT) {
-                return stack.getItem() instanceof ItemChannelReceiverCard
-                    && !ItemChannelReceiverCard.isBound(stack);
-            }
-            return false;
+            return stack.getItem() instanceof ItemChannelReceiverCard;
         }
     };
 
@@ -215,22 +210,13 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     }
 
     public void processBinding() {
-        ItemStack input = this.inventory.getStackInSlot(SLOT_INPUT);
-        ItemStack output = this.inventory.getStackInSlot(SLOT_OUTPUT);
-        if (input.isEmpty() || !(input.getItem() instanceof ItemChannelReceiverCard)) return;
-        if (ItemChannelReceiverCard.isBound(input)) return;
-        if (!output.isEmpty()) return;
+        ItemStack card = this.inventory.getStackInSlot(SLOT_CARD);
+        if (card.isEmpty() || !(card.getItem() instanceof ItemChannelReceiverCard)) return;
+        if (ItemChannelReceiverCard.isBound(card)) return;
 
         BlockPos tp = this.pos;
         int dim = this.world.provider.getDimension();
-
-        ItemStack bound = input.copy();
-        bound.setCount(1);
-        ItemChannelReceiverCard.bindToTransmitter(bound, tp, dim, this.forward);
-
-        input.shrink(1);
-        this.inventory.setStackInSlot(SLOT_INPUT, input);
-        this.inventory.setStackInSlot(SLOT_OUTPUT, bound);
+        ItemChannelReceiverCard.bindToTransmitter(card, tp, dim, this.forward);
         this.markDirty();
     }
 

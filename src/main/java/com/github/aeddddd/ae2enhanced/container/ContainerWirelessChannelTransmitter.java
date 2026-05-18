@@ -20,8 +20,7 @@ public class ContainerWirelessChannelTransmitter extends AEBaseContainer {
         super(ip, tile, null);
         this.tile = tile;
 
-        this.addSlotToContainer(new AppEngSlot(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_INPUT, 44, 35));
-        this.addSlotToContainer(new AppEngSlot(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_OUTPUT, 116, 35));
+        this.addSlotToContainer(new AppEngSlot(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_CARD, 72, 46));
 
         this.bindPlayerInventory(ip, 0, 84);
     }
