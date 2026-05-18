@@ -432,7 +432,9 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         @Override
         public long handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
                            long targetAmount, long maxWork) throws GridAccessException {
-            IFluidHandler fh = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+            IFluidHandler fhRaw = target.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, opposite);
+            final IFluidHandler fh = (fhRaw != null) ? fhRaw
+                    : (target instanceof IFluidHandler) ? (IFluidHandler) target : null;
             if (fh == null) return 0;
 
             IMEMonitor<IAEFluidStack> inv = PartStockingBus.this.getProxy().getStorage().getInventory(
@@ -449,7 +451,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             try {
                 long actual = countFluids(fh, targetFluid);
                 long scaledMaxWork = maxWork * 1000;
-                long consumedMb = runStocking(actual, targetAmount, scaledMaxWork,
+                long targetAmountMb = targetAmount * 1000;
+                long consumedMb = runStocking(actual, targetAmountMb, scaledMaxWork,
                         toSupply -> supplyFluid(fh, inv, fluidFilter, toSupply),
                         toRecover -> recoverFluid(fh, inv, fluidFilter, toRecover));
                 return consumedMb > 0 ? Math.max(1, consumedMb / 1000) : 0;
@@ -582,7 +585,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             try {
                 long actual = countGas(gasHandler, opposite, wanted);
                 long scaledMaxWork = maxWork * 1000;
-                long consumedMb = runStocking(actual, targetAmount, scaledMaxWork,
+                long targetAmountMb = targetAmount * 1000;
+                long consumedMb = runStocking(actual, targetAmountMb, scaledMaxWork,
                         toSupply -> supplyGas(gasHandler, opposite, inv, wanted, toSupply),
                         toRecover -> recoverGas(gasHandler, opposite, inv, wanted, toRecover));
                 return consumedMb > 0 ? Math.max(1, consumedMb / 1000) : 0;
