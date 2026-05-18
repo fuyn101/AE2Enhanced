@@ -18,7 +18,8 @@
     "MixinInventoryPlayer",
     "MixinTileIOPort",
     "MixinPartUpgradeable",
-    "MixinUpgradeInvFilter"
+    "MixinUpgradeInvFilter",
+    "MixinUpgradeSlots"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",

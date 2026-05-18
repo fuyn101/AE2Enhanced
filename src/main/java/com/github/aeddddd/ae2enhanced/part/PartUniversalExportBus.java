@@ -55,7 +55,7 @@ public class PartUniversalExportBus extends PartUniversalBusBase {
 
     @Override
     protected int getUpgradeSlots() {
-        return 5;
+        return 5 + com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.wirelessChannel.extraUpgradeSlots;
     }
 
     @Override

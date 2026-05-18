@@ -135,6 +135,14 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = 32768)
         public int transmitterPower = 512;
+
+        @Config.Comment({
+            "Extra upgrade slots added to all AE2 devices (Parts and Tiles).",
+            "This compensates for the channel receiver card occupying a slot.",
+            "Range: 0 ~ 8, Default: 2"
+        })
+        @Config.RangeInt(min = 0, max = 8)
+        public int extraUpgradeSlots = 2;
     }
 
     public static class BlackHole {
