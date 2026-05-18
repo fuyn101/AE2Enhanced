@@ -1,20 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    " C ",
-    "ERE",
-    " C "
+    "QEQ",
+    "ETE",
+    "QEQ"
   ],
   "key": {
-    "C": {
-      "item": "appliedenergistics2:material",
-      "data": 22
+    "Q": {
+      "item": "appliedenergistics2:quantum_ring"
     },
     "E": {
       "item": "appliedenergistics2:material",
       "data": 24
     },
-    "R": {
+    "T": {
       "item": "appliedenergistics2:material",
       "data": 41
     }

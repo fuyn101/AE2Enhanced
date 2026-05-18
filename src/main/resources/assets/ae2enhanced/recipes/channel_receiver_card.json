@@ -1,14 +1,13 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    " S ",
+    " Q ",
     "RER",
-    " S "
+    " Q "
   ],
   "key": {
-    "S": {
-      "item": "appliedenergistics2:material",
-      "data": 5
+    "Q": {
+      "item": "appliedenergistics2:quantum_link"
     },
     "E": {
       "item": "appliedenergistics2:material",
@@ -21,6 +20,6 @@
   },
   "result": {
     "item": "ae2enhanced:channel_receiver_card",
-    "count": 4
+    "count": 2
   }
 }

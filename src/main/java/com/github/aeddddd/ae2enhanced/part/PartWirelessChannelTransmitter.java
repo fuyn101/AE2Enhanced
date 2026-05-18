@@ -43,11 +43,10 @@ public class PartWirelessChannelTransmitter extends PartBasicState implements IG
     private static final ResourceLocation MODEL_OFF = new ResourceLocation(AE2Enhanced.MOD_ID, "part/wireless_channel_transmitter_off");
     private static final ResourceLocation MODEL_ON = new ResourceLocation(AE2Enhanced.MOD_ID, "part/wireless_channel_transmitter_on");
     private static final ResourceLocation MODEL_HAS_CHANNEL = new ResourceLocation(AE2Enhanced.MOD_ID, "part/wireless_channel_transmitter_has_channel");
-    private static final ResourceLocation MODEL_BASE = new ResourceLocation(AE2Enhanced.MOD_ID, "part/wireless_channel_transmitter_base");
 
-    public static final IPartModel MODELS_OFF = new PartModel(new ResourceLocation[]{MODEL_BASE, MODEL_OFF});
-    public static final IPartModel MODELS_ON = new PartModel(new ResourceLocation[]{MODEL_BASE, MODEL_ON});
-    public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(new ResourceLocation[]{MODEL_BASE, MODEL_HAS_CHANNEL});
+    public static final IPartModel MODELS_OFF = new PartModel(MODEL_OFF);
+    public static final IPartModel MODELS_ON = new PartModel(MODEL_ON);
+    public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(new ResourceLocation[]{MODEL_ON, MODEL_HAS_CHANNEL});
 
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_OUTPUT = 1;
