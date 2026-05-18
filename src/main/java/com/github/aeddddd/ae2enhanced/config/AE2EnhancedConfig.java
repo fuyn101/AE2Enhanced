@@ -46,7 +46,7 @@ public class AE2EnhancedConfig {
 
     @Config.Name("WirelessChannel")
     @Config.Comment({
-        "Wireless Channel System (F1) settings.",
+        "Wireless Channel System settings.",
         "Controls cross-dimension behavior, range, and transmitter power draw."
     })
     public static WirelessChannel wirelessChannel = new WirelessChannel();

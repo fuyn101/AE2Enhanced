@@ -7,6 +7,7 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.me.GridAccessException;
 import appeng.parts.automation.PartUpgradeable;
+import appeng.parts.automation.UpgradeInventory;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
@@ -18,6 +19,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -34,8 +36,24 @@ public abstract class MixinPartUpgradeable {
 
     private static final Map<IGridNode, IGridConnection> AE2E_REMOTE_CONNECTIONS = new HashMap<>();
 
-    @Inject(method = "upgradesChanged", at = @At("TAIL"), remap = false)
-    private void ae2e$onUpgradesChanged(CallbackInfo ci) {
+    @Shadow
+    private UpgradeInventory upgrades;
+
+    /**
+     * 注入 {@link PartUpgradeable#onChangeInventory} 的 TAIL，而不是
+     * {@code upgradesChanged()}。因为大量 AE2 Part 子类（ImportBus、ExportBus、
+     * FormationPlane 等）覆盖了 {@code upgradesChanged()} 且不调用
+     * {@code super.upgradesChanged()}，导致注入 {@code upgradesChanged} 的 Mixin
+     * 实际上永远不会执行。
+     */
+    @Inject(method = "onChangeInventory", at = @At("TAIL"), remap = false)
+    private void ae2e$onUpgradesChanged(IItemHandler inv, int slot, appeng.util.inv.InvOperation mc,
+                                         ItemStack removedStack, ItemStack newStack, CallbackInfo ci) {
+        // 只处理升级槽的变化
+        if (inv != this.upgrades) {
+            return;
+        }
+
         PartUpgradeable self = (PartUpgradeable) (Object) this;
 
         IGridNode node;
