@@ -117,7 +117,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     public PartStockingBus(ItemStack is) {
         super(is);
-        this.config = new AppEngInternalAEInventory(this, CONFIG_SIZE);
+        this.config = new AppEngInternalAEInventory(this, CONFIG_SIZE, Integer.MAX_VALUE);
         this.source = new MachineSource(this);
         for (int i = 0; i < CONFIG_SIZE; i++) {
             this.targetAmounts[i] = 1;
@@ -451,8 +451,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             try {
                 long actual = countFluids(fh, targetFluid);
                 long scaledMaxWork = maxWork * 1000;
-                long targetAmountMb = targetAmount * 1000;
-                long consumedMb = runStocking(actual, targetAmountMb, scaledMaxWork,
+                long consumedMb = runStocking(actual, targetAmount, scaledMaxWork,
                         toSupply -> supplyFluid(fh, inv, fluidFilter, toSupply),
                         toRecover -> recoverFluid(fh, inv, fluidFilter, toRecover));
                 return consumedMb > 0 ? Math.max(1, consumedMb / 1000) : 0;
@@ -585,8 +584,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             try {
                 long actual = countGas(gasHandler, opposite, wanted);
                 long scaledMaxWork = maxWork * 1000;
-                long targetAmountMb = targetAmount * 1000;
-                long consumedMb = runStocking(actual, targetAmountMb, scaledMaxWork,
+                long consumedMb = runStocking(actual, targetAmount, scaledMaxWork,
                         toSupply -> supplyGas(gasHandler, opposite, inv, wanted, toSupply),
                         toRecover -> recoverGas(gasHandler, opposite, inv, wanted, toRecover));
                 return consumedMb > 0 ? Math.max(1, consumedMb / 1000) : 0;
@@ -719,6 +717,32 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             // 不再强制将 0 覆写为 1，允许保存/加载时保持清除状态
         }
         this.config.readFromNBT(data, "config");
+        // 同步 targetAmount 到 config slot 的 ItemStack count
+        for (int i = 0; i < CONFIG_SIZE; i++) {
+            ItemStack stack = this.config.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                int newCount = (int) Math.min(this.targetAmounts[i], Integer.MAX_VALUE);
+                if (newCount > 0 && stack.getCount() != newCount) {
+                    this.ignoreConfigChange = true;
+                    try {
+                        ItemStack newStack = stack.copy();
+                        newStack.setCount(newCount);
+                        this.config.setStackInSlot(i, newStack);
+                    } finally {
+                        this.ignoreConfigChange = false;
+                    }
+                } else if (newCount <= 0) {
+                    this.ignoreConfigChange = true;
+                    try {
+                        this.config.setStackInSlot(i, ItemStack.EMPTY);
+                    } finally {
+                        this.ignoreConfigChange = false;
+                    }
+                }
+            } else if (this.targetAmounts[i] > 0) {
+                this.targetAmounts[i] = 0;
+            }
+        }
     }
 
     @Override
@@ -788,19 +812,29 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
     public void setTargetAmount(int slot, long amount) {
         if (slot < 0 || slot >= CONFIG_SIZE) return;
         this.targetAmounts[slot] = Math.max(0, amount);
-        if (this.targetAmounts[slot] == 0) {
-            // 数量为0时清除 config slot，真正取消标记
-            this.ignoreConfigChange = true;
-            try {
-                this.config.setStackInSlot(slot, ItemStack.EMPTY);
-            } finally {
-                this.ignoreConfigChange = false;
+        ItemStack stack = this.config.getStackInSlot(slot);
+        if (!stack.isEmpty()) {
+            int newCount = (int) Math.min(this.targetAmounts[slot], Integer.MAX_VALUE);
+            if (newCount > 0 && stack.getCount() != newCount) {
+                this.ignoreConfigChange = true;
+                try {
+                    ItemStack newStack = stack.copy();
+                    newStack.setCount(newCount);
+                    this.config.setStackInSlot(slot, newStack);
+                } finally {
+                    this.ignoreConfigChange = false;
+                }
+            } else if (newCount <= 0) {
+                this.ignoreConfigChange = true;
+                try {
+                    this.config.setStackInSlot(slot, ItemStack.EMPTY);
+                } finally {
+                    this.ignoreConfigChange = false;
+                }
             }
-        } else {
-            appeng.api.storage.data.IAEItemStack aeStack = this.config.getAEStackInSlot(slot);
-            if (aeStack != null) {
-                aeStack.setStackSize(this.targetAmounts[slot]);
-            }
+        }
+        if (this.targetAmounts[slot] == 0 && !stack.isEmpty()) {
+            // 已在上方处理，此处仅作保险
         }
         this.saveChanges();
     }
@@ -832,12 +866,33 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                     this.saveChanges();
                 }
             } else if (this.targetAmounts[slot] <= 0) {
-                // 新放入物品且之前已被清除，重置为默认值1
-                this.targetAmounts[slot] = 1;
+                // 新放入物品且之前已被清除，按类型设置默认值
+                long defaultAmount = getDefaultTargetAmount(newStack);
+                this.targetAmounts[slot] = defaultAmount;
                 this.saveChanges();
+                if (defaultAmount > 1) {
+                    this.ignoreConfigChange = true;
+                    try {
+                        ItemStack syncStack = newStack.copy();
+                        syncStack.setCount((int) Math.min(defaultAmount, Integer.MAX_VALUE));
+                        this.config.setStackInSlot(slot, syncStack);
+                    } finally {
+                        this.ignoreConfigChange = false;
+                    }
+                }
             }
             // 放入或替换物品时保留当前 targetAmount，避免覆盖 GUI 滚轮设置的值
         }
+    }
+
+    private long getDefaultTargetAmount(ItemStack stack) {
+        if (stack.isEmpty()) return 1;
+        if (ItemFluidDrop.isFluidDrop(stack)) return 1000;
+        if (isAeFluidDummy(stack)) return 1000;
+        if (isAe2fcFluidDrop(stack)) return 1000;
+        if (GasFakeItemChecks.isGasFakeItemSafe(stack)) return 1000;
+        if (isAe2fcGasDrop(stack)) return 1000;
+        return 1;
     }
 
     @Override
