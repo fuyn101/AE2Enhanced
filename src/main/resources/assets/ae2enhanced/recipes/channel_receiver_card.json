@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " S ",
+    "RER",
+    " S "
+  ],
+  "key": {
+    "S": {
+      "item": "appliedenergistics2:material",
+      "data": 5
+    },
+    "E": {
+      "item": "appliedenergistics2:material",
+      "data": 24
+    },
+    "R": {
+      "type": "forge:ore_dict",
+      "ore": "dustRedstone"
+    }
+  },
+  "result": {
+    "item": "ae2enhanced:channel_receiver_card",
+    "count": 4
+  }
+}

@@ -166,3 +166,12 @@ gui.ae2enhanced.stocking_bus.mode.bidirectional=双向维持
 gui.ae2enhanced.stocking_bus.mode.supply=仅补货
 gui.ae2enhanced.stocking_bus.mode.recover=仅回收
 gui.ae2enhanced.stocking_bus.set_amount=设置目标数量
+
+item.ae2enhanced.channel_receiver_card.name=频道接收卡
+item.ae2enhanced.channel_receiver_card.tooltip.bound=§a已绑定 §7到 [%d, %d, %d] 维度: %d
+item.ae2enhanced.channel_receiver_card.tooltip.unbound=§e未绑定 §7— 放入无线频道发生器进行绑定
+
+item.ae2enhanced.part_wireless_channel_transmitter.name=无线频道发生器
+item.ae2enhanced.part_wireless_channel_transmitter.tooltip=§e无线频道发生器 §7— 广播 32 个频道供远程接收器使用
+
+gui.ae2enhanced.wireless_channel_transmitter.title=无线频道发生器

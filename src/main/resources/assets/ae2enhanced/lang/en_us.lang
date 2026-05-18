@@ -168,3 +168,12 @@ gui.ae2enhanced.stocking_bus.mode.bidirectional=Bidirectional
 gui.ae2enhanced.stocking_bus.mode.supply=Supply Only
 gui.ae2enhanced.stocking_bus.mode.recover=Recover Only
 gui.ae2enhanced.stocking_bus.set_amount=Set Target Amount
+
+item.ae2enhanced.channel_receiver_card.name=Channel Receiver Card
+item.ae2enhanced.channel_receiver_card.tooltip.bound=§aBound §7to [%d, %d, %d] Dim: %d
+item.ae2enhanced.channel_receiver_card.tooltip.unbound=§eUnbound §7— Insert into a Wireless Channel Transmitter to bind
+
+item.ae2enhanced.part_wireless_channel_transmitter.name=Wireless Channel Transmitter
+item.ae2enhanced.part_wireless_channel_transmitter.tooltip=§eWireless Channel Transmitter §7— Broadcasts 32 channels for remote receivers
+
+gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter

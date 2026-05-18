@@ -3,9 +3,11 @@ package com.github.aeddddd.ae2enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
+import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.item.ItemPartStockingBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.item.ItemPartWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.item.ItemStableSpacetimeManifold;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import net.minecraft.item.Item;
@@ -26,6 +28,8 @@ public class ModItems {
     public static ItemPartUniversalImportBus PART_UNIVERSAL_IMPORT_BUS;
     public static ItemPartUniversalExportBus PART_UNIVERSAL_EXPORT_BUS;
     public static ItemPartStockingBus PART_STOCKING_BUS;
+    public static ItemPartWirelessChannelTransmitter PART_WIRELESS_CHANNEL_TRANSMITTER;
+    public static ItemChannelReceiverCard CHANNEL_RECEIVER_CARD;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -50,6 +54,8 @@ public class ModItems {
         PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
         PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();
         PART_STOCKING_BUS = new ItemPartStockingBus();
+        PART_WIRELESS_CHANNEL_TRANSMITTER = new ItemPartWirelessChannelTransmitter();
+        CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
     }
 
     @SubscribeEvent
@@ -68,5 +74,7 @@ public class ModItems {
         event.getRegistry().register(PART_UNIVERSAL_IMPORT_BUS);
         event.getRegistry().register(PART_UNIVERSAL_EXPORT_BUS);
         event.getRegistry().register(PART_STOCKING_BUS);
+        event.getRegistry().register(PART_WIRELESS_CHANNEL_TRANSMITTER);
+        event.getRegistry().register(CHANNEL_RECEIVER_CARD);
     }
 }

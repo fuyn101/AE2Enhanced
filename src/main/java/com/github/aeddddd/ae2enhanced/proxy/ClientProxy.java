@@ -203,6 +203,8 @@ public class ClientProxy extends CommonProxy {
         if (ModItems.PART_STOCKING_BUS != null) {
             AEApi.instance().registries().partModels().registerModels(PartStockingBus.MODELS);
             registerItemModel(ModItems.PART_STOCKING_BUS);
+            registerItemModel(ModItems.PART_WIRELESS_CHANNEL_TRANSMITTER);
+            registerItemModel(ModItems.CHANNEL_RECEIVER_CARD);
         }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型

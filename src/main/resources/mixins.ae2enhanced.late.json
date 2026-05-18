@@ -16,7 +16,8 @@
     "MixinAEBaseContainer",
     "MixinContainerCellWorkbench",
     "MixinInventoryPlayer",
-    "MixinTileIOPort"
+    "MixinTileIOPort",
+    "MixinPartUpgradeable"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",

@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " C ",
+    "ERE",
+    " C "
+  ],
+  "key": {
+    "C": {
+      "item": "appliedenergistics2:material",
+      "data": 22
+    },
+    "E": {
+      "item": "appliedenergistics2:material",
+      "data": 24
+    },
+    "R": {
+      "item": "appliedenergistics2:material",
+      "data": 41
+    }
+  },
+  "result": {
+    "item": "ae2enhanced:part_wireless_channel_transmitter"
+  }
+}

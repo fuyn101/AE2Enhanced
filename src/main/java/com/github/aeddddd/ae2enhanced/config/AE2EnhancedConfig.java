@@ -44,6 +44,13 @@ public class AE2EnhancedConfig {
     })
     public static Crafting crafting = new Crafting();
 
+    @Config.Name("WirelessChannel")
+    @Config.Comment({
+        "Wireless Channel System (F1) settings.",
+        "Controls cross-dimension behavior, range, and transmitter power draw."
+    })
+    public static WirelessChannel wirelessChannel = new WirelessChannel();
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",
@@ -104,8 +111,30 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = 64)
         public int maxActiveOrders = 8;
+    }
 
+    public static class WirelessChannel {
+        @Config.Comment({
+            "Allow wireless channel transmitters to connect across dimensions.",
+            "If false, transmitters and receivers must be in the same dimension.",
+            "Default: true"
+        })
+        public boolean crossDimension = true;
 
+        @Config.Comment({
+            "Maximum range (in blocks) between a transmitter and receiver.",
+            "Set to 0 for infinite range (same dimension only).",
+            "Range: 0 ~ 1000000, Default: 0"
+        })
+        @Config.RangeInt(min = 0, max = 1000000)
+        public int maxRange = 0;
+
+        @Config.Comment({
+            "Power draw (AE/t) for an active wireless channel transmitter.",
+            "Range: 1 ~ 32768, Default: 512"
+        })
+        @Config.RangeInt(min = 1, max = 32768)
+        public int transmitterPower = 512;
     }
 
     public static class BlackHole {

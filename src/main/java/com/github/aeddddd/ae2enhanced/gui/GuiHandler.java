@@ -10,11 +10,13 @@ import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;
+import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.part.PartWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -35,6 +37,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_UNIVERSAL_IMPORT_BUS = 6;
     public static final int GUI_UNIVERSAL_EXPORT_BUS = 7;
     public static final int GUI_STOCKING_BUS = 8;
+    public static final int GUI_WIRELESS_CHANNEL_TRANSMITTER = 9;
 
     /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -118,6 +121,16 @@ public class GuiHandler implements IGuiHandler {
                 }
             }
         }
+        if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
+            int sideOrdinal = (ID >> 8) & 0xFF;
+            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
+            if (te instanceof IPartHost) {
+                IPart part = ((IPartHost) te).getPart(side);
+                if (part instanceof PartWirelessChannelTransmitter) {
+                    return new ContainerWirelessChannelTransmitter(player.inventory, (PartWirelessChannelTransmitter) part);
+                }
+            }
+        }
 
         return null;
     }
@@ -184,6 +197,16 @@ public class GuiHandler implements IGuiHandler {
                 IPart part = ((IPartHost) te).getPart(side);
                 if (part instanceof PartStockingBus) {
                     return new GuiStockingBus(player.inventory, (PartStockingBus) part);
+                }
+            }
+        }
+        if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
+            int sideOrdinal = (ID >> 8) & 0xFF;
+            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
+            if (te instanceof IPartHost) {
+                IPart part = ((IPartHost) te).getPart(side);
+                if (part instanceof PartWirelessChannelTransmitter) {
+                    return new GuiWirelessChannelTransmitter(player.inventory, (PartWirelessChannelTransmitter) part);
                 }
             }
         }
