@@ -183,9 +183,9 @@ public class EssentiaBusHelper {
     // region Stocking Bus
 
     @SuppressWarnings("unchecked")
-    public static boolean stockEssentias(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
-                                          IAEItemStack filter, long targetAmount, long maxWork,
-                                          int modeOrdinal, IActionSource source) throws Exception {
+    public static long stockEssentias(appeng.api.networking.IGrid grid, TileEntity target, EnumFacing opposite,
+                                       IAEItemStack filter, long targetAmount, long maxWork,
+                                       int modeOrdinal, IActionSource source) throws Exception {
         thaumcraft.api.aspects.IEssentiaTransport transport = (thaumcraft.api.aspects.IEssentiaTransport) target;
 
         Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
@@ -197,7 +197,7 @@ public class EssentiaBusHelper {
 
         IAEEssentiaStack wanted = unpackEssentia(filter);
         if (wanted == null || wanted.getAspect() == null) {
-            return false;
+            return 0;
         }
 
         int actual = 0;
@@ -206,7 +206,7 @@ public class EssentiaBusHelper {
             actual = transport.getEssentiaAmount(opposite);
         }
         long delta = targetAmount - actual;
-        boolean worked = false;
+        long consumed = 0;
 
         // 补货：网络 → 外部
         if (delta > 0 && modeOrdinal != 2) { // RECOVER_ONLY = 2
@@ -222,7 +222,7 @@ public class EssentiaBusHelper {
                         EssentiaStack actualStack = new EssentiaStack(wanted.getAspect().getTag(), added);
                         IAEEssentiaStack toExtract = AEEssentiaStack.fromEssentiaStack(actualStack);
                         inv.extractItems(toExtract, Actionable.MODULATE, source);
-                        worked = true;
+                        consumed = added;
                     }
                 }
             }
@@ -244,14 +244,14 @@ public class EssentiaBusHelper {
                             EssentiaStack insertStack = new EssentiaStack(wanted.getAspect().getTag(), taken);
                             IAEEssentiaStack toInsert = AEEssentiaStack.fromEssentiaStack(insertStack);
                             inv.injectItems(toInsert, Actionable.MODULATE, source);
-                            worked = true;
+                            consumed = taken;
                         }
                     }
                 }
             }
         }
 
-        return worked;
+        return consumed;
     }
 
     // endregion
