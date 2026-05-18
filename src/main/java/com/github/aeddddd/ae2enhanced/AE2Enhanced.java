@@ -164,6 +164,29 @@ public class AE2Enhanced {
             Upgrades.CRAFTING.registerItem(busStack, 1);
         }
 
+        // F1a：频道接收卡兼容 —— 注册到原版AE2 Part与我们自己的Part
+        appeng.api.definitions.IParts ae2Parts = appeng.api.AEApi.instance().definitions().parts();
+        java.util.List<net.minecraft.item.ItemStack> targetStacks = new java.util.ArrayList<>();
+        // 我们自己的Part
+        if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) targetStacks.add(new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_IMPORT_BUS));
+        if (ModItems.PART_UNIVERSAL_EXPORT_BUS != null) targetStacks.add(new net.minecraft.item.ItemStack(ModItems.PART_UNIVERSAL_EXPORT_BUS));
+        if (ModItems.PART_STOCKING_BUS != null) targetStacks.add(new net.minecraft.item.ItemStack(ModItems.PART_STOCKING_BUS));
+        // 原版AE2常用Part
+        ae2Parts.importBus().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.exportBus().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.iface().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.storageBus().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.annihilationPlane().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.formationPlane().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.fluidImportBus().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.fluidExportBus().maybeStack(1).ifPresent(targetStacks::add);
+        ae2Parts.oreDictStorageBus().maybeStack(1).ifPresent(targetStacks::add);
+        for (net.minecraft.item.ItemStack stack : targetStacks) {
+            if (!stack.isEmpty()) {
+                Upgrades.QUANTUM_LINK.registerItem(stack, 1);
+            }
+        }
+
         registerSingularityRecipes();
         // 执行 CraftTweaker 延迟移除（CT 脚本可能在 init() 之前执行）
         BlackHoleRecipeRegistry.applyPendingRemovals();
