@@ -114,14 +114,9 @@ public class BlockWirelessChannelTransmitter extends Block {
         if (player.isSneaking()) return false;
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
-            AE2Enhanced.LOGGER.info("[AE2E-WCT] onBlockActivated te={}, class={}, pos={}", te,
-                te != null ? te.getClass().getSimpleName() : "null", pos);
             if (te instanceof TileWirelessChannelTransmitter) {
-                AE2Enhanced.LOGGER.info("[AE2E-WCT] Opening GUI for transmitter at {}", pos);
                 player.openGui(AE2Enhanced.instance, GuiHandler.GUI_WIRELESS_CHANNEL_TRANSMITTER,
                     world, pos.getX(), pos.getY(), pos.getZ());
-            } else {
-                AE2Enhanced.LOGGER.warn("[AE2E-WCT] TileEntity is not TileWirelessChannelTransmitter at {}", pos);
             }
         }
         return true;

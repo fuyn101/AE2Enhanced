@@ -131,7 +131,6 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     @Override
     public void validate() {
         super.validate();
-        AE2Enhanced.LOGGER.info("[AE2E-WCT] validate() pos={}, dim={}", pos, world != null ? world.provider.getDimension() : "null");
     }
 
     @Override
@@ -139,7 +138,6 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
         if (world == null || world.isRemote) return;
 
         if (needsReady()) {
-            AE2Enhanced.LOGGER.info("[AE2E-WCT] update() init proxy at pos={}", pos);
             clearNeedsReady();
             getProxy().setFlags(
                 appeng.api.networking.GridFlags.DENSE_CAPACITY,

@@ -1,13 +1,13 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.container.AEBaseContainer;
+import appeng.container.slot.AppEngSlot;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.items.SlotItemHandler;
 
 /**
  * F1a：无线频道发生器 GUI 的 Container。
@@ -20,19 +20,8 @@ public class ContainerWirelessChannelTransmitter extends AEBaseContainer {
         super(ip, tile, null);
         this.tile = tile;
 
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_INPUT, 44, 35) {
-            @Override
-            public boolean isItemValid(ItemStack stack) {
-                return stack.getItem() instanceof ItemChannelReceiverCard && !ItemChannelReceiverCard.isBound(stack);
-            }
-        });
-
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_OUTPUT, 116, 35) {
-            @Override
-            public boolean isItemValid(ItemStack stack) {
-                return false;
-            }
-        });
+        this.addSlotToContainer(new AppEngSlot(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_INPUT, 44, 35));
+        this.addSlotToContainer(new AppEngSlot(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_OUTPUT, 116, 35));
 
         this.bindPlayerInventory(ip, 0, 84);
     }
