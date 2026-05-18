@@ -2,20 +2,20 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     " Q ",
-    "RER",
+    "SES",
     " Q "
   ],
   "key": {
     "Q": {
       "item": "appliedenergistics2:quantum_link"
     },
+    "S": {
+      "item": "appliedenergistics2:material",
+      "data": 47
+    },
     "E": {
       "item": "appliedenergistics2:material",
       "data": 24
-    },
-    "R": {
-      "type": "forge:ore_dict",
-      "ore": "dustRedstone"
     }
   },
   "result": {

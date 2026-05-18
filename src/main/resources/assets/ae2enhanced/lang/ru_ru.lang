@@ -147,7 +147,7 @@ item.ae2enhanced.channel_receiver_card.name=Карта приема канала
 item.ae2enhanced.channel_receiver_card.tooltip.bound=§aПривязана §7к [%d, %d, %d] Изм: %d
 item.ae2enhanced.channel_receiver_card.tooltip.unbound=§eНе привязана §7— Вставьте в генератор беспроводного канала для привязки
 
-item.ae2enhanced.part_wireless_channel_transmitter.name=Генератор беспроводного канала
-item.ae2enhanced.part_wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников
+tile.ae2enhanced.wireless_channel_transmitter.name=Генератор беспроводного канала
+tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Генератор беспроводного канала

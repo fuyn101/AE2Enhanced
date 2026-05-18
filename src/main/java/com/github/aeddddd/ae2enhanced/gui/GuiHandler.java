@@ -16,10 +16,10 @@ import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
-import com.github.aeddddd.ae2enhanced.part.PartWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
@@ -122,13 +122,8 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartWirelessChannelTransmitter) {
-                    return new ContainerWirelessChannelTransmitter(player.inventory, (PartWirelessChannelTransmitter) part);
-                }
+            if (te instanceof TileWirelessChannelTransmitter) {
+                return new ContainerWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
         }
 
@@ -201,13 +196,8 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartWirelessChannelTransmitter) {
-                    return new GuiWirelessChannelTransmitter(player.inventory, (PartWirelessChannelTransmitter) part);
-                }
+            if (te instanceof TileWirelessChannelTransmitter) {
+                return new GuiWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
         }
 

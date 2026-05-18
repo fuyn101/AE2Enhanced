@@ -9,6 +9,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalMeInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileSuperCraftingInterface;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -39,6 +40,9 @@ public class ModBlocks {
     public static BlockCausalAnchorCore CAUSAL_ANCHOR_CORE;
     public static BlockSuperCraftingInterface SUPER_CRAFTING_INTERFACE;
 
+    // F1：无线频道系统
+    public static BlockWirelessChannelTransmitter WIRELESS_CHANNEL_TRANSMITTER;
+
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().registerAll(
@@ -56,7 +60,8 @@ public class ModBlocks {
             CONSTANT_TENSOR_FIELD_CASING = new BlockConstantTensorFieldCasing(),
             CONSTANT_SPINOR_FIELD_CASING = new BlockConstantSpinorFieldCasing(),
             CAUSAL_ANCHOR_CORE = new BlockCausalAnchorCore(),
-            SUPER_CRAFTING_INTERFACE = new BlockSuperCraftingInterface()
+            SUPER_CRAFTING_INTERFACE = new BlockSuperCraftingInterface(),
+            WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter()
         );
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
@@ -66,6 +71,7 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileHyperdimensionalMeInterface.class, AE2Enhanced.MOD_ID + ":hyperdimensional_me_interface");
         GameRegistry.registerTileEntity(TileComputationCore.class, AE2Enhanced.MOD_ID + ":computation_core");
         GameRegistry.registerTileEntity(TileSuperCraftingInterface.class, AE2Enhanced.MOD_ID + ":super_crafting_interface");
+        GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
     }
 
     @SubscribeEvent
@@ -85,7 +91,8 @@ public class ModBlocks {
             new ItemBlock(CONSTANT_TENSOR_FIELD_CASING).setRegistryName(CONSTANT_TENSOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(CONSTANT_SPINOR_FIELD_CASING).setRegistryName(CONSTANT_SPINOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(CAUSAL_ANCHOR_CORE).setRegistryName(CAUSAL_ANCHOR_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(SUPER_CRAFTING_INTERFACE).setRegistryName(SUPER_CRAFTING_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+            new ItemBlock(SUPER_CRAFTING_INTERFACE).setRegistryName(SUPER_CRAFTING_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
     }
 }

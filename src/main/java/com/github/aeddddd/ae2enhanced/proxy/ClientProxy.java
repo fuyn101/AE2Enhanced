@@ -150,6 +150,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(ModBlocks.CONSTANT_SPINOR_FIELD_CASING);
         registerBlockItemModel(ModBlocks.CAUSAL_ANCHOR_CORE);
         registerBlockItemModel(ModBlocks.SUPER_CRAFTING_INTERFACE);
+        registerBlockItemModel(ModBlocks.WIRELESS_CHANNEL_TRANSMITTER);
 
         // 注册升级卡的所有模型 variant
         ModelLoader.registerItemVariants(ModItems.UPGRADE_CARD,
@@ -203,7 +204,6 @@ public class ClientProxy extends CommonProxy {
         if (ModItems.PART_STOCKING_BUS != null) {
             AEApi.instance().registries().partModels().registerModels(PartStockingBus.MODELS);
             registerItemModel(ModItems.PART_STOCKING_BUS);
-            registerItemModel(ModItems.PART_WIRELESS_CHANNEL_TRANSMITTER);
             registerItemModel(ModItems.CHANNEL_RECEIVER_CARD);
         }
 

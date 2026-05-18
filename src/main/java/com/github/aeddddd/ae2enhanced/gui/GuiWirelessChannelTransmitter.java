@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.gui;
 
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
-import com.github.aeddddd.ae2enhanced.part.PartWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -14,8 +14,8 @@ public class GuiWirelessChannelTransmitter extends GuiContainer {
 
     private static final ResourceLocation BG_TEXTURE = new ResourceLocation("ae2enhanced:textures/gui/wireless_channel_transmitter.png");
 
-    public GuiWirelessChannelTransmitter(InventoryPlayer inventory, PartWirelessChannelTransmitter part) {
-        super(new ContainerWirelessChannelTransmitter(inventory, part));
+    public GuiWirelessChannelTransmitter(InventoryPlayer inventory, TileWirelessChannelTransmitter tile) {
+        super(new ContainerWirelessChannelTransmitter(inventory, tile));
         this.xSize = 176;
         this.ySize = 166;
     }

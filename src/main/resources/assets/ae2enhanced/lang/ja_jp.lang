@@ -154,7 +154,7 @@ item.ae2enhanced.channel_receiver_card.name=チャネル受信カード
 item.ae2enhanced.channel_receiver_card.tooltip.bound=§aバインド済 §7[%d, %d, %d] ディメンション: %d
 item.ae2enhanced.channel_receiver_card.tooltip.unbound=§e未バインド §7— 無線チャネル発生器に挿入してバインド
 
-item.ae2enhanced.part_wireless_channel_transmitter.name=無線チャネル発生器
-item.ae2enhanced.part_wireless_channel_transmitter.tooltip=§e無線チャネル発生器 §7— リモート受信機用に32チャネルを放送
+tile.ae2enhanced.wireless_channel_transmitter.name=無線チャネル発生器
+tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e無線チャネル発生器 §7— リモート受信機用に32チャネルを放送
 
 gui.ae2enhanced.wireless_channel_transmitter.title=無線チャネル発生器

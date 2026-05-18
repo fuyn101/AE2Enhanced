@@ -1,24 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "QEQ",
-    "ETE",
-    "QEQ"
+    "QQQ",
+    "QLQ",
+    "QQQ"
   ],
   "key": {
     "Q": {
       "item": "appliedenergistics2:quantum_ring"
     },
-    "E": {
-      "item": "appliedenergistics2:material",
-      "data": 24
-    },
-    "T": {
-      "item": "appliedenergistics2:material",
-      "data": 41
+    "L": {
+      "item": "appliedenergistics2:quantum_link"
     }
   },
   "result": {
-    "item": "ae2enhanced:part_wireless_channel_transmitter"
+    "item": "ae2enhanced:wireless_channel_transmitter"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "ae2enhanced:blocks/wireless_channel_transmitter_inside",
+    "down": "ae2enhanced:blocks/wireless_channel_transmitter_inside",
+    "up": "ae2enhanced:blocks/wireless_channel_transmitter_inside",
+    "north": "ae2enhanced:blocks/wireless_channel_transmitter_on",
+    "south": "ae2enhanced:blocks/wireless_channel_transmitter_inside",
+    "east": "ae2enhanced:blocks/wireless_channel_transmitter_inside",
+    "west": "ae2enhanced:blocks/wireless_channel_transmitter_inside"
+  }
+}

@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.container;
 import appeng.container.AEBaseContainer;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
-import com.github.aeddddd.ae2enhanced.part.PartWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
@@ -14,20 +14,20 @@ import net.minecraftforge.items.SlotItemHandler;
  */
 public class ContainerWirelessChannelTransmitter extends AEBaseContainer {
 
-    private final PartWirelessChannelTransmitter part;
+    private final TileWirelessChannelTransmitter tile;
 
-    public ContainerWirelessChannelTransmitter(InventoryPlayer ip, PartWirelessChannelTransmitter part) {
-        super(ip, part.getTile(), part);
-        this.part = part;
+    public ContainerWirelessChannelTransmitter(InventoryPlayer ip, TileWirelessChannelTransmitter tile) {
+        super(ip, tile, null);
+        this.tile = tile;
 
-        this.addSlotToContainer(new SlotItemHandler(part.getInventory(), PartWirelessChannelTransmitter.SLOT_INPUT, 44, 35) {
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_INPUT, 44, 35) {
             @Override
             public boolean isItemValid(ItemStack stack) {
                 return stack.getItem() instanceof ItemChannelReceiverCard && !ItemChannelReceiverCard.isBound(stack);
             }
         });
 
-        this.addSlotToContainer(new SlotItemHandler(part.getInventory(), PartWirelessChannelTransmitter.SLOT_OUTPUT, 116, 35) {
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), TileWirelessChannelTransmitter.SLOT_OUTPUT, 116, 35) {
             @Override
             public boolean isItemValid(ItemStack stack) {
                 return false;

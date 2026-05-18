@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.api.AEApi;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
-import appeng.api.util.AEPartLocation;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.me.GridAccessException;
@@ -11,6 +10,7 @@ import appeng.parts.automation.PartUpgradeable;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
@@ -64,8 +64,7 @@ public abstract class MixinPartUpgradeable {
 
             BlockPos pos = ItemChannelReceiverCard.getTransmitterPos(stack);
             int dim = ItemChannelReceiverCard.getTransmitterDim(stack);
-            AEPartLocation side = AEPartLocation.fromFacing(ItemChannelReceiverCard.getTransmitterSide(stack));
-            if (pos == null || side == null) continue;
+            if (pos == null) continue;
 
             if (!AE2EnhancedConfig.wirelessChannel.crossDimension) {
                 try {
@@ -87,7 +86,7 @@ public abstract class MixinPartUpgradeable {
                 }
             }
 
-            IGridNode transmitterNode = findTransmitterNode(pos, dim, side);
+            IGridNode transmitterNode = findTransmitterNode(pos, dim);
             if (transmitterNode == null) continue;
 
             // Prevent self-connection
@@ -103,20 +102,32 @@ public abstract class MixinPartUpgradeable {
         }
     }
 
-    private static IGridNode findTransmitterNode(BlockPos pos, int dim, AEPartLocation side) {
+    private static IGridNode findTransmitterNode(BlockPos pos, int dim) {
         World world = DimensionManager.getWorld(dim);
         if (world == null) return null;
         if (!world.isBlockLoaded(pos)) return null;
 
         TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof IPartHost)) return null;
+        if (!(te instanceof TileWirelessChannelTransmitter)) {
+            // 向后兼容：旧版卡片可能绑定到 IPartHost（线缆）上的 Part
+            if (te instanceof IPartHost) {
+                IPartHost host = (IPartHost) te;
+                for (appeng.api.util.AEPartLocation side : appeng.api.util.AEPartLocation.SIDE_LOCATIONS) {
+                    IPart part = host.getPart(side);
+                    if (part != null) {
+                        try {
+                            return part.getExternalFacingNode();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }
+            return null;
+        }
 
-        IPartHost host = (IPartHost) te;
-        IPart part = host.getPart(side);
-        if (part == null) return null;
-
+        TileWirelessChannelTransmitter tile = (TileWirelessChannelTransmitter) te;
         try {
-            return part.getExternalFacingNode();
+            return tile.getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
         } catch (Exception e) {
             return null;
         }
