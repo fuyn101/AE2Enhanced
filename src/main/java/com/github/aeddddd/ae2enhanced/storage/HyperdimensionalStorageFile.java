@@ -51,17 +51,15 @@ public class HyperdimensionalStorageFile {
     private volatile boolean safeMode = false;
     private volatile Map<ItemDescriptor, BigInteger> storageRef = null;
     private volatile Map<FluidDescriptor, BigInteger> fluidStorageRef = null;
-    private volatile Map<GasDescriptor, BigInteger> gasStorageRef = null;
-    private volatile Map<EssentiaDescriptor, BigInteger> essentiaStorageRef = null;
+    private volatile Map<?, BigInteger> gasStorageRef = null;
+    private volatile Map<?, BigInteger> essentiaStorageRef = null;
 
     private final StorageSection<ItemDescriptor> itemSection =
             new StorageSection<>("items", ItemDescriptor::fromNBT);
     private final StorageSection<FluidDescriptor> fluidSection =
             new StorageSection<>("fluids", FluidDescriptor::fromNBT);
-    private final StorageSection<GasDescriptor> gasSection =
-            new StorageSection<>("gases", GasDescriptor::fromNBT);
-    private final StorageSection<EssentiaDescriptor> essentiaSection =
-            new StorageSection<>("essentias", EssentiaDescriptor::fromNBT);
+    private StorageSection<Descriptor> gasSection = null;
+    private StorageSection<Descriptor> essentiaSection = null;
 
     /** 初始化期间缓存读取的 NBT 根节点，避免多个 load 方法重复读取同一文件 */
     private NBTTagCompound loadCache = null;
@@ -76,6 +74,37 @@ public class HyperdimensionalStorageFile {
         this.file = new File(storageDir, nexusId.toString() + ".dat");
         int flushInterval = AE2EnhancedConfig.storage.flushIntervalSeconds;
         this.flushTask = FLUSH_EXECUTOR.scheduleWithFixedDelay(this::flush, flushInterval, flushInterval, TimeUnit.SECONDS);
+        initConditionalSections();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void initConditionalSections() {
+        try {
+            Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.GasDescriptor");
+            java.lang.reflect.Method fromNbt = clazz.getMethod("fromNBT", NBTTagCompound.class);
+            this.gasSection = new StorageSection<>("gases", tag -> {
+                try {
+                    return (Descriptor) fromNbt.invoke(null, tag);
+                } catch (Exception e) {
+                    return null;
+                }
+            });
+        } catch (Exception e) {
+            this.gasSection = null;
+        }
+        try {
+            Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.EssentiaDescriptor");
+            java.lang.reflect.Method fromNbt = clazz.getMethod("fromNBT", NBTTagCompound.class);
+            this.essentiaSection = new StorageSection<>("essentias", tag -> {
+                try {
+                    return (Descriptor) fromNbt.invoke(null, tag);
+                } catch (Exception e) {
+                    return null;
+                }
+            });
+        } catch (Exception e) {
+            this.essentiaSection = null;
+        }
     }
 
     private NBTTagCompound readRoot() {
@@ -92,7 +121,9 @@ public class HyperdimensionalStorageFile {
         }
     }
 
-    private <D extends Descriptor> void loadSection(StorageSection<D> section, Map<D, BigInteger> target, String typeName) {
+    @SuppressWarnings("unchecked")
+    private void loadSection(StorageSection<?> section, Map<?, BigInteger> target, String typeName) {
+        if (section == null || target == null) return;
         NBTTagCompound root = readRoot();
         if (root == null) return;
         try {
@@ -103,7 +134,7 @@ public class HyperdimensionalStorageFile {
                     version, CURRENT_VERSION);
                 return;
             }
-            section.load(root, target);
+            ((StorageSection<Descriptor>) section).load(root, (Map<Descriptor, BigInteger>) target);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error(
                 "[AE2E] Failed to load {} storage from file: {}. Entering safe mode (read-only).", typeName, file.getAbsolutePath(), e);
@@ -119,14 +150,15 @@ public class HyperdimensionalStorageFile {
         loadSection(fluidSection, target, "fluid");
     }
 
-    public void loadGases(Map<GasDescriptor, BigInteger> target) {
+    public void loadGases(Map<?, BigInteger> target) {
         loadSection(gasSection, target, "gas");
     }
 
-    public void loadEssentias(Map<EssentiaDescriptor, BigInteger> target) {
+    public void loadEssentias(Map<?, BigInteger> target) {
         loadSection(essentiaSection, target, "essentia");
     }
 
+    @SuppressWarnings("unchecked")
     public boolean save() {
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger("version", CURRENT_VERSION);
@@ -134,8 +166,12 @@ public class HyperdimensionalStorageFile {
 
         itemSection.save(root, storageRef);
         fluidSection.save(root, fluidStorageRef);
-        gasSection.save(root, gasStorageRef);
-        essentiaSection.save(root, essentiaStorageRef);
+        if (gasSection != null && gasStorageRef != null) {
+            ((StorageSection<Descriptor>) gasSection).save(root, (Map<Descriptor, BigInteger>) gasStorageRef);
+        }
+        if (essentiaSection != null && essentiaStorageRef != null) {
+            ((StorageSection<Descriptor>) essentiaSection).save(root, (Map<Descriptor, BigInteger>) essentiaStorageRef);
+        }
 
         File tmpFile = new File(file.getAbsolutePath() + ".tmp");
         try {
@@ -164,11 +200,11 @@ public class HyperdimensionalStorageFile {
         this.fluidStorageRef = ref;
     }
 
-    public void setGasStorageRef(Map<GasDescriptor, BigInteger> ref) {
+    public void setGasStorageRef(Map<?, BigInteger> ref) {
         this.gasStorageRef = ref;
     }
 
-    public void setEssentiaStorageRef(Map<EssentiaDescriptor, BigInteger> ref) {
+    public void setEssentiaStorageRef(Map<?, BigInteger> ref) {
         this.essentiaStorageRef = ref;
     }
 

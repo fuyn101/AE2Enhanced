@@ -145,6 +145,18 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
     }
 
     @Override
+    protected boolean isSleeping() {
+        try {
+            if (this.getHost() == null || this.getSide() == null) {
+                return false;
+            }
+            return super.isSleeping();
+        } catch (NullPointerException e) {
+            return false;
+        }
+    }
+
+    @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         return this.doBusWork();
