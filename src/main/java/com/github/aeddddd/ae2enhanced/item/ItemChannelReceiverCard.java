@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
@@ -19,7 +21,7 @@ import java.util.List;
  * 已绑定状态插入 AE 设备的 Upgrade 槽后，设备节点会与发生器节点建立
  * 远程 {@code GridConnection}，从而借用发生器的控制器路径。</p>
  */
-public class ItemChannelReceiverCard extends Item {
+public class ItemChannelReceiverCard extends Item implements IUpgradeModule {
 
     private static final String NBT_BOUND = "ae2e_channel_bound";
     private static final String NBT_X = "ae2e_tx";
@@ -80,6 +82,11 @@ public class ItemChannelReceiverCard extends Item {
                 stack.setTagCompound(null);
             }
         }
+    }
+
+    @Override
+    public Upgrades getType(ItemStack stack) {
+        return isBound(stack) ? Upgrades.QUANTUM_LINK : null;
     }
 
     @Override
