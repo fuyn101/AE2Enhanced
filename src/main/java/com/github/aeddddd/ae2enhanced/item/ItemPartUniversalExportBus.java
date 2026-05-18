@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import appeng.api.AEApi;
 import appeng.api.parts.IPartItem;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
@@ -29,6 +30,7 @@ public class ItemPartUniversalExportBus extends Item implements IPartItem<PartUn
         this.setMaxStackSize(64);
         this.setTranslationKey("ae2enhanced.part_universal_export_bus");
         this.setRegistryName("ae2enhanced", "part_universal_export_bus");
+        this.setCreativeTab(AE2Enhanced.CREATIVE_TAB);
     }
 
     @Nullable
