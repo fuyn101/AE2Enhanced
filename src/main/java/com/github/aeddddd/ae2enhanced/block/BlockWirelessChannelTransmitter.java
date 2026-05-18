@@ -16,6 +16,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -131,8 +132,8 @@ public class BlockWirelessChannelTransmitter extends Block {
         return false;
     }
 
-    private static final AxisAlignedBB AABB_DOWN = new AxisAlignedBB(0.1875, 0.0, 0.1875, 0.8125, 0.6875, 0.8125);
-    private static final AxisAlignedBB AABB_UP = new AxisAlignedBB(0.1875, 0.3125, 0.1875, 0.8125, 1.0, 0.8125);
+    private static final AxisAlignedBB AABB_DOWN = new AxisAlignedBB(0.1875, 0.3125, 0.1875, 0.8125, 1.0, 0.8125);
+    private static final AxisAlignedBB AABB_UP = new AxisAlignedBB(0.1875, 0.0, 0.1875, 0.8125, 0.6875, 0.8125);
     private static final AxisAlignedBB AABB_NORTH = new AxisAlignedBB(0.1875, 0.1875, 0.3125, 0.8125, 0.8125, 1.0);
     private static final AxisAlignedBB AABB_SOUTH = new AxisAlignedBB(0.1875, 0.1875, 0.0, 0.8125, 0.8125, 0.6875);
     private static final AxisAlignedBB AABB_WEST = new AxisAlignedBB(0.3125, 0.1875, 0.1875, 1.0, 0.8125, 0.8125);
@@ -140,6 +141,15 @@ public class BlockWirelessChannelTransmitter extends Block {
 
     @Override
     public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
+        return getAABB(state);
+    }
+
+    @Override
+    public AxisAlignedBB getCollisionBoundingBox(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
+        return getAABB(state);
+    }
+
+    private AxisAlignedBB getAABB(IBlockState state) {
         switch (state.getValue(FACING)) {
             case DOWN: return AABB_DOWN;
             case UP: return AABB_UP;
@@ -149,6 +159,11 @@ public class BlockWirelessChannelTransmitter extends Block {
             case EAST: return AABB_EAST;
             default: return FULL_BLOCK_AABB;
         }
+    }
+
+    @Override
+    public BlockRenderLayer getRenderLayer() {
+        return BlockRenderLayer.CUTOUT;
     }
 
     @Override

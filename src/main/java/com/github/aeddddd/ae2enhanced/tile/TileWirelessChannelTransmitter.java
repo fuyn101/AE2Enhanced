@@ -131,11 +131,6 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     @Override
     public void validate() {
         super.validate();
-        getProxy().setFlags(
-            appeng.api.networking.GridFlags.DENSE_CAPACITY,
-            appeng.api.networking.GridFlags.REQUIRE_CHANNEL
-        );
-        getProxy().setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower);
     }
 
     @Override
@@ -144,6 +139,11 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
         if (needsReady()) {
             clearNeedsReady();
+            getProxy().setFlags(
+                appeng.api.networking.GridFlags.DENSE_CAPACITY,
+                appeng.api.networking.GridFlags.REQUIRE_CHANNEL
+            );
+            getProxy().setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower);
             getProxy().onReady();
         }
 
