@@ -56,9 +56,11 @@ public class AE2EnhancedConfig {
             "Auto-flush interval for the external .dat storage file (seconds).",
             "Lower values reduce data loss risk on crash but increase disk I/O.",
             "Higher values improve performance but may lose up to this many seconds of changes.",
-            "Range: 1 ~ 300, Default: 5"
+            "WARNING: Extremely high values (e.g. > 3600) may result in significant",
+            "data loss if the server crashes before the next flush.",
+            "Range: 1 ~ 86400, Default: 5"
         })
-        @Config.RangeInt(min = 1, max = 300)
+        @Config.RangeInt(min = 1, max = 86400)
         public int flushIntervalSeconds = 5;
     }
 
@@ -74,9 +76,11 @@ public class AE2EnhancedConfig {
         @Config.Comment({
             "Maximum camera-to-structure distance (in blocks) at which the hologram is drawn.",
             "Beyond this distance the TESR returns early, saving FPS.",
-            "Range: 8 ~ 512, Default: 64"
+            "WARNING: Very high values may cause FPS drops when many controllers",
+            "are loaded, as the TESR will render at extreme distances.",
+            "Range: 8 ~ 2147483647, Default: 64"
         })
-        @Config.RangeInt(min = 8, max = 512)
+        @Config.RangeInt(min = 8, max = Integer.MAX_VALUE)
         public int renderDistance = 64;
     }
 
@@ -99,17 +103,20 @@ public class AE2EnhancedConfig {
         @Config.Comment({
             "Maximum parallel crafting limit for the Computation Core.",
             "The actual limit is the smaller of this value and the structure-derived limit.",
-            "Range: 1024 ~ 65536, Default: 16384"
+            "WARNING: Extremely high values may cause lag, memory pressure, or",
+            "integer overflow in internal calculations. Use with caution.",
+            "Range: 1 ~ 2147483647, Default: 16384"
         })
-        @Config.RangeInt(min = 1024, max = 65536)
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int maxParallel = 16384;
 
         @Config.Comment({
             "Maximum number of concurrently active crafting orders.",
             "Each order consumes parallel from the pool; excess orders queue.",
-            "Range: 1 ~ 64, Default: 8"
+            "WARNING: Very high values increase memory usage and scheduling overhead.",
+            "Range: 1 ~ 2147483647, Default: 8"
         })
-        @Config.RangeInt(min = 1, max = 64)
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int maxActiveOrders = 8;
     }
 
@@ -124,24 +131,30 @@ public class AE2EnhancedConfig {
         @Config.Comment({
             "Maximum range (in blocks) between a transmitter and receiver.",
             "Set to 0 for infinite range (same dimension only).",
-            "Range: 0 ~ 1000000, Default: 0"
+            "WARNING: Extremely large ranges may cause chunk loading issues",
+            "or unexpected behavior with cross-dimension connections.",
+            "Range: 0 ~ 2147483647, Default: 0"
         })
-        @Config.RangeInt(min = 0, max = 1000000)
+        @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int maxRange = 0;
 
         @Config.Comment({
             "Power draw (AE/t) for an active wireless channel transmitter.",
-            "Range: 1 ~ 32768, Default: 512"
+            "WARNING: Very high power draw may exceed your network generation",
+            "capacity and cause devices to shut down.",
+            "Range: 1 ~ 2147483647, Default: 512"
         })
-        @Config.RangeInt(min = 1, max = 32768)
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int transmitterPower = 512;
 
         @Config.Comment({
             "Extra upgrade slots added to all AE2 devices (Parts and Tiles).",
             "This compensates for the channel receiver card occupying a slot.",
-            "Range: 0 ~ 8, Default: 2"
+            "WARNING: Excessive values may cause GUI overflow or rendering",
+            "issues since upgrade slot positions are fixed in AE2 GUIs.",
+            "Range: 0 ~ 2147483647, Default: 2"
         })
-        @Config.RangeInt(min = 0, max = 8)
+        @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int extraUpgradeSlots = 2;
     }
 
