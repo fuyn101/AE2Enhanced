@@ -165,3 +165,4 @@ gui.ae2enhanced.stocking_bus.tooltip.mode=模式: %s
 gui.ae2enhanced.stocking_bus.mode.bidirectional=双向维持
 gui.ae2enhanced.stocking_bus.mode.supply=仅补货
 gui.ae2enhanced.stocking_bus.mode.recover=仅回收
+gui.ae2enhanced.stocking_bus.set_amount=设置目标数量

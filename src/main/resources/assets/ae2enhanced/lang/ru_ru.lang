@@ -141,3 +141,4 @@ gui.ae2enhanced.nexus.nexus_id.none=Не сгенерирован
 gui.ae2enhanced.nexus.label.storage_types=Типы хранилищ: §e%s
 gui.ae2enhanced.nexus.label.storage_total=Всего хранится: §e%s
 gui.ae2enhanced.nexus.storage.empty=Ядро хранилища: §7Пусто
+gui.ae2enhanced.stocking_bus.set_amount=Установить целевое количество

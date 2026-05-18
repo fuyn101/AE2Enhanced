@@ -148,3 +148,4 @@ gui.ae2enhanced.nexus.nexus_id.none=未生成
 gui.ae2enhanced.nexus.label.storage_types=ストレージ種類: §e%s
 gui.ae2enhanced.nexus.label.storage_total=総ストレージ数: §e%s
 gui.ae2enhanced.nexus.storage.empty=ストレージコア: §7空
+gui.ae2enhanced.stocking_bus.set_amount=目標数量を設定

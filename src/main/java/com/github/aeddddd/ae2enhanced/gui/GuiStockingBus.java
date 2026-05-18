@@ -105,6 +105,22 @@ public class GuiStockingBus extends GuiUpgradeable {
     }
 
     @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (mouseButton == 2) { // 中键点击
+            for (int i = 0; i < 9; i++) {
+                int slotX = this.guiLeft + SLOT_X[i];
+                int slotY = this.guiTop + SLOT_Y[i];
+                if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                    long current = this.container.getTargetAmount(i);
+                    this.mc.displayGuiScreen(new GuiStockingBusAmount(i, current, this));
+                    return;
+                }
+            }
+        }
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
     public void handleMouseInput() throws IOException {
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
