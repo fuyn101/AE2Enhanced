@@ -505,8 +505,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (aeWanted == null) return 0;
         aeWanted.setStackSize(amount);
 
-        IAEFluidStack notExtracted = inv.extractItems(aeWanted, Actionable.SIMULATE, this.source);
-        long canExtract = aeWanted.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
+        IAEFluidStack extracted = inv.extractItems(aeWanted, Actionable.SIMULATE, this.source);
+        long canExtract = extracted != null ? extracted.getStackSize() : 0;
         if (canExtract <= 0) return 0;
 
         FluidStack toFill = filterStack.copy();
@@ -628,8 +628,8 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 com.mekeng.github.common.me.data.impl.AEGasStack.of((mekanism.api.gas.GasStack) gasStackObj);
         if (aeSupply == null) return 0;
 
-        com.mekeng.github.common.me.data.IAEGasStack notExtracted = inv.extractItems(aeSupply, Actionable.SIMULATE, this.source);
-        long canExtract = aeSupply.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
+        com.mekeng.github.common.me.data.IAEGasStack extracted = inv.extractItems(aeSupply, Actionable.SIMULATE, this.source);
+        long canExtract = extracted != null ? extracted.getStackSize() : 0;
         if (canExtract <= 0) return 0;
 
         Object toReceive = GasReflectionHelper.createGasStack(wanted.getGas(), (int) canExtract);

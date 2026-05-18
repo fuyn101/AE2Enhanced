@@ -215,7 +215,7 @@ public class EssentiaBusHelper {
             IAEEssentiaStack aeEss = AEEssentiaStack.fromEssentiaStack(essStack);
             if (aeEss != null) {
                 IAEEssentiaStack out = inv.extractItems(aeEss, Actionable.SIMULATE, source);
-                long canExtract = aeEss.getStackSize() - (out != null ? out.getStackSize() : 0);
+                long canExtract = out != null ? out.getStackSize() : 0;
                 if (canExtract > 0) {
                     int added = transport.addEssentia(wanted.getAspect(), (int) canExtract, opposite);
                     if (added > 0) {
