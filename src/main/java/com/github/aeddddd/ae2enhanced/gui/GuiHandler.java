@@ -122,7 +122,10 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-WCT] getServerGuiElement te={}, class={}", te,
+                te != null ? te.getClass().getSimpleName() : "null");
             if (te instanceof TileWirelessChannelTransmitter) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-WCT] Returning container");
                 return new ContainerWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
         }
@@ -196,7 +199,10 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-WCT] getClientGuiElement te={}, class={}", te,
+                te != null ? te.getClass().getSimpleName() : "null");
             if (te instanceof TileWirelessChannelTransmitter) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-WCT] Returning GUI");
                 return new GuiWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
         }
