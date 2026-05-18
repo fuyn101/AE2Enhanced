@@ -229,6 +229,7 @@ public class PacketMEMonitorableAction implements IMessage {
             int filled = fh.fill(aeFluid.getFluidStack(), false);
             if (filled != 1000) return;
 
+            fh.fill(aeFluid.getFluidStack(), true); // 真正执行填充
             ItemStack out = fh.getContainer();
             if (shift) {
                 int slot = player.inventory.getFirstEmptyStack();
@@ -238,7 +239,6 @@ public class PacketMEMonitorableAction implements IMessage {
                 player.inventory.setItemStack(out);
             }
 
-            fh.fill(aeFluid.getFluidStack(), true); // 真正执行填充
             itemStorage.extractItems(bucketReq, Actionable.MODULATE, source);
             fluidStorage.extractItems(AEFluidStack.fromFluidStack(fluid).setStackSize(1000), Actionable.MODULATE, source);
             updateHeld(player);
