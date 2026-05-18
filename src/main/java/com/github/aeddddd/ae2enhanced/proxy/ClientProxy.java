@@ -121,20 +121,7 @@ public class ClientProxy extends CommonProxy {
         // 将 essentia_drop 的模型替换为 BakedEssentiaPacketModel，使 isBuiltInRenderer()=true
         // 从而触发 RenderItem 调用 Item 自己的 TileEntityItemStackRenderer
         try {
-            net.minecraft.client.renderer.block.model.ModelManager modelManager = event.getModelManager();
-            java.lang.reflect.Field targetField = null;
-            for (java.lang.reflect.Field field : modelManager.getClass().getDeclaredFields()) {
-                if (field.getType().getName().contains("IRegistry")) {
-                    targetField = field;
-                    break;
-                }
-            }
-            if (targetField == null) return;
-            targetField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry =
-                    (net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel>) targetField.get(modelManager);
-
+            net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry = event.getModelRegistry();
             ModelResourceLocation locationEssentia = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
             registry.putObject(locationEssentia, new EssentiaPacketModel.BakedEssentiaPacketModel());
         } catch (Exception e) {

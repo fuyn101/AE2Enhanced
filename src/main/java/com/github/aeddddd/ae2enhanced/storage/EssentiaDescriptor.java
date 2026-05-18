@@ -1,9 +1,5 @@
 package com.github.aeddddd.ae2enhanced.storage;
 
-import thaumicenergistics.api.EssentiaStack;
-import thaumicenergistics.api.storage.IAEEssentiaStack;
-import thaumicenergistics.integration.appeng.AEEssentiaStack;
-
 import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.Objects;
@@ -14,9 +10,9 @@ import java.util.Objects;
 public class EssentiaDescriptor implements Descriptor {
     private final String aspectTag;
     private final int hash;
-    private transient volatile IAEEssentiaStack aeTemplate = null;
+    private transient volatile thaumicenergistics.api.storage.IAEEssentiaStack aeTemplate = null;
 
-    public EssentiaDescriptor(IAEEssentiaStack stack) {
+    public EssentiaDescriptor(thaumicenergistics.api.storage.IAEEssentiaStack stack) {
         this.aspectTag = stack.getAspect() != null ? stack.getAspect().getTag() : "unknown";
         this.hash = aspectTag.hashCode();
     }
@@ -29,14 +25,14 @@ public class EssentiaDescriptor implements Descriptor {
     /**
      * 根据存储的 aspectTag 重建 IAEEssentiaStack 模板（stackSize=1）。
      */
-    public IAEEssentiaStack getAETemplate() {
-        IAEEssentiaStack result = aeTemplate;
+    public thaumicenergistics.api.storage.IAEEssentiaStack getAETemplate() {
+        thaumicenergistics.api.storage.IAEEssentiaStack result = aeTemplate;
         if (result == null) {
             synchronized (this) {
                 result = aeTemplate;
                 if (result == null) {
-                    EssentiaStack stack = new EssentiaStack(aspectTag, 1);
-                    result = aeTemplate = AEEssentiaStack.fromEssentiaStack(stack);
+                    thaumicenergistics.api.EssentiaStack stack = new thaumicenergistics.api.EssentiaStack(aspectTag, 1);
+                    result = aeTemplate = thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(stack);
                 }
             }
         }

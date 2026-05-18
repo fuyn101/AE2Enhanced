@@ -428,12 +428,16 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
     @Override
     public NBTTagCompound getUpdateTag() {
-        return writeToNBT(new NBTTagCompound());
+        NBTTagCompound compound = super.writeToNBT(new NBTTagCompound());
+        compound.setBoolean("formed", formed);
+        compound.setInteger("parallelLimit", parallelLimit);
+        getProxy().writeToNBT(compound);
+        return compound;
     }
 
     @Override
     public SPacketUpdateTileEntity getUpdatePacket() {
-        return new SPacketUpdateTileEntity(pos, 0, writeToNBT(new NBTTagCompound()));
+        return new SPacketUpdateTileEntity(pos, 0, getUpdateTag());
     }
 
     @Override

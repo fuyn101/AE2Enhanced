@@ -1,11 +1,5 @@
 package com.github.aeddddd.ae2enhanced.storage;
 
-import com.mekeng.github.common.me.data.IAEGasStack;
-import com.mekeng.github.common.me.data.impl.AEGasStack;
-import mekanism.api.gas.Gas;
-import mekanism.api.gas.GasRegistry;
-import mekanism.api.gas.GasStack;
-
 import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.Objects;
@@ -16,10 +10,10 @@ import java.util.Objects;
 public class GasDescriptor implements Descriptor {
     private final String gasName;
     private final int hash;
-    private transient volatile IAEGasStack aeTemplate = null;
+    private transient volatile com.mekeng.github.common.me.data.IAEGasStack aeTemplate = null;
 
-    public GasDescriptor(IAEGasStack stack) {
-        Gas gas = stack.getGas();
+    public GasDescriptor(com.mekeng.github.common.me.data.IAEGasStack stack) {
+        mekanism.api.gas.Gas gas = stack.getGas();
         this.gasName = gas != null ? gas.getName() : "unknown";
         this.hash = gasName.hashCode();
     }
@@ -32,15 +26,15 @@ public class GasDescriptor implements Descriptor {
     /**
      * 根据存储的 gasName 重建 IAEGasStack 模板（stackSize=1）。
      */
-    public IAEGasStack getAETemplate() {
-        IAEGasStack result = aeTemplate;
+    public com.mekeng.github.common.me.data.IAEGasStack getAETemplate() {
+        com.mekeng.github.common.me.data.IAEGasStack result = aeTemplate;
         if (result == null) {
             synchronized (this) {
                 result = aeTemplate;
                 if (result == null) {
-                    Gas gas = GasRegistry.getGas(gasName);
+                    mekanism.api.gas.Gas gas = mekanism.api.gas.GasRegistry.getGas(gasName);
                     if (gas == null) return null;
-                    result = aeTemplate = AEGasStack.of(new GasStack(gas, 1));
+                    result = aeTemplate = com.mekeng.github.common.me.data.impl.AEGasStack.of(new mekanism.api.gas.GasStack(gas, 1));
                 }
             }
         }

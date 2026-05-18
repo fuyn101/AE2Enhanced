@@ -145,10 +145,9 @@ public class OptionalStorageManager {
      */
     @SuppressWarnings("unchecked")
     public void setCallbacks(Runnable changeCallback,
-                             BiConsumer<?, IActionSource> itemPostChange,
-                             BiConsumer<?, IActionSource> fluidPostChange) {
+                             BiConsumer<?, IActionSource> postChange) {
         for (OptionalAdapterWrapper wrapper : optionalAdapters) {
-            wrapper.setCallbacks(changeCallback, itemPostChange);
+            wrapper.setCallbacks(changeCallback, postChange);
         }
     }
 

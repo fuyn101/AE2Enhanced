@@ -3,8 +3,6 @@ package com.github.aeddddd.ae2enhanced.storage;
 import appeng.api.AEApi;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.IStorageChannel;
-import com.mekeng.github.common.me.storage.IGasStorageChannel;
-import com.mekeng.github.common.me.data.IAEGasStack;
 
 import java.math.BigInteger;
 
@@ -12,23 +10,23 @@ import java.math.BigInteger;
  * 气体存储适配器，继承 {@link AbstractStorageAdapter}。
  * 内部使用 BigInteger 维护数量，突破 long 上限。
  */
-public class GasStorageAdapter extends AbstractStorageAdapter<IAEGasStack, GasDescriptor> {
+public class GasStorageAdapter extends AbstractStorageAdapter<com.mekeng.github.common.me.data.IAEGasStack, GasDescriptor> {
 
     public GasStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
-        this.channel = AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
+        this.channel = AEApi.instance().storage().getStorageChannel(com.mekeng.github.common.me.storage.IGasStorageChannel.class);
         file.loadGases(storage);
         recalcTotal(); // 从文件加载后必须重新计算总数
     }
 
     @Override
-    protected GasDescriptor createDescriptor(IAEGasStack input) {
+    protected GasDescriptor createDescriptor(com.mekeng.github.common.me.data.IAEGasStack input) {
         return new GasDescriptor(input);
     }
 
     @Override
-    protected IAEGasStack createResult(IAEGasStack request, BigInteger amount) {
-        IAEGasStack result = request.copy();
+    protected com.mekeng.github.common.me.data.IAEGasStack createResult(com.mekeng.github.common.me.data.IAEGasStack request, BigInteger amount) {
+        com.mekeng.github.common.me.data.IAEGasStack result = request.copy();
         if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
             result.setStackSize(Long.MAX_VALUE);
         } else {
@@ -38,12 +36,12 @@ public class GasStorageAdapter extends AbstractStorageAdapter<IAEGasStack, GasDe
     }
 
     @Override
-    protected IAEGasStack getAETemplate(GasDescriptor descriptor) {
+    protected com.mekeng.github.common.me.data.IAEGasStack getAETemplate(GasDescriptor descriptor) {
         return descriptor.getAETemplate();
     }
 
     @Override
-    public IStorageChannel<IAEGasStack> getChannel() {
-        return (IStorageChannel<IAEGasStack>) channel;
+    public IStorageChannel<com.mekeng.github.common.me.data.IAEGasStack> getChannel() {
+        return (IStorageChannel<com.mekeng.github.common.me.data.IAEGasStack>) channel;
     }
 }

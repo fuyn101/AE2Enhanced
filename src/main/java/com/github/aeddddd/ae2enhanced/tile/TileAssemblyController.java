@@ -1304,11 +1304,10 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
     @Override
     public NBTTagCompound getUpdateTag() {
-        // 使用 writeToNBT 保证字段完整，再移除 pendingOutputs 避免网络包膨胀。
-        // b6f8b78 之前直接用 writeToNBT 没有问题；改为手动构造后导致某些字段
-        // 在客户端初始化时不同步，进而引发容器槽位错位。
+        // 使用 writeToNBT 保证字段完整，再移除大体积标签避免网络包膨胀。
         NBTTagCompound tag = writeToNBT(new NBTTagCompound());
         tag.removeTag("pendingOutputs");
+        tag.removeTag("blackHoleBuffer");
         return tag;
     }
 
