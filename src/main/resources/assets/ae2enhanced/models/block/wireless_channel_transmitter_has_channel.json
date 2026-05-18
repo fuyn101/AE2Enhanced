@@ -6,8 +6,8 @@
     "1": "ae2enhanced:blocks/wireless_channel_transmitter",
     "sides": "ae2enhanced:parts/wireless_channel_transmitter_sides",
     "sidesStatus": "ae2enhanced:parts/wireless_channel_transmitter_sides_status",
-    "indicator": "ae2enhanced:parts/wireless_channel_transmitter_sides_status_on",
-    "torch": "ae2enhanced:blocks/wireless_channel_transmitter"
+    "indicator": "ae2enhanced:parts/wireless_channel_transmitter_sides_status_has_channel",
+    "torch": "ae2enhanced:blocks/wireless_channel_transmitter_on"
   },
   "elements": [
     {
@@ -352,7 +352,7 @@
       "faces": {
         "down": {
           "texture": "#indicator",
-          "tintindex": 3,
+          "tintindex": 1,
           "uvlightmap": {
             "sky": 0.007,
             "block": 0.007
@@ -360,7 +360,7 @@
         },
         "up": {
           "texture": "#indicator",
-          "tintindex": 3,
+          "tintindex": 1,
           "uvlightmap": {
             "sky": 0.007,
             "block": 0.007
@@ -368,7 +368,7 @@
         },
         "east": {
           "texture": "#indicator",
-          "tintindex": 3,
+          "tintindex": 1,
           "uvlightmap": {
             "sky": 0.007,
             "block": 0.007
@@ -376,7 +376,7 @@
         },
         "west": {
           "texture": "#indicator",
-          "tintindex": 3,
+          "tintindex": 1,
           "uvlightmap": {
             "sky": 0.007,
             "block": 0.007
@@ -393,7 +393,7 @@
       "to": [
         9,
         9,
-        9
+        6
       ],
       "faces": {
         "up": {
@@ -401,7 +401,7 @@
           "uv": [
             1,
             7,
-            9,
+            6,
             9
           ],
           "rotation": 90
@@ -411,7 +411,7 @@
           "uv": [
             1,
             7,
-            9,
+            6,
             9
           ],
           "rotation": 270
@@ -421,7 +421,7 @@
           "uv": [
             1,
             7,
-            9,
+            6,
             9
           ],
           "rotation": 180
@@ -431,10 +431,25 @@
           "uv": [
             1,
             7,
-            9,
+            6,
             9
           ]
-        },
+        }
+      }
+    },
+    {
+      "from": [
+        7,
+        7,
+        7
+      ],
+      "to": [
+        9,
+        9,
+        9
+      ],
+      "shade": false,
+      "faces": {
         "south": {
           "texture": "#torch",
           "uv": [
@@ -443,7 +458,96 @@
             9,
             9
           ],
-          "rotation": 270
+          "rotation": 270,
+          "uvlightmap": {
+            "sky": 0.007,
+            "block": 0.007
+          }
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        7,
+        6
+      ],
+      "to": [
+        10,
+        9,
+        10
+      ],
+      "shade": false,
+      "faces": {
+        "up": {
+          "texture": "#torch",
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "rotation": 90,
+          "uvlightmap": {
+            "sky": 0.007,
+            "block": 0.007
+          }
+        },
+        "down": {
+          "texture": "#torch",
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "rotation": 270,
+          "uvlightmap": {
+            "sky": 0.007,
+            "block": 0.007
+          }
+        }
+      }
+    },
+    {
+      "from": [
+        7,
+        6,
+        6
+      ],
+      "to": [
+        9,
+        10,
+        10
+      ],
+      "shade": false,
+      "faces": {
+        "west": {
+          "texture": "#torch",
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "uvlightmap": {
+            "sky": 0.007,
+            "block": 0.007
+          }
+        },
+        "east": {
+          "texture": "#torch",
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "rotation": 180,
+          "uvlightmap": {
+            "sky": 0.007,
+            "block": 0.007
+          }
         }
       }
     }
