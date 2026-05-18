@@ -17,7 +17,7 @@
     "MixinContainerCellWorkbench",
     "MixinInventoryPlayer",
     "MixinTileIOPort",
-    "MixinPartUpgradeable",
+    "MixinUpgradeInventory",
     "MixinUpgradeInvFilter",
     "MixinUpgradeSlots",
     "MixinSlotRestrictedInput"
