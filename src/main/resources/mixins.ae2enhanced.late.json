@@ -19,7 +19,8 @@
     "MixinTileIOPort",
     "MixinPartUpgradeable",
     "MixinUpgradeInvFilter",
-    "MixinUpgradeSlots"
+    "MixinUpgradeSlots",
+    "MixinSlotRestrictedInput"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",
