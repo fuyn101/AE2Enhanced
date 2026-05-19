@@ -106,7 +106,8 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         ItemStack stack = player.getHeldItemMainhand();
         if (stack.getItem() instanceof ItemUniversalMemoryCard) {
             int currentCount = ItemUniversalMemoryCard.getSelectionCount(stack);
-            if (currentCount != selections.size()) {
+            boolean currentHasConfig = ItemUniversalMemoryCard.hasConfig(stack);
+            if (currentCount != selections.size() || currentHasConfig != hasConfig) {
                 this.initGui();
             }
         }

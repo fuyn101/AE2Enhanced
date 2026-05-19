@@ -256,6 +256,9 @@ public class ItemUniversalMemoryCard extends Item {
                         (int) player.posX, (int) player.posY, (int) player.posZ);
                 break;
         }
+
+        // 强制同步玩家背包，使客户端 ItemStack NBT 更新
+        player.inventoryContainer.detectAndSendChanges();
     }
 
     private static void handleCopy(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
