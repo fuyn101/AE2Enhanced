@@ -58,19 +58,7 @@ public class MixinUpgradeInventory {
         AE2Enhanced.LOGGER.warn("[AE2E] DEBUG MixinUpgradeInventory triggered, parent={}, parentClass={}",
                 this.parent, this.parent != null ? this.parent.getClass().getSimpleName() : "null");
 
-        if (!(this.parent instanceof PartUpgradeable)) {
-            return;
-        }
-
-        PartUpgradeable self = (PartUpgradeable) this.parent;
-
-        IGridNode node;
-        try {
-            node = self.getProxy().getNode();
-        } catch (NullPointerException e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG getProxy().getNode() NPE");
-            return;
-        }
+        IGridNode node = getNodeFromParent(this.parent);
         if (node == null) {
             AE2Enhanced.LOGGER.warn("[AE2E] DEBUG node is null");
             return;
@@ -86,13 +74,20 @@ public class MixinUpgradeInventory {
         }
 
         // Search upgrade inventory for channel receiver card
-        IItemHandler upgrades = self.getInventoryByName("upgrades");
+        IItemHandler upgrades = getUpgradesFromParent(this.parent);
         if (upgrades == null) {
             AE2Enhanced.LOGGER.warn("[AE2E] DEBUG upgrades inventory is null");
             return;
         }
 
         AE2Enhanced.LOGGER.warn("[AE2E] DEBUG searching {} upgrade slots", upgrades.getSlots());
+
+        // Get TileEntity for dimension/range checks
+        TileEntity tile = getTileFromParent(this.parent);
+        if (tile == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG tile is null");
+            return;
+        }
 
         for (int i = 0; i < upgrades.getSlots(); i++) {
             ItemStack stack = upgrades.getStackInSlot(i);
@@ -111,7 +106,7 @@ public class MixinUpgradeInventory {
 
             if (!AE2EnhancedConfig.wirelessChannel.crossDimension) {
                 try {
-                    int localDim = self.getTile().getWorld().provider.getDimension();
+                    int localDim = tile.getWorld().provider.getDimension();
                     if (dim != localDim) {
                         AE2Enhanced.LOGGER.warn("[AE2E] DEBUG cross-dimension denied");
                         continue;
@@ -124,7 +119,7 @@ public class MixinUpgradeInventory {
             // Range check
             if (AE2EnhancedConfig.wirelessChannel.maxRange > 0) {
                 try {
-                    BlockPos localPos = self.getTile().getPos();
+                    BlockPos localPos = tile.getPos();
                     if (localPos.getDistance(pos.getX(), pos.getY(), pos.getZ()) > AE2EnhancedConfig.wirelessChannel.maxRange) {
                         AE2Enhanced.LOGGER.warn("[AE2E] DEBUG out of range");
                         continue;
@@ -149,7 +144,7 @@ public class MixinUpgradeInventory {
                 IGridConnection conn = AEApi.instance().grid().createGridConnection(node, transmitterNode);
                 AE2E_REMOTE_CONNECTIONS.put(node, conn);
                 AE2Enhanced.LOGGER.warn("[AE2E] Created wireless grid connection for {} -> transmitter at {}",
-                        self.getClass().getSimpleName(), pos);
+                        this.parent.getClass().getSimpleName(), pos);
 
                 // AE2 的 createGridConnection 在 addConnection 之前调用 repath()，
                 // 导致路径系统看不到这条新连接，从而无法分配频道。
@@ -167,6 +162,38 @@ public class MixinUpgradeInventory {
             }
             break;
         }
+    }
+
+    private static IGridNode getNodeFromParent(IAEAppEngInventory parent) {
+        if (parent instanceof PartUpgradeable) {
+            return ((PartUpgradeable) parent).getProxy().getNode();
+        }
+        // DualityInterface 以及其它持有 gridProxy 字段的内部类
+        try {
+            java.lang.reflect.Field f = parent.getClass().getDeclaredField("gridProxy");
+            f.setAccessible(true);
+            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) f.get(parent);
+            return proxy != null ? proxy.getNode() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static IItemHandler getUpgradesFromParent(IAEAppEngInventory parent) {
+        if (parent instanceof appeng.api.implementations.tiles.ISegmentedInventory) {
+            return ((appeng.api.implementations.tiles.ISegmentedInventory) parent).getInventoryByName("upgrades");
+        }
+        return null;
+    }
+
+    private static TileEntity getTileFromParent(IAEAppEngInventory parent) {
+        if (parent instanceof PartUpgradeable) {
+            return ((PartUpgradeable) parent).getTile();
+        }
+        if (parent instanceof appeng.helpers.DualityInterface) {
+            return ((appeng.helpers.DualityInterface) parent).getTile();
+        }
+        return null;
     }
 
     private static IGridNode findTransmitterNode(BlockPos pos, int dim) {
