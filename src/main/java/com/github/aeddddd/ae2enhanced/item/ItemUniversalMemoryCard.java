@@ -19,11 +19,12 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -239,19 +240,19 @@ public class ItemUniversalMemoryCard extends Item {
         World world = player.world;
         Object target = findTarget(world, pos, face);
         if (target == null) {
-            player.sendMessage(new TextComponentString("\u00a7c无法复制该设备"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_invalid"));
             return;
         }
 
         IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(target);
         if (handler == null) {
-            player.sendMessage(new TextComponentString("\u00a7c该设备不支持配置复制"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_unsupported"));
             return;
         }
 
         NBTTagCompound data = handler.copy(target);
         if (data == null) {
-            player.sendMessage(new TextComponentString("\u00a7c复制失败"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_failed"));
             return;
         }
 
@@ -261,12 +262,12 @@ public class ItemUniversalMemoryCard extends Item {
         else handlerId = "ae2e_custom";
 
         setConfig(stack, handlerId, handler.getDisplayName(target), data);
-        player.sendMessage(new TextComponentString("\u00a7a已复制 \u00a7e" + handler.getDisplayName(target) + " \u00a7a的配置"));
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_success", handler.getDisplayName(target)));
     }
 
     private static void handlePaste(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
         if (!hasConfig(stack)) {
-            player.sendMessage(new TextComponentString("\u00a7c内存卡中没有配置"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_config"));
             return;
         }
 
@@ -276,7 +277,7 @@ public class ItemUniversalMemoryCard extends Item {
         World world = player.world;
         Object target = findTarget(world, pos, face);
         if (target == null) {
-            player.sendMessage(new TextComponentString("\u00a7c无法粘贴到该设备"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_invalid"));
             return;
         }
 
@@ -303,26 +304,26 @@ public class ItemUniversalMemoryCard extends Item {
                 if (result == IMemoryCardHandler.PasteResult.SUCCESS) success++;
                 else failed++;
             }
-            player.sendMessage(new TextComponentString("\u00a7a批量粘贴完成：成功 \u00a7e" + success + "\u00a7a 个，失败 \u00a7e" + failed + "\u00a7a 个"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bulk_success", success, failed));
         } else {
             IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(target);
             if (handler == null) {
-                player.sendMessage(new TextComponentString("\u00a7c该设备不支持配置粘贴"));
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_unsupported"));
                 return;
             }
             IMemoryCardHandler.PasteResult result = handler.paste(target, data, player);
             switch (result) {
                 case SUCCESS:
-                    player.sendMessage(new TextComponentString("\u00a7a配置已粘贴"));
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_success"));
                     break;
                 case MISSING_UPGRADES:
-                    player.sendMessage(new TextComponentString("\u00a7c背包中升级卡不足"));
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.missing_upgrades"));
                     break;
                 case INVALID_MACHINE:
-                    player.sendMessage(new TextComponentString("\u00a7c设备类型不匹配"));
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.invalid_machine"));
                     break;
                 case FAILED:
-                    player.sendMessage(new TextComponentString("\u00a7c粘贴失败"));
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_failed"));
                     break;
             }
         }
@@ -338,7 +339,7 @@ public class ItemUniversalMemoryCard extends Item {
             SelectionEntry entry = selections.get(i);
             if (entry.dim == world.provider.getDimension() && entry.pos.equals(pos)) {
                 removeSelection(stack, i);
-                player.sendMessage(new TextComponentString("\u00a7a已取消选取"));
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.deselect"));
                 return;
             }
         }
@@ -350,7 +351,7 @@ public class ItemUniversalMemoryCard extends Item {
                 String tileId = part.getClass().getName();
                 int side = AEPartLocation.fromFacing(face).ordinal();
                 addSelection(stack, new SelectionEntry(pos, world.provider.getDimension(), tileId, side));
-                player.sendMessage(new TextComponentString("\u00a7a已选取 Part"));
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_part"));
                 return;
             }
         }
@@ -362,12 +363,12 @@ public class ItemUniversalMemoryCard extends Item {
             for (BlockPos p : connected) {
                 addSelection(stack, new SelectionEntry(p, world.provider.getDimension(), tileId, -1));
             }
-            player.sendMessage(new TextComponentString("\u00a7a已选取 \u00a7e" + connected.size() + "\u00a7a 个同类方块"));
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_tile", connected.size()));
         } else {
             // 非 TileEntity 方块
             String blockId = world.getBlockState(pos).getBlock().getRegistryName().toString();
             addSelection(stack, new SelectionEntry(pos, world.provider.getDimension(), blockId, -1));
-            player.sendMessage(new TextComponentString("\u00a7a已选取方块"));
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_block"));
         }
     }
 
@@ -449,28 +450,29 @@ public class ItemUniversalMemoryCard extends Item {
     // ============================================================
 
     @Override
+    @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         if (hasConfig(stack)) {
             NBTTagCompound config = getConfig(stack);
-            tooltip.add("\u00a7b来源: \u00a7f" + config.getString("name"));
+            tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.source", config.getString("name")));
             NBTTagCompound data = config.getCompoundTag("data");
             if (data.hasKey("ae2e:upgrades")) {
                 NBTTagList upgrades = data.getTagList("ae2e:upgrades", 10);
-                tooltip.add("\u00a7b升级: \u00a7f" + upgrades.tagCount() + " 种");
+                tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.upgrades", upgrades.tagCount()));
             }
         } else {
-            tooltip.add("\u00a77无配置");
+            tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.no_config"));
         }
 
         int count = getSelectionCount(stack);
         if (count > 0) {
-            tooltip.add("\u00a7b已选取: \u00a7f" + count + " 个目标");
+            tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.selections", count));
         }
 
         tooltip.add("");
-        tooltip.add("\u00a77Sneak+右键: 复制配置");
-        tooltip.add("\u00a77右键: 粘贴配置");
-        tooltip.add("\u00a77Ctrl+右键: 选取/取消选取");
-        tooltip.add("\u00a77对空气右键: 打开管理界面");
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.sneak"));
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.use"));
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.ctrl"));
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.air"));
     }
 }

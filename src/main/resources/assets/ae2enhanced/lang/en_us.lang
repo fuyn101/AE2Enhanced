@@ -182,3 +182,38 @@ key.ae2enhanced.jeiSearchTerminal=Search JEI Item in Terminal
 key.categories.ae2enhanced=AE2 Enhanced
 
 item.ae2enhanced.universal_memory_card.name=Universal Memory Card
+
+item.ae2enhanced.universal_memory_card.tooltip.source=§bSource: §f%s
+item.ae2enhanced.universal_memory_card.tooltip.upgrades=§bUpgrades: §f%d types
+item.ae2enhanced.universal_memory_card.tooltip.no_config=§7No configuration
+item.ae2enhanced.universal_memory_card.tooltip.selections=§bSelected: §f%d targets
+item.ae2enhanced.universal_memory_card.tooltip.sneak=§7Sneak+Right-click: Copy configuration
+item.ae2enhanced.universal_memory_card.tooltip.use=§7Right-click: Paste configuration
+item.ae2enhanced.universal_memory_card.tooltip.ctrl=§7Ctrl+Right-click: Select/Deselect
+item.ae2enhanced.universal_memory_card.tooltip.air=§7Right-click air: Open management GUI
+
+gui.ae2enhanced.umc.title=Universal Memory Card
+gui.ae2enhanced.umc.source=Source: %s
+gui.ae2enhanced.umc.upgrades=Upgrades: %d types
+gui.ae2enhanced.umc.no_config=No configuration
+gui.ae2enhanced.umc.selections=Selected %d targets
+gui.ae2enhanced.umc.more=... and %d more
+gui.ae2enhanced.umc.btn.clear_config=Clear Config
+gui.ae2enhanced.umc.btn.clear_selections=Clear Selections
+
+gui.ae2enhanced.umc.msg.copy_invalid=§cCannot copy this device
+gui.ae2enhanced.umc.msg.copy_unsupported=§cThis device does not support configuration copying
+gui.ae2enhanced.umc.msg.copy_failed=§cCopy failed
+gui.ae2enhanced.umc.msg.copy_success=§aCopied §e%s§a configuration
+gui.ae2enhanced.umc.msg.no_config=§cNo configuration in memory card
+gui.ae2enhanced.umc.msg.paste_invalid=§cCannot paste to this device
+gui.ae2enhanced.umc.msg.paste_unsupported=§cThis device does not support configuration paste
+gui.ae2enhanced.umc.msg.bulk_success=§aBulk paste complete: §e%d§a success, §e%d§a failed
+gui.ae2enhanced.umc.msg.paste_success=§aConfiguration pasted
+gui.ae2enhanced.umc.msg.missing_upgrades=§cInsufficient upgrade cards in inventory
+gui.ae2enhanced.umc.msg.invalid_machine=§cDevice type mismatch
+gui.ae2enhanced.umc.msg.paste_failed=§cPaste failed
+gui.ae2enhanced.umc.msg.deselect=§aDeselected
+gui.ae2enhanced.umc.msg.select_part=§aSelected Part
+gui.ae2enhanced.umc.msg.select_tile=§aSelected §e%d§a similar blocks
+gui.ae2enhanced.umc.msg.select_block=§aSelected block

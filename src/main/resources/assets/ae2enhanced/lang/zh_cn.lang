@@ -180,3 +180,38 @@ key.ae2enhanced.jeiSearchTerminal=在终端中搜索 JEI 物品
 key.categories.ae2enhanced=AE2 Enhanced
 
 item.ae2enhanced.universal_memory_card.name=通用内存卡
+
+item.ae2enhanced.universal_memory_card.tooltip.source=§b来源: §f%s
+item.ae2enhanced.universal_memory_card.tooltip.upgrades=§b升级: §f%d 种
+item.ae2enhanced.universal_memory_card.tooltip.no_config=§7无配置
+item.ae2enhanced.universal_memory_card.tooltip.selections=§b已选取: §f%d 个目标
+item.ae2enhanced.universal_memory_card.tooltip.sneak=§7Sneak+右键: 复制配置
+item.ae2enhanced.universal_memory_card.tooltip.use=§7右键: 粘贴配置
+item.ae2enhanced.universal_memory_card.tooltip.ctrl=§7Ctrl+右键: 选取/取消选取
+item.ae2enhanced.universal_memory_card.tooltip.air=§7对空气右键: 打开管理界面
+
+gui.ae2enhanced.umc.title=通用内存卡
+gui.ae2enhanced.umc.source=来源: %s
+gui.ae2enhanced.umc.upgrades=升级: %d 种
+gui.ae2enhanced.umc.no_config=无配置
+gui.ae2enhanced.umc.selections=已选取 %d 个目标
+gui.ae2enhanced.umc.more=... 等 %d 个
+gui.ae2enhanced.umc.btn.clear_config=清除配置
+gui.ae2enhanced.umc.btn.clear_selections=清除选取
+
+gui.ae2enhanced.umc.msg.copy_invalid=§c无法复制该设备
+gui.ae2enhanced.umc.msg.copy_unsupported=§c该设备不支持配置复制
+gui.ae2enhanced.umc.msg.copy_failed=§c复制失败
+gui.ae2enhanced.umc.msg.copy_success=§a已复制 §e%s§a 的配置
+gui.ae2enhanced.umc.msg.no_config=§c内存卡中没有配置
+gui.ae2enhanced.umc.msg.paste_invalid=§c无法粘贴到该设备
+gui.ae2enhanced.umc.msg.paste_unsupported=§c该设备不支持配置粘贴
+gui.ae2enhanced.umc.msg.bulk_success=§a批量粘贴完成：成功 §e%d§a 个，失败 §e%d§a 个
+gui.ae2enhanced.umc.msg.paste_success=§a配置已粘贴
+gui.ae2enhanced.umc.msg.missing_upgrades=§c背包中升级卡不足
+gui.ae2enhanced.umc.msg.invalid_machine=§c设备类型不匹配
+gui.ae2enhanced.umc.msg.paste_failed=§c粘贴失败
+gui.ae2enhanced.umc.msg.deselect=§a已取消选取
+gui.ae2enhanced.umc.msg.select_part=§a已选取 Part
+gui.ae2enhanced.umc.msg.select_tile=§a已选取 §e%d§a 个同类方块
+gui.ae2enhanced.umc.msg.select_block=§a已选取方块

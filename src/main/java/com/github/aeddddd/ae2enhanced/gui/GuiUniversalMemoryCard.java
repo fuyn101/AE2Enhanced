@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -42,9 +43,9 @@ public class GuiUniversalMemoryCard extends GuiContainer {
 
         this.buttonList.clear();
         // 清除配置按钮
-        this.buttonList.add(new GuiButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 24, 70, 18, "\u6e05\u9664\u914d\u7f6e"));
+        this.buttonList.add(new GuiButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 24, 70, 18, I18n.format("gui.ae2enhanced.umc.btn.clear_config")));
         // 清除选取按钮
-        this.buttonList.add(new GuiButton(1, this.guiLeft + GUI_WIDTH - 80, this.guiTop + GUI_HEIGHT - 24, 70, 18, "\u6e05\u9664\u9009\u53d6"));
+        this.buttonList.add(new GuiButton(1, this.guiLeft + GUI_WIDTH - 80, this.guiTop + GUI_HEIGHT - 24, 70, 18, I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
         // 选取列表的删除按钮（最多 5 个）
         for (int i = 0; i < 5; i++) {
@@ -121,16 +122,16 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         // 标题栏背景 - 稍深
         drawRect(x + 1, y + 1, x + GUI_WIDTH - 1, y + 18, 0xFFA0A0A0);
         // 标题
-        String title = "\u901a\u7528\u5185\u5b58\u5361";
+        String title = I18n.format("gui.ae2enhanced.umc.title");
         int titleWidth = this.fontRenderer.getStringWidth(title);
         this.fontRenderer.drawString(title, x + (GUI_WIDTH - titleWidth) / 2, y + 5, 0xFFFFFF);
 
         // 配置区
         if (hasConfig) {
-            this.fontRenderer.drawString("\u6765\u6e90: " + configName, x + 8, y + 24, 0x333333);
-            this.fontRenderer.drawString("\u5347\u7ea7: " + upgradeCount + " \u79cd", x + 8, y + 36, 0x333333);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.source", configName), x + 8, y + 24, 0x333333);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.upgrades", upgradeCount), x + 8, y + 36, 0x333333);
         } else {
-            this.fontRenderer.drawString("\u65e0\u914d\u7f6e", x + 8, y + 24, 0x888888);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 8, y + 24, 0x888888);
             this.fontRenderer.drawString("", x + 8, y + 36, 0x888888);
         }
 
@@ -138,7 +139,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         drawRect(x + 8, y + 50, x + GUI_WIDTH - 8, y + 51, 0xFF808080);
 
         // 选取区标题
-        this.fontRenderer.drawString("\u5df2\u9009\u53d6 " + selections.size() + " \u4e2a\u76ee\u6807", x + 8, y + 56, 0x333333);
+        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 8, y + 56, 0x333333);
 
         // 选取列表
         int maxDisplay = Math.min(selections.size(), 5);
@@ -151,7 +152,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             this.fontRenderer.drawString(text, x + 8, y + 72 + i * 14, 0x555555);
         }
         if (selections.size() > 5) {
-            this.fontRenderer.drawString("... \u7b49 " + (selections.size() - 5) + " \u4e2a", x + 8, y + 72 + 5 * 14, 0x888888);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.more", selections.size() - 5), x + 8, y + 72 + 5 * 14, 0x888888);
         }
 
         // 更新按钮可见性
