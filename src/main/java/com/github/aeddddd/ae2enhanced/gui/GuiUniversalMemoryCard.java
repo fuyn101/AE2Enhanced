@@ -17,12 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 通用内存卡管理 GUI（半透明现代风格）。
+ * 通用内存卡管理 GUI（半透明现代风格，支持滚动条）。
  */
 public class GuiUniversalMemoryCard extends GuiContainer {
 
-    private static final int GUI_WIDTH = 176;
-    private static final int GUI_HEIGHT = 166;
+    private static final int GUI_WIDTH = 220;
+    private static final int GUI_HEIGHT = 220;
+
+    private static final int VISIBLE_COUNT = 8;
+    private static final int ENTRY_HEIGHT = 14;
+    private static final int LIST_Y = 72;
+    private static final int LIST_HEIGHT = VISIBLE_COUNT * ENTRY_HEIGHT;
 
     // 配色
     private static final int COLOR_BG = 0xE02B2B3B;
@@ -33,12 +38,20 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     private static final int COLOR_TEXT_DIM = 0xAAAAAA;
     private static final int COLOR_TEXT_MUTED = 0x888888;
     private static final int COLOR_SEPARATOR = 0xFF3A8EBF;
+    private static final int COLOR_SCROLL_TRACK = 0x40FFFFFF;
+    private static final int COLOR_SCROLL_THUMB = 0xFF3A8EBF;
 
     private final EntityPlayer player;
     private boolean hasConfig = false;
     private String configName = "";
     private int upgradeCount = 0;
     private List<ItemUniversalMemoryCard.SelectionEntry> selections = new ArrayList<>();
+
+    // 滚动条状态
+    private int scrollIndex = 0;
+    private boolean isDraggingThumb = false;
+    private int dragStartY = 0;
+    private int dragStartScroll = 0;
 
     public GuiUniversalMemoryCard(EntityPlayer player) {
         super(new com.github.aeddddd.ae2enhanced.container.ContainerUniversalMemoryCard(player));
@@ -51,16 +64,17 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     public void initGui() {
         super.initGui();
         refreshData();
+        clampScroll();
 
         this.buttonList.clear();
-        this.buttonList.add(new GuiModernButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 26, 70, 18,
+        this.buttonList.add(new GuiModernButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 24, 80, 18,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_config")));
-        this.buttonList.add(new GuiModernButton(1, this.guiLeft + GUI_WIDTH - 80, this.guiTop + GUI_HEIGHT - 26, 70, 18,
+        this.buttonList.add(new GuiModernButton(1, this.guiLeft + GUI_WIDTH - 90, this.guiTop + GUI_HEIGHT - 24, 80, 18,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
-        for (int i = 0; i < 5; i++) {
-            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + GUI_WIDTH - 24, this.guiTop + 72 + i * 14, 16, 12, "\u00d7");
-            btn.visible = i < selections.size();
+        for (int i = 0; i < VISIBLE_COUNT; i++) {
+            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + GUI_WIDTH - 38, this.guiTop + LIST_Y + i * ENTRY_HEIGHT - 1, 16, 12, "\u00d7");
+            btn.visible = false;
             this.buttonList.add(btn);
         }
     }
@@ -82,6 +96,32 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         }
     }
 
+    private void clampScroll() {
+        if (scrollIndex < 0) scrollIndex = 0;
+        int max = Math.max(0, selections.size() - VISIBLE_COUNT);
+        if (scrollIndex > max) scrollIndex = max;
+    }
+
+    private int getScrollBarX() {
+        return this.guiLeft + GUI_WIDTH - 18;
+    }
+
+    private int getScrollBarY() {
+        return this.guiTop + LIST_Y;
+    }
+
+    private int getThumbHeight() {
+        if (selections.size() <= VISIBLE_COUNT) return LIST_HEIGHT;
+        return Math.max(16, LIST_HEIGHT * VISIBLE_COUNT / selections.size());
+    }
+
+    private int getThumbY() {
+        int scrollBarY = getScrollBarY();
+        if (selections.size() <= VISIBLE_COUNT) return scrollBarY;
+        int maxScroll = selections.size() - VISIBLE_COUNT;
+        return scrollBarY + scrollIndex * (LIST_HEIGHT - getThumbHeight()) / maxScroll;
+    }
+
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         switch (button.id) {
@@ -92,9 +132,10 @@ public class GuiUniversalMemoryCard extends GuiContainer {
                 AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.CLEAR_SELECTIONS, -1));
                 break;
             default:
-                int index = button.id - 2;
-                if (index >= 0 && index < selections.size()) {
-                    AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.REMOVE_SELECTION, index));
+                int visibleIdx = button.id - 2;
+                int actualIndex = scrollIndex + visibleIdx;
+                if (actualIndex >= 0 && actualIndex < selections.size()) {
+                    AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.REMOVE_SELECTION, actualIndex));
                 }
                 break;
         }
@@ -114,9 +155,64 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     }
 
     @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int delta = org.lwjgl.input.Mouse.getEventDWheel();
+        if (delta != 0) {
+            scrollIndex -= Integer.signum(delta);
+            clampScroll();
+        }
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        int sbX = getScrollBarX();
+        int sbY = getScrollBarY();
+        if (mouseX >= sbX && mouseX < sbX + 8 &&
+            mouseY >= sbY && mouseY < sbY + LIST_HEIGHT &&
+            selections.size() > VISIBLE_COUNT) {
+            int thumbY = getThumbY();
+            int thumbH = getThumbHeight();
+            if (mouseY >= thumbY && mouseY < thumbY + thumbH) {
+                isDraggingThumb = true;
+                dragStartY = mouseY;
+                dragStartScroll = scrollIndex;
+            } else if (mouseY < thumbY) {
+                scrollIndex -= VISIBLE_COUNT;
+                clampScroll();
+            } else {
+                scrollIndex += VISIBLE_COUNT;
+                clampScroll();
+            }
+            return;
+        }
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        if (isDraggingThumb && selections.size() > VISIBLE_COUNT) {
+            int thumbH = getThumbHeight();
+            int maxScroll = selections.size() - VISIBLE_COUNT;
+            int deltaPixels = mouseY - dragStartY;
+            int deltaSlots = deltaPixels * maxScroll / (LIST_HEIGHT - thumbH);
+            scrollIndex = dragStartScroll + deltaSlots;
+            clampScroll();
+        }
+        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+    }
+
+    @Override
+    protected void mouseReleased(int mouseX, int mouseY, int state) {
+        isDraggingThumb = false;
+        super.mouseReleased(mouseX, mouseY, state);
+    }
+
+    @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         this.drawDefaultBackground();
         refreshData();
+        clampScroll();
 
         int x = this.guiLeft;
         int y = this.guiTop;
@@ -153,23 +249,33 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 10, y + 60, COLOR_TEXT);
 
         // 选取列表
-        int maxDisplay = Math.min(selections.size(), 5);
+        int maxDisplay = Math.min(selections.size() - scrollIndex, VISIBLE_COUNT);
         for (int i = 0; i < maxDisplay; i++) {
-            ItemUniversalMemoryCard.SelectionEntry entry = selections.get(i);
+            ItemUniversalMemoryCard.SelectionEntry entry = selections.get(scrollIndex + i);
             String text = entry.pos.getX() + ", " + entry.pos.getY() + ", " + entry.pos.getZ();
             if (entry.side >= 0) {
                 text += " [P]";
             }
-            this.fontRenderer.drawString(text, x + 10, y + 76 + i * 14, COLOR_TEXT_DIM);
-        }
-        if (selections.size() > 5) {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.more", selections.size() - 5), x + 10, y + 76 + 5 * 14, COLOR_TEXT_MUTED);
+            this.fontRenderer.drawString(text, x + 10, y + LIST_Y + i * ENTRY_HEIGHT, COLOR_TEXT_DIM);
         }
 
-        // 更新按钮可见性
-        for (int i = 0; i < 5; i++) {
-            if (2 + i < this.buttonList.size()) {
-                this.buttonList.get(2 + i).visible = i < selections.size();
+        // 滚动条
+        int sbX = getScrollBarX();
+        int sbY = getScrollBarY();
+        drawRect(sbX, sbY, sbX + 8, sbY + LIST_HEIGHT, COLOR_SCROLL_TRACK);
+        if (selections.size() > VISIBLE_COUNT) {
+            int thumbY = getThumbY();
+            int thumbH = getThumbHeight();
+            drawRect(sbX, thumbY, sbX + 8, thumbY + thumbH, COLOR_SCROLL_THUMB);
+        }
+
+        // 更新按钮位置和可见性
+        for (int i = 0; i < VISIBLE_COUNT; i++) {
+            int btnIdx = 2 + i;
+            if (btnIdx < this.buttonList.size()) {
+                GuiButton btn = this.buttonList.get(btnIdx);
+                btn.y = y + LIST_Y + i * ENTRY_HEIGHT - 1;
+                btn.visible = i < maxDisplay;
             }
         }
     }
