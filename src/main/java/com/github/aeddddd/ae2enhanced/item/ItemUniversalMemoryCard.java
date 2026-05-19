@@ -23,6 +23,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
@@ -207,11 +208,17 @@ public class ItemUniversalMemoryCard extends Item {
 
         @SideOnly(Side.CLIENT)
         @SubscribeEvent
-        public void onRightClickEmpty(PlayerInteractEvent.RightClickEmpty event) {
-            if (event.getHand() == EnumHand.MAIN_HAND) {
-                ItemStack stack = event.getEntityPlayer().getHeldItemMainhand();
+        public void onMouseInput(MouseEvent event) {
+            if (event.getButton() == 1 && event.isButtonstate()) {
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+                if (mc.player == null || mc.currentScreen != null) return;
+                ItemStack stack = mc.player.getHeldItemMainhand();
                 if (stack.getItem() instanceof ItemUniversalMemoryCard) {
-                    AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.OPEN_GUI));
+                    net.minecraft.util.math.RayTraceResult ray = mc.objectMouseOver;
+                    if (ray == null || ray.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.MISS) {
+                        AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.OPEN_GUI));
+                        event.setCanceled(true);
+                    }
                 }
             }
         }
