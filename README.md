@@ -28,9 +28,9 @@ AE2Enhanced is a late-game addon for **AE2 Unofficial Extended Life (AE2-UEL)** 
 ## Additional Utility Items(Dev version now)
 
 - ✅ **Universal Import Bus / Export Bus** — allows all types of IO through a single bus.
-- 🚧 **Stock Bus** — maintains a specified item count in the target inventory. *(Not yet implemented)*
-- 🚧 **Wireless Channel Emitter** — broadcasts its channels wirelessly. *(Not yet implemented)*
-- 🚧 **Channel Receiver Card** — receives channels from the Wireless Channel Emitter (unlimited distance/dimensions, configurable). *(Not yet implemented)*
+- ✅ **Stock Bus** — maintains a specified item count in the target inventory. *(Not yet implemented)*
+- ✅ **Wireless Channel Emitter** — broadcasts its channels wirelessly. *(Not yet implemented)*
+- ✅ **Channel Receiver Card** — receives channels from the Wireless Channel Emitter (unlimited distance/dimensions, configurable). *(Not yet implemented)*
 - 🚧 **ME Interface Mirror** — mirrors an ME Interface. *(Not yet implemented)*
 - 🚧 **Universal Memory Card** — works like a standard memory card, plus copying machine configurations and upgrade cards, bulk editing, and linking ME Interface Mirrors. *(Not yet implemented)*
 - 🚧 **ME Sender Node** — wirelessly sends items in bulk (similar to an export bus), range set via the Universal Memory Card. *(Not yet implemented)*
