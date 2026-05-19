@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -16,12 +17,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 通用内存卡管理 GUI（自绘制浅灰+浅蓝 AE2 风格）。
+ * 通用内存卡管理 GUI（半透明现代风格）。
  */
 public class GuiUniversalMemoryCard extends GuiContainer {
 
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
+
+    // 配色
+    private static final int COLOR_BG = 0xE02B2B3B;
+    private static final int COLOR_BORDER = 0xFF3A8EBF;
+    private static final int COLOR_TITLE_BG = 0xE0353549;
+    private static final int COLOR_TITLE_LINE = 0xFF3A8EBF;
+    private static final int COLOR_TEXT = 0xFFFFFF;
+    private static final int COLOR_TEXT_DIM = 0xAAAAAA;
+    private static final int COLOR_TEXT_MUTED = 0x888888;
+    private static final int COLOR_SEPARATOR = 0xFF3A8EBF;
 
     private final EntityPlayer player;
     private boolean hasConfig = false;
@@ -42,14 +53,13 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         refreshData();
 
         this.buttonList.clear();
-        // 清除配置按钮
-        this.buttonList.add(new GuiButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 24, 70, 18, I18n.format("gui.ae2enhanced.umc.btn.clear_config")));
-        // 清除选取按钮
-        this.buttonList.add(new GuiButton(1, this.guiLeft + GUI_WIDTH - 80, this.guiTop + GUI_HEIGHT - 24, 70, 18, I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
+        this.buttonList.add(new GuiModernButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 26, 70, 18,
+                I18n.format("gui.ae2enhanced.umc.btn.clear_config")));
+        this.buttonList.add(new GuiModernButton(1, this.guiLeft + GUI_WIDTH - 80, this.guiTop + GUI_HEIGHT - 26, 70, 18,
+                I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
-        // 选取列表的删除按钮（最多 5 个）
         for (int i = 0; i < 5; i++) {
-            GuiButton btn = new GuiButton(2 + i, this.guiLeft + GUI_WIDTH - 24, this.guiTop + 72 + i * 14, 16, 12, "\u00d7");
+            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + GUI_WIDTH - 24, this.guiTop + 72 + i * 14, 16, 12, "\u00d7");
             btn.visible = i < selections.size();
             this.buttonList.add(btn);
         }
@@ -93,7 +103,6 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     @Override
     public void updateScreen() {
         super.updateScreen();
-        // 如果选取数量变化，重新初始化按钮
         ItemStack stack = player.getHeldItemMainhand();
         if (stack.getItem() instanceof ItemUniversalMemoryCard) {
             int currentCount = ItemUniversalMemoryCard.getSelectionCount(stack);
@@ -111,35 +120,36 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         int x = this.guiLeft;
         int y = this.guiTop;
 
-        // 主背景 - 浅灰
-        drawRect(x, y, x + GUI_WIDTH, y + GUI_HEIGHT, 0xFFC0C0C0);
-        // 边框 - 浅蓝
-        drawRect(x, y, x + GUI_WIDTH, y + 1, 0xFF3A8EBF);
-        drawRect(x, y + GUI_HEIGHT - 1, x + GUI_WIDTH, y + GUI_HEIGHT, 0xFF3A8EBF);
-        drawRect(x, y, x + 1, y + GUI_HEIGHT, 0xFF3A8EBF);
-        drawRect(x + GUI_WIDTH - 1, y, x + GUI_WIDTH, y + GUI_HEIGHT, 0xFF3A8EBF);
+        // 主背景（半透明深色）
+        drawRect(x, y, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BG);
+        // 外边框（浅蓝）
+        drawRect(x, y, x + GUI_WIDTH, y + 1, COLOR_BORDER);
+        drawRect(x, y + GUI_HEIGHT - 1, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BORDER);
+        drawRect(x, y, x + 1, y + GUI_HEIGHT, COLOR_BORDER);
+        drawRect(x + GUI_WIDTH - 1, y, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BORDER);
 
-        // 标题栏背景 - 稍深
-        drawRect(x + 1, y + 1, x + GUI_WIDTH - 1, y + 18, 0xFFA0A0A0);
-        // 标题
+        // 标题栏背景
+        drawRect(x + 1, y + 1, x + GUI_WIDTH - 1, y + 20, COLOR_TITLE_BG);
+        // 标题栏底部分隔线
+        drawRect(x + 1, y + 20, x + GUI_WIDTH - 1, y + 21, COLOR_TITLE_LINE);
+        // 标题文字
         String title = I18n.format("gui.ae2enhanced.umc.title");
         int titleWidth = this.fontRenderer.getStringWidth(title);
-        this.fontRenderer.drawString(title, x + (GUI_WIDTH - titleWidth) / 2, y + 5, 0xFFFFFF);
+        this.fontRenderer.drawString(title, x + (GUI_WIDTH - titleWidth) / 2, y + 6, COLOR_TEXT);
 
         // 配置区
         if (hasConfig) {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.source", configName), x + 8, y + 24, 0x333333);
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.upgrades", upgradeCount), x + 8, y + 36, 0x333333);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.source", configName), x + 10, y + 28, COLOR_TEXT);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.upgrades", upgradeCount), x + 10, y + 40, COLOR_TEXT_DIM);
         } else {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 8, y + 24, 0x888888);
-            this.fontRenderer.drawString("", x + 8, y + 36, 0x888888);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 10, y + 28, COLOR_TEXT_MUTED);
         }
 
         // 分隔线
-        drawRect(x + 8, y + 50, x + GUI_WIDTH - 8, y + 51, 0xFF808080);
+        drawRect(x + 10, y + 54, x + GUI_WIDTH - 10, y + 55, COLOR_SEPARATOR);
 
         // 选取区标题
-        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 8, y + 56, 0x333333);
+        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 10, y + 60, COLOR_TEXT);
 
         // 选取列表
         int maxDisplay = Math.min(selections.size(), 5);
@@ -149,10 +159,10 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             if (entry.side >= 0) {
                 text += " [P]";
             }
-            this.fontRenderer.drawString(text, x + 8, y + 72 + i * 14, 0x555555);
+            this.fontRenderer.drawString(text, x + 10, y + 76 + i * 14, COLOR_TEXT_DIM);
         }
         if (selections.size() > 5) {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.more", selections.size() - 5), x + 8, y + 72 + 5 * 14, 0x888888);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.more", selections.size() - 5), x + 10, y + 76 + 5 * 14, COLOR_TEXT_MUTED);
         }
 
         // 更新按钮可见性
@@ -168,5 +178,44 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
         this.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    // ============================================================
+    // 现代半透明按钮
+    // ============================================================
+
+    public static class GuiModernButton extends GuiButton {
+
+        private static final int COLOR_BTN_BG = 0x603A8EBF;
+        private static final int COLOR_BTN_BG_HOVER = 0xA04A9EDF;
+        private static final int COLOR_BTN_BORDER = 0xFF3A8EBF;
+        private static final int COLOR_BTN_BORDER_HOVER = 0xFF80C0FF;
+        private static final int COLOR_BTN_TEXT = 0xFFFFFF;
+        private static final int COLOR_BTN_TEXT_DISABLED = 0x888888;
+
+        public GuiModernButton(int buttonId, int x, int y, int width, int height, String text) {
+            super(buttonId, x, y, width, height, text);
+        }
+
+        @Override
+        public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
+            if (!this.visible) return;
+            this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
+
+            // 背景
+            int bgColor = this.hovered ? COLOR_BTN_BG_HOVER : COLOR_BTN_BG;
+            drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
+
+            // 边框
+            int borderColor = this.hovered ? COLOR_BTN_BORDER_HOVER : COLOR_BTN_BORDER;
+            drawRect(this.x, this.y, this.x + this.width, this.y + 1, borderColor);
+            drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, borderColor);
+            drawRect(this.x, this.y, this.x + 1, this.y + this.height, borderColor);
+            drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, borderColor);
+
+            // 文字
+            int textColor = this.enabled ? COLOR_BTN_TEXT : COLOR_BTN_TEXT_DISABLED;
+            this.drawCenteredString(mc.fontRenderer, this.displayString, this.x + this.width / 2, this.y + (this.height - 8) / 2, textColor);
+        }
     }
 }

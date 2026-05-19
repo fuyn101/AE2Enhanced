@@ -434,16 +434,8 @@ public class ItemUniversalMemoryCard extends Item {
     }
 
     // ============================================================
-    // GUI Open (right-click air)
+    // GUI Open: only when right-clicking air (handled by ClientEvents.onRightClickEmpty)
     // ============================================================
-
-    @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        if (!world.isRemote && hand == EnumHand.MAIN_HAND) {
-            player.openGui(AE2Enhanced.instance, GUI_ID, world, 0, 0, 0);
-        }
-        return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
-    }
 
     // ============================================================
     // Tooltip
