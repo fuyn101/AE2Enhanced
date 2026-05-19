@@ -20,7 +20,9 @@
     "MixinUpgradeInventory",
     "MixinUpgradeInvFilter",
     "MixinUpgradeSlots",
-    "MixinSlotRestrictedInput"
+    "MixinSlotRestrictedInput",
+    "MixinAEBasePart",
+    "MixinAENetworkTile"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",

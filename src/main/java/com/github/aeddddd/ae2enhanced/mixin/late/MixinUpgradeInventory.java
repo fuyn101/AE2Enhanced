@@ -50,42 +50,56 @@ public class MixinUpgradeInventory {
     @Inject(method = "onChangeInventory", at = @At("TAIL"), remap = false)
     private void ae2e$onUpgradeInventoryChanged(IItemHandler inv, int slot, appeng.util.inv.InvOperation mc,
                                                  ItemStack removedStack, ItemStack newStack, CallbackInfo ci) {
-        // 只在服务端执行，避免客户端预测性更新产生干扰日志
         if (!appeng.util.Platform.isServer()) {
             return;
         }
+        destroyConnection(this.parent);
+        tryConnect(this.parent);
+    }
 
-        AE2Enhanced.LOGGER.warn("[AE2E] DEBUG MixinUpgradeInventory triggered, parent={}, parentClass={}",
-                this.parent, this.parent != null ? this.parent.getClass().getSimpleName() : "null");
-
-        IGridNode node = getNodeFromParent(this.parent);
-        if (node == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG node is null");
-            return;
-        }
-
-        AE2Enhanced.LOGGER.warn("[AE2E] DEBUG node={}, destroying old connection", node);
-
-        // Destroy existing remote connection
+    public static void destroyConnection(IAEAppEngInventory parent) {
+        IGridNode node = getNodeFromParent(parent);
+        if (node == null) return;
         IGridConnection old = AE2E_REMOTE_CONNECTIONS.remove(node);
         if (old != null) {
-            old.destroy();
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG destroyed old connection");
+            try {
+                old.destroy();
+                AE2Enhanced.LOGGER.warn("[AE2E] Destroyed wireless grid connection for {}",
+                        parent.getClass().getSimpleName());
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to destroy wireless grid connection", e);
+            }
         }
+    }
 
-        // Search upgrade inventory for channel receiver card
-        IItemHandler upgrades = getUpgradesFromParent(this.parent);
-        if (upgrades == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG upgrades inventory is null");
+    public static void tryConnect(IAEAppEngInventory parent) {
+        if (!appeng.util.Platform.isServer()) return;
+
+        IGridNode node = getNodeFromParent(parent);
+        if (node == null) {
+            AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: node is null for {}",
+                    parent.getClass().getSimpleName());
             return;
         }
 
-        AE2Enhanced.LOGGER.warn("[AE2E] DEBUG searching {} upgrade slots", upgrades.getSlots());
+        // If already connected, skip
+        if (AE2E_REMOTE_CONNECTIONS.containsKey(node)) {
+            AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: already connected for {}",
+                    parent.getClass().getSimpleName());
+            return;
+        }
 
-        // Get TileEntity for dimension/range checks
-        TileEntity tile = getTileFromParent(this.parent);
+        IItemHandler upgrades = getUpgradesFromParent(parent);
+        if (upgrades == null) {
+            AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: upgrades inventory is null for {}",
+                    parent.getClass().getSimpleName());
+            return;
+        }
+
+        TileEntity tile = getTileFromParent(parent);
         if (tile == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG tile is null");
+            AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: tile is null for {}",
+                    parent.getClass().getSimpleName());
             return;
         }
 
@@ -93,24 +107,16 @@ public class MixinUpgradeInventory {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             if (!(stack.getItem() instanceof ItemChannelReceiverCard)) continue;
-            if (!ItemChannelReceiverCard.isBound(stack)) {
-                AE2Enhanced.LOGGER.warn("[AE2E] DEBUG card in slot {} is not bound", i);
-                continue;
-            }
+            if (!ItemChannelReceiverCard.isBound(stack)) continue;
 
             BlockPos pos = ItemChannelReceiverCard.getTransmitterPos(stack);
             int dim = ItemChannelReceiverCard.getTransmitterDim(stack);
             if (pos == null) continue;
 
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG found bound card -> pos={}, dim={}", pos, dim);
-
             if (!AE2EnhancedConfig.wirelessChannel.crossDimension) {
                 try {
                     int localDim = tile.getWorld().provider.getDimension();
-                    if (dim != localDim) {
-                        AE2Enhanced.LOGGER.warn("[AE2E] DEBUG cross-dimension denied");
-                        continue;
-                    }
+                    if (dim != localDim) continue;
                 } catch (Exception ignored) {
                     continue;
                 }
@@ -121,7 +127,6 @@ public class MixinUpgradeInventory {
                 try {
                     BlockPos localPos = tile.getPos();
                     if (localPos.getDistance(pos.getX(), pos.getY(), pos.getZ()) > AE2EnhancedConfig.wirelessChannel.maxRange) {
-                        AE2Enhanced.LOGGER.warn("[AE2E] DEBUG out of range");
                         continue;
                     }
                 } catch (Exception ignored) {
@@ -129,22 +134,16 @@ public class MixinUpgradeInventory {
             }
 
             IGridNode transmitterNode = findTransmitterNode(pos, dim);
-            if (transmitterNode == null) {
-                AE2Enhanced.LOGGER.warn("[AE2E] DEBUG transmitter node not found");
-                continue;
-            }
+            if (transmitterNode == null) continue;
 
             // Prevent self-connection
-            if (transmitterNode == node) {
-                AE2Enhanced.LOGGER.warn("[AE2E] DEBUG self-connection prevented");
-                continue;
-            }
+            if (transmitterNode == node) continue;
 
             try {
                 IGridConnection conn = AEApi.instance().grid().createGridConnection(node, transmitterNode);
                 AE2E_REMOTE_CONNECTIONS.put(node, conn);
                 AE2Enhanced.LOGGER.warn("[AE2E] Created wireless grid connection for {} -> transmitter at {}",
-                        this.parent.getClass().getSimpleName(), pos);
+                        parent.getClass().getSimpleName(), pos);
 
                 // AE2 的 createGridConnection 在 addConnection 之前调用 repath()，
                 // 导致路径系统看不到这条新连接，从而无法分配频道。
@@ -199,21 +198,21 @@ public class MixinUpgradeInventory {
     private static IGridNode findTransmitterNode(BlockPos pos, int dim) {
         World world = DimensionManager.getWorld(dim);
         if (world == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: world is null for dim={}", dim);
+            AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: world is null for dim={}", dim);
             return null;
         }
         if (!world.isBlockLoaded(pos)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: block at {} not loaded", pos);
+            AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: block at {} not loaded", pos);
             return null;
         }
 
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: no TileEntity at {}", pos);
+            AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: no TileEntity at {}", pos);
             return null;
         }
         if (!(te instanceof TileWirelessChannelTransmitter)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: TileEntity at {} is {}, expected TileWirelessChannelTransmitter",
+            AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: TileEntity at {} is {}, expected TileWirelessChannelTransmitter",
                     pos, te.getClass().getName());
             // 向后兼容：旧版卡片可能绑定到 IPartHost（线缆）上的 Part
             if (te instanceof IPartHost) {
@@ -235,11 +234,11 @@ public class MixinUpgradeInventory {
         try {
             IGridNode node = tile.getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
             if (node == null) {
-                AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: tile.getGridNode() returned null at {}", pos);
+                AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: tile.getGridNode() returned null at {}", pos);
             }
             return node;
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: getGridNode threw exception at {}", pos, e);
+            AE2Enhanced.LOGGER.warn("[AE2E] findTransmitterNode: getGridNode threw exception at {}", pos, e);
             return null;
         }
     }
