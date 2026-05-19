@@ -19,6 +19,7 @@ import appeng.core.settings.TickRates;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.automation.PartUpgradeable;
+import appeng.util.SettingsFrom;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.CapabilityProbe;
@@ -325,6 +326,28 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
     // endregion
 
     // region NBT
+
+    @Override
+    protected NBTTagCompound downloadSettings(SettingsFrom from, NBTTagCompound output) {
+        super.downloadSettings(from, output);
+        output.setInteger("busMode", this.busMode.ordinal());
+        output.setInteger("roundRobinIndex", this.roundRobinIndex);
+        return output;
+    }
+
+    @Override
+    public void uploadSettings(SettingsFrom from, NBTTagCompound compound, EntityPlayer player) {
+        super.uploadSettings(from, compound, player);
+        if (compound.hasKey("busMode")) {
+            int mode = compound.getInteger("busMode");
+            if (mode >= 0 && mode < BusMode.values().length) {
+                this.busMode = BusMode.values()[mode];
+            }
+        }
+        if (compound.hasKey("roundRobinIndex")) {
+            this.roundRobinIndex = compound.getInteger("roundRobinIndex");
+        }
+    }
 
     @Override
     public void readFromNBT(NBTTagCompound data) {

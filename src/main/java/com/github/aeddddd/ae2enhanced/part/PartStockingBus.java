@@ -33,6 +33,7 @@ import appeng.parts.automation.PartUpgradeable;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
+import appeng.util.SettingsFrom;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
@@ -703,21 +704,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
 
     // === NBT ===
 
-    @Override
-    public void readFromNBT(NBTTagCompound data) {
-        super.readFromNBT(data);
-        if (data.hasKey("stockingMode")) {
-            int modeOrd = data.getInteger("stockingMode");
-            if (modeOrd >= 0 && modeOrd < StockingMode.values().length) {
-                this.mode = StockingMode.values()[modeOrd];
-            }
-        }
-        for (int i = 0; i < CONFIG_SIZE; i++) {
-            this.targetAmounts[i] = data.getLong("targetAmount_" + i);
-            // 不再强制将 0 覆写为 1，允许保存/加载时保持清除状态
-        }
-        this.config.readFromNBT(data, "config");
-        // 同步 targetAmount 到 config slot 的 ItemStack count
+    private void syncTargetAmountsToConfig() {
         for (int i = 0; i < CONFIG_SIZE; i++) {
             ItemStack stack = this.config.getStackInSlot(i);
             if (!stack.isEmpty()) {
@@ -743,6 +730,50 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                 this.targetAmounts[i] = 0;
             }
         }
+    }
+
+    @Override
+    protected NBTTagCompound downloadSettings(SettingsFrom from, NBTTagCompound output) {
+        super.downloadSettings(from, output);
+        output.setInteger("stockingMode", this.mode.ordinal());
+        for (int i = 0; i < CONFIG_SIZE; i++) {
+            output.setLong("targetAmount_" + i, this.targetAmounts[i]);
+        }
+        return output;
+    }
+
+    @Override
+    public void uploadSettings(SettingsFrom from, NBTTagCompound compound, EntityPlayer player) {
+        super.uploadSettings(from, compound, player);
+        if (compound.hasKey("stockingMode")) {
+            int modeOrd = compound.getInteger("stockingMode");
+            if (modeOrd >= 0 && modeOrd < StockingMode.values().length) {
+                this.mode = StockingMode.values()[modeOrd];
+            }
+        }
+        for (int i = 0; i < CONFIG_SIZE; i++) {
+            String key = "targetAmount_" + i;
+            if (compound.hasKey(key)) {
+                this.targetAmounts[i] = compound.getLong(key);
+            }
+        }
+        syncTargetAmountsToConfig();
+    }
+
+    @Override
+    public void readFromNBT(NBTTagCompound data) {
+        super.readFromNBT(data);
+        if (data.hasKey("stockingMode")) {
+            int modeOrd = data.getInteger("stockingMode");
+            if (modeOrd >= 0 && modeOrd < StockingMode.values().length) {
+                this.mode = StockingMode.values()[modeOrd];
+            }
+        }
+        for (int i = 0; i < CONFIG_SIZE; i++) {
+            this.targetAmounts[i] = data.getLong("targetAmount_" + i);
+        }
+        this.config.readFromNBT(data, "config");
+        syncTargetAmountsToConfig();
     }
 
     @Override
