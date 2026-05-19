@@ -50,6 +50,11 @@ public class MixinUpgradeInventory {
     @Inject(method = "onChangeInventory", at = @At("TAIL"), remap = false)
     private void ae2e$onUpgradeInventoryChanged(IItemHandler inv, int slot, appeng.util.inv.InvOperation mc,
                                                  ItemStack removedStack, ItemStack newStack, CallbackInfo ci) {
+        // 只在服务端执行，避免客户端预测性更新产生干扰日志
+        if (!appeng.util.Platform.isServer()) {
+            return;
+        }
+
         AE2Enhanced.LOGGER.warn("[AE2E] DEBUG MixinUpgradeInventory triggered, parent={}, parentClass={}",
                 this.parent, this.parent != null ? this.parent.getClass().getSimpleName() : "null");
 
@@ -166,11 +171,23 @@ public class MixinUpgradeInventory {
 
     private static IGridNode findTransmitterNode(BlockPos pos, int dim) {
         World world = DimensionManager.getWorld(dim);
-        if (world == null) return null;
-        if (!world.isBlockLoaded(pos)) return null;
+        if (world == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: world is null for dim={}", dim);
+            return null;
+        }
+        if (!world.isBlockLoaded(pos)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: block at {} not loaded", pos);
+            return null;
+        }
 
         TileEntity te = world.getTileEntity(pos);
+        if (te == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: no TileEntity at {}", pos);
+            return null;
+        }
         if (!(te instanceof TileWirelessChannelTransmitter)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: TileEntity at {} is {}, expected TileWirelessChannelTransmitter",
+                    pos, te.getClass().getName());
             // 向后兼容：旧版卡片可能绑定到 IPartHost（线缆）上的 Part
             if (te instanceof IPartHost) {
                 IPartHost host = (IPartHost) te;
@@ -189,8 +206,13 @@ public class MixinUpgradeInventory {
 
         TileWirelessChannelTransmitter tile = (TileWirelessChannelTransmitter) te;
         try {
-            return tile.getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
+            IGridNode node = tile.getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
+            if (node == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: tile.getGridNode() returned null at {}", pos);
+            }
+            return node;
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] DEBUG findTransmitterNode: getGridNode threw exception at {}", pos, e);
             return null;
         }
     }
