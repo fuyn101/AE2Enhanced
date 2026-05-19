@@ -38,6 +38,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_UNIVERSAL_EXPORT_BUS = 7;
     public static final int GUI_STOCKING_BUS = 8;
     public static final int GUI_WIRELESS_CHANNEL_TRANSMITTER = 9;
+    public static final int GUI_UNIVERSAL_MEMORY_CARD = 10;
 
     /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -126,6 +127,9 @@ public class GuiHandler implements IGuiHandler {
                 return new ContainerWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
         }
+        if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
+            return new com.github.aeddddd.ae2enhanced.container.ContainerUniversalMemoryCard(player);
+        }
 
         return null;
     }
@@ -199,6 +203,9 @@ public class GuiHandler implements IGuiHandler {
             if (te instanceof TileWirelessChannelTransmitter) {
                 return new GuiWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
             }
+        }
+        if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
+            return new com.github.aeddddd.ae2enhanced.gui.GuiUniversalMemoryCard(player);
         }
 
         return null;

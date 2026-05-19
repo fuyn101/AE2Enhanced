@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.PacketRequestAssembly;
 import com.github.aeddddd.ae2enhanced.network.PacketStockingBusConfig;
+import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
 import com.github.aeddddd.ae2enhanced.network.PacketUniversalBusConfig;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
 import net.minecraft.init.Blocks;
@@ -102,6 +103,8 @@ public class AE2Enhanced {
         network.registerMessage(PacketMEMonitorableAction.Handler.class, PacketMEMonitorableAction.class, 3, Side.SERVER);
         network.registerMessage(PacketUniversalBusConfig.Handler.class, PacketUniversalBusConfig.class, 4, Side.SERVER);
         network.registerMessage(PacketStockingBusConfig.Handler.class, PacketStockingBusConfig.class, 5, Side.SERVER);
+        network.registerMessage(PacketUMCAction.Handler.class, PacketUMCAction.class, 6, Side.SERVER);
+        com.github.aeddddd.ae2enhanced.util.memorycard.MemoryCardHandlerRegistry.init();
         proxy.preInit(event);
     }
 

@@ -9,6 +9,7 @@ import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
+import com.github.aeddddd.ae2enhanced.client.render.SelectionBoxRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
@@ -40,6 +41,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Keyboard;
@@ -62,6 +64,8 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
+        MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
@@ -215,6 +219,7 @@ public class ClientProxy extends CommonProxy {
             AEApi.instance().registries().partModels().registerModels(PartStockingBus.MODELS);
             registerItemModel(ModItems.PART_STOCKING_BUS);
             registerItemModel(ModItems.CHANNEL_RECEIVER_CARD);
+        registerItemModel(ModItems.UNIVERSAL_MEMORY_CARD);
         }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型

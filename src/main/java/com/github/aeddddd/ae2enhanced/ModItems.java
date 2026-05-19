@@ -28,6 +28,7 @@ public class ModItems {
     public static ItemPartUniversalExportBus PART_UNIVERSAL_EXPORT_BUS;
     public static ItemPartStockingBus PART_STOCKING_BUS;
     public static ItemChannelReceiverCard CHANNEL_RECEIVER_CARD;
+    public static com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard UNIVERSAL_MEMORY_CARD;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -53,6 +54,7 @@ public class ModItems {
         PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();
         PART_STOCKING_BUS = new ItemPartStockingBus();
         CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
+        UNIVERSAL_MEMORY_CARD = new com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard();
     }
 
     @SubscribeEvent
@@ -72,5 +74,6 @@ public class ModItems {
         event.getRegistry().register(PART_UNIVERSAL_EXPORT_BUS);
         event.getRegistry().register(PART_STOCKING_BUS);
         event.getRegistry().register(CHANNEL_RECEIVER_CARD);
+        event.getRegistry().register(UNIVERSAL_MEMORY_CARD);
     }
 }

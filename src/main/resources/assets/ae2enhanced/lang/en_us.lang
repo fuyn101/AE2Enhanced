@@ -180,3 +180,5 @@ gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 
 key.ae2enhanced.jeiSearchTerminal=Search JEI Item in Terminal
 key.categories.ae2enhanced=AE2 Enhanced
+
+item.ae2enhanced.universal_memory_card.name=Universal Memory Card
