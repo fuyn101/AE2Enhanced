@@ -4,29 +4,31 @@ import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.client.me.ItemRepo;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.proxy.ClientProxy;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.IIngredientListOverlay;
+import mezz.jei.api.IBookmarkOverlay;
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.fml.relauncher.Side;
-import org.lwjgl.input.Keyboard;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * F7：在 AE2 终端打开时，对 JEI 物品列表中的物品按下配置键位，
+ * F7：在 AE2 终端打开时，对 JEI 物品列表或收藏栏中的物品按下配置键位，
  * 自动将该物品的显示名称填入终端搜索栏。
  *
  * <p>扩展设计：
  * <ul>
- *   <li>当前支持 GuiMEMonitorable 及其所有子类（合成终端、无线终端等）</li>
- *   <li>当前仅处理 ItemStack / FluidStack 类型</li>
- *   <li>键位通过 {@link AE2EnhancedConfig#client#jeiSearchKey} 配置（LWJGL key code）</li>
+ *   <li>支持 GuiMEMonitorable 及其所有子类（合成终端、无线终端等）</li>
+ *   <li>同时检测 JEI 物品列表和收藏栏（Bookmark Overlay）</li>
+ *   <li>键位通过 Forge KeyBinding 注册，可在 Controls 菜单修改</li>
+ *   <li>默认不自动聚焦搜索栏，避免打断用户浏览物品</li>
  * </ul>
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
@@ -39,19 +41,11 @@ public class JEISearchKeyHandler {
     }
 
     @SubscribeEvent
-    public static void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
-        int configKey = AE2EnhancedConfig.client.jeiSearchKey;
-        if (configKey <= 0) return; // 功能已禁用
-        if (!Keyboard.getEventKeyState()) return; // 只处理按键按下
+    public static void onKeyInput(InputEvent.KeyInputEvent event) {
+        if (!ClientProxy.JEI_SEARCH_KEY.isPressed()) return;
 
-        int key = Keyboard.getEventKey();
-        if (key == 0) {
-            key = Keyboard.getEventCharacter() + 256;
-        }
-        if (key != configKey) return;
-
-        if (!(event.getGui() instanceof GuiMEMonitorable)) return;
-        GuiMEMonitorable gui = (GuiMEMonitorable) event.getGui();
+        if (!(Minecraft.getMinecraft().currentScreen instanceof GuiMEMonitorable)) return;
+        GuiMEMonitorable gui = (GuiMEMonitorable) Minecraft.getMinecraft().currentScreen;
 
         // 获取搜索栏，检查是否已获得焦点
         MEGuiTextField searchField;
@@ -66,11 +60,20 @@ public class JEISearchKeyHandler {
             return;
         }
 
-        // 获取 JEI 悬停物品
+        // 获取 JEI 悬停物品：先查物品列表，再查收藏栏
         if (jeiRuntime == null) return;
-        IIngredientListOverlay overlay = jeiRuntime.getIngredientListOverlay();
-        if (overlay == null) return;
-        Object ingredient = overlay.getIngredientUnderMouse();
+        Object ingredient = null;
+
+        IIngredientListOverlay listOverlay = jeiRuntime.getIngredientListOverlay();
+        if (listOverlay != null) {
+            ingredient = listOverlay.getIngredientUnderMouse();
+        }
+        if (ingredient == null) {
+            IBookmarkOverlay bookmarkOverlay = jeiRuntime.getBookmarkOverlay();
+            if (bookmarkOverlay != null) {
+                ingredient = bookmarkOverlay.getIngredientUnderMouse();
+            }
+        }
         if (ingredient == null) return;
 
         String searchText = extractSearchText(ingredient);
@@ -98,17 +101,13 @@ public class JEISearchKeyHandler {
             setScrollBarMethod.setAccessible(true);
             setScrollBarMethod.invoke(gui);
 
-            // 聚焦搜索栏，方便用户继续输入或确认
-            searchField.setFocused(true);
+            // 默认不聚焦搜索栏，保持用户当前浏览位置
+            // searchField.setFocused(true);
 
             AE2Enhanced.LOGGER.debug("[AE2E] JEI search key pressed: set terminal search to '{}'", searchText);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to set terminal search text from JEI hover", e);
-            return;
         }
-
-        // 消费按键事件，防止输入字符进入 GUI
-        event.setCanceled(true);
     }
 
     private static String extractSearchText(Object ingredient) {
@@ -120,7 +119,7 @@ public class JEISearchKeyHandler {
         } else {
             // 对未知类型尝试通用 getDisplayName
             try {
-                Method m = ingredient.getClass().getMethod("getDisplayName");
+                java.lang.reflect.Method m = ingredient.getClass().getMethod("getDisplayName");
                 Object result = m.invoke(ingredient);
                 if (result instanceof String) raw = (String) result;
             } catch (Exception ignored) {

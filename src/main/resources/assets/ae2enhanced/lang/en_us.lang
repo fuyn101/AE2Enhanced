@@ -178,5 +178,5 @@ tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eWireless Channel Transm
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 
-config.ae2enhanced.client.jeiSearchKey=JEI Search Key
-config.ae2enhanced.client.jeiSearchKey.tooltip=Key code for 'Search JEI Item in Terminal' feature. Default: 33 (F key).
+key.ae2enhanced.jeiSearchTerminal=Search JEI Item in Terminal
+key.categories.ae2enhanced=AE2 Enhanced

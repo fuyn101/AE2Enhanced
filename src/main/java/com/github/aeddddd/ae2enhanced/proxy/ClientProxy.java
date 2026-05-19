@@ -25,6 +25,7 @@ import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelBakeEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -41,19 +42,26 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import org.lwjgl.input.Keyboard;
 
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
 public class ClientProxy extends CommonProxy {
 
+    public static final KeyBinding JEI_SEARCH_KEY = new KeyBinding(
+            "key.ae2enhanced.jeiSearchTerminal",
+            Keyboard.KEY_F,
+            "key.categories.ae2enhanced"
+    );
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
+        ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
     }
 
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(JEISearchKeyHandler.class);
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
