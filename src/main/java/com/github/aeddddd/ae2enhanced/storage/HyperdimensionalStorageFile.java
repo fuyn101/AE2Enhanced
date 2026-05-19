@@ -79,6 +79,9 @@ public class HyperdimensionalStorageFile {
 
     @SuppressWarnings("unchecked")
     private void initConditionalSections() {
+        // GasDescriptor / EssentiaDescriptor 类中硬引用了可选 Mod 的类（MekanismEnergistics /
+        // ThaumicEnergistics）。当对应 Mod 未安装时，Class.forName 在链接阶段会抛出
+        // NoClassDefFoundError（Error 子类，而非 Exception），必须用 catch (Throwable) 捕获。
         try {
             Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.GasDescriptor");
             java.lang.reflect.Method fromNbt = clazz.getMethod("fromNBT", NBTTagCompound.class);
@@ -89,7 +92,7 @@ public class HyperdimensionalStorageFile {
                     return null;
                 }
             });
-        } catch (Exception e) {
+        } catch (Throwable e) {
             this.gasSection = null;
         }
         try {
@@ -102,7 +105,7 @@ public class HyperdimensionalStorageFile {
                     return null;
                 }
             });
-        } catch (Exception e) {
+        } catch (Throwable e) {
             this.essentiaSection = null;
         }
     }
