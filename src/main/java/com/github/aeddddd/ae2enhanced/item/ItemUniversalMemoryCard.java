@@ -314,10 +314,23 @@ public class ItemUniversalMemoryCard extends Item {
             IMemoryCardHandler.PasteResult result = handler.paste(target, data, player);
             switch (result) {
                 case SUCCESS:
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_success"));
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_success", handler.getDisplayName(target)));
                     break;
                 case MISSING_UPGRADES:
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.missing_upgrades"));
+                    StringBuilder req = new StringBuilder();
+                    if (data.hasKey("ae2e:upgrades")) {
+                        NBTTagList upgList = data.getTagList("ae2e:upgrades", 10);
+                        for (int i = 0; i < upgList.tagCount(); i++) {
+                            NBTTagCompound tag = upgList.getCompoundTagAt(i);
+                            ItemStack upg = new ItemStack(tag);
+                            if (!upg.isEmpty()) {
+                                if (req.length() > 0) req.append(", ");
+                                req.append(upg.getDisplayName());
+                                if (upg.getCount() > 1) req.append("×").append(upg.getCount());
+                            }
+                        }
+                    }
+                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.missing_upgrades", req.toString()));
                     break;
                 case INVALID_MACHINE:
                     player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.invalid_machine"));
@@ -444,13 +457,31 @@ public class ItemUniversalMemoryCard extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.header"));
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
+
         if (hasConfig(stack)) {
             NBTTagCompound config = getConfig(stack);
             tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.source", config.getString("name")));
+
             NBTTagCompound data = config.getCompoundTag("data");
             if (data.hasKey("ae2e:upgrades")) {
                 NBTTagList upgrades = data.getTagList("ae2e:upgrades", 10);
-                tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.upgrades", upgrades.tagCount()));
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < upgrades.tagCount(); i++) {
+                    NBTTagCompound tag = upgrades.getCompoundTagAt(i);
+                    ItemStack upgradeStack = new ItemStack(tag);
+                    if (!upgradeStack.isEmpty()) {
+                        if (sb.length() > 0) sb.append(", ");
+                        sb.append(upgradeStack.getDisplayName());
+                        if (upgradeStack.getCount() > 1) {
+                            sb.append("×").append(upgradeStack.getCount());
+                        }
+                    }
+                }
+                if (sb.length() > 0) {
+                    tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.upgrades_detail", sb.toString()));
+                }
             }
         } else {
             tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.no_config"));
@@ -461,7 +492,7 @@ public class ItemUniversalMemoryCard extends Item {
             tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.selections", count));
         }
 
-        tooltip.add("");
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.sneak"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.use"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.ctrl"));
