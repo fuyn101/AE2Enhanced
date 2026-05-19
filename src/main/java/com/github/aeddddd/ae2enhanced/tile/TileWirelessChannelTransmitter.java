@@ -114,7 +114,11 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
     @Override
     public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        // 仅背面暴露节点
+        // INTERNAL 用于远程查询（如频道接收卡查找发射器节点）
+        if (dir == AEPartLocation.INTERNAL) {
+            return getProxy().getNode();
+        }
+        // 仅背面暴露节点（用于线缆连接）
         if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
             return getProxy().getNode();
         }
