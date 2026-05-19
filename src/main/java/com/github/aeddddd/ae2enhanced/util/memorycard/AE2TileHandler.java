@@ -22,12 +22,12 @@ public class AE2TileHandler implements IMemoryCardHandler {
     @Override
     public NBTTagCompound copy(Object target) {
         AEBaseTile tile = (AEBaseTile) target;
-        try {
-            NBTTagCompound output = tile.downloadSettings(SettingsFrom.MEMORY_CARD);
-            if (output == null) {
-                output = new NBTTagCompound();
-            }
+        NBTTagCompound output = tile.downloadSettings(SettingsFrom.MEMORY_CARD);
+        if (output == null) {
+            output = new NBTTagCompound();
+        }
 
+        try {
             // 额外复制升级槽
             if (tile instanceof ISegmentedInventory) {
                 IItemHandler upgrades = ((ISegmentedInventory) tile).getInventoryByName("upgrades");
@@ -38,12 +38,11 @@ public class AE2TileHandler implements IMemoryCardHandler {
                     }
                 }
             }
-
-            return output.isEmpty() ? null : output;
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to copy AE2 tile settings", e);
-            return null;
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to copy upgrades for {}", tile.getClass().getName(), e);
         }
+
+        return output;
     }
 
     @Override

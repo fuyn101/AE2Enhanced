@@ -204,6 +204,7 @@ gui.ae2enhanced.umc.btn.clear_selections=清除选取
 gui.ae2enhanced.umc.msg.copy_invalid=§c▸ 无法复制该设备
 gui.ae2enhanced.umc.msg.copy_unsupported=§c▸ 该设备不支持配置复制
 gui.ae2enhanced.umc.msg.copy_failed=§c▸ 复制失败
+gui.ae2enhanced.umc.msg.copy_empty=§e▸ %s 没有可复制的配置
 gui.ae2enhanced.umc.msg.copy_success=§a▸ 已复制 §e%s§a 的配置
 gui.ae2enhanced.umc.msg.no_config=§c▸ 内存卡中没有配置
 gui.ae2enhanced.umc.msg.paste_invalid=§c▸ 无法粘贴到该设备

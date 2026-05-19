@@ -206,6 +206,7 @@ gui.ae2enhanced.umc.btn.clear_selections=Clear Selections
 gui.ae2enhanced.umc.msg.copy_invalid=§c▸ Cannot copy this device
 gui.ae2enhanced.umc.msg.copy_unsupported=§c▸ This device does not support configuration copying
 gui.ae2enhanced.umc.msg.copy_failed=§c▸ Copy failed
+gui.ae2enhanced.umc.msg.copy_empty=§e▸ %s has no copyable configuration
 gui.ae2enhanced.umc.msg.copy_success=§a▸ Copied §e%s§a configuration
 gui.ae2enhanced.umc.msg.no_config=§c▸ No configuration stored in memory card
 gui.ae2enhanced.umc.msg.paste_invalid=§c▸ Cannot paste to this device

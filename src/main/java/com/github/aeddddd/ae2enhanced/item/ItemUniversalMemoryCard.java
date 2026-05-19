@@ -204,6 +204,17 @@ public class ItemUniversalMemoryCard extends Item {
                 }
             }
         }
+
+        @SideOnly(Side.CLIENT)
+        @SubscribeEvent
+        public void onRightClickEmpty(PlayerInteractEvent.RightClickEmpty event) {
+            if (event.getHand() == EnumHand.MAIN_HAND) {
+                ItemStack stack = event.getEntityPlayer().getHeldItemMainhand();
+                if (stack.getItem() instanceof ItemUniversalMemoryCard) {
+                    AE2Enhanced.network.sendToServer(new PacketUMCAction(PacketUMCAction.ActionType.OPEN_GUI));
+                }
+            }
+        }
     }
 
     // ============================================================
@@ -233,6 +244,10 @@ public class ItemUniversalMemoryCard extends Item {
             case REMOVE_SELECTION:
                 removeSelection(stack, message.getIndex());
                 break;
+            case OPEN_GUI:
+                player.openGui(AE2Enhanced.instance, GUI_ID, player.world,
+                        (int) player.posX, (int) player.posY, (int) player.posZ);
+                break;
         }
     }
 
@@ -251,8 +266,8 @@ public class ItemUniversalMemoryCard extends Item {
         }
 
         NBTTagCompound data = handler.copy(target);
-        if (data == null) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_failed"));
+        if (data == null || data.isEmpty()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_empty", handler.getDisplayName(target)));
             return;
         }
 

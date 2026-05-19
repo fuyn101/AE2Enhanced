@@ -14,7 +14,8 @@ public class PacketUMCAction implements IMessage {
 
     public enum ActionType {
         COPY, PASTE, SELECT,
-        CLEAR_CONFIG, CLEAR_SELECTIONS, REMOVE_SELECTION
+        CLEAR_CONFIG, CLEAR_SELECTIONS, REMOVE_SELECTION,
+        OPEN_GUI
     }
 
     private ActionType type;
@@ -37,6 +38,13 @@ public class PacketUMCAction implements IMessage {
         this.pos = 0;
         this.face = 0;
         this.index = index;
+    }
+
+    public PacketUMCAction(ActionType type) {
+        this.type = type;
+        this.pos = 0;
+        this.face = 0;
+        this.index = -1;
     }
 
     @Override
