@@ -2,6 +2,8 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 
 import appeng.parts.AEBasePart;
 import appeng.parts.automation.PartUpgradeable;
+import appeng.util.inv.IAEAppEngInventory;
+import com.github.aeddddd.ae2enhanced.util.WirelessChannelConnectionHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,7 +20,7 @@ public class MixinAEBasePart {
     private void ae2e$onPartAddToWorld(CallbackInfo ci) {
         if (!appeng.util.Platform.isServer()) return;
         if ((Object) this instanceof PartUpgradeable) {
-            MixinUpgradeInventory.tryConnect((appeng.util.inv.IAEAppEngInventory) this);
+            WirelessChannelConnectionHelper.tryConnect((IAEAppEngInventory) this);
         }
     }
 }

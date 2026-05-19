@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.mixin.late;
 import appeng.helpers.DualityInterface;
 import appeng.helpers.IInterfaceHost;
 import appeng.tile.grid.AENetworkTile;
+import com.github.aeddddd.ae2enhanced.util.WirelessChannelConnectionHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +22,7 @@ public class MixinAENetworkTile {
         if ((Object) this instanceof IInterfaceHost) {
             DualityInterface duality = ((IInterfaceHost) (Object) this).getInterfaceDuality();
             if (duality != null) {
-                MixinUpgradeInventory.tryConnect(duality);
+                WirelessChannelConnectionHelper.tryConnect(duality);
             }
         }
     }
