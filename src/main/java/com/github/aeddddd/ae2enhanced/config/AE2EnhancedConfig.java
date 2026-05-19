@@ -44,6 +44,13 @@ public class AE2EnhancedConfig {
     })
     public static Crafting crafting = new Crafting();
 
+    @Config.Name("Client")
+    @Config.Comment({
+        "Client-side settings. Only processed on the client;",
+        "changing them on a dedicated server has no effect."
+    })
+    public static Client client = new Client();
+
     @Config.Name("WirelessChannel")
     @Config.Comment({
         "Wireless Channel System settings.",
@@ -156,6 +163,19 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int extraUpgradeSlots = 2;
+    }
+
+    public static class Client {
+        @Config.Comment({
+            "Key code for 'Search JEI Item in Terminal' feature.",
+            "Press this key while hovering an item in JEI to copy its name",
+            "into the AE2 terminal search box.",
+            "Uses LWJGL key codes. Default: 33 (F key).",
+            "Common codes: 33=F, 19=R, 38=L, 50=M, 25=P",
+            "Set to 0 to disable this feature."
+        })
+        @Config.RangeInt(min = 0, max = 256)
+        public int jeiSearchKey = 33; // Keyboard.KEY_F
     }
 
     public static class BlackHole {

@@ -175,3 +175,6 @@ tile.ae2enhanced.wireless_channel_transmitter.name=无线频道发生器
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e无线频道发生器 §7— 广播 32 个频道供远程接收器使用
 
 gui.ae2enhanced.wireless_channel_transmitter.title=无线频道发生器
+
+config.ae2enhanced.client.jeiSearchKey=JEI 搜索快捷键
+config.ae2enhanced.client.jeiSearchKey.tooltip=在 JEI 中悬停物品时按下此键，可将物品名称填入 AE2 终端搜索栏。默认: 33 (F键).

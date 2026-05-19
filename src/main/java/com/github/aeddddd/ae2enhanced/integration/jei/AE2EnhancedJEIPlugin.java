@@ -5,8 +5,10 @@ import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
+import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.IModRegistry;
+import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.ingredients.IIngredientBlacklist;
 import mezz.jei.api.ingredients.IIngredientRegistry;
@@ -21,6 +23,11 @@ import java.util.List;
  */
 @JEIPlugin
 public class AE2EnhancedJEIPlugin implements IModPlugin {
+
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        JEISearchKeyHandler.setJeiRuntime(jeiRuntime);
+    }
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registry) {

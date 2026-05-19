@@ -4,6 +4,7 @@ import appeng.api.AEApi;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
@@ -52,6 +53,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(JEISearchKeyHandler.class);
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
