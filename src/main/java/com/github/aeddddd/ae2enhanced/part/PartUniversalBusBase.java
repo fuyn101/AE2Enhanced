@@ -423,6 +423,10 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         return this.busMode;
     }
 
+    public int getRoundRobinIndex() {
+        return this.roundRobinIndex;
+    }
+
     public void setBusMode(BusMode mode) {
         this.busMode = mode;
         this.saveChanges();

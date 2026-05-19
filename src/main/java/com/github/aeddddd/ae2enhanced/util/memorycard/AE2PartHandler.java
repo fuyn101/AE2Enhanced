@@ -1,18 +1,21 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard;
 
+import appeng.helpers.IPriorityHost;
 import appeng.api.parts.PartItemStack;
 import appeng.parts.AEBasePart;
+import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.util.SettingsFrom;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
+import com.github.aeddddd.ae2enhanced.part.PartUniversalBusBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.items.IItemHandler;
 
-import java.lang.reflect.Method;
-
 /**
  * 处理 AE2 Part 的配置复制粘贴。
+ * 不依赖反射调用 AEBasePart.downloadSettings，直接复制其基础逻辑并扩展本 mod Part 的自定义状态。
  */
 public class AE2PartHandler implements IMemoryCardHandler {
 
@@ -26,22 +29,37 @@ public class AE2PartHandler implements IMemoryCardHandler {
         AEBasePart part = (AEBasePart) target;
         NBTTagCompound output = new NBTTagCompound();
 
-        try {
-            // 优先从实际类获取方法（支持子类重写），fallback 到 AEBasePart
-            Method method;
-            try {
-                method = part.getClass().getDeclaredMethod("downloadSettings", SettingsFrom.class, NBTTagCompound.class);
-            } catch (NoSuchMethodException e) {
-                method = AEBasePart.class.getDeclaredMethod("downloadSettings", SettingsFrom.class, NBTTagCompound.class);
-            }
-            method.setAccessible(true);
-            method.invoke(part, SettingsFrom.MEMORY_CARD, output);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to copy AE2 part settings for {}", part.getClass().getName(), e);
-            // 即使反射失败，也返回已收集的数据（可能为空）
+        // 1. 基础配置：IConfigManager
+        if (part.getConfigManager() != null) {
+            part.getConfigManager().writeToNBT(output);
         }
 
-        // 额外复制升级槽
+        // 2. 基础配置：IPriorityHost
+        if (part instanceof IPriorityHost) {
+            output.setInteger("priority", ((IPriorityHost) part).getPriority());
+        }
+
+        // 3. 基础配置：config inventory
+        IItemHandler configInv = part.getInventoryByName("config");
+        if (configInv instanceof AppEngInternalAEInventory) {
+            ((AppEngInternalAEInventory) configInv).writeToNBT(output, "config");
+        }
+
+        // 4. 本 mod Part 的自定义状态
+        if (part instanceof PartStockingBus) {
+            PartStockingBus stocking = (PartStockingBus) part;
+            output.setInteger("stockingMode", stocking.getMode().ordinal());
+            for (int i = 0; i < 9; i++) {
+                output.setLong("targetAmount_" + i, stocking.getTargetAmount(i));
+            }
+        }
+        if (part instanceof PartUniversalBusBase) {
+            PartUniversalBusBase bus = (PartUniversalBusBase) part;
+            output.setInteger("busMode", bus.getBusMode().ordinal());
+            output.setInteger("roundRobinIndex", bus.getRoundRobinIndex());
+        }
+
+        // 5. 额外复制升级槽
         try {
             IItemHandler upgrades = part.getInventoryByName("upgrades");
             if (upgrades != null && upgrades.getSlots() > 0) {
