@@ -60,7 +60,7 @@ public class SelectionBoxRenderer {
 
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
-        buffer.begin(3, DefaultVertexFormats.POSITION_COLOR);
+        buffer.begin(1, DefaultVertexFormats.POSITION_COLOR);
 
         for (ItemUniversalMemoryCard.SelectionEntry entry : selections) {
             if (entry.dim != dim) continue;
