@@ -44,6 +44,7 @@ public class ItemUniversalMemoryCard extends Item {
 
     private static final String NBT_CONFIG = "ae2e:umc_config";
     private static final String NBT_SELECTIONS = "ae2e:umc_selections";
+    private static final String NBT_BINDING = "ae2e:umc_binding";
     public static final int GUI_ID = 10;
 
     public ItemUniversalMemoryCard() {
@@ -115,6 +116,32 @@ public class ItemUniversalMemoryCard extends Item {
     public static void clearConfig(ItemStack stack) {
         if (stack.hasTagCompound()) {
             stack.getTagCompound().removeTag(NBT_CONFIG);
+        }
+    }
+
+    // --- Binding helpers ---
+
+    public static boolean hasBinding(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().hasKey(NBT_BINDING);
+    }
+
+    @Nullable
+    public static NBTTagCompound getBinding(ItemStack stack) {
+        if (!hasBinding(stack)) return null;
+        return stack.getTagCompound().getCompoundTag(NBT_BINDING);
+    }
+
+    public static void setBinding(ItemStack stack, BlockPos pos, int dim) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        NBTTagCompound binding = new NBTTagCompound();
+        binding.setLong("pos", pos.toLong());
+        binding.setInteger("dim", dim);
+        stack.getTagCompound().setTag(NBT_BINDING, binding);
+    }
+
+    public static void clearBinding(ItemStack stack) {
+        if (stack.hasTagCompound()) {
+            stack.getTagCompound().removeTag(NBT_BINDING);
         }
     }
 

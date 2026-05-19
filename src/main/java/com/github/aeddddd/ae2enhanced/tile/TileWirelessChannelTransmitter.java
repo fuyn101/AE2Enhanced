@@ -13,6 +13,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
+import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -52,7 +53,8 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
         @Override
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-            return stack.getItem() instanceof ItemChannelReceiverCard;
+            return stack.getItem() instanceof ItemChannelReceiverCard
+                || stack.getItem() instanceof ItemUniversalMemoryCard;
         }
     };
 
@@ -214,14 +216,27 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     }
 
     public void processBinding() {
-        ItemStack card = this.inventory.getStackInSlot(SLOT_CARD);
-        if (card.isEmpty() || !(card.getItem() instanceof ItemChannelReceiverCard)) return;
-        if (ItemChannelReceiverCard.isBound(card)) return;
+        ItemStack stack = this.inventory.getStackInSlot(SLOT_CARD);
+        if (stack.isEmpty()) return;
 
-        BlockPos tp = this.pos;
-        int dim = this.world.provider.getDimension();
-        ItemChannelReceiverCard.bindToTransmitter(card, tp, dim, this.forward);
-        this.markDirty();
+        if (stack.getItem() instanceof ItemChannelReceiverCard) {
+            if (ItemChannelReceiverCard.isBound(stack)) return;
+            BlockPos tp = this.pos;
+            int dim = this.world.provider.getDimension();
+            ItemChannelReceiverCard.bindToTransmitter(stack, tp, dim, this.forward);
+            this.markDirty();
+        } else if (stack.getItem() instanceof ItemUniversalMemoryCard) {
+            if (ItemUniversalMemoryCard.hasBinding(stack)) {
+                NBTTagCompound binding = ItemUniversalMemoryCard.getBinding(stack);
+                BlockPos boundPos = BlockPos.fromLong(binding.getLong("pos"));
+                int boundDim = binding.getInteger("dim");
+                if (boundPos.equals(this.pos) && boundDim == this.world.provider.getDimension()) {
+                    return; // 已绑定到本发射器
+                }
+            }
+            ItemUniversalMemoryCard.setBinding(stack, this.pos, this.world.provider.getDimension());
+            this.markDirty();
+        }
     }
 
     public void dropInventory(World world, BlockPos pos) {
