@@ -220,3 +220,6 @@ gui.ae2enhanced.umc.msg.deselect=§e▸ Deselected
 gui.ae2enhanced.umc.msg.select_part=§a▸ Selected Part
 gui.ae2enhanced.umc.msg.select_tile=§a▸ Selected §e%d§a similar blocks
 gui.ae2enhanced.umc.msg.select_block=§a▸ Selected block
+
+item.ae2enhanced.omni_wireless_terminal.name=Omni Wireless Terminal
+gui.ae2enhanced.omni_terminal.title=Omni Terminal

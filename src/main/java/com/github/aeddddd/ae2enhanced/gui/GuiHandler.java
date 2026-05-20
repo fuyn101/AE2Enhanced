@@ -10,9 +10,11 @@ import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;
+import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
@@ -21,6 +23,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -39,6 +42,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_STOCKING_BUS = 8;
     public static final int GUI_WIRELESS_CHANNEL_TRANSMITTER = 9;
     public static final int GUI_UNIVERSAL_MEMORY_CARD = 10;
+    public static final int GUI_OMNI_TERMINAL = 11;
 
     /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -130,6 +134,17 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
             return new com.github.aeddddd.ae2enhanced.container.ContainerUniversalMemoryCard(player);
         }
+        if (ID == GUI_OMNI_TERMINAL) {
+            ItemStack held = player.getHeldItemMainhand();
+            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
+                held = player.getHeldItemOffhand();
+            }
+            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
+                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                return new ContainerOmniTerm(player.inventory, host);
+            }
+        }
 
         return null;
     }
@@ -206,6 +221,17 @@ public class GuiHandler implements IGuiHandler {
         }
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
             return new com.github.aeddddd.ae2enhanced.gui.GuiUniversalMemoryCard(player);
+        }
+        if (ID == GUI_OMNI_TERMINAL) {
+            ItemStack held = player.getHeldItemMainhand();
+            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
+                held = player.getHeldItemOffhand();
+            }
+            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
+                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
+            }
         }
 
         return null;

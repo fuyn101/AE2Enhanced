@@ -218,3 +218,6 @@ gui.ae2enhanced.umc.msg.deselect=§e▸ 已取消选取
 gui.ae2enhanced.umc.msg.select_part=§a▸ 已选取 Part
 gui.ae2enhanced.umc.msg.select_tile=§a▸ 已选取 §e%d§a 个同类方块
 gui.ae2enhanced.umc.msg.select_block=§a▸ 已选取方块
+
+item.ae2enhanced.omni_wireless_terminal.name=全能无线终端
+gui.ae2enhanced.omni_terminal.title=全能终端

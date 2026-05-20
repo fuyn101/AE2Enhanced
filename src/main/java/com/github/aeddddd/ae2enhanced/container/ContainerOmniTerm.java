@@ -1,0 +1,759 @@
+package com.github.aeddddd.ae2enhanced.container;
+
+import appeng.api.AEApi;
+import appeng.api.config.Actionable;
+import appeng.api.config.Settings;
+import appeng.api.implementations.IUpgradeableCellHost;
+import appeng.api.networking.security.IActionHost;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.ITerminalHost;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.container.AEBaseContainer;
+import appeng.container.guisync.GuiSync;
+import appeng.container.implementations.ContainerMEMonitorable;
+import appeng.container.slot.AppEngSlot;
+import appeng.container.slot.IOptionalSlotHost;
+import appeng.container.slot.SlotCraftingMatrix;
+import appeng.container.slot.SlotCraftingTerm;
+import appeng.container.slot.SlotFake;
+import appeng.container.slot.SlotFakeCraftingMatrix;
+import appeng.container.slot.SlotPatternOutputs;
+import appeng.container.slot.SlotPatternTerm;
+import appeng.container.slot.SlotPlayerHotBar;
+import appeng.container.slot.SlotPlayerInv;
+import appeng.container.slot.SlotRestrictedInput;
+import appeng.core.sync.packets.PacketValueConfig;
+import appeng.container.ContainerNull;
+import appeng.helpers.IContainerCraftingPacket;
+import appeng.helpers.InventoryAction;
+import appeng.me.helpers.MachineSource;
+import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.util.InventoryAdaptor;
+import appeng.util.Platform;
+import appeng.util.inv.AdaptorItemHandler;
+import appeng.util.inv.IAEAppEngInventory;
+import appeng.util.inv.InvOperation;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
+import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Container;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.InventoryCraftResult;
+import net.minecraft.inventory.InventoryCrafting;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.CraftingManager;
+import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.world.World;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.wrapper.PlayerInvWrapper;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 全能无线终端 Container —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
+ */
+public class ContainerOmniTerm extends ContainerMEMonitorable
+        implements IAEAppEngInventory, IOptionalSlotHost, IContainerCraftingPacket {
+
+    // === 合成栏 ===
+    private final SlotCraftingMatrix[] craftingSlots = new SlotCraftingMatrix[9];
+    private SlotCraftingTerm craftOutputSlot;
+    private final AppEngInternalInventory craftingOutput = new AppEngInternalInventory(this, 1);
+    private IRecipe currentRecipe;
+    private IItemHandler craftingInv;
+
+    // === 编码区 ===
+    private IItemHandler patternCraftingInv;     // 81格假合成矩阵
+    private IItemHandler patternOutputInv;       // 27格输出
+    private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
+
+    private final RCSlotFakeCraftingMatrix[][] craftingSlotGroup = new RCSlotFakeCraftingMatrix[9][9];
+    private final RCSlotPatternOutputs[][] outputSlotGroup = new RCSlotPatternOutputs[9][3];
+    private SlotPatternTerm craftSlot;
+    private SlotRestrictedInput patternSlotIN;
+    private SlotRestrictedInput patternSlotOUT;
+
+    @GuiSync(97)
+    public boolean craftingMode = true;
+    @GuiSync(96)
+    public boolean substitute = false;
+
+    private int scrollOffset = 0;
+
+    // === 右侧存储 ===
+    private final AppEngInternalInventory rightPatternStorage = new AppEngInternalInventory(null, 27);
+    private final AppEngInternalInventory rightUpgradeStorage = new AppEngInternalInventory(null, 9);
+
+    // === 宿主 ===
+    private final ITerminalHost terminalHost;
+
+    public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
+        super(ip, host, false); // 不自动绑定背包
+        this.terminalHost = host;
+
+        // 1. 合成栏
+        this.setupCraftingArea(ip, host);
+
+        // 2. 编码区（81输入 + 27输出）
+        this.setupPatternArea(ip, host);
+
+        // 3. 右侧存储（样板 + 升级卡）
+        this.setupRightStorage();
+
+        // 4. 玩家背包（手动定位）
+        this.addCustomPlayerInventory(ip, 8, 167, 221);
+    }
+
+    // ================== 合成栏 ==================
+
+    private void setupCraftingArea(InventoryPlayer ip, ITerminalHost host) {
+        // 合成矩阵物品栏（3x3）
+        this.craftingInv = new AppEngInternalInventory(this, 9);
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
+                int idx = x + y * 3;
+                this.craftingSlots[idx] = new SlotCraftingMatrix(this, this.craftingInv, idx, 26 + x * 18, 93 + y * 18);
+                this.func_75146_a(this.craftingSlots[idx]);
+            }
+        }
+        // 合成输出槽
+        this.craftOutputSlot = new SlotCraftingTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
+                this.craftingInv, this.craftingInv, this.craftingOutput, 131, 108, this);
+        this.func_75146_a(this.craftOutputSlot);
+        // AppEngInternalInventory 会自动触发 onChangeInventory，无需手动调用 onCraftMatrixChanged
+    }
+
+    // ================== 编码区 ==================
+
+    private void setupPatternArea(InventoryPlayer ip, ITerminalHost host) {
+        // 81格假合成矩阵
+        this.patternCraftingInv = new AppEngInternalInventory(null, 81);
+        // 27格输出
+        this.patternOutputInv = new AppEngInternalInventory(null, 27);
+
+        for (int g = 0; g < 9; g++) {
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 3; c++) {
+                    int idx = g * 9 + r * 3 + c;
+                    int x = 180 + c * 18;
+                    int y = 86 + r * 18;
+                    RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y);
+                    this.craftingSlotGroup[g][r * 3 + c] = slot;
+                    this.func_75146_a(slot);
+                }
+            }
+            for (int r = 0; r < 3; r++) {
+                int idx = g * 3 + r;
+                int x = 249;
+                int y = 86 + r * 18;
+                RCSlotPatternOutputs slot = new RCSlotPatternOutputs(this.patternOutputInv, this, idx, x, y, 0, 0, 1);
+                this.outputSlotGroup[g][r] = slot;
+                this.func_75146_a(slot);
+                slot.setRenderDisabled(false);
+                slot.setIIcon(-1);
+            }
+        }
+
+        // Crafting 模式输出槽（SlotPatternTerm）
+        IItemHandler patternInv = new AppEngInternalInventory(null, 2); // 样板槽 2格
+        this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
+                this.patternCraftingInv, patternInv, this.cOut, 249, 104, this, 2, this);
+        this.func_75146_a(this.craftSlot);
+        this.craftSlot.setIIcon(-1);
+
+        // 空白样板槽 / 编码样板槽
+        this.patternSlotIN = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.BLANK_PATTERN,
+                patternInv, 0, 8, 122, this.getInventoryPlayer());
+        this.func_75146_a(this.patternSlotIN);
+
+        this.patternSlotOUT = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.ENCODED_PATTERN,
+                patternInv, 1, 30, 122, this.getInventoryPlayer());
+        this.func_75146_a(this.patternSlotOUT);
+        this.patternSlotOUT.setStackLimit(1);
+
+        // 初始显示第0组
+        this.setRCSlot(0);
+    }
+
+    // ================== 右侧存储 ==================
+
+    private void setupRightStorage() {
+        // 9列 x 3行 样板存储
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 9; c++) {
+                int idx = r * 9 + c;
+                Slot slot = new Slot(new InvWrapper(this.rightPatternStorage), idx, 188 + c * 18, 167 + r * 18);
+                this.func_75146_a(slot);
+            }
+        }
+        // 9列 x 1行 升级卡存储
+        for (int c = 0; c < 9; c++) {
+            Slot slot = new Slot(new InvWrapper(this.rightUpgradeStorage), c, 188 + c * 18, 221);
+            this.func_75146_a(slot);
+        }
+    }
+
+    // ================== 背包绑定 ==================
+
+    private void addCustomPlayerInventory(InventoryPlayer ip, int invX, int invY, int hotbarY) {
+        PlayerInvWrapper wrapper = new PlayerInvWrapper(ip);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 9; j++) {
+                this.func_75146_a(new SlotPlayerInv(wrapper, j + i * 9 + 9, invX + j * 18, invY + i * 18));
+            }
+        }
+        for (int i = 0; i < 9; i++) {
+            this.func_75146_a(new SlotPlayerHotBar(wrapper, i, invX + i * 18, hotbarY));
+        }
+    }
+
+    // ================== 滚动控制 ==================
+
+    public void setRCSlot(int offset) {
+        if (this.craftingMode) {
+            offset = 0;
+        }
+        this.scrollOffset = offset;
+        for (int g = 0; g < 9; g++) {
+            boolean visible = (g == offset);
+            for (int i = 0; i < 9; i++) {
+                RCSlotFakeCraftingMatrix slot = this.craftingSlotGroup[g][i];
+                if (visible) {
+                    slot.xPos = slot.getDefX();
+                    slot.visible = true;
+                } else {
+                    slot.xPos = -9000;
+                    slot.visible = false;
+                }
+            }
+            for (int i = 0; i < 3; i++) {
+                RCSlotPatternOutputs slot = this.outputSlotGroup[g][i];
+                if (visible) {
+                    slot.xPos = this.craftingMode ? -9000 : slot.getDefX();
+                    slot.visible = true;
+                } else {
+                    slot.xPos = -9000;
+                    slot.visible = false;
+                }
+            }
+        }
+    }
+
+    public int getScrollOffset() {
+        return this.scrollOffset;
+    }
+
+    public int getMaxScrollOffset() {
+        return this.craftingMode ? 0 : 8;
+    }
+
+    // ================== 模式切换 ==================
+
+    public void setCraftingMode(boolean mode) {
+        this.craftingMode = mode;
+        this.setRCSlot(this.scrollOffset);
+        this.detectAndSendChanges();
+    }
+
+    public boolean isCraftingMode() {
+        return this.craftingMode;
+    }
+
+    public void setSubstitute(boolean substitute) {
+        this.substitute = substitute;
+        this.detectAndSendChanges();
+    }
+
+    public boolean isSubstitute() {
+        return this.substitute;
+    }
+
+    // ================== IOptionalSlotHost ==================
+
+    @Override
+    public boolean isSlotEnabled(int idx) {
+        if (idx == 1) {
+            return Platform.isServer() ? !this.craftingMode : !this.craftingMode;
+        }
+        if (idx == 2) {
+            return Platform.isServer() ? this.craftingMode : this.craftingMode;
+        }
+        return false;
+    }
+
+    // ================== 合成栏配方更新 ==================
+
+    @Override
+    public void onChangeInventory(IItemHandler inv, int slot, InvOperation op, ItemStack removed, ItemStack added) {
+        if (inv == this.craftingInv) {
+            this.updateCraftingRecipe();
+        }
+    }
+
+    private void updateCraftingRecipe() {
+        InventoryCrafting ic = new InventoryCrafting(new ContainerNull(), 3, 3);
+        for (int i = 0; i < 9; i++) {
+            ic.setInventorySlotContents(i, this.craftingSlots[i].getStack());
+        }
+        if (this.currentRecipe == null || !this.currentRecipe.matches(ic, this.getPlayerInv().player.world)) {
+            this.currentRecipe = CraftingManager.findMatchingRecipe(ic, this.getPlayerInv().player.world);
+        }
+        if (this.currentRecipe == null) {
+            this.craftOutputSlot.putStack(ItemStack.EMPTY);
+        } else {
+            this.craftOutputSlot.putStack(this.currentRecipe.getCraftingResult(ic));
+        }
+    }
+
+    // ================== 编码逻辑 ==================
+
+    public void encode() {
+        this.encode(false);
+    }
+
+    public void encodeAndMoveToInventory() {
+        this.encode(true);
+    }
+
+    private void encode(boolean moveToInventory) {
+        ItemStack blankPattern = this.patternSlotIN.getStack();
+        if (blankPattern.isEmpty()) {
+            return;
+        }
+
+        ItemStack encoded = AEApi.instance().definitions().items().encodedPattern().maybeStack(1).orElse(null);
+        if (encoded == null) {
+            return;
+        }
+
+        NBTTagCompound tag = new NBTTagCompound();
+        NBTTagList tagIn = new NBTTagList();
+        NBTTagList tagOut = new NBTTagList();
+
+        // 输入（81格）
+        for (int i = 0; i < 81; i++) {
+            ItemStack stack = this.patternCraftingInv.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                tagIn.appendTag(this.createItemTag(stack));
+            }
+        }
+
+        // 输出
+        if (this.craftingMode) {
+            ItemStack out = this.craftSlot.getStack();
+            if (!out.isEmpty()) {
+                tagOut.appendTag(this.createItemTag(out));
+            }
+        } else {
+            for (int i = 0; i < 27; i++) {
+                ItemStack out = this.patternOutputInv.getStackInSlot(i);
+                if (!out.isEmpty()) {
+                    tagOut.appendTag(this.createItemTag(out));
+                }
+            }
+        }
+
+        if (tagIn.tagCount() == 0 || tagOut.tagCount() == 0) {
+            return;
+        }
+
+        tag.setTag("in", tagIn);
+        tag.setTag("out", tagOut);
+        tag.setBoolean("crafting", this.craftingMode);
+        tag.setBoolean("substitute", this.substitute);
+        encoded.setTagCompound(tag);
+
+        // 扣除空白样板并放入编码样板
+        blankPattern.shrink(1);
+        if (blankPattern.getCount() <= 0) {
+            this.patternSlotIN.putStack(ItemStack.EMPTY);
+        }
+
+        if (moveToInventory) {
+            if (!this.getPlayerInv().addItemStackToInventory(encoded)) {
+                this.patternSlotOUT.putStack(encoded);
+            }
+        } else {
+            this.patternSlotOUT.putStack(encoded);
+        }
+    }
+
+    private NBTTagCompound createItemTag(ItemStack stack) {
+        NBTTagCompound tag = new NBTTagCompound();
+        if (!stack.isEmpty()) {
+            stack.writeToNBT(tag);
+            tag.setInteger("Count", stack.getCount());
+        }
+        return tag;
+    }
+
+    // ================== 数量调整 ==================
+
+    public void multiply(int multiple) {
+        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.craftingMode ? 9 : 81;
+        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.craftingMode ? 1 : 27;
+
+        boolean canMul = true;
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() * multiple < 1) {
+                canMul = false;
+                break;
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() * multiple < 1) {
+                canMul = false;
+                break;
+            }
+        }
+        if (!canMul) return;
+
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() * multiple);
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() * multiple);
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    public void divide(int divide) {
+        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.craftingMode ? 9 : 81;
+        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.craftingMode ? 1 : 27;
+
+        boolean canDiv = true;
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() % divide != 0) {
+                canDiv = false;
+                break;
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() % divide != 0) {
+                canDiv = false;
+                break;
+            }
+        }
+        if (!canDiv) return;
+
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() / divide);
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() / divide);
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    public void increase(int amount) {
+        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.craftingMode ? 9 : 81;
+        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.craftingMode ? 1 : 27;
+
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(Math.max(1, s.getCount() + amount));
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(Math.max(1, s.getCount() + amount));
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    public void decrease(int amount) {
+        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.craftingMode ? 9 : 81;
+        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.craftingMode ? 1 : 27;
+
+        boolean canDecrease = true;
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() - amount < 1) {
+                canDecrease = false;
+                break;
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getCount() - amount < 1) {
+                canDecrease = false;
+                break;
+            }
+        }
+        if (!canDecrease) return;
+
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() - amount);
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() - amount);
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    public void maximizeCount() {
+        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.craftingMode ? 9 : 81;
+        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.craftingMode ? 1 : 27;
+
+        int maxGrowth = Integer.MAX_VALUE;
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                maxGrowth = Math.min(maxGrowth, s.getMaxStackSize() - s.getCount());
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                maxGrowth = Math.min(maxGrowth, s.getMaxStackSize() - s.getCount());
+            }
+        }
+        if (maxGrowth <= 0 || maxGrowth == Integer.MAX_VALUE) return;
+
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() + maxGrowth);
+            }
+        }
+        for (int i = 0; i < outSize; i++) {
+            ItemStack s = outInv.getStackInSlot(i);
+            if (!s.isEmpty()) {
+                s.setCount(s.getCount() + maxGrowth);
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    // ================== 清除 ==================
+
+    public void clearPattern() {
+        if (this.craftingMode) {
+            for (int i = 0; i < 9; i++) {
+                this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
+            }
+            this.craftingOutput.extractItem(0, Integer.MAX_VALUE, false);
+        } else {
+            for (int i = 0; i < 81; i++) {
+                this.patternCraftingInv.extractItem(i, Integer.MAX_VALUE, false);
+            }
+            for (int i = 0; i < 27; i++) {
+                this.patternOutputInv.extractItem(i, Integer.MAX_VALUE, false);
+            }
+        }
+        this.detectAndSendChanges();
+    }
+
+    // ================== IContainerCraftingPacket ==================
+
+    @Override
+    public appeng.api.networking.IGridNode getNetworkNode() {
+        if (this.terminalHost instanceof appeng.api.networking.IGridHost) {
+            return ((appeng.api.networking.IGridHost) this.terminalHost).getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
+        }
+        return null;
+    }
+
+    @Override
+    public IItemHandler getInventoryByName(String name) {
+        if ("crafting".equals(name)) {
+            return this.craftingInv;
+        }
+        if ("output".equals(name)) {
+            return this.craftingOutput;
+        }
+        if ("pattern".equals(name)) {
+            return new appeng.tile.inventory.AppEngInternalInventory(null, 2);
+        }
+        return null;
+    }
+
+    @Override
+    public appeng.api.networking.security.IActionSource getActionSource() {
+        return super.getActionSource();
+    }
+
+    @Override
+    public boolean useRealItems() {
+        return true;
+    }
+
+    @Override
+    public ItemStack[] getViewCells() {
+        return new ItemStack[0];
+    }
+
+    // ================== 物品库更新回调 ==================
+
+    public interface IInventoryUpdateListener {
+        void onInventoryUpdate(List<IAEItemStack> list);
+    }
+
+    private IInventoryUpdateListener inventoryListener;
+
+    public void setInventoryListener(IInventoryUpdateListener listener) {
+        this.inventoryListener = listener;
+    }
+
+    @Override
+    public void saveChanges() {
+        // AppEngInternalInventory 已自动处理，无需额外保存
+    }
+
+    @Override
+    public void postUpdate(List<IAEItemStack> list) {
+        for (IAEItemStack is : list) {
+            this.items.add(is);
+        }
+        if (this.inventoryListener != null) {
+            this.inventoryListener.onInventoryUpdate(list);
+        }
+    }
+
+    // ================== 辅助类 ==================
+
+    private static class InvWrapper implements IInventory {
+        @Override
+        public String getName() { return ""; }
+        @Override
+        public boolean hasCustomName() { return false; }
+        @Override
+        public net.minecraft.util.text.ITextComponent getDisplayName() {
+            return new net.minecraft.util.text.TextComponentString("");
+        }
+
+        private final IItemHandler handler;
+
+        InvWrapper(IItemHandler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public int getSizeInventory() {
+            return handler.getSlots();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            for (int i = 0; i < handler.getSlots(); i++) {
+                if (!handler.getStackInSlot(i).isEmpty()) return false;
+            }
+            return true;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int index) {
+            return handler.getStackInSlot(index);
+        }
+
+        @Override
+        public ItemStack decrStackSize(int index, int count) {
+            return handler.extractItem(index, count, false);
+        }
+
+        @Override
+        public ItemStack removeStackFromSlot(int index) {
+            return handler.extractItem(index, Integer.MAX_VALUE, false);
+        }
+
+        @Override
+        public void setInventorySlotContents(int index, ItemStack stack) {
+            handler.extractItem(index, Integer.MAX_VALUE, false);
+            if (!stack.isEmpty()) {
+                handler.insertItem(index, stack, false);
+            }
+        }
+
+        @Override
+        public int getInventoryStackLimit() {
+            return 64;
+        }
+
+        @Override
+        public void markDirty() {
+        }
+
+        @Override
+        public boolean isUsableByPlayer(net.minecraft.entity.player.EntityPlayer player) {
+            return true;
+        }
+
+        @Override
+        public void openInventory(net.minecraft.entity.player.EntityPlayer player) {
+        }
+
+        @Override
+        public void closeInventory(net.minecraft.entity.player.EntityPlayer player) {
+        }
+
+        @Override
+        public boolean isItemValidForSlot(int index, ItemStack stack) {
+            return true;
+        }
+
+        @Override
+        public int getField(int id) {
+            return 0;
+        }
+
+        @Override
+        public void setField(int id, int value) {
+        }
+
+        @Override
+        public int getFieldCount() {
+            return 0;
+        }
+
+        @Override
+        public void clear() {
+            for (int i = 0; i < handler.getSlots(); i++) {
+                handler.extractItem(i, Integer.MAX_VALUE, false);
+            }
+        }
+    }
+}

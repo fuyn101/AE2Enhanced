@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemDifferentialFormStabilizer;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
+import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.item.ItemPartStockingBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
@@ -29,6 +30,7 @@ public class ModItems {
     public static ItemPartStockingBus PART_STOCKING_BUS;
     public static ItemChannelReceiverCard CHANNEL_RECEIVER_CARD;
     public static com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard UNIVERSAL_MEMORY_CARD;
+    public static ItemOmniWirelessTerminal OMNI_WIRELESS_TERMINAL;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -55,6 +57,7 @@ public class ModItems {
         PART_STOCKING_BUS = new ItemPartStockingBus();
         CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
         UNIVERSAL_MEMORY_CARD = new com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard();
+        OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
     }
 
     @SubscribeEvent
@@ -75,5 +78,6 @@ public class ModItems {
         event.getRegistry().register(PART_STOCKING_BUS);
         event.getRegistry().register(CHANNEL_RECEIVER_CARD);
         event.getRegistry().register(UNIVERSAL_MEMORY_CARD);
+        event.getRegistry().register(OMNI_WIRELESS_TERMINAL);
     }
 }
