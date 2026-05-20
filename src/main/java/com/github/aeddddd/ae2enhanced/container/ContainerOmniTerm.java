@@ -1,62 +1,37 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.config.Settings;
-import appeng.api.implementations.IUpgradeableCellHost;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.ITerminalHost;
-import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
 import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.IOptionalSlotHost;
 import appeng.container.slot.SlotCraftingMatrix;
 import appeng.container.slot.SlotCraftingTerm;
-import appeng.container.slot.SlotFake;
-import appeng.container.slot.SlotFakeCraftingMatrix;
-import appeng.container.slot.SlotPatternOutputs;
 import appeng.container.slot.SlotPatternTerm;
 import appeng.container.slot.SlotPlayerHotBar;
 import appeng.container.slot.SlotPlayerInv;
-import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.SlotRestrictedInput;
-import appeng.core.sync.packets.PacketValueConfig;
 import appeng.container.ContainerNull;
 import appeng.helpers.IContainerCraftingPacket;
-import appeng.helpers.InventoryAction;
-import appeng.me.helpers.MachineSource;
 import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
-import appeng.util.inv.AdaptorItemHandler;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
-import appeng.util.item.AEItemStack;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.InventoryCraftResult;
 import net.minecraft.inventory.InventoryCrafting;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -183,13 +158,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.func_75146_a(this.craftSlot);
         this.craftSlot.setIIcon(-1);
 
-        // 空白样板槽 / 编码样板槽
+        // 空白样板槽 / 编码样板槽 —— 位于编码区右侧
         this.patternSlotIN = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.BLANK_PATTERN,
-                this.patternInv, 0, 8, 122, this.getInventoryPlayer());
+                this.patternInv, 0, 267, 88, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotIN);
 
         this.patternSlotOUT = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.ENCODED_PATTERN,
-                this.patternInv, 1, 30, 122, this.getInventoryPlayer());
+                this.patternInv, 1, 267, 106, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotOUT);
         this.patternSlotOUT.setStackLimit(1);
 
@@ -204,12 +179,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
-                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 188 + c * 18, 167 + r * 18));
+                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
             }
         }
         // 9列 x 1行 升级卡存储
         for (int c = 0; c < 9; c++) {
-            this.func_75146_a(new AppEngSlot(this.rightUpgradeStorage, c, 188 + c * 18, 221));
+            this.func_75146_a(new AppEngSlot(this.rightUpgradeStorage, c, 180 + c * 18, 221));
         }
     }
 

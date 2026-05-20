@@ -89,16 +89,16 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.guiLeft = (this.width - this.xSize) / 2;
         this.guiTop = (this.height - this.ySize) / 2;
 
-        // 1. 恢复被 repositionSlot 修改的所有 AppEngSlot 的原始位置
+        // 1. 恢复被 repositionSlot 修改的所有 AppEngSlot 的 y 位置
+        // repositionSlot 只改 yPos，不改 xPos；xPos 由 setRCSlot 控制，不可恢复
         for (Slot s : this.inventorySlots.inventorySlots) {
             if (s instanceof AppEngSlot) {
                 AppEngSlot aeSlot = (AppEngSlot) s;
-                s.xPos = aeSlot.getX();
                 s.yPos = aeSlot.getY();
             }
         }
 
-        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 3 行（与纹理匹配）
+        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 3 行
         this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
         this.getMeSlots().clear();
         for (int row = 0; row < 3; row++) {
@@ -110,7 +110,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
-        // 3. 重新定位 AE2 标准按钮（保留 SortBy/ViewMode/SortDir/SearchMode/TerminalStyle/CraftingStatus）
+        // 3. 重新定位 AE2 标准按钮
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
                 GuiImgButton imgBtn = (GuiImgButton) btn;
@@ -128,7 +128,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             }
         }
 
-        // 4. 替换搜索框为正确尺寸（x=204, width=126，与纹理搜索区精确对齐）
+        // 4. 替换搜索框为正确尺寸
         try {
             Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
@@ -154,7 +154,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             e.printStackTrace();
         }
 
-        // 5. 设置物品库滚动条（相对 GUI 的坐标）
+        // 5. 设置物品库滚动条
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
             itemScrollBar.setLeft(335).setTop(18).setHeight(52);
@@ -164,7 +164,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 6. 添加编码区按钮
         this.setupPatternButtons();
 
-        // 7. 编码区滚动条（相对 GUI 的坐标，位于编码九宫格左侧）
+        // 7. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
         this.patternScrollBar.setLeft(189).setTop(88).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
