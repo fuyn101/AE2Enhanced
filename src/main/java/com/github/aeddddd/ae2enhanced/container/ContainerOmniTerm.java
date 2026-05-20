@@ -22,6 +22,7 @@ import appeng.container.slot.SlotPatternOutputs;
 import appeng.container.slot.SlotPatternTerm;
 import appeng.container.slot.SlotPlayerHotBar;
 import appeng.container.slot.SlotPlayerInv;
+import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.core.sync.packets.PacketValueConfig;
 import appeng.container.ContainerNull;
@@ -195,14 +196,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
-                Slot slot = new Slot(new InvWrapper(this.rightPatternStorage), idx, 188 + c * 18, 167 + r * 18);
-                this.func_75146_a(slot);
+                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 188 + c * 18, 167 + r * 18));
             }
         }
         // 9列 x 1行 升级卡存储
         for (int c = 0; c < 9; c++) {
-            Slot slot = new Slot(new InvWrapper(this.rightUpgradeStorage), c, 188 + c * 18, 221);
-            this.func_75146_a(slot);
+            this.func_75146_a(new AppEngSlot(this.rightUpgradeStorage, c, 188 + c * 18, 221));
         }
     }
 
@@ -750,105 +749,4 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     // ================== 辅助类 ==================
-
-    private static class InvWrapper implements IInventory {
-        @Override
-        public String getName() { return ""; }
-        @Override
-        public boolean hasCustomName() { return false; }
-        @Override
-        public net.minecraft.util.text.ITextComponent getDisplayName() {
-            return new net.minecraft.util.text.TextComponentString("");
-        }
-
-        private final IItemHandler handler;
-
-        InvWrapper(IItemHandler handler) {
-            this.handler = handler;
-        }
-
-        @Override
-        public int getSizeInventory() {
-            return handler.getSlots();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            for (int i = 0; i < handler.getSlots(); i++) {
-                if (!handler.getStackInSlot(i).isEmpty()) return false;
-            }
-            return true;
-        }
-
-        @Override
-        public ItemStack getStackInSlot(int index) {
-            return handler.getStackInSlot(index);
-        }
-
-        @Override
-        public ItemStack decrStackSize(int index, int count) {
-            return handler.extractItem(index, count, false);
-        }
-
-        @Override
-        public ItemStack removeStackFromSlot(int index) {
-            return handler.extractItem(index, Integer.MAX_VALUE, false);
-        }
-
-        @Override
-        public void setInventorySlotContents(int index, ItemStack stack) {
-            handler.extractItem(index, Integer.MAX_VALUE, false);
-            if (!stack.isEmpty()) {
-                handler.insertItem(index, stack, false);
-            }
-        }
-
-        @Override
-        public int getInventoryStackLimit() {
-            return 64;
-        }
-
-        @Override
-        public void markDirty() {
-        }
-
-        @Override
-        public boolean isUsableByPlayer(net.minecraft.entity.player.EntityPlayer player) {
-            return true;
-        }
-
-        @Override
-        public void openInventory(net.minecraft.entity.player.EntityPlayer player) {
-        }
-
-        @Override
-        public void closeInventory(net.minecraft.entity.player.EntityPlayer player) {
-        }
-
-        @Override
-        public boolean isItemValidForSlot(int index, ItemStack stack) {
-            return true;
-        }
-
-        @Override
-        public int getField(int id) {
-            return 0;
-        }
-
-        @Override
-        public void setField(int id, int value) {
-        }
-
-        @Override
-        public int getFieldCount() {
-            return 0;
-        }
-
-        @Override
-        public void clear() {
-            for (int i = 0; i < handler.getSlots(); i++) {
-                handler.extractItem(i, Integer.MAX_VALUE, false);
-            }
-        }
-    }
 }
