@@ -15,6 +15,7 @@ import appeng.container.slot.SlotPlayerInv;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.container.ContainerNull;
 import appeng.helpers.IContainerCraftingPacket;
+import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 import appeng.util.inv.IAEAppEngInventory;
@@ -32,7 +33,9 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 全能无线终端 Container —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
@@ -45,12 +48,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private SlotCraftingTerm craftOutputSlot;
     private final AppEngInternalInventory craftingOutput = new AppEngInternalInventory(this, 1);
     private IRecipe currentRecipe;
-    private IItemHandler craftingInv;
+    private AppEngInternalInventory craftingInv;
 
     // === 编码区 ===
-    private IItemHandler patternCraftingInv;     // 81格假合成矩阵
-    private IItemHandler patternOutputInv;       // 27格输出
-    private IItemHandler patternInv;             // 2格样板槽（空白/编码）
+    private AppEngInternalInventory patternCraftingInv;
+    private AppEngInternalInventory patternOutputInv;
+    private AppEngInternalInventory patternInv;
     private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
 
     private final RCSlotFakeCraftingMatrix[][] craftingSlotGroup = new RCSlotFakeCraftingMatrix[9][9];
@@ -73,23 +76,26 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // === 宿主 ===
     private final ITerminalHost terminalHost;
 
+    // === NBT Keys ===
+    private static final String NBT_CRAFTING = "omni_crafting";
+    private static final String NBT_PATTERN_IN = "omni_pattern_in";
+    private static final String NBT_PATTERN_OUT = "omni_pattern_out";
+    private static final String NBT_PATTERN_SLOTS = "omni_pattern_slots";
+    private static final String NBT_RIGHT_PATTERN = "omni_right_pattern";
+    private static final String NBT_RIGHT_UPGRADE = "omni_right_upgrade";
+    private static final String NBT_CRAFTING_MODE = "omni_crafting_mode";
+    private static final String NBT_SUBSTITUTE = "omni_substitute";
+    private static final String NBT_SCROLL_OFFSET = "omni_scroll_offset";
+
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
         super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
         this.terminalHost = host;
 
-        // 1. 合成栏
         this.setupCraftingArea(ip, host);
-
-        // 2. 编码区（81输入 + 27输出）
         this.setupPatternArea(ip, host);
-
-        // 3. 右侧存储（样板 + 升级卡）
         this.setupRightStorage();
-
-        // 4. 玩家背包（手动定位）
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
-        // 5. 移除显示元件槽位（WirelessTerminalGuiObject 默认实现了 IViewCellStorage）
         for (int i = 0; i < this.cellView.length; i++) {
             if (this.cellView[i] != null) {
                 this.inventorySlots.remove(this.cellView[i]);
@@ -97,19 +103,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        // 6. 重新编号所有 slot（移除 viewCell 后 slotNumber 与实际索引不一致）
         for (int i = 0; i < this.inventorySlots.size(); i++) {
             this.inventorySlots.get(i).slotNumber = i;
         }
 
-        // 7. 从 NBT 恢复数据
         this.loadFromNBT();
     }
 
     // ================== 合成栏 ==================
 
     private void setupCraftingArea(InventoryPlayer ip, ITerminalHost host) {
-        // 合成矩阵物品栏（3x3）
         this.craftingInv = new AppEngInternalInventory(this, 9);
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
@@ -118,20 +121,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 this.func_75146_a(this.craftingSlots[idx]);
             }
         }
-        // 合成输出槽
         this.craftOutputSlot = new SlotCraftingTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
                 this.craftingInv, this.craftingInv, this.craftingOutput, 133, 111, this);
         this.func_75146_a(this.craftOutputSlot);
-        // AppEngInternalInventory 会自动触发 onChangeInventory，无需手动调用 onCraftMatrixChanged
     }
 
     // ================== 编码区 ==================
 
     private void setupPatternArea(InventoryPlayer ip, ITerminalHost host) {
-        // 81格假合成矩阵
-        this.patternCraftingInv = new AppEngInternalInventory(null, 81);
-        // 27格输出
-        this.patternOutputInv = new AppEngInternalInventory(null, 27);
+        this.patternCraftingInv = new AppEngInternalInventory(this, 81);
+        this.patternOutputInv = new AppEngInternalInventory(this, 27);
 
         for (int g = 0; g < 9; g++) {
             for (int r = 0; r < 3; r++) {
@@ -156,14 +155,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        // Crafting 模式输出槽（SlotPatternTerm）— 位于编码区右侧中间
-        this.patternInv = new AppEngInternalInventory(null, 2); // 样板槽 2格
+        this.patternInv = new AppEngInternalInventory(null, 2);
         this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
                 this.patternCraftingInv, this.patternInv, this.cOut, 281, 111, this, 2, this);
         this.func_75146_a(this.craftSlot);
         this.craftSlot.setIIcon(-1);
 
-        // 空白样板槽 / 编码样板槽 —— 位于编码区右侧
         this.patternSlotIN = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.BLANK_PATTERN,
                 this.patternInv, 0, 319, 86, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotIN);
@@ -173,21 +170,18 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.func_75146_a(this.patternSlotOUT);
         this.patternSlotOUT.setStackLimit(1);
 
-        // 初始显示第0组
         this.setRCSlot(0);
     }
 
     // ================== 右侧存储 ==================
 
     private void setupRightStorage() {
-        // 9列 x 3行 样板存储
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
                 this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
             }
         }
-        // 9列 x 1行 升级卡存储
         for (int c = 0; c < 9; c++) {
             this.func_75146_a(new AppEngSlot(this.rightUpgradeStorage, c, 180 + c * 18, 221));
         }
@@ -259,104 +253,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
     }
 
-    // ================== NBT 持久化 ==================
-
-    private static final String NBT_CRAFTING = "omni_crafting";
-    private static final String NBT_PATTERN_IN = "omni_pattern_in";
-    private static final String NBT_PATTERN_OUT = "omni_pattern_out";
-    private static final String NBT_PATTERN_SLOTS = "omni_pattern_slots";
-    private static final String NBT_RIGHT_PATTERN = "omni_right_pattern";
-    private static final String NBT_RIGHT_UPGRADE = "omni_right_upgrade";
-    private static final String NBT_CRAFTING_MODE = "omni_crafting_mode";
-    private static final String NBT_SUBSTITUTE = "omni_substitute";
-    private static final String NBT_SCROLL_OFFSET = "omni_scroll_offset";
-
-    private void loadInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
-        if (!tag.hasKey(key)) return;
-        NBTTagList list = tag.getTagList(key, 10);
-        for (int i = 0; i < size; i++) {
-            inv.extractItem(i, Integer.MAX_VALUE, false);
-        }
-        for (int i = 0; i < list.tagCount(); i++) {
-            NBTTagCompound stackTag = list.getCompoundTagAt(i);
-            int slot = stackTag.hasKey("Slot", 3) ? stackTag.getInteger("Slot") : i;
-            if (slot >= 0 && slot < size) {
-                ItemStack stack = new ItemStack(stackTag);
-                if (!stack.isEmpty()) {
-                    inv.insertItem(slot, stack, false);
-                }
-            }
-        }
-    }
-
-    private void saveInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
-        NBTTagList list = new NBTTagList();
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = inv.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                NBTTagCompound stackTag = new NBTTagCompound();
-                stackTag.setInteger("Slot", i);
-                stack.writeToNBT(stackTag);
-                list.appendTag(stackTag);
-            }
-        }
-        tag.setTag(key, list);
-    }
-
-    private void loadFromNBT() {
-        if (!(this.terminalHost instanceof appeng.helpers.WirelessTerminalGuiObject)) return;
-        appeng.helpers.WirelessTerminalGuiObject wt = (appeng.helpers.WirelessTerminalGuiObject) this.terminalHost;
-        ItemStack stack = wt.getItemStack();
-        if (stack.isEmpty()) return;
-        NBTTagCompound tag = Platform.openNbtData(stack);
-
-        loadInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
-        loadInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
-        loadInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
-        loadInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
-        loadInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
-        loadInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
-        if (tag.hasKey(NBT_CRAFTING_MODE)) {
-            this.craftingMode = tag.getBoolean(NBT_CRAFTING_MODE);
-        }
-        if (tag.hasKey(NBT_SUBSTITUTE)) {
-            this.substitute = tag.getBoolean(NBT_SUBSTITUTE);
-        }
-        if (tag.hasKey(NBT_SCROLL_OFFSET)) {
-            this.scrollOffset = tag.getInteger(NBT_SCROLL_OFFSET);
-        }
-        this.setCraftingMode(this.craftingMode);
-    }
-
-    private void saveToNBT() {
-        if (!(this.terminalHost instanceof appeng.helpers.WirelessTerminalGuiObject)) return;
-        if (!Platform.isServer()) return;
-        appeng.helpers.WirelessTerminalGuiObject wt = (appeng.helpers.WirelessTerminalGuiObject) this.terminalHost;
-        ItemStack stack = wt.getItemStack();
-        if (stack.isEmpty()) return;
-        NBTTagCompound tag = Platform.openNbtData(stack);
-
-        saveInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
-        saveInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
-        saveInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
-        saveInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
-        saveInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
-        saveInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
-        tag.setBoolean(NBT_CRAFTING_MODE, this.craftingMode);
-        tag.setBoolean(NBT_SUBSTITUTE, this.substitute);
-        tag.setInteger(NBT_SCROLL_OFFSET, this.scrollOffset);
-    }
-
-    @Override
-    public void onContainerClosed(EntityPlayer playerIn) {
-        super.onContainerClosed(playerIn);
-        this.saveToNBT();
-    }
-
     // ================== 模式切换 ==================
 
-    public void setCraftingMode(boolean mode) {
-        this.craftingMode = mode;
+    private void applyCraftingMode() {
         int newDefX = this.craftingMode ? 187 : 196;
         for (int g = 0; g < 9; g++) {
             for (int i = 0; i < 9; i++) {
@@ -365,6 +264,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         this.updateOrderOfOutputSlots();
         this.setRCSlot(this.scrollOffset);
+    }
+
+    public void setCraftingMode(boolean mode) {
+        if (this.craftingMode == mode) {
+            return;
+        }
+        this.craftingMode = mode;
+        this.saveCraftingModeToNBT();
+        this.applyCraftingMode();
         this.detectAndSendChanges();
     }
 
@@ -374,6 +282,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     public void setSubstitute(boolean substitute) {
         this.substitute = substitute;
+        this.saveSubstituteToNBT();
         this.detectAndSendChanges();
     }
 
@@ -381,15 +290,23 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         return this.substitute;
     }
 
+    @Override
+    public void onUpdate(String field, Object oldValue, Object newValue) {
+        super.onUpdate(field, oldValue, newValue);
+        if ("craftingMode".equals(field)) {
+            this.applyCraftingMode();
+        }
+    }
+
     // ================== IOptionalSlotHost ==================
 
     @Override
     public boolean isSlotEnabled(int idx) {
         if (idx == 1) {
-            return Platform.isServer() ? !this.craftingMode : !this.craftingMode;
+            return !this.craftingMode;
         }
         if (idx == 2) {
-            return Platform.isServer() ? this.craftingMode : this.craftingMode;
+            return this.craftingMode;
         }
         return false;
     }
@@ -429,68 +346,104 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     private void encode(boolean moveToInventory) {
-        ItemStack blankPattern = this.patternSlotIN.getStack();
-        if (blankPattern.isEmpty()) {
+        ItemStack output = this.patternSlotOUT.getStack();
+        ItemStack[] in = this.getInputs();
+        ItemStack[] out = this.getOutputs();
+        if (in == null || out == null) {
             return;
         }
 
-        ItemStack encoded = AEApi.instance().definitions().items().encodedPattern().maybeStack(1).orElse(ItemStack.EMPTY);
-        if (encoded.isEmpty()) {
+        if (!output.isEmpty() && !this.isPattern(output)) {
             return;
         }
 
-        NBTTagCompound tag = new NBTTagCompound();
+        if (output.isEmpty()) {
+            output = this.patternSlotIN.getStack();
+            if (output.isEmpty() || !this.isPattern(output)) {
+                return;
+            }
+            output.shrink(1);
+            if (output.getCount() <= 0) {
+                this.patternSlotIN.putStack(ItemStack.EMPTY);
+            }
+
+            Optional<ItemStack> maybePattern = AEApi.instance().definitions().items().encodedPattern().maybeStack(1);
+            if (maybePattern.isPresent()) {
+                output = maybePattern.get();
+            } else {
+                return;
+            }
+        }
+
+        NBTTagCompound encodedValue = new NBTTagCompound();
         NBTTagList tagIn = new NBTTagList();
         NBTTagList tagOut = new NBTTagList();
-
-        // 输入（81格）
-        for (int i = 0; i < 81; i++) {
-            ItemStack stack = this.patternCraftingInv.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                tagIn.appendTag(this.createItemTag(stack));
-            }
+        for (ItemStack i : in) {
+            tagIn.appendTag(this.createItemTag(i));
         }
-
-        // 输出
-        if (this.craftingMode) {
-            ItemStack out = this.craftSlot.getStack();
-            if (!out.isEmpty()) {
-                tagOut.appendTag(this.createItemTag(out));
-            }
-        } else {
-            for (int i = 0; i < 27; i++) {
-                ItemStack out = this.patternOutputInv.getStackInSlot(i);
-                if (!out.isEmpty()) {
-                    tagOut.appendTag(this.createItemTag(out));
-                }
-            }
+        for (ItemStack i : out) {
+            tagOut.appendTag(this.createItemTag(i));
         }
-
-        if (tagIn.tagCount() == 0 || tagOut.tagCount() == 0) {
-            return;
-        }
-
-        tag.setTag("in", tagIn);
-        tag.setTag("out", tagOut);
-        tag.setBoolean("crafting", this.craftingMode);
-        tag.setBoolean("substitute", this.substitute);
-        encoded.setTagCompound(tag);
-
-        // 扣除空白样板并放入编码样板
-        blankPattern.shrink(1);
-        if (blankPattern.getCount() <= 0) {
-            this.patternSlotIN.putStack(ItemStack.EMPTY);
-        }
+        encodedValue.setTag("in", tagIn);
+        encodedValue.setTag("out", tagOut);
+        encodedValue.setBoolean("crafting", this.craftingMode);
+        encodedValue.setBoolean("substitute", this.substitute);
+        output.setTagCompound(encodedValue);
 
         if (moveToInventory) {
-            if (!this.getPlayerInv().addItemStackToInventory(encoded)) {
-                this.patternSlotOUT.putStack(encoded);
+            if (!this.getPlayerInv().addItemStackToInventory(output)) {
+                this.patternSlotOUT.putStack(output);
             }
         } else {
-            this.patternSlotOUT.putStack(encoded);
+            this.patternSlotOUT.putStack(output);
         }
 
         this.detectAndSendChanges();
+    }
+
+    private ItemStack[] getInputs() {
+        ItemStack[] input = new ItemStack[this.patternCraftingInv.getSlots()];
+        boolean hasValue = false;
+        for (int i = 0; i < input.length; i++) {
+            input[i] = this.patternCraftingInv.getStackInSlot(i);
+            if (!input[i].isEmpty()) {
+                hasValue = true;
+            }
+        }
+        return hasValue ? input : null;
+    }
+
+    private ItemStack[] getOutputs() {
+        if (this.craftingMode) {
+            ItemStack out = this.craftSlot.getStack();
+            if (!out.isEmpty() && out.getCount() > 0) {
+                return new ItemStack[]{out};
+            }
+        } else {
+            ArrayList<ItemStack> list = new ArrayList<>();
+            boolean hasValue = false;
+            for (int g = 0; g < 9; g++) {
+                for (int r = 0; r < 3; r++) {
+                    ItemStack out = this.outputSlotGroup[g][r].getStack();
+                    if (!out.isEmpty() && out.getCount() > 0) {
+                        list.add(out);
+                        hasValue = true;
+                    }
+                }
+            }
+            if (hasValue) {
+                return list.toArray(new ItemStack[0]);
+            }
+        }
+        return null;
+    }
+
+    private boolean isPattern(ItemStack output) {
+        if (output.isEmpty()) {
+            return false;
+        }
+        return AEApi.instance().definitions().items().encodedPattern().isSameAs(output)
+                || AEApi.instance().definitions().materials().blankPattern().isSameAs(output);
     }
 
     private NBTTagCompound createItemTag(ItemStack stack) {
@@ -509,23 +462,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         int size = this.craftingMode ? 9 : 81;
         IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
         int outSize = this.craftingMode ? 1 : 27;
-
-        boolean canMul = true;
-        for (int i = 0; i < size; i++) {
-            ItemStack s = inv.getStackInSlot(i);
-            if (!s.isEmpty() && s.getCount() * multiple < 1) {
-                canMul = false;
-                break;
-            }
-        }
-        for (int i = 0; i < outSize; i++) {
-            ItemStack s = outInv.getStackInSlot(i);
-            if (!s.isEmpty() && s.getCount() * multiple < 1) {
-                canMul = false;
-                break;
-            }
-        }
-        if (!canMul) return;
 
         for (int i = 0; i < size; i++) {
             ItemStack s = inv.getStackInSlot(i);
@@ -694,6 +630,110 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.detectAndSendChanges();
     }
 
+    // ================== NBT 持久化 ==================
+
+    private void loadInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
+        if (!tag.hasKey(key)) return;
+        NBTTagList list = tag.getTagList(key, 10);
+        for (int i = 0; i < size; i++) {
+            inv.extractItem(i, Integer.MAX_VALUE, false);
+        }
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound stackTag = list.getCompoundTagAt(i);
+            int slot = stackTag.hasKey("Slot", 3) ? stackTag.getInteger("Slot") : i;
+            if (slot >= 0 && slot < size) {
+                ItemStack stack = new ItemStack(stackTag);
+                if (!stack.isEmpty()) {
+                    inv.insertItem(slot, stack, false);
+                }
+            }
+        }
+    }
+
+    private void saveInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
+        NBTTagList list = new NBTTagList();
+        for (int i = 0; i < size; i++) {
+            ItemStack stack = inv.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                NBTTagCompound stackTag = new NBTTagCompound();
+                stackTag.setInteger("Slot", i);
+                stack.writeToNBT(stackTag);
+                list.appendTag(stackTag);
+            }
+        }
+        tag.setTag(key, list);
+    }
+
+    private void loadFromNBT() {
+        if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
+        WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
+        ItemStack stack = wt.getItemStack();
+        if (stack.isEmpty()) return;
+        NBTTagCompound tag = Platform.openNbtData(stack);
+
+        loadInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
+        loadInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
+        loadInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
+        loadInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
+        loadInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
+        loadInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
+
+        if (tag.hasKey(NBT_CRAFTING_MODE)) {
+            this.craftingMode = tag.getBoolean(NBT_CRAFTING_MODE);
+        }
+        if (tag.hasKey(NBT_SUBSTITUTE)) {
+            this.substitute = tag.getBoolean(NBT_SUBSTITUTE);
+        }
+        if (tag.hasKey(NBT_SCROLL_OFFSET)) {
+            this.scrollOffset = tag.getInteger(NBT_SCROLL_OFFSET);
+        }
+
+        this.applyCraftingMode();
+    }
+
+    private void saveToNBT() {
+        if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
+        if (!Platform.isServer()) return;
+        WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
+        ItemStack stack = wt.getItemStack();
+        if (stack.isEmpty()) return;
+        NBTTagCompound tag = Platform.openNbtData(stack);
+
+        saveInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
+        saveInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
+        saveInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
+        saveInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
+        saveInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
+        saveInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
+        tag.setBoolean(NBT_CRAFTING_MODE, this.craftingMode);
+        tag.setBoolean(NBT_SUBSTITUTE, this.substitute);
+        tag.setInteger(NBT_SCROLL_OFFSET, this.scrollOffset);
+    }
+
+    private void saveCraftingModeToNBT() {
+        if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
+        WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
+        ItemStack stack = wt.getItemStack();
+        if (stack.isEmpty()) return;
+        NBTTagCompound tag = Platform.openNbtData(stack);
+        tag.setBoolean(NBT_CRAFTING_MODE, this.craftingMode);
+    }
+
+    private void saveSubstituteToNBT() {
+        if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
+        WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
+        ItemStack stack = wt.getItemStack();
+        if (stack.isEmpty()) return;
+        NBTTagCompound tag = Platform.openNbtData(stack);
+        tag.setBoolean(NBT_SUBSTITUTE, this.substitute);
+    }
+
+    @Override
+    public void onContainerClosed(EntityPlayer playerIn) {
+        super.onContainerClosed(playerIn);
+        this.saveToNBT();
+    }
+
     // ================== IContainerCraftingPacket ==================
 
     @Override
@@ -713,7 +753,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             return this.craftingOutput;
         }
         if ("pattern".equals(name)) {
-            return new appeng.tile.inventory.AppEngInternalInventory(null, 2);
+            return this.patternInv;
         }
         return null;
     }
@@ -747,7 +787,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     @Override
     public void saveChanges() {
-        // AppEngInternalInventory 已自动处理，无需额外保存
     }
 
     @Override
@@ -759,6 +798,4 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.inventoryListener.onInventoryUpdate(list);
         }
     }
-
-    // ================== 辅助类 ==================
 }
