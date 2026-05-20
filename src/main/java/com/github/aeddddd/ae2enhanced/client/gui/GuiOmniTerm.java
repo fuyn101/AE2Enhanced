@@ -12,6 +12,7 @@ import appeng.client.gui.widgets.GuiScrollbar;
 import appeng.client.gui.widgets.GuiTabButton;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.client.me.InternalSlotME;
+import appeng.container.slot.AppEngSlot;
 import appeng.client.me.SlotME;
 import appeng.client.ActionKey;
 import appeng.core.AEConfig;
@@ -79,47 +80,65 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // super.initGui() 会计算 rows/ySize、创建 InternalSlotME、搜索框、滚动条、按钮
         super.initGui();
 
-        // 修正尺寸（super.initGui 可能根据 TerminalStyle 计算出不同的 xSize）
+        // 保存 super.initGui() 计算出的旧 guiTop（可能基于极大的 ySize）
+        final int oldGuiTop = this.guiTop;
+
+        // 修正尺寸和位置（固定 357×251）
         this.xSize = 357;
         this.ySize = 251;
         this.guiLeft = (this.width - this.xSize) / 2;
         this.guiTop = (this.height - this.ySize) / 2;
 
-        // 移除 super.initGui() 创建的 AE2 原生按钮
-        this.buttonList.removeIf(btn -> btn instanceof GuiImgButton || btn instanceof GuiTabButton);
-
-        // 移除 super.initGui() 创建的 SlotME，准备重新定位
-        Iterator<Slot> slotIt = this.inventorySlots.inventorySlots.iterator();
-        while (slotIt.hasNext()) {
-            if (slotIt.next() instanceof SlotME) {
-                slotIt.remove();
+        // 1. 恢复被 repositionSlot 修改的所有 AppEngSlot 的原始位置
+        for (Slot s : this.inventorySlots.inventorySlots) {
+            if (s instanceof AppEngSlot) {
+                AppEngSlot aeSlot = (AppEngSlot) s;
+                s.xPos = aeSlot.getX();
+                s.yPos = aeSlot.getY();
             }
         }
 
-        // 重新创建 InternalSlotME（18 列 × 4 行），坐标相对于 guiLeft/guiTop
+        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 4 行
+        this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
         this.getMeSlots().clear();
         for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 18; col++) {
                 this.getMeSlots().add(new InternalSlotME(this.repo, col + row * 18, 8 + col * 18, 18 + row * 18));
             }
         }
-
-        // AEBaseGui 的逻辑：将 InternalSlotME 包装为 SlotME 加入 inventorySlots
         for (InternalSlotME me : this.getMeSlots()) {
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
-        // 反射修改搜索框位置到 (guiLeft+204, guiTop+4)
+        // 3. 重新定位 AE2 标准按钮（保留 SortBy/ViewMode/SortDir/SearchMode/TerminalStyle/CraftingStatus）
+        for (GuiButton btn : this.buttonList) {
+            if (btn instanceof GuiImgButton) {
+                GuiImgButton imgBtn = (GuiImgButton) btn;
+                Settings setting = imgBtn.getSetting();
+                if (setting == Settings.SORT_BY || setting == Settings.VIEW_MODE
+                        || setting == Settings.SORT_DIRECTION || setting == Settings.SEARCH_MODE
+                        || setting == Settings.TERMINAL_STYLE) {
+                    btn.y = btn.y - oldGuiTop + this.guiTop;
+                    btn.x = this.guiLeft - 18;
+                }
+            } else if (btn instanceof GuiTabButton) {
+                // craftingStatusBtn
+                btn.y = btn.y - oldGuiTop + this.guiTop;
+                btn.x = this.guiLeft + 170;
+            }
+        }
+
+        // 4. 重新定位搜索框（加宽到 230，位置与纹理对齐）
         try {
             Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
             MEGuiTextField searchField = (MEGuiTextField) searchFieldField.get(this);
             if (searchField != null) {
-                searchField.x = this.guiLeft + 204;
+                searchField.x = this.guiLeft + 110;
                 searchField.y = this.guiTop + 4;
                 Field xPosField = MEGuiTextField.class.getDeclaredField("_xPos");
                 xPosField.setAccessible(true);
-                xPosField.setInt(searchField, this.guiLeft + 204);
+                xPosField.setInt(searchField, this.guiLeft + 110);
                 Field yPosField = MEGuiTextField.class.getDeclaredField("_yPos");
                 yPosField.setAccessible(true);
                 yPosField.setInt(searchField, this.guiTop + 4);
@@ -128,21 +147,34 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             e.printStackTrace();
         }
 
-        // 设置物品库滚动条位置
+        // 5. 设置物品库滚动条（相对 GUI 的坐标）
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
-            itemScrollBar.setLeft(this.guiLeft + 340).setTop(this.guiTop + 18).setHeight(70);
+            itemScrollBar.setLeft(335).setTop(18).setHeight(70);
+            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - 4), 1);
         }
 
-        // 添加编码区按钮
+        // 6. 添加编码区按钮
         this.setupPatternButtons();
 
-        // 编码区滚动条（0~8）
+        // 7. 编码区滚动条（相对 GUI 的坐标，0~8）
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(this.guiLeft + 306).setTop(this.guiTop + 86).setHeight(66);
+        this.patternScrollBar.setLeft(306).setTop(86).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
-        // 设置容器物品库更新回调
+        // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
+        try {
+            Field rowsField = GuiMEMonitorable.class.getDeclaredField("rows");
+            rowsField.setAccessible(true);
+            rowsField.setInt(this, 4);
+            Field perRowField = GuiMEMonitorable.class.getDeclaredField("perRow");
+            perRowField.setAccessible(true);
+            perRowField.setInt(this, 18);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 9. 设置容器物品库更新回调
         this.container.setInventoryListener(list -> {
             for (IAEItemStack is : list) {
                 this.repo.postUpdate(is);
@@ -157,52 +189,54 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int gl = this.guiLeft;
         int gt = this.guiTop;
 
-        this.tabCraftButton = new GuiTabButton(gl + 8, gt + 88, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
+        // 左侧合成区相关按钮
+        this.tabCraftButton = new GuiTabButton(gl + 8, gt + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
         this.buttonList.add(this.tabCraftButton);
 
-        this.tabProcessButton = new GuiTabButton(gl + 8, gt + 88, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
+        this.tabProcessButton = new GuiTabButton(gl + 8, gt + 74, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
         this.buttonList.add(this.tabProcessButton);
 
-        this.substitutionsEnabledBtn = new GuiImgButton(gl + 8, gt + 108, Settings.ACTIONS, ItemSubstitution.ENABLED);
+        this.substitutionsEnabledBtn = new GuiImgButton(gl + 8, gt + 88, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
 
-        this.substitutionsDisabledBtn = new GuiImgButton(gl + 8, gt + 108, Settings.ACTIONS, ItemSubstitution.DISABLED);
+        this.substitutionsDisabledBtn = new GuiImgButton(gl + 8, gt + 88, Settings.ACTIONS, ItemSubstitution.DISABLED);
         this.substitutionsDisabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsDisabledBtn);
 
-        this.clearBtn = new GuiImgButton(gl + 30, gt + 108, Settings.ACTIONS, ActionItems.CLOSE);
+        this.clearBtn = new GuiImgButton(gl + 30, gt + 88, Settings.ACTIONS, ActionItems.CLOSE);
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
-        this.x3Btn = new GuiImgButton(gl + 186, gt + 90, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
+        // 右侧编码区操作按钮（位于编码区左侧，与标准 PatternTerm 比例对齐）
+        this.x3Btn = new GuiImgButton(gl + 128, gt + 93, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
 
-        this.x2Btn = new GuiImgButton(gl + 186, gt + 102, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
+        this.x2Btn = new GuiImgButton(gl + 128, gt + 103, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
         this.x2Btn.setHalfSize(true);
         this.buttonList.add(this.x2Btn);
 
-        this.plusOneBtn = new GuiImgButton(gl + 186, gt + 114, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
+        this.plusOneBtn = new GuiImgButton(gl + 128, gt + 113, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
         this.plusOneBtn.setHalfSize(true);
         this.buttonList.add(this.plusOneBtn);
 
-        this.divThreeBtn = new GuiImgButton(gl + 206, gt + 90, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
+        this.divThreeBtn = new GuiImgButton(gl + 100, gt + 93, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
         this.divThreeBtn.setHalfSize(true);
         this.buttonList.add(this.divThreeBtn);
 
-        this.divTwoBtn = new GuiImgButton(gl + 206, gt + 102, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
+        this.divTwoBtn = new GuiImgButton(gl + 100, gt + 103, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
         this.divTwoBtn.setHalfSize(true);
         this.buttonList.add(this.divTwoBtn);
 
-        this.minusOneBtn = new GuiImgButton(gl + 206, gt + 114, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
+        this.minusOneBtn = new GuiImgButton(gl + 100, gt + 113, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
         this.minusOneBtn.setHalfSize(true);
         this.buttonList.add(this.minusOneBtn);
 
-        this.encodeBtn = new GuiImgButton(gl + 230, gt + 102, Settings.ACTIONS, ActionItems.ENCODE);
+        this.encodeBtn = new GuiImgButton(gl + 147, gt + 103, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
 
-        this.maxCountBtn = new GuiImgButton(gl + 230, gt + 90, Settings.ACTIONS, ActionItems.MAX_COUNT);
+        this.maxCountBtn = new GuiImgButton(gl + 147, gt + 93, Settings.ACTIONS, ActionItems.MAX_COUNT);
         this.maxCountBtn.setHalfSize(true);
         this.buttonList.add(this.maxCountBtn);
     }
@@ -325,7 +359,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 修复物品库滚动条位置和范围（super.updateScreen 中的 setScrollBar 会重置它们）
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
-            bar.setLeft(this.guiLeft + 340).setTop(this.guiTop + 18).setHeight(70);
+            bar.setLeft(335).setTop(18).setHeight(70);
             int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 4);
             bar.setRange(0, maxScroll, 1);
         }
