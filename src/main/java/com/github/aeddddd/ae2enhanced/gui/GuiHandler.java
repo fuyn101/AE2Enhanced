@@ -62,6 +62,26 @@ public class GuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
+        // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
+        if (ID == GUI_OMNI_TERMINAL) {
+            ItemStack held = player.getHeldItemMainhand();
+            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
+                held = player.getHeldItemOffhand();
+            }
+            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
+                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                if (handler == null) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
+                    return null;
+                }
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal server container for {}", player.getName());
+                return new ContainerOmniTerm(player.inventory, host);
+            }
+            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found in hand for {}", player.getName());
+            return null;
+        }
+
         TileEntity te = world.getTileEntity(new BlockPos(x, y, z));
         if (te instanceof TileAssemblyController) {
             TileAssemblyController tile = (TileAssemblyController) te;
@@ -135,6 +155,13 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
             return new com.github.aeddddd.ae2enhanced.container.ContainerUniversalMemoryCard(player);
         }
+
+        return null;
+    }
+
+    @Override
+    public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
+        // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
         if (ID == GUI_OMNI_TERMINAL) {
             ItemStack held = player.getHeldItemMainhand();
             if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
@@ -143,21 +170,16 @@ public class GuiHandler implements IGuiHandler {
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
                 appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
                 if (handler == null) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
+                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
                     return null;
                 }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
-                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal server container for {}", player.getName());
-                return new ContainerOmniTerm(player.inventory, host);
+                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal client GUI");
+                return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }
-            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found in hand for {}", player.getName());
+            return null;
         }
 
-        return null;
-    }
-
-    @Override
-    public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
         TileEntity te = world.getTileEntity(new BlockPos(x, y, z));
         if (te instanceof TileAssemblyController) {
             TileAssemblyController tile = (TileAssemblyController) te;
@@ -228,22 +250,6 @@ public class GuiHandler implements IGuiHandler {
         }
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
             return new com.github.aeddddd.ae2enhanced.gui.GuiUniversalMemoryCard(player);
-        }
-        if (ID == GUI_OMNI_TERMINAL) {
-            ItemStack held = player.getHeldItemMainhand();
-            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
-                held = player.getHeldItemOffhand();
-            }
-            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
-                if (handler == null) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
-                    return null;
-                }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
-                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal client GUI");
-                return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
-            }
         }
 
         return null;
