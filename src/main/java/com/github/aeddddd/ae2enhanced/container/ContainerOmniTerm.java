@@ -423,8 +423,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             return;
         }
 
-        ItemStack encoded = AEApi.instance().definitions().items().encodedPattern().maybeStack(1).orElse(null);
-        if (encoded == null) {
+        ItemStack encoded = AEApi.instance().definitions().items().encodedPattern().maybeStack(1).orElse(ItemStack.EMPTY);
+        if (encoded.isEmpty()) {
             return;
         }
 
@@ -478,6 +478,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             this.patternSlotOUT.putStack(encoded);
         }
+
+        this.detectAndSendChanges();
     }
 
     private NBTTagCompound createItemTag(ItemStack stack) {
