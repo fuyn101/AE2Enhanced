@@ -7,6 +7,7 @@ import appeng.api.config.SortDir;
 import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
 import appeng.api.features.IWirelessTermHandler;
+import appeng.core.localization.PlayerMessages;
 import appeng.util.ConfigManager;
 import appeng.api.util.IConfigManager;
 import appeng.core.AEConfig;
@@ -97,9 +98,19 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         if (!world.isRemote) {
             ItemStack held = player.getHeldItem(hand);
-            if (!this.hasPower(player, 0.5, held)) {
+            AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal right-click by {}, held={}", player.getName(), held);
+            String key = this.getEncryptionKey(held);
+            if (key.isEmpty()) {
+                AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal not linked");
+                player.sendMessage(PlayerMessages.DeviceNotLinked.get());
                 return new ActionResult<>(EnumActionResult.FAIL, held);
             }
+            if (!this.hasPower(player, 0.5, held)) {
+                AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal no power");
+                player.sendMessage(PlayerMessages.DeviceNotPowered.get());
+                return new ActionResult<>(EnumActionResult.FAIL, held);
+            }
+            AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal opening GUI...");
             player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, world, 0, 0, 0);
         }
         return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));

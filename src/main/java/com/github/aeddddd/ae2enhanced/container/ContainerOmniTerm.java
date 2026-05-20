@@ -98,7 +98,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private final ITerminalHost terminalHost;
 
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
-        super(ip, host, false); // 不自动绑定背包
+        super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
         this.terminalHost = host;
 
         // 1. 合成栏

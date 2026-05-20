@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
@@ -141,9 +142,15 @@ public class GuiHandler implements IGuiHandler {
             }
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
                 appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                if (handler == null) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
+                    return null;
+                }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal server container for {}", player.getName());
                 return new ContainerOmniTerm(player.inventory, host);
             }
+            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found in hand for {}", player.getName());
         }
 
         return null;
@@ -229,7 +236,12 @@ public class GuiHandler implements IGuiHandler {
             }
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
                 appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                if (handler == null) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
+                    return null;
+                }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal client GUI");
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }
         }
