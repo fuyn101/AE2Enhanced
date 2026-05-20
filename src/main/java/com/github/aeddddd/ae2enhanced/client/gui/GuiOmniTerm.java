@@ -122,27 +122,34 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                     btn.x = this.guiLeft - 18;
                 }
             } else if (btn instanceof GuiTabButton) {
-                // craftingStatusBtn
+                // craftingStatusBtn — 右上角
                 btn.y = btn.y - oldGuiTop + this.guiTop;
-                btn.x = this.guiLeft + 170;
+                btn.x = this.guiLeft + 335;
             }
         }
 
-        // 4. 重新定位搜索框（加宽到 230，位置与纹理对齐）
+        // 4. 替换搜索框为正确尺寸（x=204, width=126，与纹理搜索区精确对齐）
         try {
             Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
-            MEGuiTextField searchField = (MEGuiTextField) searchFieldField.get(this);
-            if (searchField != null) {
-                searchField.x = this.guiLeft + 110;
-                searchField.y = this.guiTop + 4;
-                Field xPosField = MEGuiTextField.class.getDeclaredField("_xPos");
-                xPosField.setAccessible(true);
-                xPosField.setInt(searchField, this.guiLeft + 110);
-                Field yPosField = MEGuiTextField.class.getDeclaredField("_yPos");
-                yPosField.setAccessible(true);
-                yPosField.setInt(searchField, this.guiTop + 4);
-            }
+            MEGuiTextField oldField = (MEGuiTextField) searchFieldField.get(this);
+            String oldText = oldField != null ? oldField.getText() : "";
+            boolean wasFocused = oldField != null && oldField.isFocused();
+            boolean autoFocus = false;
+            try {
+                Field autoFocusField = GuiMEMonitorable.class.getDeclaredField("isAutoFocus");
+                autoFocusField.setAccessible(true);
+                autoFocus = autoFocusField.getBoolean(this);
+            } catch (Exception ignored) {}
+            
+            MEGuiTextField newField = new MEGuiTextField(this.fontRenderer, this.guiLeft + 204, this.guiTop + 4, 126, 12);
+            newField.setMaxStringLength(25);
+            newField.setTextColor(0xFFFFFF);
+            newField.setSelectionColor(-16744448);
+            newField.setEnableBackgroundDrawing(false);
+            newField.setFocused(autoFocus || wasFocused);
+            newField.setText(oldText);
+            searchFieldField.set(this, newField);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -157,9 +164,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 6. 添加编码区按钮
         this.setupPatternButtons();
 
-        // 7. 编码区滚动条（相对 GUI 的坐标，0~8）
+        // 7. 编码区滚动条（相对 GUI 的坐标，位于编码九宫格左侧）
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(306).setTop(86).setHeight(66);
+        this.patternScrollBar.setLeft(160).setTop(88).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
         // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
@@ -189,13 +196,14 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int gl = this.guiLeft;
         int gt = this.guiTop;
 
-        // 左侧合成区相关按钮
-        this.tabCraftButton = new GuiTabButton(gl + 8, gt + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
+        // 切换 Crafting/Processing 模式按钮 — 位于编码区右上角
+        this.tabCraftButton = new GuiTabButton(gl + 335, gt + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
         this.buttonList.add(this.tabCraftButton);
 
-        this.tabProcessButton = new GuiTabButton(gl + 8, gt + 74, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
+        this.tabProcessButton = new GuiTabButton(gl + 335, gt + 74, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
         this.buttonList.add(this.tabProcessButton);
 
+        // Substitute / Clear 按钮 — 位于合成区左上方
         this.substitutionsEnabledBtn = new GuiImgButton(gl + 8, gt + 88, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
@@ -208,7 +216,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
-        // 右侧编码区操作按钮（位于编码区左侧，与标准 PatternTerm 比例对齐）
+        // 编码区快捷操作按钮（位于编码九宫格左侧）
         this.x3Btn = new GuiImgButton(gl + 128, gt + 93, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
@@ -235,10 +243,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         this.encodeBtn = new GuiImgButton(gl + 147, gt + 103, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
-
-        this.maxCountBtn = new GuiImgButton(gl + 147, gt + 93, Settings.ACTIONS, ActionItems.MAX_COUNT);
-        this.maxCountBtn.setHalfSize(true);
-        this.buttonList.add(this.maxCountBtn);
     }
 
     @Override
@@ -267,8 +271,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                 action = "IncreaseByOne";
             } else if (this.minusOneBtn == btn) {
                 action = "DecreaseByOne";
-            } else if (this.maxCountBtn == btn) {
-                action = "MaximizeCount";
             } else if (this.substitutionsEnabledBtn == btn || this.substitutionsDisabledBtn == btn) {
                 action = "Substitute";
                 value = this.substitutionsEnabledBtn == btn ? "0" : "1";
@@ -277,6 +279,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             if (action != null) {
                 AE2Enhanced.network.sendToServer(new PacketOmniTermAction(action, value));
             }
+            
+            // 让 AE2 标准按钮（SortDir/ViewMode/TerminalStyle 等）也能正常工作
+            super.actionPerformed(btn);
         } catch (Exception e) {
             // ignore
         }
@@ -321,7 +326,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.divThreeBtn.visible = false;
             this.plusOneBtn.visible = false;
             this.minusOneBtn.visible = false;
-            this.maxCountBtn.visible = false;
             if (this.container.isSubstitute()) {
                 this.substitutionsEnabledBtn.visible = true;
                 this.substitutionsDisabledBtn.visible = false;
@@ -340,7 +344,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.divThreeBtn.visible = true;
             this.plusOneBtn.visible = true;
             this.minusOneBtn.visible = true;
-            this.maxCountBtn.visible = true;
         }
 
         // 绘制编码区滚动条
@@ -454,9 +457,13 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         if (delta != 0) {
             int mx = Mouse.getEventX() * this.width / this.mc.displayWidth;
             int my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-            if (!this.container.isCraftingMode()
+            boolean inPatternArea = !this.container.isCraftingMode()
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 304
-                    && my >= this.guiTop + 86 && my <= this.guiTop + 152) {
+                    && my >= this.guiTop + 88 && my <= this.guiTop + 154;
+            boolean inPatternScroll = !this.container.isCraftingMode() && this.patternScrollBar != null
+                    && mx >= this.guiLeft + 160 && mx <= this.guiLeft + 172
+                    && my >= this.guiTop + 88 && my <= this.guiTop + 154;
+            if (inPatternArea || inPatternScroll) {
                 this.patternScrollBar.wheel(delta);
                 int newOffset = this.patternScrollBar.getCurrentScroll();
                 if (newOffset != this.container.getScrollOffset()) {

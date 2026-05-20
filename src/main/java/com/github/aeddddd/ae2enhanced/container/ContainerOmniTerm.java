@@ -112,7 +112,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.setupRightStorage();
 
         // 4. 玩家背包（手动定位）
-        this.addCustomPlayerInventory(ip, 8, 167, 221);
+        this.addCustomPlayerInventory(ip, 8, 167, 225);
 
         // 5. 从 NBT 恢复数据
         this.loadFromNBT();
@@ -150,7 +150,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 for (int c = 0; c < 3; c++) {
                     int idx = g * 9 + r * 3 + c;
                     int x = 180 + c * 18;
-                    int y = 86 + r * 18;
+                    int y = 88 + r * 18;
                     RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y);
                     this.craftingSlotGroup[g][r * 3 + c] = slot;
                     this.func_75146_a(slot);
@@ -159,7 +159,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             for (int r = 0; r < 3; r++) {
                 int idx = g * 3 + r;
                 int x = 249;
-                int y = 86 + r * 18;
+                int y = 88 + r * 18;
                 RCSlotPatternOutputs slot = new RCSlotPatternOutputs(this.patternOutputInv, this, idx, x, y, 0, 0, 1);
                 this.outputSlotGroup[g][r] = slot;
                 this.func_75146_a(slot);
@@ -171,7 +171,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         // Crafting 模式输出槽（SlotPatternTerm）
         this.patternInv = new AppEngInternalInventory(null, 2); // 样板槽 2格
         this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
-                this.patternCraftingInv, this.patternInv, this.cOut, 249, 104, this, 2, this);
+                this.patternCraftingInv, this.patternInv, this.cOut, 249, 106, this, 2, this);
         this.func_75146_a(this.craftSlot);
         this.craftSlot.setIIcon(-1);
 
