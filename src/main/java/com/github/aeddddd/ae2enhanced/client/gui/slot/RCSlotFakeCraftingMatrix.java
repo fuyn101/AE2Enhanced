@@ -9,7 +9,7 @@ import net.minecraftforge.items.IItemHandler;
 public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
 
     public boolean visible = true;
-    private final int defX;
+    private int defX;
     private final int defY;
 
     public RCSlotFakeCraftingMatrix(IItemHandler inv, int idx, int x, int y) {
@@ -25,6 +25,10 @@ public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
 
     public int getDefX() {
         return this.defX;
+    }
+
+    public void setDefX(int x) {
+        this.defX = x;
     }
 
     public int getDefY() {

@@ -137,7 +137,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             for (int r = 0; r < 3; r++) {
                 for (int c = 0; c < 3; c++) {
                     int idx = g * 9 + r * 3 + c;
-                    int x = 196 + c * 18;
+                    int x = 187 + c * 18;
                     int y = 93 + r * 18;
                     RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y);
                     this.craftingSlotGroup[g][r * 3 + c] = slot;
@@ -156,10 +156,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        // Crafting 模式输出槽（SlotPatternTerm）
+        // Crafting 模式输出槽（SlotPatternTerm）— 位于编码区右侧中间
         this.patternInv = new AppEngInternalInventory(null, 2); // 样板槽 2格
         this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
-                this.patternCraftingInv, this.patternInv, this.cOut, 249, 106, this, 2, this);
+                this.patternCraftingInv, this.patternInv, this.cOut, 281, 111, this, 2, this);
         this.func_75146_a(this.craftSlot);
         this.craftSlot.setIIcon(-1);
 
@@ -169,7 +169,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.func_75146_a(this.patternSlotIN);
 
         this.patternSlotOUT = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.ENCODED_PATTERN,
-                this.patternInv, 1, 319, 130, this.getInventoryPlayer());
+                this.patternInv, 1, 319, 133, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotOUT);
         this.patternSlotOUT.setStackLimit(1);
 
@@ -247,6 +247,18 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         return this.craftingMode ? 0 : 8;
     }
 
+    public void updateOrderOfOutputSlots() {
+        if (!this.craftingMode) {
+            if (this.craftSlot != null) {
+                this.craftSlot.xPos = -9000;
+            }
+        } else {
+            if (this.craftSlot != null) {
+                this.craftSlot.xPos = this.craftSlot.getX();
+            }
+        }
+    }
+
     // ================== NBT 持久化 ==================
 
     private static final String NBT_CRAFTING = "omni_crafting";
@@ -310,6 +322,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (tag.hasKey(NBT_SUBSTITUTE)) {
             this.substitute = tag.getBoolean(NBT_SUBSTITUTE);
         }
+        this.setCraftingMode(this.craftingMode);
         if (tag.hasKey(NBT_SCROLL_OFFSET)) {
             this.scrollOffset = tag.getInteger(NBT_SCROLL_OFFSET);
         }
@@ -344,6 +357,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     public void setCraftingMode(boolean mode) {
         this.craftingMode = mode;
+        int newDefX = this.craftingMode ? 187 : 196;
+        for (int g = 0; g < 9; g++) {
+            for (int i = 0; i < 9; i++) {
+                this.craftingSlotGroup[g][i].setDefX(newDefX);
+            }
+        }
+        this.updateOrderOfOutputSlots();
         this.setRCSlot(this.scrollOffset);
         this.detectAndSendChanges();
     }

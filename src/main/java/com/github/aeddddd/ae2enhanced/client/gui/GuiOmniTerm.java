@@ -162,7 +162,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 5. 设置物品库滚动条
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
-            itemScrollBar.setLeft(335).setTop(18).setHeight(52);
+            itemScrollBar.setLeft(337).setTop(18).setHeight(52);
             itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - 3), 1);
         }
 
@@ -171,7 +171,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 7. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(189).setTop(88).setHeight(66);
+        this.patternScrollBar.setLeft(185).setTop(88).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
         // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
@@ -209,11 +209,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.buttonList.add(this.tabProcessButton);
 
         // Substitute / Clear 按钮 — 位于合成区左上方
-        this.substitutionsEnabledBtn = new GuiImgButton(gl + 88, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
+        this.substitutionsEnabledBtn = new GuiImgButton(gl + 250, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
 
-        this.substitutionsDisabledBtn = new GuiImgButton(gl + 88, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
+        this.substitutionsDisabledBtn = new GuiImgButton(gl + 250, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
         this.substitutionsDisabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsDisabledBtn);
 
