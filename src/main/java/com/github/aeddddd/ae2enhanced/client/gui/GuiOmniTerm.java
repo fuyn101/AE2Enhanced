@@ -98,10 +98,10 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             }
         }
 
-        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 4 行
+        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 3 行（与纹理匹配）
         this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
         this.getMeSlots().clear();
-        for (int row = 0; row < 4; row++) {
+        for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 18; col++) {
                 this.getMeSlots().add(new InternalSlotME(this.repo, col + row * 18, 8 + col * 18, 18 + row * 18));
             }
@@ -157,8 +157,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 5. 设置物品库滚动条（相对 GUI 的坐标）
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
-            itemScrollBar.setLeft(335).setTop(18).setHeight(70);
-            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - 4), 1);
+            itemScrollBar.setLeft(335).setTop(18).setHeight(52);
+            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - 3), 1);
         }
 
         // 6. 添加编码区按钮
@@ -166,14 +166,14 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 7. 编码区滚动条（相对 GUI 的坐标，位于编码九宫格左侧）
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(160).setTop(88).setHeight(66);
+        this.patternScrollBar.setLeft(189).setTop(88).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
         // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
         try {
             Field rowsField = GuiMEMonitorable.class.getDeclaredField("rows");
             rowsField.setAccessible(true);
-            rowsField.setInt(this, 4);
+            rowsField.setInt(this, 3);
             Field perRowField = GuiMEMonitorable.class.getDeclaredField("perRow");
             perRowField.setAccessible(true);
             perRowField.setInt(this, 18);
@@ -216,32 +216,32 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
-        // 编码区快捷操作按钮（位于编码九宫格左侧）
-        this.x3Btn = new GuiImgButton(gl + 128, gt + 93, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
+        // 编码区快捷操作按钮（位于编码区右侧，避免与合成区重叠）
+        this.x3Btn = new GuiImgButton(gl + 310, gt + 90, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
 
-        this.x2Btn = new GuiImgButton(gl + 128, gt + 103, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
+        this.x2Btn = new GuiImgButton(gl + 310, gt + 100, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
         this.x2Btn.setHalfSize(true);
         this.buttonList.add(this.x2Btn);
 
-        this.plusOneBtn = new GuiImgButton(gl + 128, gt + 113, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
+        this.plusOneBtn = new GuiImgButton(gl + 310, gt + 110, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
         this.plusOneBtn.setHalfSize(true);
         this.buttonList.add(this.plusOneBtn);
 
-        this.divThreeBtn = new GuiImgButton(gl + 100, gt + 93, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
+        this.divThreeBtn = new GuiImgButton(gl + 292, gt + 90, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
         this.divThreeBtn.setHalfSize(true);
         this.buttonList.add(this.divThreeBtn);
 
-        this.divTwoBtn = new GuiImgButton(gl + 100, gt + 103, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
+        this.divTwoBtn = new GuiImgButton(gl + 292, gt + 100, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
         this.divTwoBtn.setHalfSize(true);
         this.buttonList.add(this.divTwoBtn);
 
-        this.minusOneBtn = new GuiImgButton(gl + 100, gt + 113, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
+        this.minusOneBtn = new GuiImgButton(gl + 292, gt + 110, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
         this.minusOneBtn.setHalfSize(true);
         this.buttonList.add(this.minusOneBtn);
 
-        this.encodeBtn = new GuiImgButton(gl + 147, gt + 103, Settings.ACTIONS, ActionItems.ENCODE);
+        this.encodeBtn = new GuiImgButton(gl + 328, gt + 100, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
     }
 
@@ -362,8 +362,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 修复物品库滚动条位置和范围（super.updateScreen 中的 setScrollBar 会重置它们）
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
-            bar.setLeft(335).setTop(18).setHeight(70);
-            int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 4);
+            bar.setLeft(335).setTop(18).setHeight(52);
+            int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 3);
             bar.setRange(0, maxScroll, 1);
         }
     }
@@ -475,7 +475,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     }
 
     private void updateItemScrollRange() {
-        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 4);
+        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 3);
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
             bar.setRange(0, maxScroll, 1);

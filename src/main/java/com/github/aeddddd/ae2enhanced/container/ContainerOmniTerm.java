@@ -114,7 +114,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         // 4. 玩家背包（手动定位）
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
-        // 5. 从 NBT 恢复数据
+        // 5. 移除显示元件槽位（WirelessTerminalGuiObject 默认实现了 IViewCellStorage）
+        for (int i = 0; i < this.cellView.length; i++) {
+            if (this.cellView[i] != null) {
+                this.inventorySlots.remove(this.cellView[i]);
+                this.cellView[i] = null;
+            }
+        }
+
+        // 6. 从 NBT 恢复数据
         this.loadFromNBT();
     }
 
@@ -277,11 +285,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int i = 0; i < size; i++) {
             inv.extractItem(i, Integer.MAX_VALUE, false);
         }
-        for (int i = 0; i < list.tagCount() && i < size; i++) {
+        for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound stackTag = list.getCompoundTagAt(i);
-            ItemStack stack = new ItemStack(stackTag);
-            if (!stack.isEmpty()) {
-                inv.insertItem(i, stack, false);
+            int slot = stackTag.hasKey("Slot", 3) ? stackTag.getInteger("Slot") : i;
+            if (slot >= 0 && slot < size) {
+                ItemStack stack = new ItemStack(stackTag);
+                if (!stack.isEmpty()) {
+                    inv.insertItem(slot, stack, false);
+                }
             }
         }
     }
@@ -292,6 +303,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             ItemStack stack = inv.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 NBTTagCompound stackTag = new NBTTagCompound();
+                stackTag.setInteger("Slot", i);
                 stack.writeToNBT(stackTag);
                 list.appendTag(stackTag);
             }
