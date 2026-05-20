@@ -20,6 +20,7 @@ import appeng.util.IConfigManagerHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.init.Blocks;
@@ -249,9 +250,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // 绑定并绘制 omnigui.png 整体背景
+        // 绑定并绘制 omnigui.png 整体背景 (512x512 texture)
         this.mc.getTextureManager().bindTexture(OMNI_BG);
-        this.drawTexturedModalRect(offsetX, offsetY, 0, 0, 357, 251);
+        Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY, 0, 0, 357, 251, 512, 512);
 
         // 绑定并绘制 pattern_modes.png 编码区背景
         this.mc.getTextureManager().bindTexture(PATTERN_MODES);
