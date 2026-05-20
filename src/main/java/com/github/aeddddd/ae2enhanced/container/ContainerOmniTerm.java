@@ -97,7 +97,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        // 6. 从 NBT 恢复数据
+        // 6. 重新编号所有 slot（移除 viewCell 后 slotNumber 与实际索引不一致）
+        for (int i = 0; i < this.inventorySlots.size(); i++) {
+            this.inventorySlots.get(i).slotNumber = i;
+        }
+
+        // 7. 从 NBT 恢复数据
         this.loadFromNBT();
     }
 
@@ -132,8 +137,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             for (int r = 0; r < 3; r++) {
                 for (int c = 0; c < 3; c++) {
                     int idx = g * 9 + r * 3 + c;
-                    int x = 180 + c * 18;
-                    int y = 88 + r * 18;
+                    int x = 196 + c * 18;
+                    int y = 93 + r * 18;
                     RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y);
                     this.craftingSlotGroup[g][r * 3 + c] = slot;
                     this.func_75146_a(slot);
@@ -141,8 +146,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
             for (int r = 0; r < 3; r++) {
                 int idx = g * 3 + r;
-                int x = 249;
-                int y = 88 + r * 18;
+                int x = 281;
+                int y = 93 + r * 18;
                 RCSlotPatternOutputs slot = new RCSlotPatternOutputs(this.patternOutputInv, this, idx, x, y, 0, 0, 1);
                 this.outputSlotGroup[g][r] = slot;
                 this.func_75146_a(slot);
@@ -160,11 +165,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
         // 空白样板槽 / 编码样板槽 —— 位于编码区右侧
         this.patternSlotIN = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.BLANK_PATTERN,
-                this.patternInv, 0, 267, 88, this.getInventoryPlayer());
+                this.patternInv, 0, 319, 86, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotIN);
 
         this.patternSlotOUT = new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.ENCODED_PATTERN,
-                this.patternInv, 1, 267, 106, this.getInventoryPlayer());
+                this.patternInv, 1, 319, 130, this.getInventoryPlayer());
         this.func_75146_a(this.patternSlotOUT);
         this.patternSlotOUT.setStackLimit(1);
 

@@ -110,6 +110,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
+        // 2b. 重新编号所有 slot（移除并重新添加 SlotME 后保持索引一致）
+        for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
+            this.inventorySlots.inventorySlots.get(i).slotNumber = i;
+        }
+
         // 3. 重新定位 AE2 标准按钮
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
@@ -142,8 +147,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                 autoFocus = autoFocusField.getBoolean(this);
             } catch (Exception ignored) {}
             
-            MEGuiTextField newField = new MEGuiTextField(this.fontRenderer, this.guiLeft + 204, this.guiTop + 4, 126, 12);
-            newField.setMaxStringLength(25);
+            MEGuiTextField newField = new MEGuiTextField(this.fontRenderer, this.guiLeft + 204, this.guiTop + 4, 125, 11);
+            newField.setMaxStringLength(35);
             newField.setTextColor(0xFFFFFF);
             newField.setSelectionColor(-16744448);
             newField.setEnableBackgroundDrawing(false);
@@ -204,44 +209,44 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.buttonList.add(this.tabProcessButton);
 
         // Substitute / Clear 按钮 — 位于合成区左上方
-        this.substitutionsEnabledBtn = new GuiImgButton(gl + 8, gt + 88, Settings.ACTIONS, ItemSubstitution.ENABLED);
+        this.substitutionsEnabledBtn = new GuiImgButton(gl + 88, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
 
-        this.substitutionsDisabledBtn = new GuiImgButton(gl + 8, gt + 88, Settings.ACTIONS, ItemSubstitution.DISABLED);
+        this.substitutionsDisabledBtn = new GuiImgButton(gl + 88, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
         this.substitutionsDisabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsDisabledBtn);
 
-        this.clearBtn = new GuiImgButton(gl + 30, gt + 88, Settings.ACTIONS, ActionItems.CLOSE);
+        this.clearBtn = new GuiImgButton(gl + 80, gt + 92, Settings.ACTIONS, ActionItems.CLOSE);
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
         // 编码区快捷操作按钮（位于编码区右侧，避免与合成区重叠）
-        this.x3Btn = new GuiImgButton(gl + 310, gt + 90, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
+        this.x3Btn = new GuiImgButton(gl + 180, gt + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
 
-        this.x2Btn = new GuiImgButton(gl + 310, gt + 100, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
+        this.x2Btn = new GuiImgButton(gl + 190, gt + 155, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
         this.x2Btn.setHalfSize(true);
         this.buttonList.add(this.x2Btn);
 
-        this.plusOneBtn = new GuiImgButton(gl + 310, gt + 110, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
+        this.plusOneBtn = new GuiImgButton(gl + 200, gt + 155, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
         this.plusOneBtn.setHalfSize(true);
         this.buttonList.add(this.plusOneBtn);
 
-        this.divThreeBtn = new GuiImgButton(gl + 292, gt + 90, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
+        this.divThreeBtn = new GuiImgButton(gl + 210, gt + 155, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
         this.divThreeBtn.setHalfSize(true);
         this.buttonList.add(this.divThreeBtn);
 
-        this.divTwoBtn = new GuiImgButton(gl + 292, gt + 100, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
+        this.divTwoBtn = new GuiImgButton(gl + 220, gt + 155, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
         this.divTwoBtn.setHalfSize(true);
         this.buttonList.add(this.divTwoBtn);
 
-        this.minusOneBtn = new GuiImgButton(gl + 292, gt + 110, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
+        this.minusOneBtn = new GuiImgButton(gl + 230, gt + 155, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
         this.minusOneBtn.setHalfSize(true);
         this.buttonList.add(this.minusOneBtn);
 
-        this.encodeBtn = new GuiImgButton(gl + 328, gt + 100, Settings.ACTIONS, ActionItems.ENCODE);
+        this.encodeBtn = new GuiImgButton(gl + 319, gt + 107, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
     }
 
