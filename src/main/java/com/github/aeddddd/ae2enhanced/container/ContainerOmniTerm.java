@@ -120,7 +120,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         // 合成输出槽
         this.craftOutputSlot = new SlotCraftingTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
-                this.craftingInv, this.craftingInv, this.craftingOutput, 131, 108, this);
+                this.craftingInv, this.craftingInv, this.craftingOutput, 133, 111, this);
         this.func_75146_a(this.craftOutputSlot);
         // AppEngInternalInventory 会自动触发 onChangeInventory，无需手动调用 onCraftMatrixChanged
     }
@@ -322,10 +322,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (tag.hasKey(NBT_SUBSTITUTE)) {
             this.substitute = tag.getBoolean(NBT_SUBSTITUTE);
         }
-        this.setCraftingMode(this.craftingMode);
         if (tag.hasKey(NBT_SCROLL_OFFSET)) {
             this.scrollOffset = tag.getInteger(NBT_SCROLL_OFFSET);
         }
+        this.setCraftingMode(this.craftingMode);
     }
 
     private void saveToNBT() {

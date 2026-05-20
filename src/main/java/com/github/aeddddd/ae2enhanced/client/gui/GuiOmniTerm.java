@@ -171,7 +171,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 7. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(185).setTop(88).setHeight(66);
+        this.patternScrollBar.setLeft(308).setTop(88).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
         // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
@@ -209,11 +209,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.buttonList.add(this.tabProcessButton);
 
         // Substitute / Clear 按钮 — 位于合成区左上方
-        this.substitutionsEnabledBtn = new GuiImgButton(gl + 250, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
+        this.substitutionsEnabledBtn = new GuiImgButton(gl + 240, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
 
-        this.substitutionsDisabledBtn = new GuiImgButton(gl + 250, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
+        this.substitutionsDisabledBtn = new GuiImgButton(gl + 240, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
         this.substitutionsDisabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsDisabledBtn);
 
@@ -226,27 +226,27 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
 
-        this.x2Btn = new GuiImgButton(gl + 190, gt + 155, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
+        this.x2Btn = new GuiImgButton(gl + 190, gt + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
         this.x2Btn.setHalfSize(true);
         this.buttonList.add(this.x2Btn);
 
-        this.plusOneBtn = new GuiImgButton(gl + 200, gt + 155, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
+        this.plusOneBtn = new GuiImgButton(gl + 200, gt + 157, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
         this.plusOneBtn.setHalfSize(true);
         this.buttonList.add(this.plusOneBtn);
 
-        this.divThreeBtn = new GuiImgButton(gl + 210, gt + 155, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
+        this.divThreeBtn = new GuiImgButton(gl + 210, gt + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
         this.divThreeBtn.setHalfSize(true);
         this.buttonList.add(this.divThreeBtn);
 
-        this.divTwoBtn = new GuiImgButton(gl + 220, gt + 155, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
+        this.divTwoBtn = new GuiImgButton(gl + 220, gt + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
         this.divTwoBtn.setHalfSize(true);
         this.buttonList.add(this.divTwoBtn);
 
-        this.minusOneBtn = new GuiImgButton(gl + 230, gt + 155, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
+        this.minusOneBtn = new GuiImgButton(gl + 230, gt + 157, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
         this.minusOneBtn.setHalfSize(true);
         this.buttonList.add(this.minusOneBtn);
 
-        this.encodeBtn = new GuiImgButton(gl + 319, gt + 107, Settings.ACTIONS, ActionItems.ENCODE);
+        this.encodeBtn = new GuiImgButton(gl + 319, gt + 110, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
     }
 
@@ -466,7 +466,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 304
                     && my >= this.guiTop + 88 && my <= this.guiTop + 154;
             boolean inPatternScroll = !this.container.isCraftingMode() && this.patternScrollBar != null
-                    && mx >= this.guiLeft + 160 && mx <= this.guiLeft + 172
+                    && mx >= this.guiLeft + 308 && mx <= this.guiLeft + 320
                     && my >= this.guiTop + 88 && my <= this.guiTop + 154;
             if (inPatternArea || inPatternScroll) {
                 this.patternScrollBar.wheel(delta);
