@@ -30,10 +30,7 @@ public class MixinSlotRestrictedInput {
     @Shadow
     private boolean allowEdit;
 
-    @Inject(method = {
-        "isItemValid(Lnet/minecraft/item/ItemStack;)Z",
-        "func_75214_a(Lnet/minecraft/item/ItemStack;)Z"
-    }, at = @At("HEAD"), cancellable = true)
+    @Inject(method = "func_75214_a(Lnet/minecraft/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
     private void ae2e$allowChannelReceiverCard(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (stack == null || stack.isEmpty()) {
             return;
