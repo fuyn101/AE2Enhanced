@@ -94,6 +94,10 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     @Override
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         if (!world.isRemote) {
+            ItemStack held = player.getHeldItem(hand);
+            if (!this.hasPower(player, 0.5, held)) {
+                return new ActionResult<>(EnumActionResult.FAIL, held);
+            }
             player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, world, 0, 0, 0);
         }
         return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));

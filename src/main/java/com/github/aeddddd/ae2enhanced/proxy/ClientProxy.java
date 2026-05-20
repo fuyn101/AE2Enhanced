@@ -222,6 +222,9 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ModItems.UNIVERSAL_MEMORY_CARD);
         }
 
+        // Omni 无线终端物品模型
+        registerItemModel(ModItems.OMNI_WIRELESS_TERMINAL);
+
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ModItems.UPGRADE_CARD, stack -> {
             int meta = stack.getMetadata();
