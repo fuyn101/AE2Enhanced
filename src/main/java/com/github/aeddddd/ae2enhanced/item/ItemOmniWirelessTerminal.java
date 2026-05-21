@@ -96,19 +96,15 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         if (!world.isRemote) {
             ItemStack held = player.getHeldItem(hand);
-            AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal right-click by {}, held={}", player.getName(), held);
             String key = this.getEncryptionKey(held);
             if (key.isEmpty()) {
-                AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal not linked");
                 player.sendMessage(PlayerMessages.DeviceNotLinked.get());
                 return new ActionResult<>(EnumActionResult.FAIL, held);
             }
             if (!this.hasPower(player, 0.5, held)) {
-                AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal no power");
                 player.sendMessage(PlayerMessages.DeviceNotPowered.get());
                 return new ActionResult<>(EnumActionResult.FAIL, held);
             }
-            AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal opening GUI...");
             int slot = player.inventory.currentItem;
             if (hand == EnumHand.OFF_HAND) {
                 slot = 40;

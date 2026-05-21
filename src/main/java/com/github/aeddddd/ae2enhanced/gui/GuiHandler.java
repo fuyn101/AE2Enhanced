@@ -75,7 +75,6 @@ public class GuiHandler implements IGuiHandler {
                     return null;
                 }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
-                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal server container for {}", player.getName());
                 return new ContainerOmniTerm(player.inventory, host);
             }
             AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found in hand for {}", player.getName());
@@ -174,7 +173,6 @@ public class GuiHandler implements IGuiHandler {
                     return null;
                 }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
-                AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal client GUI");
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }
             return null;
