@@ -91,7 +91,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.omniRows = Math.max(3, 3 + maxExtraRows);
         }
         this.extraHeight = (this.omniRows - 3) * 18;
-        this.ySize = 251 + this.extraHeight;
+        final int desiredYSize = 251 + this.extraHeight;
+        this.ySize = desiredYSize;
         this.xSize = 357;
 
         super.initGui();
@@ -99,23 +100,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         final int oldGuiTop = this.guiTop;
         final int oldGuiLeft = this.guiLeft;
 
-        // 强制覆盖 guiLeft/guiTop（super.initGui() 基于 AE2 标准终端的 xSize=195 计算，会导致偏移）
-        int desiredGuiLeft = (this.width - this.xSize) / 2;
-        int desiredGuiTop = (this.height - this.ySize) / 2;
-        try {
-            // 使用 sun.misc.Unsafe 直接修改内存，绕过可能的字段访问问题
-            java.lang.reflect.Field theUnsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-            theUnsafeField.setAccessible(true);
-            sun.misc.Unsafe unsafe = (sun.misc.Unsafe) theUnsafeField.get(null);
-            long guiLeftOffset = unsafe.objectFieldOffset(net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiLeft"));
-            long guiTopOffset = unsafe.objectFieldOffset(net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiTop"));
-            unsafe.putInt(this, guiLeftOffset, desiredGuiLeft);
-            unsafe.putInt(this, guiTopOffset, desiredGuiTop);
-        } catch (Exception e) {
-            // 回退到直接赋值
-            this.guiLeft = desiredGuiLeft;
-            this.guiTop = desiredGuiTop;
-        }
+        // super.initGui() 会覆盖 xSize/ySize，必须用保存的正确值重新计算 guiLeft/guiTop
+        this.guiLeft = (this.width - 357) / 2;
+        this.guiTop = (this.height - desiredYSize) / 2;
 
         // 1. 保存并恢复槽位原始 y 位置（AppEngSlot 用 getY() 绕过 repositionSlot 的副作用）
         if (!this.slotPositionsSaved) {
