@@ -158,3 +158,9 @@ tile.ae2enhanced.wireless_channel_transmitter.name=無線チャネル発生器
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e無線チャネル発生器 §7— リモート受信機用に32チャネルを放送
 
 gui.ae2enhanced.wireless_channel_transmitter.title=無線チャネル発生器
+
+# Omni Terminal Upgrade Cards
+item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card
+item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§lAdvanced Magnet Card §r§8[Type: Magnet]
+item.ae2enhanced.omni_upgrade_card.picker.name=Picker Interaction Card
+item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§lPicker Interaction Card §r§8[Type: Picker]

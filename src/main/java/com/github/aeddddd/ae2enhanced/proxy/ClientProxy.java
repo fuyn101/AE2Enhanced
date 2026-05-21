@@ -225,6 +225,13 @@ public class ClientProxy extends CommonProxy {
         // Omni 无线终端物品模型
         registerItemModel(ModItems.OMNI_WIRELESS_TERMINAL);
 
+        // Omni 专用升级卡模型（根据 metadata 动态选择）
+        ModelLoader.setCustomMeshDefinition(ModItems.OMNI_UPGRADE_CARD, stack -> {
+            int meta = stack.getMetadata();
+            String name = (meta == 0) ? "magnet" : (meta == 1) ? "picker" : "unknown";
+            return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_" + name, "inventory");
+        });
+
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ModItems.UPGRADE_CARD, stack -> {
             int meta = stack.getMetadata();

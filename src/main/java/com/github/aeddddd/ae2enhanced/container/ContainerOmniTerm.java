@@ -24,6 +24,7 @@ import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
+import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.InventoryCrafting;
@@ -192,7 +193,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
         for (int c = 0; c < 9; c++) {
-            this.func_75146_a(new AppEngSlot(this.rightUpgradeStorage, c, 180 + c * 18, 221));
+            this.func_75146_a(new SlotOmniUpgrade(this.rightUpgradeStorage, c, 180 + c * 18, 221));
         }
     }
 

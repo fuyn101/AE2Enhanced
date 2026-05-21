@@ -224,3 +224,9 @@ gui.ae2enhanced.umc.msg.select_block=§a▸ Selected block
 item.ae2enhanced.omni_wireless_terminal.name=Omni Wireless Terminal
 gui.ae2enhanced.omni_terminal.title=Omni Terminal
 gui.ae2enhanced.omni_terminal.inventory=Inventory
+
+# Omni Terminal Upgrade Cards
+item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card
+item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§lAdvanced Magnet Card §r§8[Type: Magnet]
+item.ae2enhanced.omni_upgrade_card.picker.name=Picker Interaction Card
+item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§lPicker Interaction Card §r§8[Type: Picker]

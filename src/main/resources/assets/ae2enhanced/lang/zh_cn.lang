@@ -222,3 +222,9 @@ gui.ae2enhanced.umc.msg.select_block=§a▸ 已选取方块
 item.ae2enhanced.omni_wireless_terminal.name=全能无线终端
 gui.ae2enhanced.omni_terminal.title=全能终端
 gui.ae2enhanced.omni_terminal.inventory=物品栏
+
+# Omni 终端升级卡
+item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡
+item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§l高级磁引卡 §r§8[类型: 磁引]
+item.ae2enhanced.omni_upgrade_card.picker.name=选取交互卡
+item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§l选取交互卡 §r§8[类型: 选取]
