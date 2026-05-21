@@ -351,8 +351,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         if (this.currentRecipe == null) {
             this.craftOutputSlot.putStack(ItemStack.EMPTY);
+            this.craftingOutput.setStackInSlot(0, ItemStack.EMPTY);
+            this.cOut.setStackInSlot(0, ItemStack.EMPTY);
         } else {
-            this.craftOutputSlot.putStack(this.currentRecipe.getCraftingResult(ic));
+            ItemStack result = this.currentRecipe.getCraftingResult(ic);
+            this.craftOutputSlot.putStack(result);
+            this.craftingOutput.setStackInSlot(0, result);
+            this.cOut.setStackInSlot(0, result);
         }
     }
 
@@ -649,6 +654,68 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             if (!s.isEmpty()) {
                 s.setCount(s.getCount() + maxGrowth);
             }
+        }
+        this.detectAndSendChanges();
+    }
+
+    // ================== JEI 配方转移 ==================
+
+    public void loadPattern(byte mode, boolean isCrafting, java.util.List<ItemStack> inputs, java.util.List<ItemStack> outputs) {
+        if (this.patternCraftMode != isCrafting) {
+            this.setPatternCraftMode(isCrafting);
+        }
+
+        // 清空目标槽位
+        if (mode == 0 || mode == 2) {
+            if (isCrafting) {
+                for (int i = 0; i < this.craftingInv.getSlots(); i++) {
+                    this.craftingInv.setStackInSlot(i, ItemStack.EMPTY);
+                }
+                this.craftingOutput.setStackInSlot(0, ItemStack.EMPTY);
+                this.cOut.setStackInSlot(0, ItemStack.EMPTY);
+            }
+        }
+        if (mode == 0 || mode == 1) {
+            for (int i = 0; i < this.patternCraftingInv.getSlots(); i++) {
+                this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
+            }
+            for (int i = 0; i < this.patternOutputInv.getSlots(); i++) {
+                this.patternOutputInv.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
+
+        // 填充 crafting grid
+        if ((mode == 0 || mode == 2) && isCrafting) {
+            for (int i = 0; i < Math.min(inputs.size(), this.craftingInv.getSlots()); i++) {
+                this.craftingInv.setStackInSlot(i, inputs.get(i).copy());
+            }
+        }
+
+        // 填充 encoding area
+        if (mode == 0 || mode == 1) {
+            int startIdx = this.scrollOffset * 9;
+            for (int i = 0; i < Math.min(inputs.size(), this.patternCraftingInv.getSlots() - startIdx); i++) {
+                this.patternCraftingInv.setStackInSlot(startIdx + i, inputs.get(i).copy());
+            }
+        }
+
+        // 填充 crafting output
+        if ((mode == 0 || mode == 2) && isCrafting && !outputs.isEmpty()) {
+            ItemStack out = outputs.get(0).copy();
+            this.craftingOutput.setStackInSlot(0, out);
+            this.cOut.setStackInSlot(0, out);
+        }
+
+        // 填充 encoding output
+        if (mode == 0 || mode == 1) {
+            int startOutIdx = this.scrollOffset * 3;
+            for (int i = 0; i < Math.min(outputs.size(), this.patternOutputInv.getSlots() - startOutIdx); i++) {
+                this.patternOutputInv.setStackInSlot(startOutIdx + i, outputs.get(i).copy());
+            }
+        }
+
+        if (isCrafting) {
+            this.updateCraftingRecipe();
         }
         this.detectAndSendChanges();
     }

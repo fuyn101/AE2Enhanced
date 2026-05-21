@@ -105,6 +105,7 @@ public class AE2Enhanced {
         network.registerMessage(PacketStockingBusConfig.Handler.class, PacketStockingBusConfig.class, 5, Side.SERVER);
         network.registerMessage(PacketUMCAction.Handler.class, PacketUMCAction.class, 6, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction.Handler.class, com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction.class, 7, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.PacketLoadOmniRecipe.Handler.class, com.github.aeddddd.ae2enhanced.network.PacketLoadOmniRecipe.class, 8, Side.SERVER);
         com.github.aeddddd.ae2enhanced.util.memorycard.MemoryCardHandlerRegistry.init();
         proxy.preInit(event);
     }

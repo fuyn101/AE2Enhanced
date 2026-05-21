@@ -13,6 +13,7 @@ import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.ingredients.IIngredientBlacklist;
 import mezz.jei.api.ingredients.IIngredientRegistry;
 import mezz.jei.api.recipe.IRecipeCategoryRegistration;
+import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import net.minecraft.item.ItemStack;
 
 import java.util.ArrayList;
@@ -62,5 +63,9 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         }
         registry.addRecipes(wrappers, BlackHoleRecipeCategory.UID);
 
+        // Omni Terminal 配方转移
+        registry.getRecipeTransferRegistry().addRecipeTransferHandler(
+                (IRecipeTransferHandler) new com.github.aeddddd.ae2enhanced.integration.jei.OmniTermRecipeTransferHandler(),
+                "universal recipe transfer handler");
     }
 }
