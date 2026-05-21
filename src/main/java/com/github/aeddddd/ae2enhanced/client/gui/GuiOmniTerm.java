@@ -115,10 +115,14 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.guiTop = desiredGuiTop;
         }
 
-        // 1. 保存并恢复槽位原始 y 位置，然后将固定区域槽位（原始 y >= 86）下移 extraHeight
+        // 1. 保存并恢复槽位原始 y 位置（AppEngSlot 用 getY() 绕过 repositionSlot 的副作用）
         if (!this.slotPositionsSaved) {
             for (Slot s : this.inventorySlots.inventorySlots) {
-                this.originalSlotY.put(s, s.yPos);
+                if (s instanceof AppEngSlot) {
+                    this.originalSlotY.put(s, ((AppEngSlot) s).getY());
+                } else {
+                    this.originalSlotY.put(s, s.yPos);
+                }
             }
             this.slotPositionsSaved = true;
         }
