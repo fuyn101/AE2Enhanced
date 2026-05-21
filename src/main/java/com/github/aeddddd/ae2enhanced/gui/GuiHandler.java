@@ -74,7 +74,7 @@ public class GuiHandler implements IGuiHandler {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
                 AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal server container for {}", player.getName());
                 return new ContainerOmniTerm(player.inventory, host);
             }
@@ -173,7 +173,7 @@ public class GuiHandler implements IGuiHandler {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, 0, 0, 0);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
                 AE2Enhanced.LOGGER.info("[AE2E] Opening OmniTerminal client GUI");
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }

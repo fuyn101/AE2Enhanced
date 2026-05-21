@@ -76,9 +76,6 @@ public class PacketOmniTermAction implements IMessage {
                     case "DecreaseByOne":
                         c.decrease(1);
                         break;
-                    case "MaximizeCount":
-                        c.maximizeCount();
-                        break;
                     case "Substitute":
                         c.setSubstitute("1".equals(message.value));
                         break;

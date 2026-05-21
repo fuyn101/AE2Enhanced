@@ -59,7 +59,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private GuiImgButton divTwoBtn;
     private GuiImgButton divThreeBtn;
     private GuiImgButton minusOneBtn;
-    private GuiImgButton maxCountBtn;
+
 
     // 鼠标跟踪
     private int currentMouseX;
@@ -357,8 +357,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         }
 
         // 绘制标题文本
-        this.fontRenderer.drawString("Omni Terminal", 8, 6, 0x404040);
-        this.fontRenderer.drawString("Inventory", 8, 155, 0x404040);
+        this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.title"), 8, 6, 0x404040);
+        this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.inventory"), 8, 155, 0x404040);
     }
 
     @Override

@@ -221,3 +221,4 @@ gui.ae2enhanced.umc.msg.select_block=§a▸ 已选取方块
 
 item.ae2enhanced.omni_wireless_terminal.name=全能无线终端
 gui.ae2enhanced.omni_terminal.title=全能终端
+gui.ae2enhanced.omni_terminal.inventory=物品栏

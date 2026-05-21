@@ -1,9 +1,11 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import appeng.api.AEApi;
+import appeng.api.config.SearchBoxMode;
 import appeng.api.config.Settings;
 import appeng.api.config.SortDir;
 import appeng.api.config.SortOrder;
+import appeng.api.config.TerminalStyle;
 import appeng.api.config.ViewItems;
 import appeng.api.features.IWirelessTermHandler;
 import appeng.core.localization.PlayerMessages;
@@ -74,6 +76,8 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
         out.registerSetting(Settings.SORT_BY, SortOrder.NAME);
         out.registerSetting(Settings.VIEW_MODE, ViewItems.ALL);
         out.registerSetting(Settings.SORT_DIRECTION, SortDir.ASCENDING);
+        out.registerSetting(Settings.SEARCH_MODE, SearchBoxMode.AUTOSEARCH);
+        out.registerSetting(Settings.TERMINAL_STYLE, TerminalStyle.TALL);
         out.readFromNBT(Platform.openNbtData(target).copy());
         return out;
     }
@@ -109,7 +113,11 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
                 return new ActionResult<>(EnumActionResult.FAIL, held);
             }
             AE2Enhanced.LOGGER.info("[AE2E] OmniTerminal opening GUI...");
-            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, world, 0, 0, 0);
+            int slot = player.inventory.currentItem;
+            if (hand == EnumHand.OFF_HAND) {
+                slot = 40;
+            }
+            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, world, slot, 0, 0);
         }
         return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
     }
