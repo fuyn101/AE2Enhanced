@@ -97,8 +97,23 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         super.initGui();
 
         final int oldGuiTop = this.guiTop;
-        this.guiLeft = (this.width - this.xSize) / 2;
-        this.guiTop = (this.height - this.ySize) / 2;
+        final int oldGuiLeft = this.guiLeft;
+
+        // 强制覆盖 guiLeft/guiTop（super.initGui() 基于 AE2 标准终端的 xSize=195 计算，会导致偏移）
+        int desiredGuiLeft = (this.width - this.xSize) / 2;
+        int desiredGuiTop = (this.height - this.ySize) / 2;
+        try {
+            java.lang.reflect.Field guiLeftField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("field_147003_i");
+            guiLeftField.setAccessible(true);
+            guiLeftField.setInt(this, desiredGuiLeft);
+            java.lang.reflect.Field guiTopField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("field_147009_r");
+            guiTopField.setAccessible(true);
+            guiTopField.setInt(this, desiredGuiTop);
+        } catch (Exception e) {
+            // 反射失败时回退到直接赋值
+            this.guiLeft = desiredGuiLeft;
+            this.guiTop = desiredGuiTop;
+        }
 
         // 1. 保存并恢复槽位原始 y 位置，然后将固定区域槽位（原始 y >= 86）下移 extraHeight
         if (!this.slotPositionsSaved) {
@@ -134,7 +149,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.inventorySlots.inventorySlots.get(i).slotNumber = i;
         }
 
-        // 4. 重新定位 AE2 标准按钮
+        // 4. 重新定位 AE2 标准按钮（使用相对于旧 guiLeft/guiTop 的偏移，保持原始布局比例）
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
                 GuiImgButton imgBtn = (GuiImgButton) btn;
@@ -143,11 +158,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                         || setting == Settings.SORT_DIRECTION || setting == Settings.SEARCH_MODE
                         || setting == Settings.TERMINAL_STYLE) {
                     btn.y = btn.y - oldGuiTop + this.guiTop;
-                    btn.x = this.guiLeft - 18;
+                    btn.x = btn.x - oldGuiLeft + this.guiLeft;
                 }
             } else if (btn instanceof GuiTabButton) {
                 btn.y = btn.y - oldGuiTop + this.guiTop;
-                btn.x = this.guiLeft + 335;
+                btn.x = btn.x - oldGuiLeft + this.guiLeft;
             }
         }
 
