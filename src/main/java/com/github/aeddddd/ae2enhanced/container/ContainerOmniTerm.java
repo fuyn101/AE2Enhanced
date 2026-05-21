@@ -1,6 +1,9 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.AEApi;
+import appeng.api.config.SearchBoxMode;
+import appeng.api.config.Settings;
+import appeng.api.config.TerminalStyle;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.container.guisync.GuiSync;
@@ -97,6 +100,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
         super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
         this.terminalHost = host;
+
+        // 补注册 ContainerMEMonitorable.clientCM 缺失的设置，避免 detectAndSendChanges 崩溃
+        this.getConfigManager().registerSetting(Settings.SEARCH_MODE, SearchBoxMode.AUTOSEARCH);
+        this.getConfigManager().registerSetting(Settings.TERMINAL_STYLE, TerminalStyle.TALL);
 
         this.setupCraftingArea(ip, host);
         this.setupPatternArea(ip, host);
