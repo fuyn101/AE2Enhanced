@@ -210,7 +210,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 9. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(308).setTop(88 + this.extraHeight).setHeight(66);
+        this.patternScrollBar.setLeft(168).setTop(88 + this.extraHeight).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
         // 10. 反射修正 rows/perRow
@@ -520,12 +520,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             int mx = Mouse.getEventX() * this.width / this.mc.displayWidth;
             int my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
             boolean inPatternArea = !this.container.isPatternCraftMode()
-                    && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 304
+                    && mx >= this.guiLeft + 168 && mx <= this.guiLeft + 304
                     && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
-            boolean inPatternScroll = !this.container.isPatternCraftMode() && this.patternScrollBar != null
-                    && mx >= this.guiLeft + 308 && mx <= this.guiLeft + 320
-                    && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
-            if (inPatternArea || inPatternScroll) {
+            if (inPatternArea) {
                 this.patternScrollBar.wheel(delta);
                 int newOffset = this.patternScrollBar.getCurrentScroll();
                 if (newOffset != this.container.getScrollOffset()) {
