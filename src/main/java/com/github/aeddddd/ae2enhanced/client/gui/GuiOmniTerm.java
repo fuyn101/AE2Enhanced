@@ -65,6 +65,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     // 动态高度相关
     private int omniRows = 3;
     private int extraHeight = 0;
+    private final java.util.Map<Slot, Integer> originalSlotY = new java.util.HashMap<>();
+    private boolean slotPositionsSaved = false;
 
     // 鼠标跟踪
     private int currentMouseX;
@@ -98,11 +100,17 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.guiLeft = (this.width - this.xSize) / 2;
         this.guiTop = (this.height - this.ySize) / 2;
 
-        // 1. 恢复 AppEngSlot 的原始 y 位置，并将固定区域槽位（原始 y >= 86）下移 extraHeight
+        // 1. 保存并恢复槽位原始 y 位置，然后将固定区域槽位（原始 y >= 86）下移 extraHeight
+        if (!this.slotPositionsSaved) {
+            for (Slot s : this.inventorySlots.inventorySlots) {
+                this.originalSlotY.put(s, s.yPos);
+            }
+            this.slotPositionsSaved = true;
+        }
         for (Slot s : this.inventorySlots.inventorySlots) {
-            if (s instanceof AppEngSlot) {
-                AppEngSlot aeSlot = (AppEngSlot) s;
-                s.yPos = aeSlot.getY();
+            Integer originalY = this.originalSlotY.get(s);
+            if (originalY != null) {
+                s.yPos = originalY;
             }
             if (s.yPos >= 86) {
                 s.yPos += this.extraHeight;
