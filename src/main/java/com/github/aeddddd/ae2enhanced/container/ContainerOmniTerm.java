@@ -1,12 +1,8 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.AEApi;
-import appeng.api.config.SearchBoxMode;
-import appeng.api.config.Settings;
-import appeng.api.config.TerminalStyle;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.IConfigManager;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
 import appeng.container.slot.AppEngSlot;
@@ -323,20 +319,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     // ================== 合成栏配方更新 ==================
-
-    @Override
-    public void func_75142_b() {
-        if (Platform.isServer()) {
-            IConfigManager clientCM = this.getConfigManager();
-            IConfigManager serverCM = this.terminalHost.getConfigManager();
-            for (Settings set : serverCM.getSettings()) {
-                if (!clientCM.getSettings().contains(set)) {
-                    clientCM.registerSetting(set, serverCM.getSetting(set));
-                }
-            }
-        }
-        super.func_75142_b();
-    }
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation op, ItemStack removed, ItemStack added) {
