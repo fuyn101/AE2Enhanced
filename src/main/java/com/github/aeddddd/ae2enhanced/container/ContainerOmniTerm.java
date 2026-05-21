@@ -76,6 +76,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // === 宿主 ===
     private final ITerminalHost terminalHost;
 
+    // === 编码区布局常量（可扩展） ===
+    public static final int CRAFTING_GRID_BASE_X = 187;
+    public static final int PROCESSING_GRID_BASE_X = 196;
+    public static final int GRID_Y = 93;
+    public static final int GRID_COL_SPACING = 18;
+    public static final int GRID_ROW_SPACING = 18;
+
     // === NBT Keys ===
     private static final String NBT_CRAFTING = "omni_crafting";
     private static final String NBT_PATTERN_IN = "omni_pattern_in";
@@ -136,9 +143,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             for (int r = 0; r < 3; r++) {
                 for (int c = 0; c < 3; c++) {
                     int idx = g * 9 + r * 3 + c;
-                    int x = 187 + c * 18;
-                    int y = 93 + r * 18;
-                    RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y);
+                    int x = CRAFTING_GRID_BASE_X + c * GRID_COL_SPACING;
+                    int y = GRID_Y + r * GRID_ROW_SPACING;
+                    RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y, CRAFTING_GRID_BASE_X);
                     this.craftingSlotGroup[g][r * 3 + c] = slot;
                     this.func_75146_a(slot);
                 }
@@ -256,10 +263,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 模式切换 ==================
 
     private void applyCraftingMode() {
-        int newDefX = this.craftingMode ? 187 : 196;
+        int newBaseX = this.craftingMode ? CRAFTING_GRID_BASE_X : PROCESSING_GRID_BASE_X;
         for (int g = 0; g < 9; g++) {
             for (int i = 0; i < 9; i++) {
-                this.craftingSlotGroup[g][i].setDefX(newDefX);
+                this.craftingSlotGroup[g][i].setDefX(newBaseX);
             }
         }
         this.updateOrderOfOutputSlots();

@@ -9,12 +9,14 @@ import net.minecraftforge.items.IItemHandler;
 public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
 
     public boolean visible = true;
-    private int defX;
+    private int baseX;
+    private final int colOffset;
     private final int defY;
 
-    public RCSlotFakeCraftingMatrix(IItemHandler inv, int idx, int x, int y) {
+    public RCSlotFakeCraftingMatrix(IItemHandler inv, int idx, int x, int y, int baseX) {
         super(inv, idx, x, y);
-        this.defX = x;
+        this.baseX = x;
+        this.colOffset = x - baseX;
         this.defY = y;
     }
 
@@ -24,11 +26,11 @@ public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
     }
 
     public int getDefX() {
-        return this.defX;
+        return this.baseX + this.colOffset;
     }
 
     public void setDefX(int x) {
-        this.defX = x;
+        this.baseX = x;
     }
 
     public int getDefY() {
