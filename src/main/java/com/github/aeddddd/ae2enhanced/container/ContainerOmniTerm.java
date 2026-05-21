@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.AEApi;
 import appeng.api.storage.ITerminalHost;
+import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
@@ -623,9 +624,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public void clearPattern() {
         if (this.patternCraftMode) {
             for (int i = 0; i < 9; i++) {
-                this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
+                ItemStack stack = this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
+                this.returnToNetworkOrPlayer(stack);
             }
-            this.craftingOutput.extractItem(0, Integer.MAX_VALUE, false);
+            ItemStack output = this.craftingOutput.extractItem(0, Integer.MAX_VALUE, false);
+            this.returnToNetworkOrPlayer(output);
         } else {
             for (int i = 0; i < 81; i++) {
                 this.patternCraftingInv.extractItem(i, Integer.MAX_VALUE, false);
@@ -635,6 +638,27 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
         this.detectAndSendChanges();
+    }
+
+    private void returnToNetworkOrPlayer(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        if (this.getPowerSource() == null || this.getCellInventory() == null) {
+            if (!this.getPlayerInv().addItemStackToInventory(stack)) {
+                this.getPlayerInv().player.dropItem(stack, false);
+            }
+            return;
+        }
+        IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        IAEItemStack ais = channel.createStack(stack);
+        IAEItemStack remainder = Platform.poweredInsert(this.getPowerSource(), this.getCellInventory(), ais, this.getActionSource());
+        if (remainder != null && remainder.getStackSize() > 0) {
+            ItemStack left = remainder.createItemStack();
+            if (!this.getPlayerInv().addItemStackToInventory(left)) {
+                this.getPlayerInv().player.dropItem(left, false);
+            }
+        }
     }
 
     // ================== NBT 持久化 ==================

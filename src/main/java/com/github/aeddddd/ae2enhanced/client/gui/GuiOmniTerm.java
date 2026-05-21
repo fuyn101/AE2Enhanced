@@ -332,7 +332,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.tabCraftButton.visible = true;
             this.tabProcessButton.visible = false;
             this.clearBtn.visible = true;
-            this.clearPatternBtn.visible = false;
+            this.clearPatternBtn.visible = true;
             this.x2Btn.visible = false;
             this.x3Btn.visible = false;
             this.divTwoBtn.visible = false;
