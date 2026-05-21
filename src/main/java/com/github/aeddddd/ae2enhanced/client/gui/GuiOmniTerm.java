@@ -101,7 +101,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         final int oldGuiTop = this.guiTop;
         final int oldGuiLeft = this.guiLeft;
 
-        // super.initGui() 会覆盖 xSize/ySize，必须用保存的正确值重新计算 guiLeft/guiTop
+        // super.initGui() 会覆盖 xSize/ySize，导致 JEI 错误识别 GUI 区域，必须恢复
+        this.xSize = 357;
+        this.ySize = desiredYSize;
         this.guiLeft = (this.width - 357) / 2;
         this.guiTop = (this.height - desiredYSize) / 2;
 
