@@ -56,14 +56,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private AppEngInternalInventory patternInv;
     private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
 
-    private final RCSlotFakeCraftingMatrix[][] craftingSlotGroup = new RCSlotFakeCraftingMatrix[9][9];
+    private final RCSlotFakeCraftingMatrix[][] patternInputSlots = new RCSlotFakeCraftingMatrix[9][9];
     private final RCSlotPatternOutputs[][] outputSlotGroup = new RCSlotPatternOutputs[9][3];
     private SlotPatternTerm craftSlot;
     private SlotRestrictedInput patternSlotIN;
     private SlotRestrictedInput patternSlotOUT;
 
     @GuiSync(97)
-    public boolean craftingMode = true;
+    public boolean patternCraftMode = true;
     @GuiSync(96)
     public boolean substitute = false;
 
@@ -146,7 +146,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                     int x = CRAFTING_GRID_BASE_X + c * GRID_COL_SPACING;
                     int y = GRID_Y + r * GRID_ROW_SPACING;
                     RCSlotFakeCraftingMatrix slot = new RCSlotFakeCraftingMatrix(this.patternCraftingInv, idx, x, y, CRAFTING_GRID_BASE_X);
-                    this.craftingSlotGroup[g][r * 3 + c] = slot;
+                    this.patternInputSlots[g][r * 3 + c] = slot;
                     this.func_75146_a(slot);
                 }
             }
@@ -211,14 +211,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 滚动控制 ==================
 
     public void setRCSlot(int offset) {
-        if (this.craftingMode) {
+        if (this.patternCraftMode) {
             offset = 0;
         }
         this.scrollOffset = offset;
         for (int g = 0; g < 9; g++) {
             boolean visible = (g == offset);
             for (int i = 0; i < 9; i++) {
-                RCSlotFakeCraftingMatrix slot = this.craftingSlotGroup[g][i];
+                RCSlotFakeCraftingMatrix slot = this.patternInputSlots[g][i];
                 if (visible) {
                     slot.xPos = slot.getDefX();
                     slot.visible = true;
@@ -230,7 +230,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             for (int i = 0; i < 3; i++) {
                 RCSlotPatternOutputs slot = this.outputSlotGroup[g][i];
                 if (visible) {
-                    slot.xPos = this.craftingMode ? -9000 : slot.getDefX();
+                    slot.xPos = this.patternCraftMode ? -9000 : slot.getDefX();
                     slot.visible = true;
                 } else {
                     slot.xPos = -9000;
@@ -245,11 +245,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     public int getMaxScrollOffset() {
-        return this.craftingMode ? 0 : 8;
+        return this.patternCraftMode ? 0 : 8;
     }
 
     public void updateOrderOfOutputSlots() {
-        if (!this.craftingMode) {
+        if (!this.patternCraftMode) {
             if (this.craftSlot != null) {
                 this.craftSlot.xPos = -9000;
             }
@@ -262,29 +262,29 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // ================== 模式切换 ==================
 
-    private void applyCraftingMode() {
-        int newBaseX = this.craftingMode ? CRAFTING_GRID_BASE_X : PROCESSING_GRID_BASE_X;
+    private void applyPatternCraftMode() {
+        int newBaseX = this.patternCraftMode ? CRAFTING_GRID_BASE_X : PROCESSING_GRID_BASE_X;
         for (int g = 0; g < 9; g++) {
             for (int i = 0; i < 9; i++) {
-                this.craftingSlotGroup[g][i].setDefX(newBaseX);
+                this.patternInputSlots[g][i].setDefX(newBaseX);
             }
         }
         this.updateOrderOfOutputSlots();
         this.setRCSlot(this.scrollOffset);
     }
 
-    public void setCraftingMode(boolean mode) {
-        if (this.craftingMode == mode) {
+    public void setPatternCraftMode(boolean mode) {
+        if (this.patternCraftMode == mode) {
             return;
         }
-        this.craftingMode = mode;
+        this.patternCraftMode = mode;
         this.saveCraftingModeToNBT();
-        this.applyCraftingMode();
+        this.applyPatternCraftMode();
         this.detectAndSendChanges();
     }
 
-    public boolean isCraftingMode() {
-        return this.craftingMode;
+    public boolean isPatternCraftMode() {
+        return this.patternCraftMode;
     }
 
     public void setSubstitute(boolean substitute) {
@@ -300,8 +300,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     @Override
     public void onUpdate(String field, Object oldValue, Object newValue) {
         super.onUpdate(field, oldValue, newValue);
-        if ("craftingMode".equals(field)) {
-            this.applyCraftingMode();
+        if ("patternCraftMode".equals(field)) {
+            this.applyPatternCraftMode();
         }
     }
 
@@ -310,10 +310,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     @Override
     public boolean isSlotEnabled(int idx) {
         if (idx == 1) {
-            return !this.craftingMode;
+            return !this.patternCraftMode;
         }
         if (idx == 2) {
-            return this.craftingMode;
+            return this.patternCraftMode;
         }
         return false;
     }
@@ -393,7 +393,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         encodedValue.setTag("in", tagIn);
         encodedValue.setTag("out", tagOut);
-        encodedValue.setBoolean("crafting", this.craftingMode);
+        encodedValue.setBoolean("crafting", this.patternCraftMode);
         encodedValue.setBoolean("substitute", this.substitute);
         output.setTagCompound(encodedValue);
 
@@ -421,7 +421,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     private ItemStack[] getOutputs() {
-        if (this.craftingMode) {
+        if (this.patternCraftMode) {
             ItemStack out = this.craftSlot.getStack();
             if (!out.isEmpty() && out.getCount() > 0) {
                 return new ItemStack[]{out};
@@ -465,10 +465,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 数量调整 ==================
 
     public void multiply(int multiple) {
-        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
-        int size = this.craftingMode ? 9 : 81;
-        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
-        int outSize = this.craftingMode ? 1 : 27;
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : 81;
+        IItemHandler outInv = this.patternCraftMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.patternCraftMode ? 1 : 27;
 
         for (int i = 0; i < size; i++) {
             ItemStack s = inv.getStackInSlot(i);
@@ -486,10 +486,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     public void divide(int divide) {
-        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
-        int size = this.craftingMode ? 9 : 81;
-        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
-        int outSize = this.craftingMode ? 1 : 27;
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : 81;
+        IItemHandler outInv = this.patternCraftMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.patternCraftMode ? 1 : 27;
 
         boolean canDiv = true;
         for (int i = 0; i < size; i++) {
@@ -524,10 +524,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     public void increase(int amount) {
-        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
-        int size = this.craftingMode ? 9 : 81;
-        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
-        int outSize = this.craftingMode ? 1 : 27;
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : 81;
+        IItemHandler outInv = this.patternCraftMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.patternCraftMode ? 1 : 27;
 
         for (int i = 0; i < size; i++) {
             ItemStack s = inv.getStackInSlot(i);
@@ -545,10 +545,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     public void decrease(int amount) {
-        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
-        int size = this.craftingMode ? 9 : 81;
-        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
-        int outSize = this.craftingMode ? 1 : 27;
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : 81;
+        IItemHandler outInv = this.patternCraftMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.patternCraftMode ? 1 : 27;
 
         boolean canDecrease = true;
         for (int i = 0; i < size; i++) {
@@ -583,10 +583,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     public void maximizeCount() {
-        IItemHandler inv = this.craftingMode ? this.craftingInv : this.patternCraftingInv;
-        int size = this.craftingMode ? 9 : 81;
-        IItemHandler outInv = this.craftingMode ? this.craftingOutput : this.patternOutputInv;
-        int outSize = this.craftingMode ? 1 : 27;
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : 81;
+        IItemHandler outInv = this.patternCraftMode ? this.craftingOutput : this.patternOutputInv;
+        int outSize = this.patternCraftMode ? 1 : 27;
 
         int maxGrowth = Integer.MAX_VALUE;
         for (int i = 0; i < size; i++) {
@@ -621,7 +621,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 清除 ==================
 
     public void clearPattern() {
-        if (this.craftingMode) {
+        if (this.patternCraftMode) {
             for (int i = 0; i < 9; i++) {
                 this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
             }
@@ -686,7 +686,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         loadInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
 
         if (tag.hasKey(NBT_CRAFTING_MODE)) {
-            this.craftingMode = tag.getBoolean(NBT_CRAFTING_MODE);
+            this.patternCraftMode = tag.getBoolean(NBT_CRAFTING_MODE);
         }
         if (tag.hasKey(NBT_SUBSTITUTE)) {
             this.substitute = tag.getBoolean(NBT_SUBSTITUTE);
@@ -695,7 +695,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.scrollOffset = tag.getInteger(NBT_SCROLL_OFFSET);
         }
 
-        this.applyCraftingMode();
+        this.applyPatternCraftMode();
     }
 
     private void saveToNBT() {
@@ -712,7 +712,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         saveInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
         saveInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
         saveInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
-        tag.setBoolean(NBT_CRAFTING_MODE, this.craftingMode);
+        tag.setBoolean(NBT_CRAFTING_MODE, this.patternCraftMode);
         tag.setBoolean(NBT_SUBSTITUTE, this.substitute);
         tag.setInteger(NBT_SCROLL_OFFSET, this.scrollOffset);
     }
@@ -723,7 +723,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         ItemStack stack = wt.getItemStack();
         if (stack.isEmpty()) return;
         NBTTagCompound tag = Platform.openNbtData(stack);
-        tag.setBoolean(NBT_CRAFTING_MODE, this.craftingMode);
+        tag.setBoolean(NBT_CRAFTING_MODE, this.patternCraftMode);
     }
 
     private void saveSubstituteToNBT() {

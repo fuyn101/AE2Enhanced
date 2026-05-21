@@ -306,7 +306,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 绑定并绘制 pattern_modes.png 编码区背景
         this.mc.getTextureManager().bindTexture(PATTERN_MODES);
-        int modeY = this.container.isCraftingMode() ? 0 : 66;
+        int modeY = this.container.isPatternCraftMode() ? 0 : 66;
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86, 0, modeY, 124, 66);
 
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
@@ -328,7 +328,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.currentMouseY = mouseY;
 
         // 更新按钮可见性
-        if (this.container.isCraftingMode()) {
+        if (this.container.isPatternCraftMode()) {
             this.tabCraftButton.visible = true;
             this.tabProcessButton.visible = false;
             this.clearBtn.visible = true;
@@ -362,7 +362,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         }
 
         // 绘制编码区滚动条
-        if (!this.container.isCraftingMode() && this.patternScrollBar != null) {
+        if (!this.container.isPatternCraftMode() && this.patternScrollBar != null) {
             this.patternScrollBar.draw(this);
         }
 
@@ -386,7 +386,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     @Override
     protected void mouseClicked(int xCoord, int yCoord, int btn) throws IOException {
         // 编码区滚动条点击
-        if (!this.container.isCraftingMode() && this.patternScrollBar != null) {
+        if (!this.container.isPatternCraftMode() && this.patternScrollBar != null) {
             this.patternScrollBar.click(this, xCoord - this.guiLeft, yCoord - this.guiTop);
             int newOffset = this.patternScrollBar.getCurrentScroll();
             if (newOffset != this.container.getScrollOffset()) {
@@ -472,10 +472,10 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         if (delta != 0) {
             int mx = Mouse.getEventX() * this.width / this.mc.displayWidth;
             int my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-            boolean inPatternArea = !this.container.isCraftingMode()
+            boolean inPatternArea = !this.container.isPatternCraftMode()
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 304
                     && my >= this.guiTop + 88 && my <= this.guiTop + 154;
-            boolean inPatternScroll = !this.container.isCraftingMode() && this.patternScrollBar != null
+            boolean inPatternScroll = !this.container.isPatternCraftMode() && this.patternScrollBar != null
                     && mx >= this.guiLeft + 308 && mx <= this.guiLeft + 320
                     && my >= this.guiTop + 88 && my <= this.guiTop + 154;
             if (inPatternArea || inPatternScroll) {

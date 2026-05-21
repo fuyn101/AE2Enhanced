@@ -46,7 +46,7 @@ public class PacketOmniTermAction implements IMessage {
                 ContainerOmniTerm c = (ContainerOmniTerm) player.openContainer;
                 switch (message.action) {
                     case "CraftMode":
-                        c.setCraftingMode("1".equals(message.value));
+                        c.setPatternCraftMode("1".equals(message.value));
                         break;
                     case "Encode":
                         if ("2".equals(message.value)) {
