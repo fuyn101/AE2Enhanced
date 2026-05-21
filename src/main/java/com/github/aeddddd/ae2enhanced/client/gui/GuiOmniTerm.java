@@ -103,14 +103,16 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int desiredGuiLeft = (this.width - this.xSize) / 2;
         int desiredGuiTop = (this.height - this.ySize) / 2;
         try {
-            java.lang.reflect.Field guiLeftField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiLeft");
-            guiLeftField.setAccessible(true);
-            guiLeftField.setInt(this, desiredGuiLeft);
-            java.lang.reflect.Field guiTopField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiTop");
-            guiTopField.setAccessible(true);
-            guiTopField.setInt(this, desiredGuiTop);
+            // 使用 sun.misc.Unsafe 直接修改内存，绕过可能的字段访问问题
+            java.lang.reflect.Field theUnsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+            theUnsafeField.setAccessible(true);
+            sun.misc.Unsafe unsafe = (sun.misc.Unsafe) theUnsafeField.get(null);
+            long guiLeftOffset = unsafe.objectFieldOffset(net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiLeft"));
+            long guiTopOffset = unsafe.objectFieldOffset(net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiTop"));
+            unsafe.putInt(this, guiLeftOffset, desiredGuiLeft);
+            unsafe.putInt(this, guiTopOffset, desiredGuiTop);
         } catch (Exception e) {
-            // 反射失败时回退到直接赋值
+            // 回退到直接赋值
             this.guiLeft = desiredGuiLeft;
             this.guiTop = desiredGuiTop;
         }
