@@ -16,6 +16,7 @@ import appeng.container.slot.SlotPlayerInv;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.container.ContainerNull;
 import appeng.helpers.IContainerCraftingPacket;
+import appeng.helpers.ItemStackHelper;
 import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
@@ -324,7 +325,19 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation op, ItemStack removed, ItemStack added) {
         if (inv == this.craftingInv) {
+            this.fixCraftingRecipes();
             this.updateCraftingRecipe();
+        }
+    }
+
+    private void fixCraftingRecipes() {
+        if (this.patternCraftMode) {
+            for (int x = 0; x < this.craftingInv.getSlots(); x++) {
+                ItemStack is = this.craftingInv.getStackInSlot(x);
+                if (!is.isEmpty()) {
+                    is.setCount(1);
+                }
+            }
         }
     }
 
@@ -386,12 +399,31 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         NBTTagCompound encodedValue = new NBTTagCompound();
         NBTTagList tagIn = new NBTTagList();
         NBTTagList tagOut = new NBTTagList();
-        for (ItemStack i : in) {
-            tagIn.appendTag(this.createItemTag(i));
+
+        if (this.patternCraftMode) {
+            for (int i = 0; i < Math.min(in.length, 9); i++) {
+                tagIn.appendTag(this.createItemTag(in[i]));
+            }
+            if (out.length > 0) {
+                tagOut.appendTag(this.createItemTag(out[0]));
+            }
+        } else {
+            int inCount = 0;
+            for (ItemStack i : in) {
+                if (!i.isEmpty() && inCount < 16) {
+                    tagIn.appendTag(this.createItemTag(i));
+                    inCount++;
+                }
+            }
+            int outCount = 0;
+            for (ItemStack i : out) {
+                if (!i.isEmpty() && outCount < 6) {
+                    tagOut.appendTag(this.createItemTag(i));
+                    outCount++;
+                }
+            }
         }
-        for (ItemStack i : out) {
-            tagOut.appendTag(this.createItemTag(i));
-        }
+
         encodedValue.setTag("in", tagIn);
         encodedValue.setTag("out", tagOut);
         encodedValue.setBoolean("crafting", this.patternCraftMode);
@@ -410,10 +442,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     private ItemStack[] getInputs() {
-        ItemStack[] input = new ItemStack[this.patternCraftingInv.getSlots()];
+        IItemHandler inv = this.patternCraftMode ? this.craftingInv : this.patternCraftingInv;
+        int size = this.patternCraftMode ? 9 : this.patternCraftingInv.getSlots();
+        ItemStack[] input = new ItemStack[size];
         boolean hasValue = false;
-        for (int i = 0; i < input.length; i++) {
-            input[i] = this.patternCraftingInv.getStackInSlot(i);
+        for (int i = 0; i < size; i++) {
+            input[i] = inv.getStackInSlot(i);
             if (!input[i].isEmpty()) {
                 hasValue = true;
             }
@@ -423,7 +457,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     private ItemStack[] getOutputs() {
         if (this.patternCraftMode) {
-            ItemStack out = this.craftSlot.getStack();
+            this.updateCraftingRecipe();
+            ItemStack out = this.craftingOutput.getStackInSlot(0);
             if (!out.isEmpty() && out.getCount() > 0) {
                 return new ItemStack[]{out};
             }
@@ -457,8 +492,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private NBTTagCompound createItemTag(ItemStack stack) {
         NBTTagCompound tag = new NBTTagCompound();
         if (!stack.isEmpty()) {
-            stack.writeToNBT(tag);
-            tag.setInteger("Count", stack.getCount());
+            ItemStackHelper.stackWriteToNBT(stack, tag);
         }
         return tag;
     }
