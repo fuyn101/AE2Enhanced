@@ -59,6 +59,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private GuiImgButton divTwoBtn;
     private GuiImgButton divThreeBtn;
     private GuiImgButton minusOneBtn;
+    private GuiImgButton clearPatternBtn;
 
 
     // 鼠标跟踪
@@ -221,6 +222,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
+        // 编码区清空按钮 — 位于处理模式九宫格右上角右侧，间隔1像素
+        this.clearPatternBtn = new GuiImgButton(gl + 251, gt + 92, Settings.ACTIONS, ActionItems.CLOSE);
+        this.clearPatternBtn.setHalfSize(true);
+        this.buttonList.add(this.clearPatternBtn);
+
         // 编码区快捷操作按钮（位于编码区右侧，避免与合成区重叠）
         this.x3Btn = new GuiImgButton(gl + 180, gt + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
@@ -262,7 +268,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             } else if (this.encodeBtn == btn) {
                 action = "Encode";
                 value = (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) ? "2" : "1";
-            } else if (this.clearBtn == btn) {
+            } else if (this.clearBtn == btn || this.clearPatternBtn == btn) {
                 action = "Clear";
             } else if (this.x2Btn == btn) {
                 action = "MultiplyByTwo";
@@ -325,6 +331,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         if (this.container.isCraftingMode()) {
             this.tabCraftButton.visible = true;
             this.tabProcessButton.visible = false;
+            this.clearBtn.visible = true;
+            this.clearPatternBtn.visible = false;
             this.x2Btn.visible = false;
             this.x3Btn.visible = false;
             this.divTwoBtn.visible = false;
@@ -341,6 +349,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         } else {
             this.tabCraftButton.visible = false;
             this.tabProcessButton.visible = true;
+            this.clearBtn.visible = false;
+            this.clearPatternBtn.visible = true;
             this.substitutionsEnabledBtn.visible = false;
             this.substitutionsDisabledBtn.visible = false;
             this.x2Btn.visible = true;
