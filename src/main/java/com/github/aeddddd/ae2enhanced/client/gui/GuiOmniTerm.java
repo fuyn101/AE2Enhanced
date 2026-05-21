@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import appeng.api.config.ActionItems;
 import appeng.api.config.ItemSubstitution;
 import appeng.api.config.Settings;
+import appeng.api.config.TerminalStyle;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.IConfigManager;
@@ -61,6 +62,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private GuiImgButton minusOneBtn;
     private GuiImgButton clearPatternBtn;
 
+    // 动态高度相关
+    private int omniRows = 3;
+    private int extraHeight = 0;
 
     // 鼠标跟踪
     private int currentMouseX;
@@ -70,39 +74,45 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         super(inventoryPlayer, host, new ContainerOmniTerm(inventoryPlayer, host));
         this.container = (ContainerOmniTerm) this.inventorySlots;
         this.xSize = 357;
-        this.ySize = 251;
     }
 
     @Override
     public void initGui() {
-        // 设置 repo 行大小为 18（我们的物品库是 18 列）
         this.repo.setRowSize(18);
 
-        // super.initGui() 会计算 rows/ySize、创建 InternalSlotME、搜索框、滚动条、按钮
+        // 计算行数：SMALL 固定 5 行，TALL 根据屏幕高度动态
+        TerminalStyle style = (TerminalStyle) AEConfig.instance().getConfigManager().getSetting(Settings.TERMINAL_STYLE);
+        if (style == TerminalStyle.SMALL) {
+            this.omniRows = 5;
+        } else {
+            int maxExtraRows = Math.max(0, (this.height - 251 - 32) / 18);
+            this.omniRows = Math.max(3, 3 + maxExtraRows);
+        }
+        this.extraHeight = (this.omniRows - 3) * 18;
+        this.ySize = 251 + this.extraHeight;
+        this.xSize = 357;
+
         super.initGui();
 
-        // 保存 super.initGui() 计算出的旧 guiTop（可能基于极大的 ySize）
         final int oldGuiTop = this.guiTop;
-
-        // 修正尺寸和位置（固定 357×251）
-        this.xSize = 357;
-        this.ySize = 251;
         this.guiLeft = (this.width - this.xSize) / 2;
         this.guiTop = (this.height - this.ySize) / 2;
 
-        // 1. 恢复被 repositionSlot 修改的所有 AppEngSlot 的 y 位置
-        // repositionSlot 只改 yPos，不改 xPos；xPos 由 setRCSlot 控制，不可恢复
+        // 1. 恢复 AppEngSlot 的原始 y 位置，并将固定区域槽位（原始 y >= 86）下移 extraHeight
         for (Slot s : this.inventorySlots.inventorySlots) {
             if (s instanceof AppEngSlot) {
                 AppEngSlot aeSlot = (AppEngSlot) s;
                 s.yPos = aeSlot.getY();
             }
+            if (s.yPos >= 86) {
+                s.yPos += this.extraHeight;
+            }
         }
 
-        // 2. 移除 super.initGui() 创建的 SlotME，重新创建 18 列 × 3 行
+        // 2. 移除 super 创建的 SlotME，重新创建 18 列 × omniRows 行
         this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
         this.getMeSlots().clear();
-        for (int row = 0; row < 3; row++) {
+        for (int row = 0; row < this.omniRows; row++) {
             for (int col = 0; col < 18; col++) {
                 this.getMeSlots().add(new InternalSlotME(this.repo, col + row * 18, 8 + col * 18, 18 + row * 18));
             }
@@ -111,12 +121,12 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
-        // 2b. 重新编号所有 slot（移除并重新添加 SlotME 后保持索引一致）
+        // 3. 重新编号
         for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
             this.inventorySlots.inventorySlots.get(i).slotNumber = i;
         }
 
-        // 3. 重新定位 AE2 标准按钮
+        // 4. 重新定位 AE2 标准按钮
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
                 GuiImgButton imgBtn = (GuiImgButton) btn;
@@ -128,13 +138,12 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                     btn.x = this.guiLeft - 18;
                 }
             } else if (btn instanceof GuiTabButton) {
-                // craftingStatusBtn — 右上角
                 btn.y = btn.y - oldGuiTop + this.guiTop;
                 btn.x = this.guiLeft + 335;
             }
         }
 
-        // 4. 替换搜索框为正确尺寸
+        // 5. 替换搜索框
         try {
             Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
@@ -160,26 +169,26 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             e.printStackTrace();
         }
 
-        // 5. 设置物品库滚动条
+        // 6. 设置物品库滚动条
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
-            itemScrollBar.setLeft(337).setTop(18).setHeight(52);
-            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - 3), 1);
+            itemScrollBar.setLeft(337).setTop(18).setHeight(this.omniRows * 18);
+            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows), 1);
         }
 
-        // 6. 添加编码区按钮
+        // 7. 添加编码区按钮
         this.setupPatternButtons();
 
-        // 7. 编码区滚动条
+        // 8. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
-        this.patternScrollBar.setLeft(308).setTop(88).setHeight(66);
+        this.patternScrollBar.setLeft(308).setTop(88 + this.extraHeight).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
-        // 8. 反射修正 rows/perRow 为固定值，防止 super.updateScreen 中的 setScrollBar 计算异常
+        // 9. 反射修正 rows/perRow
         try {
             Field rowsField = GuiMEMonitorable.class.getDeclaredField("rows");
             rowsField.setAccessible(true);
-            rowsField.setInt(this, 3);
+            rowsField.setInt(this, this.omniRows);
             Field perRowField = GuiMEMonitorable.class.getDeclaredField("perRow");
             perRowField.setAccessible(true);
             perRowField.setInt(this, 18);
@@ -187,7 +196,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             e.printStackTrace();
         }
 
-        // 9. 设置容器物品库更新回调
+        // 10. 设置容器物品库更新回调
         this.container.setInventoryListener(list -> {
             for (IAEItemStack is : list) {
                 this.repo.postUpdate(is);
@@ -201,58 +210,59 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private void setupPatternButtons() {
         int gl = this.guiLeft;
         int gt = this.guiTop;
+        int fy = gt + this.extraHeight; // 固定区域基准 y（随物品库行数增加而下移）
 
         // 切换 Crafting/Processing 模式按钮 — 位于编码区右上角
-        this.tabCraftButton = new GuiTabButton(gl + 335, gt + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
+        this.tabCraftButton = new GuiTabButton(gl + 335, fy + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
         this.buttonList.add(this.tabCraftButton);
 
-        this.tabProcessButton = new GuiTabButton(gl + 335, gt + 74, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
+        this.tabProcessButton = new GuiTabButton(gl + 335, fy + 74, new ItemStack(Blocks.FURNACE), "Processing", this.itemRender);
         this.buttonList.add(this.tabProcessButton);
 
         // Substitute / Clear 按钮 — 位于合成区左上方
-        this.substitutionsEnabledBtn = new GuiImgButton(gl + 240, gt + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
+        this.substitutionsEnabledBtn = new GuiImgButton(gl + 240, fy + 92, Settings.ACTIONS, ItemSubstitution.ENABLED);
         this.substitutionsEnabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsEnabledBtn);
 
-        this.substitutionsDisabledBtn = new GuiImgButton(gl + 240, gt + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
+        this.substitutionsDisabledBtn = new GuiImgButton(gl + 240, fy + 92, Settings.ACTIONS, ItemSubstitution.DISABLED);
         this.substitutionsDisabledBtn.setHalfSize(true);
         this.buttonList.add(this.substitutionsDisabledBtn);
 
-        this.clearBtn = new GuiImgButton(gl + 80, gt + 92, Settings.ACTIONS, ActionItems.CLOSE);
+        this.clearBtn = new GuiImgButton(gl + 80, fy + 92, Settings.ACTIONS, ActionItems.CLOSE);
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
         // 编码区清空按钮 — 位于处理模式九宫格右上角右侧，间隔1像素
-        this.clearPatternBtn = new GuiImgButton(gl + 251, gt + 92, Settings.ACTIONS, ActionItems.CLOSE);
+        this.clearPatternBtn = new GuiImgButton(gl + 251, fy + 92, Settings.ACTIONS, ActionItems.CLOSE);
         this.clearPatternBtn.setHalfSize(true);
         this.buttonList.add(this.clearPatternBtn);
 
         // 编码区快捷操作按钮（位于编码区右侧，避免与合成区重叠）
-        this.x3Btn = new GuiImgButton(gl + 180, gt + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
+        this.x3Btn = new GuiImgButton(gl + 180, fy + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
 
-        this.x2Btn = new GuiImgButton(gl + 190, gt + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
+        this.x2Btn = new GuiImgButton(gl + 190, fy + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_TWO);
         this.x2Btn.setHalfSize(true);
         this.buttonList.add(this.x2Btn);
 
-        this.plusOneBtn = new GuiImgButton(gl + 200, gt + 157, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
+        this.plusOneBtn = new GuiImgButton(gl + 200, fy + 157, Settings.ACTIONS, ActionItems.INCREASE_BY_ONE);
         this.plusOneBtn.setHalfSize(true);
         this.buttonList.add(this.plusOneBtn);
 
-        this.divThreeBtn = new GuiImgButton(gl + 210, gt + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
+        this.divThreeBtn = new GuiImgButton(gl + 210, fy + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_THREE);
         this.divThreeBtn.setHalfSize(true);
         this.buttonList.add(this.divThreeBtn);
 
-        this.divTwoBtn = new GuiImgButton(gl + 220, gt + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
+        this.divTwoBtn = new GuiImgButton(gl + 220, fy + 157, Settings.ACTIONS, ActionItems.DIVIDE_BY_TWO);
         this.divTwoBtn.setHalfSize(true);
         this.buttonList.add(this.divTwoBtn);
 
-        this.minusOneBtn = new GuiImgButton(gl + 230, gt + 157, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
+        this.minusOneBtn = new GuiImgButton(gl + 230, fy + 157, Settings.ACTIONS, ActionItems.DECREASE_BY_ONE);
         this.minusOneBtn.setHalfSize(true);
         this.buttonList.add(this.minusOneBtn);
 
-        this.encodeBtn = new GuiImgButton(gl + 319, gt + 110, Settings.ACTIONS, ActionItems.ENCODE);
+        this.encodeBtn = new GuiImgButton(gl + 319, fy + 110, Settings.ACTIONS, ActionItems.ENCODE);
         this.buttonList.add(this.encodeBtn);
     }
 
@@ -300,14 +310,22 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // 绑定并绘制 omnigui.png 整体背景 (512x512 texture)
+        // 动态拼接 omnigui.png 背景
         this.mc.getTextureManager().bindTexture(OMNI_BG);
-        Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY, 0, 0, 357, 251, 512, 512);
+        // 顶部固定 18 像素
+        Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY, 0, 0, 357, 18, 512, 512);
+        // 物品库可重复行（纹理 y=36~54 为可重复的一行）
+        for (int i = 0; i < this.omniRows; i++) {
+            Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY + 18 + i * 18, 0, 36, 357, 18, 512, 512);
+        }
+        // 底部固定区域（纹理 y=72~251）
+        int bottomY = offsetY + 18 + this.omniRows * 18;
+        Gui.drawModalRectWithCustomSizedTexture(offsetX, bottomY, 0, 72, 357, 251 - 72, 512, 512);
 
         // 绑定并绘制 pattern_modes.png 编码区背景
         this.mc.getTextureManager().bindTexture(PATTERN_MODES);
         int modeY = this.container.isPatternCraftMode() ? 0 : 66;
-        this.drawTexturedModalRect(offsetX + 180, offsetY + 86, 0, modeY, 124, 66);
+        this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
         try {
@@ -368,7 +386,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
         // 绘制标题文本
         this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.title"), 8, 6, 0x404040);
-        this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.inventory"), 8, 155, 0x404040);
+        this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.inventory"), 8, 155 + this.extraHeight, 0x404040);
     }
 
     @Override
@@ -377,8 +395,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 修复物品库滚动条位置和范围（super.updateScreen 中的 setScrollBar 会重置它们）
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
-            bar.setLeft(335).setTop(18).setHeight(52);
-            int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 3);
+            bar.setLeft(335).setTop(18).setHeight(this.omniRows * 18);
+            int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows);
             bar.setRange(0, maxScroll, 1);
         }
     }
@@ -474,10 +492,10 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             int my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
             boolean inPatternArea = !this.container.isPatternCraftMode()
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 304
-                    && my >= this.guiTop + 88 && my <= this.guiTop + 154;
+                    && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
             boolean inPatternScroll = !this.container.isPatternCraftMode() && this.patternScrollBar != null
                     && mx >= this.guiLeft + 308 && mx <= this.guiLeft + 320
-                    && my >= this.guiTop + 88 && my <= this.guiTop + 154;
+                    && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
             if (inPatternArea || inPatternScroll) {
                 this.patternScrollBar.wheel(delta);
                 int newOffset = this.patternScrollBar.getCurrentScroll();
@@ -490,7 +508,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     }
 
     private void updateItemScrollRange() {
-        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - 3);
+        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows);
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
             bar.setRange(0, maxScroll, 1);
