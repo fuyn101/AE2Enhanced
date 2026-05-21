@@ -18,6 +18,7 @@ import appeng.client.me.SlotME;
 import appeng.client.ActionKey;
 import appeng.core.AEConfig;
 import appeng.core.AppEng;
+import appeng.core.localization.GuiText;
 import appeng.util.IConfigManagerHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
@@ -192,15 +193,27 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows), 1);
         }
 
-        // 7. 添加编码区按钮
+        // 7. 添加合成计划按钮（AE2 原版只在 GuiWirelessTerm 或 viewCell 时创建，Omni Terminal 需要手动添加）
+        GuiTabButton craftingStatusBtn = new GuiTabButton(this.guiLeft + 170, this.guiTop - 4, 178, GuiText.CraftingStatus.getLocal(), this.itemRender);
+        craftingStatusBtn.setHideEdge(13);
+        this.buttonList.add(craftingStatusBtn);
+        try {
+            Field craftingStatusBtnField = GuiMEMonitorable.class.getDeclaredField("craftingStatusBtn");
+            craftingStatusBtnField.setAccessible(true);
+            craftingStatusBtnField.set(this, craftingStatusBtn);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 8. 添加编码区按钮
         this.setupPatternButtons();
 
-        // 8. 编码区滚动条
+        // 9. 编码区滚动条
         this.patternScrollBar = new GuiScrollbar();
         this.patternScrollBar.setLeft(308).setTop(88 + this.extraHeight).setHeight(66);
         this.patternScrollBar.setRange(0, this.container.getMaxScrollOffset(), 1);
 
-        // 9. 反射修正 rows/perRow
+        // 10. 反射修正 rows/perRow
         try {
             Field rowsField = GuiMEMonitorable.class.getDeclaredField("rows");
             rowsField.setAccessible(true);
@@ -212,7 +225,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             e.printStackTrace();
         }
 
-        // 10. 设置容器物品库更新回调
+        // 11. 设置容器物品库更新回调
         this.container.setInventoryListener(list -> {
             for (IAEItemStack is : list) {
                 this.repo.postUpdate(is);
