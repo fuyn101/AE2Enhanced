@@ -6,6 +6,7 @@ import appeng.api.config.Settings;
 import appeng.api.config.TerminalStyle;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.util.IConfigManager;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
 import appeng.container.slot.AppEngSlot;
@@ -100,10 +101,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
         super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
         this.terminalHost = host;
-
-        // 补注册 ContainerMEMonitorable.clientCM 缺失的设置，避免 detectAndSendChanges 崩溃
-        this.getConfigManager().registerSetting(Settings.SEARCH_MODE, SearchBoxMode.AUTOSEARCH);
-        this.getConfigManager().registerSetting(Settings.TERMINAL_STYLE, TerminalStyle.TALL);
 
         this.setupCraftingArea(ip, host);
         this.setupPatternArea(ip, host);
@@ -326,6 +323,20 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     // ================== 合成栏配方更新 ==================
+
+    @Override
+    public void func_75142_b() {
+        if (Platform.isServer()) {
+            IConfigManager clientCM = this.getConfigManager();
+            IConfigManager serverCM = this.terminalHost.getConfigManager();
+            for (Settings set : serverCM.getSettings()) {
+                if (!clientCM.getSettings().contains(set)) {
+                    clientCM.registerSetting(set, serverCM.getSetting(set));
+                }
+            }
+        }
+        super.func_75142_b();
+    }
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation op, ItemStack removed, ItemStack added) {
