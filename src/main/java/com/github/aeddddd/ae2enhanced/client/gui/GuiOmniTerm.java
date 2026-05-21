@@ -103,10 +103,10 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int desiredGuiLeft = (this.width - this.xSize) / 2;
         int desiredGuiTop = (this.height - this.ySize) / 2;
         try {
-            java.lang.reflect.Field guiLeftField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("field_147003_i");
+            java.lang.reflect.Field guiLeftField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiLeft");
             guiLeftField.setAccessible(true);
             guiLeftField.setInt(this, desiredGuiLeft);
-            java.lang.reflect.Field guiTopField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("field_147009_r");
+            java.lang.reflect.Field guiTopField = net.minecraft.client.gui.inventory.GuiContainer.class.getDeclaredField("guiTop");
             guiTopField.setAccessible(true);
             guiTopField.setInt(this, desiredGuiTop);
         } catch (Exception e) {
