@@ -34,6 +34,7 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.InventoryCrafting;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
 import net.minecraft.item.crafting.IRecipe;
@@ -921,13 +922,19 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             NBTTagCompound stackTag = list.getCompoundTagAt(i);
             int slot = stackTag.hasKey("Slot", 3) ? stackTag.getInteger("Slot") : i;
             if (slot >= 0 && slot < size) {
+                int savedCount = -1;
+                // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127。
+                // 当 count > 127 时，Count byte 会溢出为负数，导致 new ItemStack 返回 EMPTY。
+                // 因此，在 new ItemStack 之前，先把 Count 临时设为 1，确保能创建非空对象。
+                if (stackTag.hasKey("AE2E_Count", 3)) {
+                    savedCount = stackTag.getInteger("AE2E_Count");
+                    stackTag.setByte("Count", (byte) 1);
+                }
                 ItemStack stack = new ItemStack(stackTag);
+                if (!stack.isEmpty() && savedCount > 0) {
+                    stack.setCount(savedCount);
+                }
                 if (!stack.isEmpty()) {
-                    // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127，
-                    // 超过会被截断。我们在 saveInventory 中额外保存了真实 count。
-                    if (stackTag.hasKey("AE2E_Count", 3)) {
-                        stack.setCount(stackTag.getInteger("AE2E_Count"));
-                    }
                     ItemHandlerUtil.setStackInSlot(inv, slot, stack);
                 }
             }
@@ -1093,6 +1100,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     @Override
+    public Object getTarget() {
+        Object target = super.getTarget();
+        if (target != null) return target;
+        return this.terminalHost;
+    }
+
+    @Override
     public void saveChanges() {
     }
 
@@ -1104,5 +1118,98 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (this.inventoryListener != null) {
             this.inventoryListener.onInventoryUpdate(list);
         }
+    }
+
+    /**
+     * 覆盖 mergeItemStack 以突破 ItemStack.getMaxStackSize() 的 64 上限。
+     * 原版 Container.mergeItemStack 使用 Math.min(slot.getSlotStackLimit(), stack.getMaxStackSize())
+     * 计算最大合并数量，导致即使 slot 支持 4096，shift+点击仍被截断为 64。
+     */
+    @Override
+    protected boolean mergeItemStack(ItemStack stack, int startIndex, int endIndex, boolean reverseDirection) {
+        boolean flag = false;
+        int i = startIndex;
+
+        if (reverseDirection) {
+            i = endIndex - 1;
+        }
+
+        if (stack.isStackable()) {
+            while (!stack.isEmpty()) {
+                if (reverseDirection) {
+                    if (i < startIndex) break;
+                } else {
+                    if (i >= endIndex) break;
+                }
+
+                Slot slot = this.inventorySlots.get(i);
+                ItemStack itemstack = slot.getStack();
+
+                if (!itemstack.isEmpty() && itemstack.getItem() == stack.getItem()
+                        && (!stack.getHasSubtypes() || stack.getMetadata() == itemstack.getMetadata())
+                        && ItemStack.areItemStackTagsEqual(stack, itemstack)) {
+                    int j = itemstack.getCount() + stack.getCount();
+                    // 原版这里用 Math.min(slot.getSlotStackLimit(), stack.getMaxStackSize())
+                    // 我们直接取 slot 的上限，不再被 ItemStack.getMaxStackSize() 截断
+                    int maxSize = slot.getSlotStackLimit();
+
+                    if (j <= maxSize) {
+                        stack.setCount(0);
+                        itemstack.setCount(j);
+                        slot.onSlotChanged();
+                        flag = true;
+                    } else if (itemstack.getCount() < maxSize) {
+                        stack.shrink(maxSize - itemstack.getCount());
+                        itemstack.setCount(maxSize);
+                        slot.onSlotChanged();
+                        flag = true;
+                    }
+                }
+
+                if (reverseDirection) {
+                    --i;
+                } else {
+                    ++i;
+                }
+            }
+        }
+
+        if (!stack.isEmpty()) {
+            if (reverseDirection) {
+                i = endIndex - 1;
+            } else {
+                i = startIndex;
+            }
+
+            while (true) {
+                if (reverseDirection) {
+                    if (i < startIndex) break;
+                } else {
+                    if (i >= endIndex) break;
+                }
+
+                Slot slot = this.inventorySlots.get(i);
+                ItemStack itemstack = slot.getStack();
+
+                if (itemstack.isEmpty() && slot.isItemValid(stack)) {
+                    if (stack.getCount() > slot.getSlotStackLimit()) {
+                        slot.putStack(stack.splitStack(slot.getSlotStackLimit()));
+                    } else {
+                        slot.putStack(stack.splitStack(stack.getCount()));
+                    }
+                    slot.onSlotChanged();
+                    flag = true;
+                    break;
+                }
+
+                if (reverseDirection) {
+                    --i;
+                } else {
+                    ++i;
+                }
+            }
+        }
+
+        return flag;
     }
 }
