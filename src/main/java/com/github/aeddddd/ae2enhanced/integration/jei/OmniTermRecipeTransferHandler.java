@@ -32,10 +32,6 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
     @Override
     public IRecipeTransferError transferRecipe(ContainerOmniTerm container, IRecipeLayout recipeLayout, EntityPlayer player, boolean maxTransfer, boolean doTransfer) {
-        if (!doTransfer) {
-            return null;
-        }
-
         boolean isCrafting = recipeLayout.getRecipeCategory().getUid().equals("minecraft.crafting");
 
         List<ItemStack> inputs = new ArrayList<>();
@@ -59,13 +55,17 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
             return null;
         }
 
+        if (!doTransfer) {
+            return null;
+        }
+
         byte mode;
         if (maxTransfer) {
             mode = 1; // Shift: 只到编码区
         } else if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) {
             mode = 2; // Alt: 只到合成区
         } else {
-            mode = 0; // 默认: 两边
+            mode = 0; // 默认
         }
 
         // 处理配方没有合成区，Alt 模式回退到默认

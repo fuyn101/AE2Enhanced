@@ -83,7 +83,8 @@ public class PacketOmniTermAction implements IMessage {
                         try {
                             int offset = Integer.parseInt(message.value);
                             c.setRCSlot(offset);
-                        } catch (NumberFormatException ignored) {
+                        } catch (NumberFormatException e) {
+                            e.printStackTrace();
                         }
                         break;
                 }

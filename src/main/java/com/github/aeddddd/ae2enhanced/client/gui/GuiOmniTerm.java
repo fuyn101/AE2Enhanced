@@ -140,11 +140,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
-        // 3. 重新编号
-        for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
-            this.inventorySlots.inventorySlots.get(i).slotNumber = i;
-        }
-
         // 4. 重新定位 AE2 标准按钮（使用相对于旧 guiLeft/guiTop 的偏移，保持原始布局比例）
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
@@ -335,7 +330,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             // 让 AE2 标准按钮（SortDir/ViewMode/TerminalStyle 等）也能正常工作
             super.actionPerformed(btn);
         } catch (Exception e) {
-            // ignore
+            e.printStackTrace();
         }
     }
 
