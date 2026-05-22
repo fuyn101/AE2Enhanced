@@ -6,6 +6,8 @@ import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
+import javax.annotation.Nonnull;
+
 /**
  * Omni Terminal 右侧升级卡槽位 —— 只能放入频道接收卡和 Omni 专用升级卡。
  */
@@ -19,5 +21,10 @@ public class SlotOmniUpgrade extends AppEngSlot {
     public boolean isItemValid(ItemStack stack) {
         return stack.getItem() instanceof ItemChannelReceiverCard
                 || stack.getItem() instanceof ItemOmniUpgradeCard;
+    }
+
+    @Override
+    public int func_178170_b(@Nonnull ItemStack stack) {
+        return this.func_75219_a();
     }
 }

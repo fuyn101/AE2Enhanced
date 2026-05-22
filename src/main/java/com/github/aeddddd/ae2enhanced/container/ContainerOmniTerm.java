@@ -6,6 +6,7 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
+import appeng.container.interfaces.IInventorySlotAware;
 import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.IOptionalSlotHost;
 import appeng.container.slot.SlotCraftingMatrix;
@@ -26,9 +27,10 @@ import appeng.util.helpers.ItemHandlerUtil;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
-import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
+import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotHighCapacity;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.InventoryCrafting;
@@ -48,7 +50,7 @@ import java.util.Optional;
  * 全能无线终端 Container —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
  */
 public class ContainerOmniTerm extends ContainerMEMonitorable
-        implements IAEAppEngInventory, IOptionalSlotHost, IContainerCraftingPacket {
+        implements IAEAppEngInventory, IOptionalSlotHost, IContainerCraftingPacket, IInventorySlotAware {
 
     // === 合成栏 ===
     private final SlotCraftingMatrix[] craftingSlots = new SlotCraftingMatrix[9];
@@ -107,14 +109,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.terminalHost = host;
 
         int maxStack = AE2EnhancedConfig.terminal.rightStorageMaxStackSize;
-        this.rightPatternStorage = new AppEngInternalInventory(null, 27, maxStack);
-        this.rightUpgradeStorage = new AppEngInternalInventory(null, 9, maxStack);
+        this.rightPatternStorage = new HighCapacityInventory(null, 27, maxStack);
+        this.rightUpgradeStorage = new HighCapacityInventory(null, 9, maxStack);
 
         this.setupCraftingArea(ip, host);
         this.setupPatternArea(ip, host);
         this.setupRightStorage();
 
-        // 为无线终端设置 openContext，使 PacketSwitchGuis 能正确打开合成计划 GUI
+        // 设置 openContext，使 PacketSwitchGuis 能正确打开合成计划 GUI
         if (host instanceof WirelessTerminalGuiObject) {
             WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) host;
             ContainerOpenContext ctx = new ContainerOpenContext(wt);
@@ -124,6 +126,22 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             ctx.setZ(0);
             ctx.setSide(AEPartLocation.INTERNAL);
             this.setOpenContext(ctx);
+        } else if (host instanceof appeng.api.networking.security.IActionHost) {
+            appeng.api.networking.security.IActionHost ah = (appeng.api.networking.security.IActionHost) host;
+            appeng.api.networking.IGridNode node = ah.getActionableNode();
+            if (node != null) {
+                Object machine = node.getMachine();
+                if (machine instanceof net.minecraft.tileentity.TileEntity) {
+                    net.minecraft.tileentity.TileEntity te = (net.minecraft.tileentity.TileEntity) machine;
+                    ContainerOpenContext ctx = new ContainerOpenContext(te);
+                    ctx.setWorld(te.getWorld());
+                    ctx.setX(te.getPos().getX());
+                    ctx.setY(te.getPos().getY());
+                    ctx.setZ(te.getPos().getZ());
+                    ctx.setSide(AEPartLocation.INTERNAL);
+                    this.setOpenContext(ctx);
+                }
+            }
         }
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
@@ -210,7 +228,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
-                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
+                this.func_75146_a(new SlotHighCapacity(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
             }
         }
         for (int c = 0; c < 9; c++) {
@@ -905,6 +923,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             if (slot >= 0 && slot < size) {
                 ItemStack stack = new ItemStack(stackTag);
                 if (!stack.isEmpty()) {
+                    // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127，
+                    // 超过会被截断。我们在 saveInventory 中额外保存了真实 count。
+                    if (stackTag.hasKey("AE2E_Count", 3)) {
+                        stack.setCount(stackTag.getInteger("AE2E_Count"));
+                    }
                     ItemHandlerUtil.setStackInSlot(inv, slot, stack);
                 }
             }
@@ -919,6 +942,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 NBTTagCompound stackTag = new NBTTagCompound();
                 stackTag.setInteger("Slot", i);
                 stack.writeToNBT(stackTag);
+                // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127。
+                // 当 count > 127 时，额外保存真实 count 以在加载时恢复。
+                if (stack.getCount() > 127) {
+                    stackTag.setInteger("AE2E_Count", stack.getCount());
+                }
                 list.appendTag(stackTag);
             }
         }
@@ -1044,6 +1072,24 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     public void setInventoryListener(IInventoryUpdateListener listener) {
         this.inventoryListener = listener;
+    }
+
+    // ================== IInventorySlotAware ==================
+
+    @Override
+    public int getInventorySlot() {
+        if (this.terminalHost instanceof IInventorySlotAware) {
+            return ((IInventorySlotAware) this.terminalHost).getInventorySlot();
+        }
+        return -1;
+    }
+
+    @Override
+    public boolean isBaubleSlot() {
+        if (this.terminalHost instanceof IInventorySlotAware) {
+            return ((IInventorySlotAware) this.terminalHost).isBaubleSlot();
+        }
+        return false;
     }
 
     @Override
