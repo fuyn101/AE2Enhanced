@@ -194,7 +194,16 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows), 1);
         }
 
-        // 7. 添加合成计划按钮（AE2 原版只在 GuiWirelessTerm 或 viewCell 时创建，Omni Terminal 需要手动添加）
+        // 7. 添加合成计划按钮（先移除 super.initGui() 在 viewCell=true 时创建的中间位置旧按钮）
+        try {
+            Field oldField = GuiMEMonitorable.class.getDeclaredField("craftingStatusBtn");
+            oldField.setAccessible(true);
+            GuiTabButton oldBtn = (GuiTabButton) oldField.get(this);
+            if (oldBtn != null) {
+                this.buttonList.remove(oldBtn);
+            }
+        } catch (Exception ignored) {}
+
         GuiTabButton craftingStatusBtn = new GuiTabButton(this.guiLeft + 335, this.guiTop - 4, 178, GuiText.CraftingStatus.getLocal(), this.itemRender);
         craftingStatusBtn.setHideEdge(13);
         this.buttonList.add(craftingStatusBtn);
