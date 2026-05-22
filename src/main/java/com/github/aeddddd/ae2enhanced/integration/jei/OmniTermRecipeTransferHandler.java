@@ -11,7 +11,10 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,22 +36,32 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
     public IRecipeTransferError transferRecipe(ContainerOmniTerm container, IRecipeLayout recipeLayout, EntityPlayer player, boolean maxTransfer, boolean doTransfer) {
         boolean isCrafting = recipeLayout.getRecipeCategory().getUid().equals("minecraft.crafting");
 
-        // 使用 Map 保留 JEI slot index，确保空位不被忽略
+        // 收集 JEI ingredients，按 key 排序以保留顺序
+        List<Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>>> sortedIngredients = new ArrayList<>();
+        Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
+        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : ingredients.entrySet()) {
+            sortedIngredients.add(entry);
+        }
+        sortedIngredients.sort(Comparator.comparingInt(Map.Entry::getKey));
+
+        // 使用 Map 保留 JEI slot index
         Map<Integer, ItemStack> inputs = new HashMap<>();
         Map<Integer, ItemStack> outputs = new HashMap<>();
 
-        Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
-        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : ingredients.entrySet()) {
+        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : sortedIngredients) {
             int slotIndex = entry.getKey();
             IGuiIngredient<ItemStack> ing = entry.getValue();
-            ItemStack displayed = ing.getDisplayedIngredient();
-            if (displayed == null || displayed.isEmpty()) {
+
+            // 优先取 displayed，fallback 到 allIngredients 的第一个非空物品
+            ItemStack toUse = getFirstNonEmpty(ing);
+            if (toUse == null || toUse.isEmpty()) {
                 continue;
             }
+
             if (ing.isInput()) {
-                inputs.put(slotIndex, displayed.copy());
+                inputs.put(slotIndex, toUse.copy());
             } else {
-                outputs.put(slotIndex, displayed.copy());
+                outputs.put(slotIndex, toUse.copy());
             }
         }
 
@@ -58,6 +71,18 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
         if (!doTransfer) {
             return null;
+        }
+
+        // Crafting recipe: 检测并修正 key 偏移（某些 recipe category 的 output 占用了 key 0，inputs 从 1 开始）
+        if (isCrafting) {
+            int minKey = inputs.keySet().stream().min(Integer::compare).orElse(0);
+            if (minKey > 0) {
+                Map<Integer, ItemStack> shifted = new HashMap<>();
+                for (Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+                    shifted.put(entry.getKey() - minKey, entry.getValue());
+                }
+                inputs = shifted;
+            }
         }
 
         byte mode;
@@ -76,5 +101,25 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
         AE2Enhanced.network.sendToServer(new PacketLoadOmniRecipe(mode, isCrafting, inputs, outputs));
         return null;
+    }
+
+    /**
+     * 从 IGuiIngredient 中获取第一个非空 ItemStack。
+     * 优先使用 getDisplayedIngredient()，如果为空则尝试 getAllIngredients()。
+     */
+    private static ItemStack getFirstNonEmpty(IGuiIngredient<ItemStack> ing) {
+        ItemStack displayed = ing.getDisplayedIngredient();
+        if (displayed != null && !displayed.isEmpty()) {
+            return displayed;
+        }
+        List<ItemStack> all = ing.getAllIngredients();
+        if (all != null) {
+            for (ItemStack stack : all) {
+                if (stack != null && !stack.isEmpty()) {
+                    return stack;
+                }
+            }
+        }
+        return ItemStack.EMPTY;
     }
 }
