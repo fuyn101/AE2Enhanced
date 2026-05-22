@@ -836,18 +836,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public void clearPattern() {
         if (this.patternCraftMode) {
             for (int i = 0; i < 9; i++) {
-                ItemStack stack = this.patternCraftingInv.extractItem(i, Integer.MAX_VALUE, false);
-                this.returnToNetworkOrPlayer(stack);
+                this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
             }
             this.cOut.setStackInSlot(0, ItemStack.EMPTY);
         } else {
             for (int i = 0; i < 81; i++) {
-                ItemStack stack = this.patternCraftingInv.extractItem(i, Integer.MAX_VALUE, false);
-                this.returnToNetworkOrPlayer(stack);
+                this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
             }
             for (int i = 0; i < 27; i++) {
-                ItemStack stack = this.patternOutputInv.extractItem(i, Integer.MAX_VALUE, false);
-                this.returnToNetworkOrPlayer(stack);
+                this.patternOutputInv.setStackInSlot(i, ItemStack.EMPTY);
             }
         }
         this.detectAndSendChanges();
