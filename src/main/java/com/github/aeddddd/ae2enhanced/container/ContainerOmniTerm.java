@@ -18,11 +18,15 @@ import appeng.container.ContainerNull;
 import appeng.helpers.IContainerCraftingPacket;
 import appeng.helpers.ItemStackHelper;
 import appeng.helpers.WirelessTerminalGuiObject;
+import appeng.api.util.AEPartLocation;
+import appeng.container.ContainerOpenContext;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
+import appeng.util.helpers.ItemHandlerUtil;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
 import net.minecraft.entity.player.EntityPlayer;
@@ -74,8 +78,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private int scrollOffset = 0;
 
     // === 右侧存储 ===
-    private final AppEngInternalInventory rightPatternStorage = new AppEngInternalInventory(null, 27);
-    private final AppEngInternalInventory rightUpgradeStorage = new AppEngInternalInventory(null, 9);
+    private final AppEngInternalInventory rightPatternStorage;
+    private final AppEngInternalInventory rightUpgradeStorage;
 
     // === 宿主 ===
     private final ITerminalHost terminalHost;
@@ -102,9 +106,25 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
         this.terminalHost = host;
 
+        int maxStack = AE2EnhancedConfig.terminal.rightStorageMaxStackSize;
+        this.rightPatternStorage = new AppEngInternalInventory(null, 27, maxStack);
+        this.rightUpgradeStorage = new AppEngInternalInventory(null, 9, maxStack);
+
         this.setupCraftingArea(ip, host);
         this.setupPatternArea(ip, host);
         this.setupRightStorage();
+
+        // 为无线终端设置 openContext，使 PacketSwitchGuis 能正确打开合成计划 GUI
+        if (host instanceof WirelessTerminalGuiObject) {
+            WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) host;
+            ContainerOpenContext ctx = new ContainerOpenContext(wt);
+            ctx.setWorld(ip.player.world);
+            ctx.setX(0);
+            ctx.setY(0);
+            ctx.setZ(0);
+            ctx.setSide(AEPartLocation.INTERNAL);
+            this.setOpenContext(ctx);
+        }
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
         for (int i = 0; i < this.cellView.length; i++) {
@@ -877,7 +897,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (!tag.hasKey(key)) return;
         NBTTagList list = tag.getTagList(key, 10);
         for (int i = 0; i < size; i++) {
-            inv.extractItem(i, Integer.MAX_VALUE, false);
+            ItemHandlerUtil.setStackInSlot(inv, i, ItemStack.EMPTY);
         }
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound stackTag = list.getCompoundTagAt(i);
@@ -885,7 +905,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             if (slot >= 0 && slot < size) {
                 ItemStack stack = new ItemStack(stackTag);
                 if (!stack.isEmpty()) {
-                    inv.insertItem(slot, stack, false);
+                    ItemHandlerUtil.setStackInSlot(inv, slot, stack);
                 }
             }
         }

@@ -58,6 +58,12 @@ public class AE2EnhancedConfig {
     })
     public static WirelessChannel wirelessChannel = new WirelessChannel();
 
+    @Config.Name("Terminal")
+    @Config.Comment({
+        "Omni Terminal settings."
+    })
+    public static Terminal terminal = new Terminal();
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",
@@ -125,6 +131,16 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int maxActiveOrders = 8;
+    }
+
+    public static class Terminal {
+        @Config.Comment({
+            "Max stack size for right-side pattern storage and upgrade slots in the Omni Terminal.",
+            "This allows storing more than 64 items per slot in the terminal's internal buffers.",
+            "Default: 4096"
+        })
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public int rightStorageMaxStackSize = 4096;
     }
 
     public static class WirelessChannel {
