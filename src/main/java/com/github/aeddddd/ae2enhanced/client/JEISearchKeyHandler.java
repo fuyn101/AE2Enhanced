@@ -11,10 +11,8 @@ import mezz.jei.api.IBookmarkOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
-import net.minecraftforge.fml.relauncher.Side;
 import org.lwjgl.input.Keyboard;
 
 import java.lang.reflect.Field;
@@ -32,7 +30,6 @@ import java.lang.reflect.Method;
  *   <li>默认不自动聚焦搜索栏，避免打断用户浏览物品</li>
  * </ul>
  */
-@Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
 public class JEISearchKeyHandler {
 
     private static IJeiRuntime jeiRuntime = null;
@@ -45,9 +42,14 @@ public class JEISearchKeyHandler {
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
         // KeyBinding.isPressed() 在 KeyInputEvent 触发时 pressTime 尚未更新，总是返回 false。
         // 直接使用 Keyboard 事件检测，同时匹配玩家自定义的键位绑定。
-        if (Keyboard.getEventKey() != ClientProxy.JEI_SEARCH_KEY.getKeyCode() || !Keyboard.getEventKeyState()) {
-            return;
-        }
+        int keyCode = Keyboard.getEventKey();
+        if (keyCode == 0) keyCode = Keyboard.getEventCharacter() + 256;
+        if (!Keyboard.getEventKeyState()) return;
+
+        int boundKey = ClientProxy.JEI_SEARCH_KEY.getKeyCode();
+        // 如果 KeyBinding 因冲突被 Forge 重置为 KEY_NONE(0)，回退到默认 F 键
+        if (boundKey <= 0) boundKey = Keyboard.KEY_F;
+        if (keyCode != boundKey) return;
 
         if (!(Minecraft.getMinecraft().currentScreen instanceof GuiMEMonitorable)) return;
         GuiMEMonitorable gui = (GuiMEMonitorable) Minecraft.getMinecraft().currentScreen;

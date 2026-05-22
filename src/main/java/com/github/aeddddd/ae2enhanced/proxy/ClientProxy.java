@@ -64,6 +64,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        MinecraftForge.EVENT_BUS.register(JEISearchKeyHandler.class);
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
@@ -226,6 +227,10 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ModItems.OMNI_WIRELESS_TERMINAL);
 
         // Omni 专用升级卡模型（根据 metadata 动态选择）
+        ModelLoader.registerItemVariants(ModItems.OMNI_UPGRADE_CARD,
+            new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_magnet", "inventory"),
+            new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_picker", "inventory")
+        );
         ModelLoader.setCustomMeshDefinition(ModItems.OMNI_UPGRADE_CARD, stack -> {
             int meta = stack.getMetadata();
             String name = (meta == 0) ? "magnet" : (meta == 1) ? "picker" : "unknown";
