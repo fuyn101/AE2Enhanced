@@ -25,7 +25,6 @@ import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction;
-import com.github.aeddddd.ae2enhanced.network.PacketSetSlotAmount;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -76,19 +75,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private int currentMouseX;
     private int currentMouseY;
 
-    // 中键数量调整 popup
-    private boolean showAmountPopup = false;
-    private Slot amountEditSlot = null;
-    private int amountEditInvType = 0; // 0=patternCraftingInv, 1=patternOutputInv
-    private MEGuiTextField amountField;
-    private static final int POPUP_WIDTH = 160;
-    private static final int POPUP_HEIGHT = 100;
-    private static final int BTN_W = 34;
-    private static final int BTN_H = 14;
-    private static final int[] PLUS_AMTS = {1, 10, 64, 1000};
-    private static final String[] PLUS_LABELS = {"+1", "+10", "+64", "+1k"};
-    private static final int[] MINUS_AMTS = {-1, -10, -64, -1000};
-    private static final String[] MINUS_LABELS = {"-1", "-10", "-64", "-1k"};
+
 
     public GuiOmniTerm(InventoryPlayer inventoryPlayer, ITerminalHost host) {
         super(inventoryPlayer, host, new ContainerOmniTerm(inventoryPlayer, host));
@@ -433,10 +420,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.title"), 8, 6, 0x404040);
         this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.inventory"), 8, 155 + this.extraHeight, 0x404040);
 
-        // 绘制数量调整 popup
-        if (this.showAmountPopup) {
-            this.drawAmountPopup(offsetX, offsetY);
-        }
     }
 
     @Override
@@ -453,64 +436,16 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     protected void mouseClicked(int xCoord, int yCoord, int btn) throws IOException {
-        // 数量调整 popup 点击处理
-        if (this.showAmountPopup) {
-            int pl = this.guiLeft + (this.xSize - POPUP_WIDTH) / 2;
-            int pt = this.guiTop + (this.ySize - POPUP_HEIGHT) / 2;
-
-            // 文本框
-            if (this.amountField != null && this.amountField.isMouseIn(xCoord, yCoord)) {
-                this.amountField.mouseClicked(xCoord, yCoord, btn);
-                return;
-            }
-
-            // + 按钮
-            for (int i = 0; i < 4; i++) {
-                int bx = pl + 8 + i * 37;
-                int by = pt + 24;
-                if (xCoord >= bx && xCoord < bx + BTN_W && yCoord >= by && yCoord < by + BTN_H) {
-                    this.addAmount(PLUS_AMTS[i]);
-                    return;
-                }
-            }
-
-            // - 按钮
-            for (int i = 0; i < 4; i++) {
-                int bx = pl + 8 + i * 37;
-                int by = pt + 62;
-                if (xCoord >= bx && xCoord < bx + BTN_W && yCoord >= by && yCoord < by + BTN_H) {
-                    this.addAmount(MINUS_AMTS[i]);
-                    return;
-                }
-            }
-
-            // 确认
-            int cfx = pl + 28;
-            int cfy = pt + 82;
-            if (xCoord >= cfx && xCoord < cfx + 46 && yCoord >= cfy && yCoord < cfy + 14) {
-                this.confirmAmountEdit();
-                return;
-            }
-
-            // 取消
-            int ccx = pl + 86;
-            int ccy = pt + 82;
-            if (xCoord >= ccx && xCoord < ccx + 46 && yCoord >= ccy && yCoord < ccy + 14) {
-                this.closeAmountPopup();
-                return;
-            }
-
-            return; // 点击 popup 其他区域不关闭
-        }
-
-        // 中键点击 ghost slot → 调整数量
+        // 中键点击 ghost slot → 打开数量输入子 GUI
         if (btn == 2) {
             Slot slot = this.getSlotUnderMouse(xCoord, yCoord);
             if (slot instanceof RCSlotFakeCraftingMatrix) {
-                this.openAmountPopup(slot, 0);
+                int amount = slot.getStack().isEmpty() ? 1 : slot.getStack().getCount();
+                this.mc.displayGuiScreen(new GuiOmniAmount(this, 0, slot.getSlotIndex(), amount));
                 return;
             } else if (slot instanceof RCSlotPatternOutputs) {
-                this.openAmountPopup(slot, 1);
+                int amount = slot.getStack().isEmpty() ? 1 : slot.getStack().getCount();
+                this.mc.displayGuiScreen(new GuiOmniAmount(this, 1, slot.getSlotIndex(), amount));
                 return;
             }
         }
@@ -530,21 +465,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     protected void keyTyped(char character, int key) throws IOException {
-        if (this.showAmountPopup) {
-            if (key == Keyboard.KEY_ESCAPE) {
-                this.closeAmountPopup();
-                return;
-            }
-            if (key == Keyboard.KEY_RETURN) {
-                this.confirmAmountEdit();
-                return;
-            }
-            if (this.amountField != null) {
-                this.amountField.textboxKeyTyped(character, key);
-            }
-            return;
-        }
-
         if (!this.checkHotbarKeys(key)) {
             if (AppEng.proxy.isActionKey(ActionKey.TOGGLE_FOCUS, key)) {
                 try {
@@ -651,128 +571,5 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         return null;
     }
 
-    // ================== 中键数量调整 popup ==================
 
-    private void openAmountPopup(Slot slot, int invType) {
-        this.showAmountPopup = true;
-        this.amountEditSlot = slot;
-        this.amountEditInvType = invType;
-
-        ItemStack stack = slot.getStack();
-        int currentAmount = stack.isEmpty() ? 1 : stack.getCount();
-
-        int popupLeft = this.guiLeft + (this.xSize - POPUP_WIDTH) / 2;
-        int popupTop = this.guiTop + (this.ySize - POPUP_HEIGHT) / 2;
-
-        this.amountField = new MEGuiTextField(this.fontRenderer, popupLeft + 50, popupTop + 44, 60, 14);
-        this.amountField.setMaxStringLength(9);
-        this.amountField.setTextColor(0xFFFFFF);
-        this.amountField.setText(String.valueOf(currentAmount));
-        this.amountField.setFocused(true);
-
-        Keyboard.enableRepeatEvents(true);
-    }
-
-    private void closeAmountPopup() {
-        this.showAmountPopup = false;
-        this.amountEditSlot = null;
-        this.amountField = null;
-        Keyboard.enableRepeatEvents(false);
-    }
-
-    private void confirmAmountEdit() {
-        if (this.amountEditSlot == null || this.amountField == null) {
-            this.closeAmountPopup();
-            return;
-        }
-
-        int amount;
-        try {
-            amount = Integer.parseInt(this.amountField.getText().trim());
-        } catch (NumberFormatException e) {
-            this.closeAmountPopup();
-            return;
-        }
-
-        if (amount < 1) amount = 1;
-        if (amount > 999999999) amount = 999999999;
-
-        int slotIndex = this.amountEditSlot.getSlotIndex();
-        AE2Enhanced.network.sendToServer(new PacketSetSlotAmount(this.amountEditInvType, slotIndex, amount));
-
-        this.closeAmountPopup();
-    }
-
-    private void drawAmountPopup(int offsetX, int offsetY) {
-        int pl = offsetX + (this.xSize - POPUP_WIDTH) / 2;
-        int pt = offsetY + (this.ySize - POPUP_HEIGHT) / 2;
-
-        // AE2 风格背景
-        Gui.drawRect(pl, pt, pl + POPUP_WIDTH, pt + POPUP_HEIGHT, 0xFFC6C6C6);
-        Gui.drawRect(pl + 1, pt + 1, pl + POPUP_WIDTH - 1, pt + POPUP_HEIGHT - 1, 0xFFF0F0F0);
-        Gui.drawRect(pl + 1, pt + 1, pl + POPUP_WIDTH - 1, pt + 18, 0xFFDCDCDC);
-
-        // 标题
-        this.fontRenderer.drawString("设置数量", pl + 6, pt + 5, 0x404040);
-
-        // 文本框
-        if (this.amountField != null) {
-            this.amountField.drawTextBox();
-        }
-
-        // + 按钮
-        for (int i = 0; i < 4; i++) {
-            int bx = pl + 8 + i * 37;
-            int by = pt + 24;
-            this.drawButton(bx, by, BTN_W, BTN_H, PLUS_LABELS[i],
-                this.currentMouseX >= bx && this.currentMouseX < bx + BTN_W
-                && this.currentMouseY >= by && this.currentMouseY < by + BTN_H);
-        }
-
-        // - 按钮
-        for (int i = 0; i < 4; i++) {
-            int bx = pl + 8 + i * 37;
-            int by = pt + 62;
-            this.drawButton(bx, by, BTN_W, BTN_H, MINUS_LABELS[i],
-                this.currentMouseX >= bx && this.currentMouseX < bx + BTN_W
-                && this.currentMouseY >= by && this.currentMouseY < by + BTN_H);
-        }
-
-        // 确认/取消
-        int cfx = pl + 28;
-        int cfy = pt + 82;
-        this.drawButton(cfx, cfy, 46, 14, "确认",
-            this.currentMouseX >= cfx && this.currentMouseX < cfx + 46
-            && this.currentMouseY >= cfy && this.currentMouseY < cfy + 14);
-
-        int ccx = pl + 86;
-        int ccy = pt + 82;
-        this.drawButton(ccx, ccy, 46, 14, "取消",
-            this.currentMouseX >= ccx && this.currentMouseX < ccx + 46
-            && this.currentMouseY >= ccy && this.currentMouseY < ccy + 14);
-    }
-
-    private void drawButton(int x, int y, int w, int h, String text, boolean hovered) {
-        int bg = hovered ? 0xFF909090 : 0xFF808080;
-        Gui.drawRect(x, y, x + w, y + h, 0xFFFFFFFF);
-        Gui.drawRect(x + 1, y + 1, x + w, y + h, 0xFF555555);
-        Gui.drawRect(x + 1, y + 1, x + w - 1, y + h - 1, bg);
-        int tw = this.fontRenderer.getStringWidth(text);
-        this.fontRenderer.drawString(text, x + (w - tw) / 2, y + (h - 8) / 2, 0xFFFFFF);
-    }
-
-    private void addAmount(int delta) {
-        if (this.amountField == null) return;
-        String text = this.amountField.getText();
-        int current;
-        try {
-            current = Integer.parseInt(text.trim());
-        } catch (NumberFormatException e) {
-            current = 1;
-        }
-        long result = (long) current + delta;
-        if (result < 1) result = 1;
-        if (result > 999999999) result = 999999999;
-        this.amountField.setText(String.valueOf((int) result));
-    }
 }
