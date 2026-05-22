@@ -75,6 +75,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private int currentMouseX;
     private int currentMouseY;
 
+    // 搜索框缓存（避免 keyTyped 中重复反射）
+    private MEGuiTextField omniSearchField;
+
 
 
     public GuiOmniTerm(InventoryPlayer inventoryPlayer, ITerminalHost host) {
@@ -183,6 +186,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             newField.setFocused(autoFocus || wasFocused);
             newField.setText(oldText);
             searchFieldField.set(this, newField);
+            this.omniSearchField = newField;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -369,15 +373,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
-        try {
-            Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
-            searchFieldField.setAccessible(true);
-            MEGuiTextField searchField = (MEGuiTextField) searchFieldField.get(this);
-            if (searchField != null) {
-                searchField.drawTextBox();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (this.omniSearchField != null) {
+            this.omniSearchField.drawTextBox();
         }
     }
 
@@ -475,54 +472,39 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     @Override
     protected void keyTyped(char character, int key) throws IOException {
         if (!this.checkHotbarKeys(key)) {
-            if (AppEng.proxy.isActionKey(ActionKey.TOGGLE_FOCUS, key)) {
-                try {
-                    Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
-                    searchFieldField.setAccessible(true);
-                    MEGuiTextField searchField = (MEGuiTextField) searchFieldField.get(this);
-                    if (searchField != null) {
-                        searchField.setFocused(!searchField.isFocused());
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                return;
-            }
-
-            try {
-                Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
-                searchFieldField.setAccessible(true);
-                MEGuiTextField searchField = (MEGuiTextField) searchFieldField.get(this);
-                if (searchField != null) {
-                    if (searchField.isFocused() && key == 28) {
-                        searchField.setFocused(false);
-                        return;
-                    }
-                    if (character == ' ' && searchField.getText().isEmpty()) {
-                        return;
-                    }
-                    boolean mouseInGui = this.isPointInRegion(0, 0, this.xSize, this.ySize, this.currentMouseX, this.currentMouseY);
-                    boolean wasSearchFieldFocused = searchField.isFocused();
-
-                    String searchMode = AEConfig.instance().getConfigManager().getSetting(Settings.SEARCH_MODE).name();
-                    boolean isAutoFocus = searchMode.contains("AUTOSEARCH");
-                    if (isAutoFocus && !searchField.isFocused() && mouseInGui) {
-                        searchField.setFocused(true);
-                    }
-                    if (searchField.textboxKeyTyped(character, key)) {
-                        this.repo.setSearchString(searchField.getText());
-                        this.repo.updateView();
-                        this.updateItemScrollRange();
-                    } else {
-                        if (!wasSearchFieldFocused) {
-                            searchField.setFocused(false);
-                        }
-                        super.keyTyped(character, key);
-                    }
+            MEGuiTextField searchField = this.omniSearchField;
+            if (searchField != null) {
+                if (AppEng.proxy.isActionKey(ActionKey.TOGGLE_FOCUS, key)) {
+                    searchField.setFocused(!searchField.isFocused());
                     return;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+
+                if (searchField.isFocused() && key == 28) {
+                    searchField.setFocused(false);
+                    return;
+                }
+                if (character == ' ' && searchField.getText().isEmpty()) {
+                    return;
+                }
+                boolean mouseInGui = this.isPointInRegion(0, 0, this.xSize, this.ySize, this.currentMouseX, this.currentMouseY);
+                boolean wasSearchFieldFocused = searchField.isFocused();
+
+                String searchMode = AEConfig.instance().getConfigManager().getSetting(Settings.SEARCH_MODE).name();
+                boolean isAutoFocus = searchMode.contains("AUTOSEARCH");
+                if (isAutoFocus && !searchField.isFocused() && mouseInGui) {
+                    searchField.setFocused(true);
+                }
+                if (searchField.textboxKeyTyped(character, key)) {
+                    this.repo.setSearchString(searchField.getText());
+                    this.repo.updateView();
+                    this.updateItemScrollRange();
+                } else {
+                    if (!wasSearchFieldFocused) {
+                        searchField.setFocused(false);
+                    }
+                    super.keyTyped(character, key);
+                }
+                return;
             }
         }
         super.keyTyped(character, key);
