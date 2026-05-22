@@ -38,34 +38,13 @@ public class JEISearchKeyHandler {
         jeiRuntime = runtime;
     }
 
-    @SubscribeEvent
-    public static void onKeyInput(InputEvent.KeyInputEvent event) {
-        // KeyBinding.isPressed() 在 KeyInputEvent 触发时 pressTime 尚未更新，总是返回 false。
-        // 直接使用 Keyboard 事件检测，同时匹配玩家自定义的键位绑定。
-        int keyCode = Keyboard.getEventKey();
-        if (keyCode == 0) keyCode = Keyboard.getEventCharacter() + 256;
-        if (!Keyboard.getEventKeyState()) return;
-
-        int boundKey = ClientProxy.JEI_SEARCH_KEY.getKeyCode();
-        // 如果 KeyBinding 因冲突被 Forge 重置为 KEY_NONE(0)，回退到默认 F 键
-        if (boundKey <= 0) boundKey = Keyboard.KEY_F;
-        if (keyCode != boundKey) return;
-
-        if (!(Minecraft.getMinecraft().currentScreen instanceof GuiMEMonitorable)) return;
-        GuiMEMonitorable gui = (GuiMEMonitorable) Minecraft.getMinecraft().currentScreen;
-
-        // 获取搜索栏，检查是否已获得焦点
-        MEGuiTextField searchField;
-        try {
-            Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
-            searchFieldField.setAccessible(true);
-            searchField = (MEGuiTextField) searchFieldField.get(gui);
-            if (searchField == null) return;
-            if (searchField.isFocused()) return; // 搜索栏已聚焦时不触发，避免打断输入
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to access terminal search field", e);
-            return;
-        }
+    /**
+     * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏。
+     * 由 GuiOmniTerm.keyTyped() 调用，不再依赖全局 InputEvent。
+     */
+    public static void performSearch(GuiMEMonitorable gui, MEGuiTextField searchField) {
+        if (searchField == null) return;
+        if (searchField.isFocused()) return; // 搜索栏已聚焦时不触发，避免打断输入
 
         // 获取 JEI 悬停物品：先查物品列表，再查收藏栏
         if (jeiRuntime == null) return;
@@ -107,9 +86,6 @@ public class JEISearchKeyHandler {
             Method setScrollBarMethod = GuiMEMonitorable.class.getDeclaredMethod("setScrollBar");
             setScrollBarMethod.setAccessible(true);
             setScrollBarMethod.invoke(gui);
-
-            // 默认不聚焦搜索栏，保持用户当前浏览位置
-            // searchField.setFocused(true);
 
             AE2Enhanced.LOGGER.debug("[AE2E] JEI search key pressed: set terminal search to '{}'", searchText);
         } catch (Exception e) {

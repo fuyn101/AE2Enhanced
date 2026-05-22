@@ -23,6 +23,7 @@ import appeng.util.IConfigManagerHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
+import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction;
 import net.minecraft.client.gui.Gui;
@@ -474,6 +475,12 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         if (!this.checkHotbarKeys(key)) {
             MEGuiTextField searchField = this.omniSearchField;
             if (searchField != null) {
+                // F 键 JEI 搜索（在 TOGGLE_FOCUS 和搜索栏输入之前处理）
+                if (key == Keyboard.KEY_F && !searchField.isFocused()) {
+                    JEISearchKeyHandler.performSearch(this, searchField);
+                    return;
+                }
+
                 if (AppEng.proxy.isActionKey(ActionKey.TOGGLE_FOCUS, key)) {
                     searchField.setFocused(!searchField.isFocused());
                     return;

@@ -106,7 +106,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private static final String NBT_SCROLL_OFFSET = "omni_scroll_offset";
 
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
-        super(ip, host, host instanceof appeng.api.implementations.guiobjects.IGuiItemObject ? (appeng.api.implementations.guiobjects.IGuiItemObject) host : null, false);
+        // AE2-UEL 在运行时为 WirelessTerminalGuiObject 添加了 IGuiItemObject 实现。
+        // 与标准无线终端容器 ContainerMEPortableTerminal 保持一致，直接传入 host。
+        super(ip, host, (appeng.api.implementations.guiobjects.IGuiItemObject) (Object) host, false);
         this.terminalHost = host;
 
         int maxStack = AE2EnhancedConfig.terminal.rightStorageMaxStackSize;
@@ -148,7 +150,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
         for (int i = 0; i < this.cellView.length; i++) {
             if (this.cellView[i] != null) {
-                this.inventorySlots.remove(this.cellView[i]);
+                int slotIndex = this.inventorySlots.indexOf(this.cellView[i]);
+                if (slotIndex >= 0) {
+                    this.inventorySlots.remove(slotIndex);
+                    this.inventoryItemStacks.remove(slotIndex);
+                }
                 this.cellView[i] = null;
             }
         }
@@ -179,8 +185,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 编码区 ==================
 
     private void setupPatternArea(InventoryPlayer ip, ITerminalHost host) {
-        this.patternCraftingInv = new AppEngInternalInventory(this, 81);
-        this.patternOutputInv = new AppEngInternalInventory(this, 27);
+        // maxStack=999：消除 AppEngInternalInventory 默认 slotLimit=1 对 ghost slot 的限制
+        this.patternCraftingInv = new AppEngInternalInventory(this, 81, 999);
+        this.patternOutputInv = new AppEngInternalInventory(this, 27, 999);
 
         for (int g = 0; g < 9; g++) {
             for (int r = 0; r < 3; r++) {
@@ -1097,13 +1104,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             return ((IInventorySlotAware) this.terminalHost).isBaubleSlot();
         }
         return false;
-    }
-
-    @Override
-    public Object getTarget() {
-        Object target = super.getTarget();
-        if (target != null) return target;
-        return this.terminalHost;
     }
 
     @Override
