@@ -55,8 +55,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private AppEngInternalInventory craftingInv;
 
     // === 编码区 ===
-    private AppEngInternalInventory patternCraftingInv;
-    private AppEngInternalInventory patternOutputInv;
+    public AppEngInternalInventory patternCraftingInv;
+    public AppEngInternalInventory patternOutputInv;
     private AppEngInternalInventory patternInv;
     private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
 
@@ -679,44 +679,46 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // ================== JEI 配方转移 ==================
 
-    public void loadPattern(byte mode, boolean isCrafting, java.util.List<ItemStack> inputs, java.util.List<ItemStack> outputs) {
-        // mode: 0=default, 1=encoding only (shift), 2=crafting only (alt)
-
-        // crafting recipe 的 shift mode 回退到 default
-        if (isCrafting && mode == 1) {
-            mode = 0;
-        }
-        // processing recipe 的 alt mode 回退到 default
-        if (!isCrafting && mode == 2) {
-            mode = 0;
-        }
-
-        // 切换模式
-        if (this.patternCraftMode != isCrafting) {
-            this.setPatternCraftMode(isCrafting);
-        }
+    public void loadPattern(byte mode, boolean isCrafting, java.util.Map<Integer, ItemStack> inputs, java.util.Map<Integer, ItemStack> outputs) {
+        // mode: 0=default/both, 1=encoding only (shift), 2=crafting only (alt)
 
         if (isCrafting) {
-            // crafting recipe: 只操作合成编码区（patternCraftingInv 前 9 格）
+            // Crafting recipe: 可以填充左边合成台和右边编码区
+
+            // 1. 填充左边真实合成台（mode=0 或 mode=2）
             if (mode == 0 || mode == 2) {
-                // 清空合成编码区
+                this.fillCraftingGridFromJEI(inputs);
+            }
+
+            // 2. 填充右边编码区（mode=0 或 mode=1）
+            if (mode == 0 || mode == 1) {
+                if (!this.patternCraftMode) {
+                    this.setPatternCraftMode(true);
+                }
                 for (int i = 0; i < 9; i++) {
                     this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
                 }
                 this.cOut.setStackInSlot(0, ItemStack.EMPTY);
-                // 填充输入
-                for (int i = 0; i < Math.min(inputs.size(), 9); i++) {
-                    this.patternCraftingInv.setStackInSlot(i, inputs.get(i).copy());
+                for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+                    int slot = entry.getKey();
+                    if (slot >= 0 && slot < 9) {
+                        this.patternCraftingInv.setStackInSlot(slot, entry.getValue().copy());
+                    }
                 }
-                // 填充输出
                 if (!outputs.isEmpty()) {
-                    this.cOut.setStackInSlot(0, outputs.get(0).copy());
+                    this.cOut.setStackInSlot(0, outputs.values().iterator().next().copy());
                 }
                 this.updatePatternCraftingRecipe();
             }
         } else {
-            // processing recipe: 只操作处理编码区
+            // Processing recipe: 只填充编码区
+            if (mode == 2) {
+                mode = 0;
+            }
             if (mode == 0 || mode == 1) {
+                if (this.patternCraftMode) {
+                    this.setPatternCraftMode(false);
+                }
                 // 清空当前 scrollOffset 对应的输入和输出
                 int startIdx = this.scrollOffset * 9;
                 for (int i = 0; i < 9 && startIdx + i < 81; i++) {
@@ -726,16 +728,20 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 for (int i = 0; i < 3 && startOutIdx + i < 27; i++) {
                     this.patternOutputInv.setStackInSlot(startOutIdx + i, ItemStack.EMPTY);
                 }
-                // 填充输入
-                for (int i = 0; i < Math.min(inputs.size(), 9); i++) {
-                    if (startIdx + i < 81) {
-                        this.patternCraftingInv.setStackInSlot(startIdx + i, inputs.get(i).copy());
+                // 填充输入：按 JEI slot index 映射到当前 group 的本地 slot
+                for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+                    int slot = entry.getKey();
+                    int localSlot = slot; // JEI slot index 直接映射
+                    if (localSlot >= 0 && localSlot < 9 && startIdx + localSlot < 81) {
+                        this.patternCraftingInv.setStackInSlot(startIdx + localSlot, entry.getValue().copy());
                     }
                 }
                 // 填充输出
-                for (int i = 0; i < Math.min(outputs.size(), 3); i++) {
-                    if (startOutIdx + i < 27) {
-                        this.patternOutputInv.setStackInSlot(startOutIdx + i, outputs.get(i).copy());
+                int outIdx = 0;
+                for (ItemStack out : outputs.values()) {
+                    if (outIdx < 3 && startOutIdx + outIdx < 27) {
+                        this.patternOutputInv.setStackInSlot(startOutIdx + outIdx, out.copy());
+                        outIdx++;
                     }
                 }
             }
@@ -744,7 +750,88 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.detectAndSendChanges();
     }
 
+    /**
+     * 从 JEI 配方填充左侧真实合成台。先尝试从网络提取物品，网络中没有则从玩家背包移动。
+     */
+    private void fillCraftingGridFromJEI(java.util.Map<Integer, ItemStack> inputs) {
+        // 1. 清空现有物品并返还网络/背包
+        for (int i = 0; i < 9; i++) {
+            ItemStack existing = this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
+            if (!existing.isEmpty()) {
+                this.returnToNetworkOrPlayer(existing);
+            }
+        }
+        this.craftingOutput.setStackInSlot(0, ItemStack.EMPTY);
+
+        // 2. 按 JEI slot index 提取并放入所需物品
+        for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+            int slot = entry.getKey();
+            if (slot < 0 || slot >= 9) continue;
+            ItemStack needed = entry.getValue().copy();
+
+            // 先尝试从 AE 网络提取
+            boolean filled = false;
+            if (this.getPowerSource() != null && this.getCellInventory() != null) {
+                try {
+                    IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                    IAEItemStack toExtract = channel.createStack(needed);
+                    if (toExtract != null) {
+                        toExtract.setStackSize(needed.getCount());
+                        IAEItemStack extracted = Platform.poweredExtraction(this.getPowerSource(), this.getCellInventory(), toExtract, this.getActionSource());
+                        if (extracted != null && extracted.getStackSize() > 0) {
+                            this.craftingInv.setStackInSlot(slot, extracted.createItemStack());
+                            filled = true;
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            if (filled) continue;
+
+            // 网络没有，尝试从玩家背包移动
+            if (this.moveFromPlayerToCrafting(slot, needed)) {
+                continue;
+            }
+
+            // 都没有，slot 保持为空
+        }
+
+        this.updateRealCraftingRecipe();
+    }
+
+    /**
+     * 从玩家背包寻找匹配物品并移动到 craftingInv 的指定 slot。
+     */
+    private boolean moveFromPlayerToCrafting(int craftingSlot, ItemStack needed) {
+        for (int i = 0; i < this.getPlayerInv().getSizeInventory(); i++) {
+            ItemStack playerStack = this.getPlayerInv().getStackInSlot(i);
+            if (!playerStack.isEmpty() && playerStack.isItemEqual(needed) && ItemStack.areItemStackTagsEqual(playerStack, needed)) {
+                int toMove = Math.min(playerStack.getCount(), needed.getCount());
+                playerStack.shrink(toMove);
+                if (playerStack.getCount() <= 0) {
+                    this.getPlayerInv().setInventorySlotContents(i, ItemStack.EMPTY);
+                }
+                ItemStack placed = needed.copy();
+                placed.setCount(toMove);
+                this.craftingInv.setStackInSlot(craftingSlot, placed);
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ================== 清除 ==================
+
+    public void clearCrafting() {
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = this.craftingInv.extractItem(i, Integer.MAX_VALUE, false);
+            this.returnToNetworkOrPlayer(stack);
+        }
+        ItemStack output = this.craftingOutput.extractItem(0, Integer.MAX_VALUE, false);
+        this.returnToNetworkOrPlayer(output);
+        this.updateRealCraftingRecipe();
+        this.detectAndSendChanges();
+    }
 
     public void clearPattern() {
         if (this.patternCraftMode) {

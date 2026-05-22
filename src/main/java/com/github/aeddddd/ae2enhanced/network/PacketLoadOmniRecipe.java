@@ -3,17 +3,18 @@ package com.github.aeddddd.ae2enhanced.network;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Omni Terminal JEI 配方转移网络包
+ *
+ * 使用 Map<Integer, ItemStack> 保留 JEI slot index，确保配方空位正确对应。
  */
 public class PacketLoadOmniRecipe implements IMessage {
 
@@ -22,24 +23,26 @@ public class PacketLoadOmniRecipe implements IMessage {
     public PacketLoadOmniRecipe() {
     }
 
-    public PacketLoadOmniRecipe(byte mode, boolean isCrafting, List<ItemStack> inputs, List<ItemStack> outputs) {
+    public PacketLoadOmniRecipe(byte mode, boolean isCrafting, Map<Integer, ItemStack> inputs, Map<Integer, ItemStack> outputs) {
         this.data = new NBTTagCompound();
         this.data.setByte("mode", mode);
         this.data.setBoolean("isCrafting", isCrafting);
-        NBTTagList inList = new NBTTagList();
-        for (ItemStack stack : inputs) {
-            if (stack != null && !stack.isEmpty()) {
-                inList.appendTag(stack.writeToNBT(new NBTTagCompound()));
+
+        NBTTagCompound inputsTag = new NBTTagCompound();
+        for (Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                inputsTag.setTag(String.valueOf(entry.getKey()), entry.getValue().writeToNBT(new NBTTagCompound()));
             }
         }
-        this.data.setTag("inputs", inList);
-        NBTTagList outList = new NBTTagList();
-        for (ItemStack stack : outputs) {
-            if (stack != null && !stack.isEmpty()) {
-                outList.appendTag(stack.writeToNBT(new NBTTagCompound()));
+        this.data.setTag("inputs", inputsTag);
+
+        NBTTagCompound outputsTag = new NBTTagCompound();
+        for (Map.Entry<Integer, ItemStack> entry : outputs.entrySet()) {
+            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                outputsTag.setTag(String.valueOf(entry.getKey()), entry.getValue().writeToNBT(new NBTTagCompound()));
             }
         }
-        this.data.setTag("outputs", outList);
+        this.data.setTag("outputs", outputsTag);
     }
 
     @Override
@@ -68,18 +71,25 @@ public class PacketLoadOmniRecipe implements IMessage {
                         (com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm) ctx.getServerHandler().player.openContainer;
                 net.minecraft.nbt.NBTTagCompound data = message.getData();
                 if (data == null) return;
+
                 byte mode = data.getByte("mode");
                 boolean isCrafting = data.getBoolean("isCrafting");
-                net.minecraft.nbt.NBTTagList inList = data.getTagList("inputs", 10);
-                net.minecraft.nbt.NBTTagList outList = data.getTagList("outputs", 10);
-                java.util.List<net.minecraft.item.ItemStack> inputs = new java.util.ArrayList<>();
-                java.util.List<net.minecraft.item.ItemStack> outputs = new java.util.ArrayList<>();
-                for (int i = 0; i < inList.tagCount(); i++) {
-                    inputs.add(new net.minecraft.item.ItemStack(inList.getCompoundTagAt(i)));
+
+                Map<Integer, net.minecraft.item.ItemStack> inputs = new HashMap<>();
+                Map<Integer, net.minecraft.item.ItemStack> outputs = new HashMap<>();
+
+                net.minecraft.nbt.NBTTagCompound inTag = data.getCompoundTag("inputs");
+                for (String key : inTag.getKeySet()) {
+                    int slot = Integer.parseInt(key);
+                    inputs.put(slot, new net.minecraft.item.ItemStack(inTag.getCompoundTag(key)));
                 }
-                for (int i = 0; i < outList.tagCount(); i++) {
-                    outputs.add(new net.minecraft.item.ItemStack(outList.getCompoundTagAt(i)));
+
+                net.minecraft.nbt.NBTTagCompound outTag = data.getCompoundTag("outputs");
+                for (String key : outTag.getKeySet()) {
+                    int slot = Integer.parseInt(key);
+                    outputs.put(slot, new net.minecraft.item.ItemStack(outTag.getCompoundTag(key)));
                 }
+
                 c.loadPattern(mode, isCrafting, inputs, outputs);
             });
             return null;

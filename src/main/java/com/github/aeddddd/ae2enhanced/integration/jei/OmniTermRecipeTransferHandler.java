@@ -11,8 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -34,20 +33,22 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
     public IRecipeTransferError transferRecipe(ContainerOmniTerm container, IRecipeLayout recipeLayout, EntityPlayer player, boolean maxTransfer, boolean doTransfer) {
         boolean isCrafting = recipeLayout.getRecipeCategory().getUid().equals("minecraft.crafting");
 
-        List<ItemStack> inputs = new ArrayList<>();
-        List<ItemStack> outputs = new ArrayList<>();
+        // 使用 Map 保留 JEI slot index，确保空位不被忽略
+        Map<Integer, ItemStack> inputs = new HashMap<>();
+        Map<Integer, ItemStack> outputs = new HashMap<>();
 
         Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
         for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : ingredients.entrySet()) {
+            int slotIndex = entry.getKey();
             IGuiIngredient<ItemStack> ing = entry.getValue();
             ItemStack displayed = ing.getDisplayedIngredient();
             if (displayed == null || displayed.isEmpty()) {
                 continue;
             }
             if (ing.isInput()) {
-                inputs.add(displayed.copy());
+                inputs.put(slotIndex, displayed.copy());
             } else {
-                outputs.add(displayed.copy());
+                outputs.put(slotIndex, displayed.copy());
             }
         }
 
@@ -65,7 +66,7 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
         } else if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) {
             mode = 2; // Alt: 只到合成区
         } else {
-            mode = 0; // 默认
+            mode = 0; // 默认: 两边
         }
 
         // 处理配方没有合成区，Alt 模式回退到默认

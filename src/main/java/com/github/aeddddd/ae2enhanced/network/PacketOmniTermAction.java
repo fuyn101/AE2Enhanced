@@ -55,7 +55,10 @@ public class PacketOmniTermAction implements IMessage {
                             c.encode();
                         }
                         break;
-                    case "Clear":
+                    case "ClearCrafting":
+                        c.clearCrafting();
+                        break;
+                    case "ClearPattern":
                         c.clearPattern();
                         break;
                     case "MultiplyByTwo":
