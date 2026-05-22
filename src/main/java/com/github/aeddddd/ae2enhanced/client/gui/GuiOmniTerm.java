@@ -81,8 +81,14 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     private Slot amountEditSlot = null;
     private int amountEditInvType = 0; // 0=patternCraftingInv, 1=patternOutputInv
     private MEGuiTextField amountField;
-    private static final int POPUP_WIDTH = 120;
-    private static final int POPUP_HEIGHT = 60;
+    private static final int POPUP_WIDTH = 160;
+    private static final int POPUP_HEIGHT = 100;
+    private static final int BTN_W = 34;
+    private static final int BTN_H = 14;
+    private static final int[] PLUS_AMTS = {1, 10, 64, 1000};
+    private static final String[] PLUS_LABELS = {"+1", "+10", "+64", "+1k"};
+    private static final int[] MINUS_AMTS = {-1, -10, -64, -1000};
+    private static final String[] MINUS_LABELS = {"-1", "-10", "-64", "-1k"};
 
     public GuiOmniTerm(InventoryPlayer inventoryPlayer, ITerminalHost host) {
         super(inventoryPlayer, host, new ContainerOmniTerm(inventoryPlayer, host));
@@ -449,27 +455,51 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     protected void mouseClicked(int xCoord, int yCoord, int btn) throws IOException {
         // 数量调整 popup 点击处理
         if (this.showAmountPopup) {
-            int popupLeft = this.guiLeft + (this.xSize - POPUP_WIDTH) / 2;
-            int popupTop = this.guiTop + (this.ySize - POPUP_HEIGHT) / 2;
+            int pl = this.guiLeft + (this.xSize - POPUP_WIDTH) / 2;
+            int pt = this.guiTop + (this.ySize - POPUP_HEIGHT) / 2;
 
             // 文本框
-            if (this.amountField != null && xCoord >= popupLeft + 10 && xCoord <= popupLeft + 110
-                    && yCoord >= popupTop + 20 && yCoord <= popupTop + 32) {
+            if (this.amountField != null && this.amountField.isMouseIn(xCoord, yCoord)) {
                 this.amountField.mouseClicked(xCoord, yCoord, btn);
                 return;
             }
-            // 确认按钮
-            if (xCoord >= popupLeft + 10 && xCoord <= popupLeft + 55
-                    && yCoord >= popupTop + 38 && yCoord <= popupTop + 54) {
+
+            // + 按钮
+            for (int i = 0; i < 4; i++) {
+                int bx = pl + 8 + i * 37;
+                int by = pt + 24;
+                if (xCoord >= bx && xCoord < bx + BTN_W && yCoord >= by && yCoord < by + BTN_H) {
+                    this.addAmount(PLUS_AMTS[i]);
+                    return;
+                }
+            }
+
+            // - 按钮
+            for (int i = 0; i < 4; i++) {
+                int bx = pl + 8 + i * 37;
+                int by = pt + 62;
+                if (xCoord >= bx && xCoord < bx + BTN_W && yCoord >= by && yCoord < by + BTN_H) {
+                    this.addAmount(MINUS_AMTS[i]);
+                    return;
+                }
+            }
+
+            // 确认
+            int cfx = pl + 28;
+            int cfy = pt + 82;
+            if (xCoord >= cfx && xCoord < cfx + 46 && yCoord >= cfy && yCoord < cfy + 14) {
                 this.confirmAmountEdit();
                 return;
             }
-            // 取消按钮
-            if (xCoord >= popupLeft + 65 && xCoord <= popupLeft + 110
-                    && yCoord >= popupTop + 38 && yCoord <= popupTop + 54) {
+
+            // 取消
+            int ccx = pl + 86;
+            int ccy = pt + 82;
+            if (xCoord >= ccx && xCoord < ccx + 46 && yCoord >= ccy && yCoord < ccy + 14) {
                 this.closeAmountPopup();
                 return;
             }
+
             return; // 点击 popup 其他区域不关闭
         }
 
@@ -634,8 +664,8 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int popupLeft = this.guiLeft + (this.xSize - POPUP_WIDTH) / 2;
         int popupTop = this.guiTop + (this.ySize - POPUP_HEIGHT) / 2;
 
-        this.amountField = new MEGuiTextField(this.fontRenderer, popupLeft + 10, popupTop + 20, 100, 12);
-        this.amountField.setMaxStringLength(6);
+        this.amountField = new MEGuiTextField(this.fontRenderer, popupLeft + 50, popupTop + 44, 60, 14);
+        this.amountField.setMaxStringLength(9);
         this.amountField.setTextColor(0xFFFFFF);
         this.amountField.setText(String.valueOf(currentAmount));
         this.amountField.setFocused(true);
@@ -664,6 +694,9 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             return;
         }
 
+        if (amount < 1) amount = 1;
+        if (amount > 999999999) amount = 999999999;
+
         int slotIndex = this.amountEditSlot.getSlotIndex();
         AE2Enhanced.network.sendToServer(new PacketSetSlotAmount(this.amountEditInvType, slotIndex, amount));
 
@@ -671,38 +704,75 @@ public class GuiOmniTerm extends GuiMEMonitorable {
     }
 
     private void drawAmountPopup(int offsetX, int offsetY) {
-        int popupLeft = offsetX + (this.xSize - POPUP_WIDTH) / 2;
-        int popupTop = offsetY + (this.ySize - POPUP_HEIGHT) / 2;
+        int pl = offsetX + (this.xSize - POPUP_WIDTH) / 2;
+        int pt = offsetY + (this.ySize - POPUP_HEIGHT) / 2;
 
-        // 半透明背景 + 边框
-        Gui.drawRect(popupLeft, popupTop, popupLeft + POPUP_WIDTH, popupTop + POPUP_HEIGHT, 0xCC000000);
-        Gui.drawRect(popupLeft, popupTop, popupLeft + POPUP_WIDTH, popupTop + 1, 0xFFFFFFFF);
-        Gui.drawRect(popupLeft, popupTop + POPUP_HEIGHT - 1, popupLeft + POPUP_WIDTH, popupTop + POPUP_HEIGHT, 0xFFFFFFFF);
-        Gui.drawRect(popupLeft, popupTop, popupLeft + 1, popupTop + POPUP_HEIGHT, 0xFFFFFFFF);
-        Gui.drawRect(popupLeft + POPUP_WIDTH - 1, popupTop, popupLeft + POPUP_WIDTH, popupTop + POPUP_HEIGHT, 0xFFFFFFFF);
+        // AE2 风格背景
+        Gui.drawRect(pl, pt, pl + POPUP_WIDTH, pt + POPUP_HEIGHT, 0xFFC6C6C6);
+        Gui.drawRect(pl + 1, pt + 1, pl + POPUP_WIDTH - 1, pt + POPUP_HEIGHT - 1, 0xFFF0F0F0);
+        Gui.drawRect(pl + 1, pt + 1, pl + POPUP_WIDTH - 1, pt + 18, 0xFFDCDCDC);
 
         // 标题
-        this.fontRenderer.drawString("设置数量", popupLeft + 10, popupTop + 6, 0xFFFFFF);
+        this.fontRenderer.drawString("设置数量", pl + 6, pt + 5, 0x404040);
 
         // 文本框
         if (this.amountField != null) {
             this.amountField.drawTextBox();
         }
 
-        // 确认按钮
-        int confirmLeft = popupLeft + 10;
-        int confirmTop = popupTop + 38;
-        boolean confirmHovered = this.currentMouseX >= confirmLeft && this.currentMouseX <= confirmLeft + 45
-                && this.currentMouseY >= confirmTop && this.currentMouseY <= confirmTop + 16;
-        Gui.drawRect(confirmLeft, confirmTop, confirmLeft + 45, confirmTop + 16, confirmHovered ? 0xFF558855 : 0xFF336633);
-        this.fontRenderer.drawString("确认", confirmLeft + 12, confirmTop + 4, 0xFFFFFF);
+        // + 按钮
+        for (int i = 0; i < 4; i++) {
+            int bx = pl + 8 + i * 37;
+            int by = pt + 24;
+            this.drawButton(bx, by, BTN_W, BTN_H, PLUS_LABELS[i],
+                this.currentMouseX >= bx && this.currentMouseX < bx + BTN_W
+                && this.currentMouseY >= by && this.currentMouseY < by + BTN_H);
+        }
 
-        // 取消按钮
-        int cancelLeft = popupLeft + 65;
-        int cancelTop = popupTop + 38;
-        boolean cancelHovered = this.currentMouseX >= cancelLeft && this.currentMouseX <= cancelLeft + 45
-                && this.currentMouseY >= cancelTop && this.currentMouseY <= cancelTop + 16;
-        Gui.drawRect(cancelLeft, cancelTop, cancelLeft + 45, cancelTop + 16, cancelHovered ? 0xFF885555 : 0xFF663333);
-        this.fontRenderer.drawString("取消", cancelLeft + 12, cancelTop + 4, 0xFFFFFF);
+        // - 按钮
+        for (int i = 0; i < 4; i++) {
+            int bx = pl + 8 + i * 37;
+            int by = pt + 62;
+            this.drawButton(bx, by, BTN_W, BTN_H, MINUS_LABELS[i],
+                this.currentMouseX >= bx && this.currentMouseX < bx + BTN_W
+                && this.currentMouseY >= by && this.currentMouseY < by + BTN_H);
+        }
+
+        // 确认/取消
+        int cfx = pl + 28;
+        int cfy = pt + 82;
+        this.drawButton(cfx, cfy, 46, 14, "确认",
+            this.currentMouseX >= cfx && this.currentMouseX < cfx + 46
+            && this.currentMouseY >= cfy && this.currentMouseY < cfy + 14);
+
+        int ccx = pl + 86;
+        int ccy = pt + 82;
+        this.drawButton(ccx, ccy, 46, 14, "取消",
+            this.currentMouseX >= ccx && this.currentMouseX < ccx + 46
+            && this.currentMouseY >= ccy && this.currentMouseY < ccy + 14);
+    }
+
+    private void drawButton(int x, int y, int w, int h, String text, boolean hovered) {
+        int bg = hovered ? 0xFF909090 : 0xFF808080;
+        Gui.drawRect(x, y, x + w, y + h, 0xFFFFFFFF);
+        Gui.drawRect(x + 1, y + 1, x + w, y + h, 0xFF555555);
+        Gui.drawRect(x + 1, y + 1, x + w - 1, y + h - 1, bg);
+        int tw = this.fontRenderer.getStringWidth(text);
+        this.fontRenderer.drawString(text, x + (w - tw) / 2, y + (h - 8) / 2, 0xFFFFFF);
+    }
+
+    private void addAmount(int delta) {
+        if (this.amountField == null) return;
+        String text = this.amountField.getText();
+        int current;
+        try {
+            current = Integer.parseInt(text.trim());
+        } catch (NumberFormatException e) {
+            current = 1;
+        }
+        long result = (long) current + delta;
+        if (result < 1) result = 1;
+        if (result > 999999999) result = 999999999;
+        this.amountField.setText(String.valueOf((int) result));
     }
 }

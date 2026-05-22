@@ -61,7 +61,7 @@ public class PacketSetSlotAmount implements IMessage {
                 }
 
                 if (!stack.isEmpty()) {
-                    int newAmount = Math.max(1, Math.min(message.amount, stack.getMaxStackSize()));
+                    int newAmount = Math.max(1, message.amount);
                     stack.setCount(newAmount);
                     c.detectAndSendChanges();
                 }
