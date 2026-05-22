@@ -582,7 +582,6 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
         int delta = Mouse.getEventDWheel();
         if (delta != 0) {
             int mx = Mouse.getEventX() * this.width / this.mc.displayWidth;
@@ -591,14 +590,17 @@ public class GuiOmniTerm extends GuiMEMonitorable {
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 316
                     && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
             if (inPatternArea) {
+                // 编码区滚轮独立处理，阻止 super 同时滚动物品库
                 this.patternScrollBar.wheel(delta);
                 int newOffset = this.patternScrollBar.getCurrentScroll();
                 if (newOffset != this.container.getScrollOffset()) {
                     this.container.setRCSlot(newOffset);
                     AE2Enhanced.network.sendToServer(new PacketOmniTermAction("Scroll", String.valueOf(newOffset)));
                 }
+                return;
             }
         }
+        super.handleMouseInput();
     }
 
     private void updateItemScrollRange() {
