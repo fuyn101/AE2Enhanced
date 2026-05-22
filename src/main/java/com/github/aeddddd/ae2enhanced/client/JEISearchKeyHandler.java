@@ -15,6 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import org.lwjgl.input.Keyboard;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -42,7 +43,11 @@ public class JEISearchKeyHandler {
 
     @SubscribeEvent
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (!ClientProxy.JEI_SEARCH_KEY.isPressed()) return;
+        // KeyBinding.isPressed() 在 KeyInputEvent 触发时 pressTime 尚未更新，总是返回 false。
+        // 直接使用 Keyboard 事件检测，同时匹配玩家自定义的键位绑定。
+        if (Keyboard.getEventKey() != ClientProxy.JEI_SEARCH_KEY.getKeyCode() || !Keyboard.getEventKeyState()) {
+            return;
+        }
 
         if (!(Minecraft.getMinecraft().currentScreen instanceof GuiMEMonitorable)) return;
         GuiMEMonitorable gui = (GuiMEMonitorable) Minecraft.getMinecraft().currentScreen;
