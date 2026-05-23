@@ -32,7 +32,8 @@
     "MixinGuiCraftConfirm",
     "MixinGuiCellWorkbench",
     "MixinGuiContainerWrapper",
-    "MixinGuiScreenHelper"
+    "MixinGuiScreenHelper",
+    "MixinGuiCraftingCPU"
   ],
   "server": []
 }
