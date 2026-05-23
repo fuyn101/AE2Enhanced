@@ -22,7 +22,8 @@
     "MixinUpgradeSlots",
     "MixinSlotRestrictedInput",
     "MixinAEBasePart",
-    "MixinAENetworkTile"
+    "MixinAENetworkTile",
+    "MixinPatternHelper"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",

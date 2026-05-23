@@ -47,6 +47,7 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     private static final ResourceLocation OMNI_BG = new ResourceLocation("ae2enhanced", "textures/gui/omnigui.png");
     private static final ResourceLocation PATTERN_MODES = new ResourceLocation("ae2enhanced", "textures/gui/pattern_modes.png");
+    private static final ResourceLocation CRAFTING_HIGHLIGHT = new ResourceLocation("ae2enhanced", "textures/gui/crafting.png");
 
     private final ContainerOmniTerm container;
     private GuiScrollbar patternScrollBar;
@@ -85,6 +86,15 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         super(inventoryPlayer, host, new ContainerOmniTerm(inventoryPlayer, host));
         this.container = (ContainerOmniTerm) this.inventorySlots;
         this.xSize = 357;
+
+        // 通过反射将 final repo 替换为 OmniItemRepo（支持合成置顶）
+        try {
+            java.lang.reflect.Field repoField = appeng.client.gui.implementations.GuiMEMonitorable.class.getDeclaredField("repo");
+            repoField.setAccessible(true);
+            repoField.set(this, new com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo(this.getScrollBar(), this));
+        } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error("[AE2E] Failed to replace ItemRepo with OmniItemRepo", e);
+        }
     }
 
     @Override
@@ -373,6 +383,13 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         int modeY = this.container.isPatternCraftMode() ? 0 : 66;
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
+        // 合成置顶：第一行高亮背景（crafting.png 只有 9 格，需平铺两次覆盖 18 格）
+        if (!this.container.getClientActiveCrafting().isEmpty()) {
+            this.mc.getTextureManager().bindTexture(CRAFTING_HIGHLIGHT);
+            this.drawTexturedModalRect(offsetX + 8, offsetY + 18, 0, 0, 162, 18);
+            this.drawTexturedModalRect(offsetX + 8 + 162, offsetY + 18, 0, 0, 162, 18);
+        }
+
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
         if (this.omniSearchField != null) {
             this.omniSearchField.drawTextBox();
@@ -431,6 +448,13 @@ public class GuiOmniTerm extends GuiMEMonitorable {
 
     @Override
     public void updateScreen() {
+        // 同步 active crafting 数据到 OmniItemRepo
+        if (this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) {
+            com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                    (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            omniRepo.setActiveCrafting(this.container.getClientActiveCrafting());
+        }
+
         super.updateScreen();
         // 修复物品库滚动条位置和范围（super.updateScreen 中的 setScrollBar 会重置它们）
         GuiScrollbar bar = this.getScrollBar();

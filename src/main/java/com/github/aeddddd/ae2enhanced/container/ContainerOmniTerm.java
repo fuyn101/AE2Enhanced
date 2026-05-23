@@ -46,6 +46,7 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,6 +93,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // === 宿主 ===
     private final ITerminalHost terminalHost;
+
+    // === 合成置顶：active crafting 同步 ===
+    private List<IAEItemStack> activeCraftingCache = Collections.emptyList();
+    private int craftingUpdateCooldown = 0;
+    private List<IAEItemStack> clientActiveCrafting = Collections.emptyList();
 
     // === 编码区布局常量（可扩展） ===
     public static final int CRAFTING_GRID_BASE_X = 187;
@@ -1172,5 +1178,64 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
 
         return flag;
+    }
+
+    // ================== 合成置顶：active crafting 采集与同步 ==================
+
+    /**
+     * 每 20 ticks 检查一次 Crafting CPU 中的正在合成物品，变化时发送网络包到客户端。
+     */
+    @Override
+    public void detectAndSendChanges() {
+        super.detectAndSendChanges();
+        if (!Platform.isServer()) return;
+        if (--this.craftingUpdateCooldown > 0) return;
+        this.craftingUpdateCooldown = 20;
+
+        List<IAEItemStack> current = this.collectActiveCrafting();
+        if (!this.isCraftingListEqual(this.activeCraftingCache, current)) {
+            this.activeCraftingCache = current;
+            if (this.getPlayerInv().player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                        new com.github.aeddddd.ae2enhanced.network.PacketOmniCraftingUpdate(current),
+                        (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
+            }
+        }
+    }
+
+    private List<IAEItemStack> collectActiveCrafting() {
+        List<IAEItemStack> result = new ArrayList<>();
+        if (!(this.terminalHost instanceof appeng.api.networking.security.IActionHost)) return result;
+        appeng.api.networking.security.IActionHost host = (appeng.api.networking.security.IActionHost) this.terminalHost;
+        appeng.api.networking.IGridNode node = host.getActionableNode();
+        if (node == null || node.getGrid() == null) return result;
+        appeng.api.networking.crafting.ICraftingGrid craftingGrid = node.getGrid().getCache(appeng.api.networking.crafting.ICraftingGrid.class);
+        if (craftingGrid == null) return result;
+        for (appeng.api.networking.crafting.ICraftingCPU cpu : craftingGrid.getCpus()) {
+            IAEItemStack output = cpu.getFinalOutput();
+            if (output != null && output.getStackSize() > 0) {
+                result.add(output);
+            }
+        }
+        return result;
+    }
+
+    private boolean isCraftingListEqual(List<IAEItemStack> a, List<IAEItemStack> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            IAEItemStack sa = a.get(i);
+            IAEItemStack sb = b.get(i);
+            if (sa == null || sb == null) return false;
+            if (!sa.equals(sb)) return false;
+        }
+        return true;
+    }
+
+    public void setClientActiveCrafting(List<IAEItemStack> list) {
+        this.clientActiveCrafting = list != null ? list : Collections.emptyList();
+    }
+
+    public List<IAEItemStack> getClientActiveCrafting() {
+        return this.clientActiveCrafting;
     }
 }
