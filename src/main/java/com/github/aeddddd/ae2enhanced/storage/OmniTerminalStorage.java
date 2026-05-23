@@ -22,7 +22,6 @@ public class OmniTerminalStorage {
     private static final String KEY_PATTERN_OUTPUTS = "patternOutputs";
     private static final String KEY_RIGHT_STORAGE = "rightStorage";
     private static final String KEY_PATTERN = "pattern";
-    private static final String KEY_COMPLETED_CRAFTING = "completedCrafting";
 
     public static final int SIZE_CRAFTING = 9;
     public static final int SIZE_PATTERN_INPUTS = 81;
@@ -38,7 +37,6 @@ public class OmniTerminalStorage {
     private final OmniTerminalInventory upgradeInventory;
     private final OmniTerminalInventory patternInventory;
 
-    private List<IAEItemStack> completedCrafting = Collections.emptyList();
 
     private boolean dirty = false;
 
@@ -75,15 +73,6 @@ public class OmniTerminalStorage {
         return patternInventory;
     }
 
-    public List<IAEItemStack> getCompletedCrafting() {
-        return completedCrafting;
-    }
-
-    public void setCompletedCrafting(List<IAEItemStack> completedCrafting) {
-        this.completedCrafting = completedCrafting != null ? completedCrafting : Collections.emptyList();
-        this.markDirty();
-    }
-
     public void markDirty() {
         this.dirty = true;
     }
@@ -115,17 +104,6 @@ public class OmniTerminalStorage {
         if (compound.hasKey(KEY_PATTERN, Constants.NBT.TAG_COMPOUND)) {
             patternInventory.deserializeNBT(compound.getCompoundTag(KEY_PATTERN));
         }
-        if (compound.hasKey(KEY_COMPLETED_CRAFTING, Constants.NBT.TAG_LIST)) {
-            NBTTagList list = compound.getTagList(KEY_COMPLETED_CRAFTING, Constants.NBT.TAG_COMPOUND);
-            List<IAEItemStack> temp = new ArrayList<>();
-            for (int i = 0; i < list.tagCount(); i++) {
-                IAEItemStack stack = AEItemStack.fromNBT(list.getCompoundTagAt(i));
-                if (stack != null) {
-                    temp.add(stack);
-                }
-            }
-            this.completedCrafting = temp;
-        }
     }
 
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
@@ -135,15 +113,6 @@ public class OmniTerminalStorage {
         compound.setTag(KEY_RIGHT_STORAGE, rightStorageInventory.serializeNBT());
         compound.setTag("upgrade", upgradeInventory.serializeNBT());
         compound.setTag(KEY_PATTERN, patternInventory.serializeNBT());
-        NBTTagList completedList = new NBTTagList();
-        for (IAEItemStack stack : this.completedCrafting) {
-            if (stack != null) {
-                NBTTagCompound tag = new NBTTagCompound();
-                stack.writeToNBT(tag);
-                completedList.appendTag(tag);
-            }
-        }
-        compound.setTag(KEY_COMPLETED_CRAFTING, completedList);
         return compound;
     }
 }

@@ -186,10 +186,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
         // 从 WorldSavedData 加载模式状态
         this.loadStateFromItemNBT();
-
-        // 加载上次会话中已完成的合成物品，并在 storage 中清空（确保只显示一次）
-        this.completedCraftingCache = new ArrayList<>(this.omniStorage.getCompletedCrafting());
-        this.omniStorage.setCompletedCrafting(Collections.emptyList());
     }
 
     // ================== 合成栏 ==================
@@ -1003,8 +999,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
         this.saveStateToItemNBT();
-        // 将本次会话中已完成的合成保存到 storage，供下次打开时显示
-        this.omniStorage.setCompletedCrafting(new ArrayList<>(this.completedCraftingCache));
         if (this.omniData != null) {
             this.omniData.markDirty();
         }
