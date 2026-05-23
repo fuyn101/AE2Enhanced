@@ -1,6 +1,8 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.AEApi;
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.implementations.ICraftingPatternItem;
@@ -18,6 +20,7 @@ import appeng.container.slot.SlotPlayerHotBar;
 import appeng.container.slot.SlotPlayerInv;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.container.ContainerNull;
+import appeng.core.localization.PlayerMessages;
 import appeng.helpers.IContainerCraftingPacket;
 import appeng.helpers.ItemStackHelper;
 import appeng.helpers.WirelessTerminalGuiObject;
@@ -97,6 +100,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // === 宿主 ===
     private final ITerminalHost terminalHost;
+    private final WirelessTerminalGuiObject wirelessObject;
+    private int wirelessTickCounter = 0;
 
     // === 合成置顶：active crafting 同步 ===
     private List<CraftingStatus> activeCraftingCache = Collections.emptyList();
@@ -122,6 +127,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         // 与标准无线终端容器 ContainerMEPortableTerminal 保持一致，直接传入 host。
         super(ip, host, (appeng.api.implementations.guiobjects.IGuiItemObject) (Object) host, false);
         this.terminalHost = host;
+        this.wirelessObject = host instanceof WirelessTerminalGuiObject ? (WirelessTerminalGuiObject) host : null;
 
         // === 从 WorldSavedData 获取持久化存储 ===
         if (host instanceof WirelessTerminalGuiObject) {
@@ -1275,6 +1281,27 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
      */
     @Override
     public void detectAndSendChanges() {
+        if (Platform.isServer() && this.wirelessObject != null) {
+            if (!this.wirelessObject.rangeCheck()) {
+                if (this.isValidContainer()) {
+                    this.getPlayerInv().player.sendMessage(PlayerMessages.OutOfRange.get());
+                }
+                this.setValidContainer(false);
+                return;
+            }
+            this.wirelessTickCounter++;
+            if (this.wirelessTickCounter > 10) {
+                double ext = this.wirelessObject.extractAEPower(0.5 * this.wirelessTickCounter, Actionable.MODULATE, PowerMultiplier.CONFIG);
+                if (ext < 0.5 * this.wirelessTickCounter) {
+                    if (this.isValidContainer()) {
+                        this.getPlayerInv().player.sendMessage(PlayerMessages.DeviceNotPowered.get());
+                    }
+                    this.setValidContainer(false);
+                    return;
+                }
+                this.wirelessTickCounter = 0;
+            }
+        }
         super.detectAndSendChanges();
         if (!Platform.isServer()) return;
         if (--this.craftingUpdateCooldown > 0) return;

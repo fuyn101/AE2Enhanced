@@ -37,7 +37,7 @@ public class MixinPacketSwitchGuis {
             if (target instanceof WirelessTerminalGuiObject) {
                 ItemStack stack = ((WirelessTerminalGuiObject) target).getItemStack();
                 if (stack.getItem() instanceof ItemOmniWirelessTerminal) {
-                    player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, player.world, slot, 0, 0);
+                    player.openGui(AE2Enhanced.instance, GuiHandler.GUI_OMNI_TERMINAL, player.world, slot, isBauble ? 1 : 0, 0);
                     return;
                 }
             }
