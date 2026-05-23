@@ -315,8 +315,6 @@ public class MixinCraftingCPUCluster {
                     long remaining = taskProgressValueField.getLong(progress);
                     if (remaining <= 0) continue;
 
-                    if (details.canSubstitute()) continue;
-
                     List<ICraftingMedium> mediums = cache.getMediums(details);
                     if (mediums == null || mediums.isEmpty()) continue;
 
@@ -328,7 +326,6 @@ public class MixinCraftingCPUCluster {
                         if (controller == null) continue;
 
                         if (!controller.isVirtualPattern(details)) {
-                            if (details.canSubstitute()) break;
                             if (!controller.canBatch()) break;
 
                             long cap = controller.getParallelCap();
