@@ -1,17 +1,13 @@
 package com.github.aeddddd.ae2enhanced.event;
 
 import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.helpers.WirelessTerminalGuiObject;
-import appeng.me.storage.MEMonitorIInventory;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
-import appeng.util.inv.IMEAdaptor;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
@@ -32,15 +28,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 磁引卡 tick 处理器：每 5 tick 扫描玩家周围掉落物并根据模式吸收。
+ * 磁引卡 tick 处理器：每 5 tick 直接将周围掉落物移入背包或 AE 网络。
+ * 若目标已满，则在玩家旁边生成物品实体。
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
 public class MagnetEventHandler {
 
     private static final int SCAN_INTERVAL = 5;
-    private static final double RANGE = 16.0;
-    private static final double ATTRACT_SPEED = 0.12;
-    private static final double PICKUP_DISTANCE = 1.5;
+    private static final double RANGE = 7.0;
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -121,44 +116,41 @@ public class MagnetEventHandler {
                 continue;
             }
 
-            double dx = player.posX - entityItem.posX;
-            double dy = (player.posY + player.getEyeHeight()) - entityItem.posY;
-            double dz = player.posZ - entityItem.posZ;
-            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            ItemStack leftover = ItemStack.EMPTY;
 
-            if (dist > PICKUP_DISTANCE) {
-                entityItem.motionX += dx / dist * ATTRACT_SPEED;
-                entityItem.motionY += dy / dist * ATTRACT_SPEED;
-                entityItem.motionZ += dz / dist * ATTRACT_SPEED;
-                entityItem.velocityChanged = true;
+            if (magnetMode == 1) {
+                // 直接移入背包
+                InventoryAdaptor adp = InventoryAdaptor.getAdaptor(player);
+                leftover = adp.addItems(stack);
+            } else if (magnetMode == 2 && host != null && storageGrid != null) {
+                // 直接移入 AE 网络
+                IAEItemStack toInsert = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+                        .createStack(stack);
+                if (toInsert != null) {
+                    IAEItemStack remain = Platform.poweredInsert(
+                            host,
+                            storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)),
+                            toInsert,
+                            new appeng.me.helpers.MachineSource(host)
+                    );
+                    if (remain != null && remain.getStackSize() > 0) {
+                        leftover = remain.createItemStack();
+                    }
+                }
+            }
+
+            if (leftover.isEmpty()) {
+                entityItem.setDead();
             } else {
-                // 吸收
-                if (magnetMode == 1) {
-                    // 吸入背包
-                    InventoryAdaptor adp = InventoryAdaptor.getAdaptor(player);
-                    ItemStack leftover = adp.addItems(stack);
-                    if (leftover.isEmpty()) {
-                        entityItem.setDead();
-                    } else {
-                        entityItem.setItem(leftover);
-                    }
-                } else if (magnetMode == 2 && host != null && storageGrid != null) {
-                    // 吸入 AE 网络
-                    IAEItemStack toInsert = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
-                            .createStack(stack);
-                    if (toInsert != null) {
-                        IAEItemStack leftover = Platform.poweredInsert(
-                                host,
-                                storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)),
-                                toInsert,
-                                new appeng.me.helpers.MachineSource(host)
-                        );
-                        if (leftover == null || leftover.getStackSize() == 0) {
-                            entityItem.setDead();
-                        } else {
-                            entityItem.setItem(leftover.createItemStack());
-                        }
-                    }
+                entityItem.setItem(leftover);
+                // 如果物品原来就在玩家旁边（<1格），不要反复生成
+                double distSq = player.getDistanceSq(entityItem.posX, entityItem.posY, entityItem.posZ);
+                if (distSq > 1.0) {
+                    entityItem.setPosition(player.posX, player.posY + 0.5, player.posZ);
+                    entityItem.motionX = 0;
+                    entityItem.motionY = 0;
+                    entityItem.motionZ = 0;
+                    entityItem.velocityChanged = true;
                 }
             }
         }
