@@ -1,5 +1,6 @@
 itemGroup.ae2enhanced=AE2 Enhanced
 
+tile.ae2enhanced.central_me_interface.name=Центральный ME-интерфейс
 tile.ae2enhanced.assembly_controller.name=Контроллер сборщика
 tile.ae2enhanced.assembly_me_interface.name=ME-интерфейс сборщика
 tile.ae2enhanced.assembly_casing.name=Корпус сборщика

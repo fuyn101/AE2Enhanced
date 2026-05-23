@@ -7,6 +7,7 @@ gui.ae2enhanced.bus_mode.sequential=依次
 gui.ae2enhanced.bus_mode.round_robin=轮询
 gui.ae2enhanced.bus_mode.random=随机
 
+tile.ae2enhanced.central_me_interface.name=中枢 ME 接口
 tile.ae2enhanced.assembly_controller.name=装配枢纽控制器
 tile.ae2enhanced.assembly_me_interface.name=装配枢纽 ME 接口
 tile.ae2enhanced.assembly_casing.name=装配枢纽外壳

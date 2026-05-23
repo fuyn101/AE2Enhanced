@@ -169,6 +169,9 @@ public class TileCentralMEInterface extends TileAENetworkBase
     }
 
     public IItemHandler getInventoryByName(String name) {
+        if ("upgrades".equals(name)) {
+            return getUpgrades();
+        }
         return getInterfaceDuality().getInventoryByName(name);
     }
 
