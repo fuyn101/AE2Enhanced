@@ -26,6 +26,8 @@ import net.minecraftforge.fml.common.network.IGuiHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.util.UUID;
+
 /**
  * 全能无线终端 —— 物品库 + 合成栏 + 编码样板(81槽位) + 右侧存储
  */
@@ -76,6 +78,23 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
         out.registerSetting(Settings.SORT_DIRECTION, SortDir.ASCENDING);
         out.readFromNBT(Platform.openNbtData(target).copy());
         return out;
+    }
+
+    /**
+     * 获取或创建该终端 ItemStack 对应的存储 UUID。
+     * UUID 持久化在 ItemStack NBT 中，WorldSavedData 通过此 UUID 存取实际数据。
+     */
+    public static UUID getStorageId(ItemStack stack) {
+        NBTTagCompound tag = Platform.openNbtData(stack);
+        if (!tag.hasUniqueId("storageId")) {
+            UUID id = UUID.randomUUID();
+            tag.setUniqueId("storageId", id);
+        }
+        return tag.getUniqueId("storageId");
+    }
+
+    public static void setStorageId(ItemStack stack, UUID id) {
+        Platform.openNbtData(stack).setUniqueId("storageId", id);
     }
 
     @Override

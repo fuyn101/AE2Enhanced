@@ -28,9 +28,11 @@ import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
-import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotHighCapacity;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
-import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
+import com.github.aeddddd.ae2enhanced.storage.OmniTerminalData;
+import com.github.aeddddd.ae2enhanced.storage.OmniTerminalInventory;
+import com.github.aeddddd.ae2enhanced.storage.OmniTerminalStorage;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.InventoryCrafting;
@@ -59,11 +61,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private final AppEngInternalInventory craftingOutput = new AppEngInternalInventory(this, 1);
     private IRecipe currentRecipe;
     private IRecipe currentPatternRecipe;
-    private AppEngInternalInventory craftingInv;
+    private OmniTerminalInventory craftingInv;
 
     // === 编码区 ===
-    public AppEngInternalInventory patternCraftingInv;
-    public AppEngInternalInventory patternOutputInv;
+    public OmniTerminalInventory patternCraftingInv;
+    public OmniTerminalInventory patternOutputInv;
     private AppEngInternalInventory patternInv;
     private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
 
@@ -81,8 +83,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private int scrollOffset = 0;
 
     // === 右侧存储 ===
-    private final AppEngInternalInventory rightPatternStorage;
-    private final AppEngInternalInventory rightUpgradeStorage;
+    private final OmniTerminalInventory rightPatternStorage;
+    private final OmniTerminalInventory rightUpgradeStorage;
+
+    // === WorldSavedData 存储 ===
+    private final OmniTerminalStorage omniStorage;
+    private final OmniTerminalData omniData;
 
     // === 宿主 ===
     private final ITerminalHost terminalHost;
@@ -94,13 +100,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public static final int GRID_COL_SPACING = 18;
     public static final int GRID_ROW_SPACING = 18;
 
-    // === NBT Keys ===
-    private static final String NBT_CRAFTING = "omni_crafting";
-    private static final String NBT_PATTERN_IN = "omni_pattern_in";
-    private static final String NBT_PATTERN_OUT = "omni_pattern_out";
-    private static final String NBT_PATTERN_SLOTS = "omni_pattern_slots";
-    private static final String NBT_RIGHT_PATTERN = "omni_right_pattern";
-    private static final String NBT_RIGHT_UPGRADE = "omni_right_upgrade";
+    // === NBT Keys（ItemStack 中仅存 craftingMode / substitute / scrollOffset）===
     private static final String NBT_CRAFTING_MODE = "omni_crafting_mode";
     private static final String NBT_SUBSTITUTE = "omni_substitute";
     private static final String NBT_SCROLL_OFFSET = "omni_scroll_offset";
@@ -111,9 +111,20 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         super(ip, host, (appeng.api.implementations.guiobjects.IGuiItemObject) (Object) host, false);
         this.terminalHost = host;
 
-        int maxStack = AE2EnhancedConfig.terminal.rightStorageMaxStackSize;
-        this.rightPatternStorage = new HighCapacityInventory(null, 27, maxStack);
-        this.rightUpgradeStorage = new HighCapacityInventory(null, 9, maxStack);
+        // === 从 WorldSavedData 获取持久化存储 ===
+        if (host instanceof WirelessTerminalGuiObject) {
+            WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) host;
+            java.util.UUID storageId = ItemOmniWirelessTerminal.getStorageId(wt.getItemStack());
+            this.omniData = OmniTerminalData.get(ip.player.world);
+            this.omniStorage = this.omniData.getOrCreate(storageId);
+        } else {
+            // 非无线终端回退：使用临时存储（不持久化）
+            this.omniData = null;
+            this.omniStorage = new OmniTerminalStorage();
+        }
+
+        this.rightPatternStorage = this.omniStorage.getRightStorageInventory();
+        this.rightUpgradeStorage = this.omniStorage.getUpgradeInventory();
 
         this.setupCraftingArea(ip, host);
         this.setupPatternArea(ip, host);
@@ -163,13 +174,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.inventorySlots.get(i).slotNumber = i;
         }
 
-        this.loadFromNBT();
+        // 从 WorldSavedData 加载模式状态
+        this.loadStateFromItemNBT();
     }
 
     // ================== 合成栏 ==================
 
     private void setupCraftingArea(InventoryPlayer ip, ITerminalHost host) {
-        this.craftingInv = new AppEngInternalInventory(this, 9);
+        this.craftingInv = this.omniStorage.getCraftingInventory();
+        this.craftingInv.setOnContentsChangedCallback(this::updateRealCraftingRecipe);
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
                 int idx = x + y * 3;
@@ -185,9 +198,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 编码区 ==================
 
     private void setupPatternArea(InventoryPlayer ip, ITerminalHost host) {
-        // maxStack=999：消除 AppEngInternalInventory 默认 slotLimit=1 对 ghost slot 的限制
-        this.patternCraftingInv = new AppEngInternalInventory(this, 81, 999);
-        this.patternOutputInv = new AppEngInternalInventory(this, 27, 999);
+        this.patternCraftingInv = this.omniStorage.getPatternInputInventory();
+        this.patternOutputInv = this.omniStorage.getPatternOutputInventory();
+
+        // 设置变更回调，使 patternCraftMode 时自动更新配方预览
+        this.patternCraftingInv.setOnContentsChangedCallback(() -> {
+            if (this.patternCraftMode) {
+                this.fixPatternCraftingRecipes();
+                this.updatePatternCraftingRecipe();
+            }
+        });
 
         for (int g = 0; g < 9; g++) {
             for (int r = 0; r < 3; r++) {
@@ -236,7 +256,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
-                this.func_75146_a(new SlotHighCapacity(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
+                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
             }
         }
         for (int c = 0; c < 9; c++) {
@@ -917,69 +937,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
     }
 
-    // ================== NBT 持久化 ==================
+    // ================== ItemStack NBT 状态持久化（仅存 craftingMode / substitute / scrollOffset） ==================
 
-    private void loadInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
-        if (!tag.hasKey(key)) return;
-        NBTTagList list = tag.getTagList(key, 10);
-        for (int i = 0; i < size; i++) {
-            ItemHandlerUtil.setStackInSlot(inv, i, ItemStack.EMPTY);
-        }
-        for (int i = 0; i < list.tagCount(); i++) {
-            NBTTagCompound stackTag = list.getCompoundTagAt(i);
-            int slot = stackTag.hasKey("Slot", 3) ? stackTag.getInteger("Slot") : i;
-            if (slot >= 0 && slot < size) {
-                int savedCount = -1;
-                // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127。
-                // 当 count > 127 时，Count byte 会溢出为负数，导致 new ItemStack 返回 EMPTY。
-                // 因此，在 new ItemStack 之前，先把 Count 临时设为 1，确保能创建非空对象。
-                if (stackTag.hasKey("AE2E_Count", 3)) {
-                    savedCount = stackTag.getInteger("AE2E_Count");
-                    stackTag.setByte("Count", (byte) 1);
-                }
-                ItemStack stack = new ItemStack(stackTag);
-                if (!stack.isEmpty() && savedCount > 0) {
-                    stack.setCount(savedCount);
-                }
-                if (!stack.isEmpty()) {
-                    ItemHandlerUtil.setStackInSlot(inv, slot, stack);
-                }
-            }
-        }
-    }
-
-    private void saveInventory(IItemHandler inv, NBTTagCompound tag, String key, int size) {
-        NBTTagList list = new NBTTagList();
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = inv.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                NBTTagCompound stackTag = new NBTTagCompound();
-                stackTag.setInteger("Slot", i);
-                stack.writeToNBT(stackTag);
-                // ItemStack.writeToNBT 使用 byte 保存 Count，最大 127。
-                // 当 count > 127 时，额外保存真实 count 以在加载时恢复。
-                if (stack.getCount() > 127) {
-                    stackTag.setInteger("AE2E_Count", stack.getCount());
-                }
-                list.appendTag(stackTag);
-            }
-        }
-        tag.setTag(key, list);
-    }
-
-    private void loadFromNBT() {
+    private void loadStateFromItemNBT() {
         if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
         WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
         ItemStack stack = wt.getItemStack();
         if (stack.isEmpty()) return;
         NBTTagCompound tag = Platform.openNbtData(stack);
-
-        loadInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
-        loadInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
-        loadInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
-        loadInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
-        loadInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
-        loadInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
 
         if (tag.hasKey(NBT_CRAFTING_MODE)) {
             this.patternCraftMode = tag.getBoolean(NBT_CRAFTING_MODE);
@@ -994,20 +959,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.applyPatternCraftMode();
     }
 
-    private void saveToNBT() {
+    private void saveStateToItemNBT() {
         if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
         if (!Platform.isServer()) return;
         WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) this.terminalHost;
         ItemStack stack = wt.getItemStack();
         if (stack.isEmpty()) return;
         NBTTagCompound tag = Platform.openNbtData(stack);
-
-        saveInventory(this.craftingInv, tag, NBT_CRAFTING, 9);
-        saveInventory(this.patternCraftingInv, tag, NBT_PATTERN_IN, 81);
-        saveInventory(this.patternOutputInv, tag, NBT_PATTERN_OUT, 27);
-        saveInventory(this.patternInv, tag, NBT_PATTERN_SLOTS, 2);
-        saveInventory(this.rightPatternStorage, tag, NBT_RIGHT_PATTERN, 27);
-        saveInventory(this.rightUpgradeStorage, tag, NBT_RIGHT_UPGRADE, 9);
         tag.setBoolean(NBT_CRAFTING_MODE, this.patternCraftMode);
         tag.setBoolean(NBT_SUBSTITUTE, this.substitute);
         tag.setInteger(NBT_SCROLL_OFFSET, this.scrollOffset);
@@ -1034,7 +992,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     @Override
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
-        this.saveToNBT();
+        this.saveStateToItemNBT();
+        if (this.omniData != null) {
+            this.omniData.markDirty();
+        }
     }
 
     // ================== IContainerCraftingPacket ==================
