@@ -513,18 +513,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 tagOut.appendTag(this.createItemTag(out[0]));
             }
         } else {
-            int inCount = 0;
             for (ItemStack i : in) {
-                if (!i.isEmpty() && inCount < 16) {
+                if (!i.isEmpty()) {
                     tagIn.appendTag(this.createItemTag(i));
-                    inCount++;
                 }
             }
-            int outCount = 0;
             for (ItemStack i : out) {
-                if (!i.isEmpty() && outCount < 6) {
+                if (!i.isEmpty()) {
                     tagOut.appendTag(this.createItemTag(i));
-                    outCount++;
                 }
             }
         }

@@ -64,20 +64,17 @@ public class GuiHandler implements IGuiHandler {
     public Object getServerGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
         // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
         if (ID == GUI_OMNI_TERMINAL) {
-            ItemStack held = player.getHeldItemMainhand();
-            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
-                held = player.getHeldItemOffhand();
-            }
+            ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
                 appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
                 if (handler == null) {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, y, 0);
                 return new ContainerOmniTerm(player.inventory, host);
             }
-            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found in hand for {}", player.getName());
+            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found for {}", player.getName());
             return null;
         }
 
@@ -162,17 +159,14 @@ public class GuiHandler implements IGuiHandler {
     public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
         // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
         if (ID == GUI_OMNI_TERMINAL) {
-            ItemStack held = player.getHeldItemMainhand();
-            if (!(held.getItem() instanceof ItemOmniWirelessTerminal)) {
-                held = player.getHeldItemOffhand();
-            }
+            ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
                 appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
                 if (handler == null) {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, 0, 0);
+                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, y, 0);
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }
             return null;
@@ -251,5 +245,46 @@ public class GuiHandler implements IGuiHandler {
         }
 
         return null;
+    }
+
+    /**
+     * 根据 GUI 参数查找 Omni Terminal ItemStack。
+     * y == 1 表示从 Baubles 饰品槽位读取（x 为 Baubles 槽位索引）。
+     */
+    private static ItemStack findOmniTerminalStack(EntityPlayer player, int x, int y) {
+        if (y == 1 && net.minecraftforge.fml.common.Loader.isModLoaded("baubles")) {
+            // 从 Baubles 饰品槽获取
+            try {
+                Object handler = Class.forName("baubles.api.BaublesApi")
+                        .getMethod("getBaublesHandler", EntityPlayer.class)
+                        .invoke(null, player);
+                ItemStack stack = (ItemStack) handler.getClass()
+                        .getMethod("getStackInSlot", int.class)
+                        .invoke(handler, x);
+                if (!stack.isEmpty() && stack.getItem() instanceof ItemOmniWirelessTerminal) {
+                    return stack;
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to get Bauble stack", e);
+            }
+        }
+        // 主手
+        ItemStack held = player.getHeldItemMainhand();
+        if (held.getItem() instanceof ItemOmniWirelessTerminal) {
+            return held;
+        }
+        // 副手
+        held = player.getHeldItemOffhand();
+        if (held.getItem() instanceof ItemOmniWirelessTerminal) {
+            return held;
+        }
+        // 物品栏
+        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (stack.getItem() instanceof ItemOmniWirelessTerminal) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
     }
 }

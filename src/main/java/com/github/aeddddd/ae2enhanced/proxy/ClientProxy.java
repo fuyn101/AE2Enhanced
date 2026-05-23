@@ -29,6 +29,9 @@ import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelBakeEvent;
+import net.minecraftforge.client.settings.KeyConflictContext;
+import net.minecraftforge.client.settings.KeyModifier;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
@@ -55,10 +58,19 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding OPEN_OMNI_TERMINAL_KEY = new KeyBinding(
+            "key.ae2enhanced.openOmniTerminal",
+            KeyConflictContext.IN_GAME,
+            KeyModifier.SHIFT,
+            Keyboard.KEY_E,
+            "key.categories.ae2enhanced"
+    );
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
+        ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
     }
 
     @Override
@@ -126,6 +138,14 @@ public class ClientProxy extends CommonProxy {
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to register Thaumcraft aspect textures: {}", e.getMessage());
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public static void onKeyInput(InputEvent.KeyInputEvent event) {
+        if (OPEN_OMNI_TERMINAL_KEY.isPressed()) {
+            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.PacketOpenOmniTerminal());
         }
     }
 

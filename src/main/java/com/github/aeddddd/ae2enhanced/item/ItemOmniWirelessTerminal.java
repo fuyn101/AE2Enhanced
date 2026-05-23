@@ -15,6 +15,7 @@ import appeng.items.tools.powered.powersink.AEBasePoweredItem;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -22,6 +23,7 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -31,7 +33,10 @@ import java.util.UUID;
 /**
  * 全能无线终端 —— 物品库 + 合成栏 + 编码样板(81槽位) + 右侧存储
  */
-public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWirelessTermHandler {
+@Optional.InterfaceList({
+        @Optional.Interface(iface = "baubles.api.IBauble", modid = "baubles")
+})
+public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWirelessTermHandler, baubles.api.IBauble {
 
     public ItemOmniWirelessTerminal() {
         super(AEConfig.instance().getWirelessTerminalBattery());
@@ -130,5 +135,25 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     @Override
     public boolean isFull3D() {
         return false;
+    }
+
+    // === Baubles 饰品支持 ===
+
+    @Override
+    @Optional.Method(modid = "baubles")
+    public baubles.api.BaubleType getBaubleType(ItemStack itemStack) {
+        return baubles.api.BaubleType.TRINKET;
+    }
+
+    @Override
+    @Optional.Method(modid = "baubles")
+    public boolean canEquip(ItemStack stack, EntityLivingBase player) {
+        return true;
+    }
+
+    @Override
+    @Optional.Method(modid = "baubles")
+    public boolean willAutoSync(ItemStack stack, EntityLivingBase player) {
+        return true;
     }
 }

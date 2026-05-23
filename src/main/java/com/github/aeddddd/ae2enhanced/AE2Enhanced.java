@@ -109,6 +109,7 @@ public class AE2Enhanced {
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.PacketLoadOmniRecipe.Handler.class, com.github.aeddddd.ae2enhanced.network.PacketLoadOmniRecipe.class, 8, Side.SERVER);
         network.registerMessage(PacketSetSlotAmount.Handler.class, PacketSetSlotAmount.class, 9, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.PacketOmniCraftingUpdate.Handler.class, com.github.aeddddd.ae2enhanced.network.PacketOmniCraftingUpdate.class, 10, Side.CLIENT);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.PacketOpenOmniTerminal.Handler.class, com.github.aeddddd.ae2enhanced.network.PacketOpenOmniTerminal.class, 11, Side.SERVER);
         com.github.aeddddd.ae2enhanced.util.memorycard.MemoryCardHandlerRegistry.init();
         proxy.preInit(event);
     }

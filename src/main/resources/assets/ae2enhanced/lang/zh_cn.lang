@@ -177,6 +177,7 @@ tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e无线频道发生器 �
 gui.ae2enhanced.wireless_channel_transmitter.title=无线频道发生器
 
 key.ae2enhanced.jeiSearchTerminal=在终端中搜索 JEI 物品
+key.ae2enhanced.openOmniTerminal=打开全能终端
 key.categories.ae2enhanced=AE2 Enhanced
 
 item.ae2enhanced.universal_memory_card.name=通用内存卡

@@ -49,6 +49,7 @@ dependencies {
     compileOnly files('libs/MekanismEnergistics-0.1.5.jar')
     compileOnly files('libs/Thaumcraft-1.12.2-6.1.BETA26.jar')
     compileOnly files('libs/thaumic-energistics-extended-life-1.12.2-2.3.5.jar')
+    compileOnly files('libs/Baubles-1.12-1.5.2.jar')
     compile('zone.rong:mixinbooter:8.9') {
         transitive = false
     }

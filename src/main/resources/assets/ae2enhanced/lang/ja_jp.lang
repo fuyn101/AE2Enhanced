@@ -164,3 +164,7 @@ item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card
 item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§lAdvanced Magnet Card §r§8[Type: Magnet]
 item.ae2enhanced.omni_upgrade_card.picker.name=Picker Interaction Card
 item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§lPicker Interaction Card §r§8[Type: Picker]
+
+# Keybindings
+key.categories.ae2enhanced=AE2 Enhanced
+key.ae2enhanced.openOmniTerminal=Open Omni Terminal
