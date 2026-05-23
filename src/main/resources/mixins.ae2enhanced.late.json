@@ -23,7 +23,9 @@
     "MixinSlotRestrictedInput",
     "MixinAEBasePart",
     "MixinAENetworkTile",
-    "MixinPatternHelper"
+    "MixinPatternHelper",
+    "MixinContainerCraftConfirm",
+    "MixinPacketSwitchGuis"
   ],
   "client": [
     "MixinGuiMEMonitorableClick",

@@ -98,6 +98,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // === 合成置顶：active crafting 同步 ===
     private List<CraftingStatus> activeCraftingCache = Collections.emptyList();
+    private List<CraftingStatus> previousActiveCrafting = Collections.emptyList();
+    private List<IAEItemStack> completedCraftingCache = new ArrayList<>();
     private int craftingUpdateCooldown = 0;
     private List<CraftingStatus> clientActiveCrafting = Collections.emptyList();
 
@@ -184,6 +186,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
         // 从 WorldSavedData 加载模式状态
         this.loadStateFromItemNBT();
+
+        // 加载上次会话中已完成的合成物品，并在 storage 中清空（确保只显示一次）
+        this.completedCraftingCache = new ArrayList<>(this.omniStorage.getCompletedCrafting());
+        this.omniStorage.setCompletedCrafting(Collections.emptyList());
     }
 
     // ================== 合成栏 ==================
@@ -1001,6 +1007,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
         this.saveStateToItemNBT();
+        // 将本次会话中已完成的合成保存到 storage，供下次打开时显示
+        this.omniStorage.setCompletedCrafting(new ArrayList<>(this.completedCraftingCache));
         if (this.omniData != null) {
             this.omniData.markDirty();
         }
@@ -1203,7 +1211,39 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (--this.craftingUpdateCooldown > 0) return;
         this.craftingUpdateCooldown = 20;
 
-        List<CraftingStatus> current = this.collectActiveCrafting();
+        List<CraftingStatus> currentActive = this.collectActiveCraftingOnly();
+
+        // 检测已完成的合成：之前存在但现在不在 active 列表中的物品
+        for (CraftingStatus prev : this.previousActiveCrafting) {
+            boolean stillActive = false;
+            for (CraftingStatus curr : currentActive) {
+                if (curr.output.equals(prev.output)) {
+                    stillActive = true;
+                    break;
+                }
+            }
+            if (!stillActive) {
+                // 避免重复添加
+                boolean alreadyExists = false;
+                for (IAEItemStack existing : this.completedCraftingCache) {
+                    if (existing.equals(prev.output)) {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                if (!alreadyExists) {
+                    this.completedCraftingCache.add(prev.output.copy());
+                }
+            }
+        }
+        this.previousActiveCrafting = currentActive;
+
+        // 合并 active + completed 发送给客户端
+        List<CraftingStatus> current = new ArrayList<>(currentActive);
+        for (IAEItemStack completed : this.completedCraftingCache) {
+            current.add(new CraftingStatus(completed, 0, 0));
+        }
+
         if (!this.isCraftingListEqual(this.activeCraftingCache, current)) {
             this.activeCraftingCache = current;
             if (this.getPlayerInv().player instanceof net.minecraft.entity.player.EntityPlayerMP) {
@@ -1214,7 +1254,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
     }
 
-    private List<CraftingStatus> collectActiveCrafting() {
+    /**
+     * 仅收集当前正在 Crafting CPU 中执行的合成任务。
+     * 如果某个物品正在重新合成，将其从 completedCraftingCache 中移除。
+     */
+    private List<CraftingStatus> collectActiveCraftingOnly() {
         List<CraftingStatus> result = new ArrayList<>();
         if (!(this.terminalHost instanceof appeng.api.networking.security.IActionHost)) return result;
         appeng.api.networking.security.IActionHost host = (appeng.api.networking.security.IActionHost) this.terminalHost;
@@ -1228,6 +1272,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 long remaining = cpu.getRemainingItemCount();
                 long start = cpu.getStartItemCount();
                 result.add(new CraftingStatus(output, remaining, start));
+                // 该物品正在重新合成，从已完成缓存中移除
+                this.completedCraftingCache.removeIf(c -> c.equals(output));
             }
         }
         return result;
