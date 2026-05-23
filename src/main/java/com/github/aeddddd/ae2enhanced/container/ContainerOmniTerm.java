@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.container;
 import appeng.api.AEApi;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
@@ -243,6 +245,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
 
         this.patternInv = this.omniStorage.getPatternInventory();
+        this.patternInv.setOnContentsChangedCallback(() -> {
+            if (!Platform.isServer()) return;
+            this.onPatternOutputChanged();
+        });
         this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
                 this.patternCraftingInv, this.patternInv, this.cOut, 281, 111, this, 2, this);
         this.func_75146_a(this.craftSlot);
@@ -410,6 +416,69 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 this.updatePatternCraftingRecipe();
             }
         }
+    }
+
+    /**
+     * 当编码输出槽（patternSlotOUT，patternInv 第 1 槽）内容变化时调用。
+     * 如果放入的是已编码样板，自动读取其内容并加载到输入/输出格。
+     * 复刻 AE2 原版 AbstractPartEncoder.onChangeInventory 的逻辑。
+     */
+    private void onPatternOutputChanged() {
+        ItemStack stack = this.patternInv.getStackInSlot(1);
+        if (stack.isEmpty() || !(stack.getItem() instanceof ICraftingPatternItem)) {
+            return;
+        }
+        ICraftingPatternDetails details = ((ICraftingPatternItem) stack.getItem()).getPatternForItem(
+                stack, this.getPlayerInv().player.world);
+        if (details == null) return;
+        this.loadPatternFromDetails(details);
+    }
+
+    private void loadPatternFromDetails(ICraftingPatternDetails details) {
+        // 1. 恢复 crafting / substitute 模式
+        boolean crafting = details.isCraftable();
+        if (this.patternCraftMode != crafting) {
+            this.patternCraftMode = crafting;
+            this.saveCraftingModeToNBT();
+            this.applyPatternCraftMode();
+        }
+        boolean canSubstitute = details.canSubstitute();
+        if (this.substitute != canSubstitute) {
+            this.substitute = canSubstitute;
+            this.saveSubstituteToNBT();
+        }
+
+        // 2. 清空所有输入/输出格
+        for (int i = 0; i < this.patternCraftingInv.getSlots(); i++) {
+            this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
+        }
+        for (int i = 0; i < this.patternOutputInv.getSlots(); i++) {
+            this.patternOutputInv.setStackInSlot(i, ItemStack.EMPTY);
+        }
+        this.cOut.setStackInSlot(0, ItemStack.EMPTY);
+
+        // 3. 加载输入
+        IAEItemStack[] inputs = details.getInputs();
+        for (int i = 0; i < inputs.length && i < this.patternCraftingInv.getSlots(); i++) {
+            if (inputs[i] != null) {
+                this.patternCraftingInv.setStackInSlot(i, inputs[i].createItemStack());
+            }
+        }
+
+        // 4. 加载输出
+        IAEItemStack[] outputs = details.getOutputs();
+        for (int i = 0; i < outputs.length && i < this.patternOutputInv.getSlots(); i++) {
+            if (outputs[i] != null) {
+                this.patternOutputInv.setStackInSlot(i, outputs[i].createItemStack());
+            }
+        }
+
+        // 5. crafting 模式下更新合成输出预览
+        if (crafting) {
+            this.updatePatternCraftingRecipe();
+        }
+
+        this.detectAndSendChanges();
     }
 
     private void fixPatternCraftingRecipes() {
