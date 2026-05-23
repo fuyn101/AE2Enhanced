@@ -535,6 +535,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.patternSlotOUT.putStack(output);
         }
 
+        // 装配枢纽自动上传：如果 patternSlotOUT 中有合成样板，尝试上传到附近的装配枢纽
+        ItemStack patternInSlot = this.patternSlotOUT.getStack();
+        if (!patternInSlot.isEmpty() && this.getPlayerInv().player != null
+                && !this.getPlayerInv().player.world.isRemote) {
+            if (com.github.aeddddd.ae2enhanced.util.AssemblyAutoUploadHelper.tryUploadPattern(
+                    this.getPlayerInv().player.world, this.getPlayerInv().player, patternInSlot)) {
+                this.patternSlotOUT.putStack(ItemStack.EMPTY);
+            }
+        }
+
         this.detectAndSendChanges();
     }
 
