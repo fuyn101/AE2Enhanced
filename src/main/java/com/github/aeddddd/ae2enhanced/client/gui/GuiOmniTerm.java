@@ -388,6 +388,16 @@ public class GuiOmniTerm extends GuiMEMonitorable {
             this.mc.getTextureManager().bindTexture(CRAFTING_HIGHLIGHT);
             this.drawTexturedModalRect(offsetX + 8, offsetY + 18, 0, 0, 162, 18);
             this.drawTexturedModalRect(offsetX + 8 + 162, offsetY + 18, 0, 0, 162, 18);
+            // 金黄色描边特效
+            int left = offsetX + 8;
+            int top = offsetY + 18;
+            int right = left + 18 * 18;
+            int bottom = top + 18;
+            int borderColor = 0xFFFFCC00;
+            Gui.drawRect(left, top, right, top + 1, borderColor);     // 上
+            Gui.drawRect(left, bottom - 1, right, bottom, borderColor); // 下
+            Gui.drawRect(left, top, left + 1, bottom, borderColor);     // 左
+            Gui.drawRect(right - 1, top, right, bottom, borderColor);   // 右
         }
 
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）

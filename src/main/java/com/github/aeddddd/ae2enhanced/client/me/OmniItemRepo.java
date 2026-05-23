@@ -50,6 +50,13 @@ public class OmniItemRepo extends ItemRepo {
         try {
             @SuppressWarnings("unchecked")
             List<IAEItemStack> view = (List<IAEItemStack>) VIEW_FIELD.get(this);
+            // 将 activeCrafting 的数量同步为 view 中的实际存储数量
+            for (IAEItemStack active : this.activeCrafting) {
+                IAEItemStack real = findInView(active, view);
+                if (real != null) {
+                    active.setStackSize(real.getStackSize());
+                }
+            }
             this.normalView = new ArrayList<>(view.size());
             for (IAEItemStack stack : view) {
                 if (!isInActiveCrafting(stack)) {
@@ -59,6 +66,15 @@ public class OmniItemRepo extends ItemRepo {
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private IAEItemStack findInView(IAEItemStack target, List<IAEItemStack> view) {
+        for (IAEItemStack stack : view) {
+            if (stack.equals(target)) {
+                return stack;
+            }
+        }
+        return null;
     }
 
     @Override
