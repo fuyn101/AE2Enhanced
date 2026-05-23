@@ -99,16 +99,9 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
 
     @Override
     public IGuiHandler getGuiHandler(ItemStack is) {
-        return new IGuiHandler() {
-            @Override
-            public Object getServerGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-                return null;
-            }
-            @Override
-            public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-                return null;
-            }
-        };
+        // 返回 AE2 无线终端的 GuiBridge，避免 GuiCraftAmount.initGui() 中的 ClassCastException。
+        // Omni Terminal 没有自己的 GuiBridge enum 值，使用 GUI_WIRELESS_TERM 作为回退。
+        return appeng.core.sync.GuiBridge.GUI_WIRELESS_TERM;
     }
 
     @Override

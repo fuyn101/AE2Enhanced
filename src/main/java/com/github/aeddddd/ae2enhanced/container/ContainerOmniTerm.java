@@ -28,6 +28,7 @@ import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
+import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotHighCapacity;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalData;
@@ -262,7 +263,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = r * 9 + c;
-                this.func_75146_a(new AppEngSlot(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
+                this.func_75146_a(new SlotHighCapacity(this.rightPatternStorage, idx, 180 + c * 18, 167 + r * 18));
             }
         }
         for (int c = 0; c < 9; c++) {
@@ -1071,6 +1072,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             return ((IInventorySlotAware) this.terminalHost).isBaubleSlot();
         }
         return false;
+    }
+
+    @Override
+    public Object getTarget() {
+        Object target = super.getTarget();
+        if (target == null && this.terminalHost != null) {
+            return this.terminalHost;
+        }
+        return target;
     }
 
     @Override
