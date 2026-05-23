@@ -24,6 +24,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
+import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.PacketOmniTermAction;
 import net.minecraft.client.gui.Gui;
@@ -384,18 +385,23 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
         // 合成置顶：第一行高亮背景（crafting.png 只有 9 格，需平铺两次覆盖 18 格）
-        java.util.List<appeng.api.storage.data.IAEItemStack> activeCrafting = this.container.getClientActiveCrafting();
+        java.util.List<CraftingStatus> activeCrafting = this.container.getClientActiveCrafting();
         if (!activeCrafting.isEmpty()) {
             this.mc.getTextureManager().bindTexture(CRAFTING_HIGHLIGHT);
             int hlLeft = offsetX + 7; // 向左偏移 1 像素
             this.drawTexturedModalRect(hlLeft, offsetY + 18, 0, 0, 162, 18);
             this.drawTexturedModalRect(hlLeft + 162, offsetY + 18, 0, 0, 162, 18);
-            // 为每个正在合成的物品单独绘制半透明描边
+            // 为每个正在合成的物品单独绘制动态颜色描边
             int top = offsetY + 18;
             int bottom = top + 18;
-            int borderColor = 0xA0FFCC00; // 更高透明度（约 63% 不透明）
+            long time = System.currentTimeMillis();
             int count = Math.min(activeCrafting.size(), 18);
             for (int i = 0; i < count; i++) {
+                CraftingStatus status = activeCrafting.get(i);
+                int borderColor = this.getCraftingBorderColor(status, time);
+                if ((borderColor >>> 24) == 0) {
+                    continue; // 已完成（alpha=0），跳过描边
+                }
                 int slotLeft = hlLeft + i * 18;
                 int slotRight = slotLeft + 18;
                 Gui.drawRect(slotLeft, top, slotRight, top + 1, borderColor);     // 上
@@ -459,6 +465,27 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.title"), 8, 6, 0x404040);
         this.fontRenderer.drawString(net.minecraft.client.resources.I18n.format("gui.ae2enhanced.omni_terminal.inventory"), 8, 155 + this.extraHeight, 0x404040);
 
+    }
+
+    /**
+     * 根据合成进度计算动态描边颜色。
+     * 进度从高（刚开始）到低（快完成）：橙色 → 绿色，同时带呼吸脉冲效果。
+     * 已完成（remaining <= 0）时返回完全透明。
+     */
+    private int getCraftingBorderColor(CraftingStatus status, long time) {
+        if (status.isDone()) {
+            return 0;
+        }
+        float ratio = status.getRatio(); // 1.0=刚开始, 0.0=即将完成
+        // 颜色插值：橙色(255,136,0) → 绿色(0,255,0)
+        int r = (int) (255 * ratio);
+        int g = (int) (255 - 119 * ratio);
+        int b = 0;
+        // 呼吸脉冲：频率随进度加快（快完成时闪烁更快）
+        double pulse = Math.sin(time / (200.0 + 300.0 * ratio)) * 0.5 + 0.5;
+        int alpha = (int) (120 + pulse * 80 + (1.0f - ratio) * 40);
+        if (alpha > 255) alpha = 255;
+        return (alpha << 24) | (r << 16) | (g << 8) | b;
     }
 
     @Override

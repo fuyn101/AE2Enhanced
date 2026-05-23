@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.network;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -14,16 +15,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 服务端 → 客户端：同步当前正在 Crafting CPU 中合成的物品列表
+ * 服务端 → 客户端：同步当前正在 Crafting CPU 中合成的物品列表及其进度
  */
 public class PacketOmniCraftingUpdate implements IMessage {
 
-    private List<IAEItemStack> activeCrafting = new ArrayList<>();
+    private List<CraftingStatus> activeCrafting = new ArrayList<>();
 
     public PacketOmniCraftingUpdate() {
     }
 
-    public PacketOmniCraftingUpdate(List<IAEItemStack> activeCrafting) {
+    public PacketOmniCraftingUpdate(List<CraftingStatus> activeCrafting) {
         this.activeCrafting = activeCrafting != null ? activeCrafting : new ArrayList<>();
     }
 
@@ -34,8 +35,10 @@ public class PacketOmniCraftingUpdate implements IMessage {
         for (int i = 0; i < count; i++) {
             try {
                 IAEItemStack stack = AEItemStack.fromPacket(buf);
+                long remaining = buf.readLong();
+                long start = buf.readLong();
                 if (stack != null) {
-                    this.activeCrafting.add(stack);
+                    this.activeCrafting.add(new CraftingStatus(stack, remaining, start));
                 }
             } catch (Exception e) {
                 AE2Enhanced.LOGGER.error("[AE2E] Failed to read crafting update packet", e);
@@ -46,13 +49,19 @@ public class PacketOmniCraftingUpdate implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(this.activeCrafting.size());
-        for (IAEItemStack stack : this.activeCrafting) {
+        for (CraftingStatus status : this.activeCrafting) {
             try {
-                stack.writeToPacket(buf);
+                status.output.writeToPacket(buf);
+                buf.writeLong(status.remaining);
+                buf.writeLong(status.start);
             } catch (Exception e) {
                 AE2Enhanced.LOGGER.error("[AE2E] Failed to write crafting update packet", e);
             }
         }
+    }
+
+    public List<CraftingStatus> getActiveCrafting() {
+        return this.activeCrafting;
     }
 
     public static class Handler implements IMessageHandler<PacketOmniCraftingUpdate, IMessage> {
@@ -62,11 +71,9 @@ public class PacketOmniCraftingUpdate implements IMessage {
                 if (Minecraft.getMinecraft().currentScreen instanceof GuiContainer) {
                     GuiContainer gui = (GuiContainer) Minecraft.getMinecraft().currentScreen;
                     if (gui.inventorySlots instanceof com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm) {
-                        // GuiOmniTerm 会在 drawScreen 中自行从 container 读取
-                        // 这里直接更新 container 的字段，由 Gui 读取
                         com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm container =
                                 (com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm) gui.inventorySlots;
-                        container.setClientActiveCrafting(message.activeCrafting);
+                        container.setClientActiveCrafting(message.getActiveCrafting());
                     }
                 }
             });

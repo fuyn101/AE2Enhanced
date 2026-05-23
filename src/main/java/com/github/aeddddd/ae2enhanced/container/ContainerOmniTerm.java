@@ -31,6 +31,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotHighCapacity;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotOmniUpgrade;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
+import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalData;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalInventory;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalStorage;
@@ -96,9 +97,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private final ITerminalHost terminalHost;
 
     // === 合成置顶：active crafting 同步 ===
-    private List<IAEItemStack> activeCraftingCache = Collections.emptyList();
+    private List<CraftingStatus> activeCraftingCache = Collections.emptyList();
     private int craftingUpdateCooldown = 0;
-    private List<IAEItemStack> clientActiveCrafting = Collections.emptyList();
+    private List<CraftingStatus> clientActiveCrafting = Collections.emptyList();
 
     // === 编码区布局常量（可扩展） ===
     public static final int CRAFTING_GRID_BASE_X = 187;
@@ -1202,7 +1203,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (--this.craftingUpdateCooldown > 0) return;
         this.craftingUpdateCooldown = 20;
 
-        List<IAEItemStack> current = this.collectActiveCrafting();
+        List<CraftingStatus> current = this.collectActiveCrafting();
         if (!this.isCraftingListEqual(this.activeCraftingCache, current)) {
             this.activeCraftingCache = current;
             if (this.getPlayerInv().player instanceof net.minecraft.entity.player.EntityPlayerMP) {
@@ -1213,8 +1214,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
     }
 
-    private List<IAEItemStack> collectActiveCrafting() {
-        List<IAEItemStack> result = new ArrayList<>();
+    private List<CraftingStatus> collectActiveCrafting() {
+        List<CraftingStatus> result = new ArrayList<>();
         if (!(this.terminalHost instanceof appeng.api.networking.security.IActionHost)) return result;
         appeng.api.networking.security.IActionHost host = (appeng.api.networking.security.IActionHost) this.terminalHost;
         appeng.api.networking.IGridNode node = host.getActionableNode();
@@ -1224,28 +1225,31 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (appeng.api.networking.crafting.ICraftingCPU cpu : craftingGrid.getCpus()) {
             IAEItemStack output = cpu.getFinalOutput();
             if (output != null && output.getStackSize() > 0) {
-                result.add(output);
+                long remaining = cpu.getRemainingItemCount();
+                long start = cpu.getStartItemCount();
+                result.add(new CraftingStatus(output, remaining, start));
             }
         }
         return result;
     }
 
-    private boolean isCraftingListEqual(List<IAEItemStack> a, List<IAEItemStack> b) {
+    private boolean isCraftingListEqual(List<CraftingStatus> a, List<CraftingStatus> b) {
         if (a.size() != b.size()) return false;
         for (int i = 0; i < a.size(); i++) {
-            IAEItemStack sa = a.get(i);
-            IAEItemStack sb = b.get(i);
+            CraftingStatus sa = a.get(i);
+            CraftingStatus sb = b.get(i);
             if (sa == null || sb == null) return false;
-            if (!sa.equals(sb)) return false;
+            if (!sa.output.equals(sb.output)) return false;
+            if (sa.remaining != sb.remaining) return false;
         }
         return true;
     }
 
-    public void setClientActiveCrafting(List<IAEItemStack> list) {
+    public void setClientActiveCrafting(List<CraftingStatus> list) {
         this.clientActiveCrafting = list != null ? list : Collections.emptyList();
     }
 
-    public List<IAEItemStack> getClientActiveCrafting() {
+    public List<CraftingStatus> getClientActiveCrafting() {
         return this.clientActiveCrafting;
     }
 }

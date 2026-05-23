@@ -17,7 +17,7 @@ import java.util.List;
 public class OmniItemRepo extends ItemRepo {
 
     private static final Field VIEW_FIELD;
-    private List<IAEItemStack> activeCrafting = Collections.emptyList();
+    private List<CraftingStatus> activeCrafting = Collections.emptyList();
     private List<IAEItemStack> normalView = Collections.emptyList();
 
     static {
@@ -36,11 +36,11 @@ public class OmniItemRepo extends ItemRepo {
         this.scrollSrc = src;
     }
 
-    public void setActiveCrafting(List<IAEItemStack> list) {
+    public void setActiveCrafting(List<CraftingStatus> list) {
         this.activeCrafting = list != null ? new ArrayList<>(list) : Collections.emptyList();
     }
 
-    public List<IAEItemStack> getActiveCrafting() {
+    public List<CraftingStatus> getActiveCrafting() {
         return this.activeCrafting;
     }
 
@@ -51,10 +51,10 @@ public class OmniItemRepo extends ItemRepo {
             @SuppressWarnings("unchecked")
             List<IAEItemStack> view = (List<IAEItemStack>) VIEW_FIELD.get(this);
             // 将 activeCrafting 的数量同步为 view 中的实际存储数量
-            for (IAEItemStack active : this.activeCrafting) {
-                IAEItemStack real = findInView(active, view);
+            for (CraftingStatus status : this.activeCrafting) {
+                IAEItemStack real = findInView(status.output, view);
                 if (real != null) {
-                    active.setStackSize(real.getStackSize());
+                    status.output.setStackSize(real.getStackSize());
                 }
             }
             this.normalView = new ArrayList<>(view.size());
@@ -90,7 +90,7 @@ public class OmniItemRepo extends ItemRepo {
         // 第一行：只显示 activeCrafting（不受 scroll 影响）
         if (row == 0) {
             if (col < this.activeCrafting.size()) {
-                return this.activeCrafting.get(col);
+                return this.activeCrafting.get(col).output;
             }
             return null;
         }
@@ -106,8 +106,8 @@ public class OmniItemRepo extends ItemRepo {
     }
 
     private boolean isInActiveCrafting(IAEItemStack stack) {
-        for (IAEItemStack active : this.activeCrafting) {
-            if (active.equals(stack)) {
+        for (CraftingStatus status : this.activeCrafting) {
+            if (status.output.equals(stack)) {
                 return true;
             }
         }
