@@ -66,11 +66,19 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding TOGGLE_MAGNET_KEY = new KeyBinding(
+            "key.ae2enhanced.toggleMagnet",
+            KeyConflictContext.IN_GAME,
+            Keyboard.KEY_H,
+            "key.categories.ae2enhanced"
+    );
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
+        ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
     }
 
     @Override
@@ -146,6 +154,9 @@ public class ClientProxy extends CommonProxy {
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
         if (OPEN_OMNI_TERMINAL_KEY.isPressed()) {
             AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.PacketOpenOmniTerminal());
+        }
+        if (TOGGLE_MAGNET_KEY.isPressed()) {
+            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.PacketToggleMagnet());
         }
     }
 

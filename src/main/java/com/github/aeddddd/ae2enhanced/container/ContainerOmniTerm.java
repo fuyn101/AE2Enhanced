@@ -1367,4 +1367,18 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public List<CraftingStatus> getClientActiveCrafting() {
         return this.clientActiveCrafting;
     }
+
+    /**
+     * 检查 Omni Terminal 升级槽中是否装有选取交互卡。
+     */
+    public boolean hasPickerUpgrade() {
+        for (int i = 0; i < this.rightUpgradeStorage.getSlots(); i++) {
+            net.minecraft.item.ItemStack stack = this.rightUpgradeStorage.getStackInSlot(i);
+            if (stack.getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard
+                    && stack.getMetadata() == com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard.META_PICKER) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

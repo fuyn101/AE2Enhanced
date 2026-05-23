@@ -229,3 +229,12 @@ item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡
 item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§l高级磁引卡 §r§8[类型: 磁引]
 item.ae2enhanced.omni_upgrade_card.picker.name=选取交互卡
 item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§l选取交互卡 §r§8[类型: 选取]
+
+# 按键绑定
+key.categories.ae2enhanced=AE2 Enhanced
+key.ae2enhanced.openOmniTerminal=打开全能终端
+key.ae2enhanced.toggleMagnet=切换磁引卡
+
+message.ae2enhanced.magnet.off=§c磁引卡：关闭
+message.ae2enhanced.magnet.inventory=§a磁引卡：背包模式
+message.ae2enhanced.magnet.network=§b磁引卡：网络模式

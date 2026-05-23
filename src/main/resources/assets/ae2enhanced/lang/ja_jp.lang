@@ -168,3 +168,8 @@ item.ae2enhanced.omni_upgrade_card.picker.tooltip=§b§lPicker Interaction Card 
 # Keybindings
 key.categories.ae2enhanced=AE2 Enhanced
 key.ae2enhanced.openOmniTerminal=Open Omni Terminal
+key.ae2enhanced.toggleMagnet=Toggle Magnet Card
+
+message.ae2enhanced.magnet.off=§cMagnet: OFF
+message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
+message.ae2enhanced.magnet.network=§bMagnet: Network Mode

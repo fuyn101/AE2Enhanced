@@ -4,7 +4,9 @@ import appeng.client.gui.AEBaseGui;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.PacketMEMonitorableAction;
+import com.github.aeddddd.ae2enhanced.network.PacketPickerAction;
 import com.github.aeddddd.ae2enhanced.util.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
@@ -45,6 +47,19 @@ public class MixinGuiMEMonitorableClick {
 
         SlotME s = (SlotME) slot;
         ItemStack mouseItem = ((AEBaseGui) (Object) this).mc.player.inventory.getItemStack();
+
+        // ========== 选取交互卡：中键提取 ==========
+        if (mouseButton == 2 && clickType == ClickType.CLONE
+                && s.getAEStack() != null && s.getAEStack().getStackSize() > 0) {
+            if (((AEBaseGui) (Object) this).inventorySlots instanceof ContainerOmniTerm) {
+                ContainerOmniTerm container = (ContainerOmniTerm) ((AEBaseGui) (Object) this).inventorySlots;
+                if (container.hasPickerUpgrade()) {
+                    AE2Enhanced.network.sendToServer(new PacketPickerAction(s.getAEStack()));
+                    ci.cancel();
+                    return;
+                }
+            }
+        }
 
         // ========== 手持物品左键点击 ==========
         if (!mouseItem.isEmpty() && mouseButton == 0) {
