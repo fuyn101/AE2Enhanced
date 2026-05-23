@@ -386,10 +386,11 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         // 合成置顶：第一行高亮背景（crafting.png 只有 9 格，需平铺两次覆盖 18 格）
         if (!this.container.getClientActiveCrafting().isEmpty()) {
             this.mc.getTextureManager().bindTexture(CRAFTING_HIGHLIGHT);
-            this.drawTexturedModalRect(offsetX + 8, offsetY + 18, 0, 0, 162, 18);
-            this.drawTexturedModalRect(offsetX + 8 + 162, offsetY + 18, 0, 0, 162, 18);
+            int hlLeft = offsetX + 7; // 向左偏移 1 像素
+            this.drawTexturedModalRect(hlLeft, offsetY + 18, 0, 0, 162, 18);
+            this.drawTexturedModalRect(hlLeft + 162, offsetY + 18, 0, 0, 162, 18);
             // 金黄色描边特效
-            int left = offsetX + 8;
+            int left = hlLeft;
             int top = offsetY + 18;
             int right = left + 18 * 18;
             int bottom = top + 18;
