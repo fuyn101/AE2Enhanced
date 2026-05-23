@@ -72,6 +72,10 @@ public class GuiHandler implements IGuiHandler {
                     return null;
                 }
                 appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, y, 0);
+                if (host.getActionableNode() == null) {
+                    player.sendMessage(appeng.core.localization.PlayerMessages.OutOfRange.get());
+                    return null;
+                }
                 return new ContainerOmniTerm(player.inventory, host);
             }
             AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found for {}", player.getName());

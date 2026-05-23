@@ -1096,6 +1096,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (this.terminalHost instanceof appeng.api.networking.IGridHost) {
             return ((appeng.api.networking.IGridHost) this.terminalHost).getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
         }
+        if (this.wirelessObject != null) {
+            return this.wirelessObject.getActionableNode();
+        }
         return null;
     }
 
@@ -1287,6 +1290,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                     this.getPlayerInv().player.sendMessage(PlayerMessages.OutOfRange.get());
                 }
                 this.setValidContainer(false);
+                this.getPlayerInv().player.closeScreen();
                 return;
             }
             this.wirelessTickCounter++;
@@ -1297,6 +1301,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                         this.getPlayerInv().player.sendMessage(PlayerMessages.DeviceNotPowered.get());
                     }
                     this.setValidContainer(false);
+                    this.getPlayerInv().player.closeScreen();
                     return;
                 }
                 this.wirelessTickCounter = 0;
