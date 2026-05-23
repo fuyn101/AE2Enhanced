@@ -384,21 +384,25 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
         // 合成置顶：第一行高亮背景（crafting.png 只有 9 格，需平铺两次覆盖 18 格）
-        if (!this.container.getClientActiveCrafting().isEmpty()) {
+        java.util.List<appeng.api.storage.data.IAEItemStack> activeCrafting = this.container.getClientActiveCrafting();
+        if (!activeCrafting.isEmpty()) {
             this.mc.getTextureManager().bindTexture(CRAFTING_HIGHLIGHT);
             int hlLeft = offsetX + 7; // 向左偏移 1 像素
             this.drawTexturedModalRect(hlLeft, offsetY + 18, 0, 0, 162, 18);
             this.drawTexturedModalRect(hlLeft + 162, offsetY + 18, 0, 0, 162, 18);
-            // 金黄色描边特效
-            int left = hlLeft;
+            // 为每个正在合成的物品单独绘制半透明描边
             int top = offsetY + 18;
-            int right = left + 18 * 18;
             int bottom = top + 18;
-            int borderColor = 0xFFFFCC00;
-            Gui.drawRect(left, top, right, top + 1, borderColor);     // 上
-            Gui.drawRect(left, bottom - 1, right, bottom, borderColor); // 下
-            Gui.drawRect(left, top, left + 1, bottom, borderColor);     // 左
-            Gui.drawRect(right - 1, top, right, bottom, borderColor);   // 右
+            int borderColor = 0xA0FFCC00; // 更高透明度（约 63% 不透明）
+            int count = Math.min(activeCrafting.size(), 18);
+            for (int i = 0; i < count; i++) {
+                int slotLeft = hlLeft + i * 18;
+                int slotRight = slotLeft + 18;
+                Gui.drawRect(slotLeft, top, slotRight, top + 1, borderColor);     // 上
+                Gui.drawRect(slotLeft, bottom - 1, slotRight, bottom, borderColor); // 下
+                Gui.drawRect(slotLeft, top, slotLeft + 1, bottom, borderColor);     // 左
+                Gui.drawRect(slotRight - 1, top, slotRight, bottom, borderColor);   // 右
+            }
         }
 
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
