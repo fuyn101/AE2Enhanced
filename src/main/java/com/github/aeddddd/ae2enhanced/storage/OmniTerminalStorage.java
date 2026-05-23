@@ -14,18 +14,21 @@ public class OmniTerminalStorage {
     private static final String KEY_PATTERN_INPUTS = "patternInputs";
     private static final String KEY_PATTERN_OUTPUTS = "patternOutputs";
     private static final String KEY_RIGHT_STORAGE = "rightStorage";
+    private static final String KEY_PATTERN = "pattern";
 
     public static final int SIZE_CRAFTING = 9;
     public static final int SIZE_PATTERN_INPUTS = 81;
     public static final int SIZE_PATTERN_OUTPUTS = 27;
     public static final int SIZE_RIGHT_STORAGE = 36;
     public static final int SIZE_UPGRADE = 9;
+    public static final int SIZE_PATTERN = 2;
 
     private final OmniTerminalInventory craftingInventory;
     private final OmniTerminalInventory patternInputInventory;
     private final OmniTerminalInventory patternOutputInventory;
     private final OmniTerminalInventory rightStorageInventory;
     private final OmniTerminalInventory upgradeInventory;
+    private final OmniTerminalInventory patternInventory;
 
     private boolean dirty = false;
 
@@ -35,6 +38,7 @@ public class OmniTerminalStorage {
         this.patternOutputInventory = new OmniTerminalInventory(SIZE_PATTERN_OUTPUTS);
         this.rightStorageInventory = new OmniTerminalInventory(SIZE_RIGHT_STORAGE);
         this.upgradeInventory = new OmniTerminalInventory(SIZE_UPGRADE);
+        this.patternInventory = new OmniTerminalInventory(SIZE_PATTERN);
     }
 
     public OmniTerminalInventory getCraftingInventory() {
@@ -55,6 +59,10 @@ public class OmniTerminalStorage {
 
     public OmniTerminalInventory getUpgradeInventory() {
         return upgradeInventory;
+    }
+
+    public OmniTerminalInventory getPatternInventory() {
+        return patternInventory;
     }
 
     public void markDirty() {
@@ -85,6 +93,9 @@ public class OmniTerminalStorage {
         if (compound.hasKey("upgrade", Constants.NBT.TAG_COMPOUND)) {
             upgradeInventory.deserializeNBT(compound.getCompoundTag("upgrade"));
         }
+        if (compound.hasKey(KEY_PATTERN, Constants.NBT.TAG_COMPOUND)) {
+            patternInventory.deserializeNBT(compound.getCompoundTag(KEY_PATTERN));
+        }
     }
 
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
@@ -93,6 +104,7 @@ public class OmniTerminalStorage {
         compound.setTag(KEY_PATTERN_OUTPUTS, patternOutputInventory.serializeNBT());
         compound.setTag(KEY_RIGHT_STORAGE, rightStorageInventory.serializeNBT());
         compound.setTag("upgrade", upgradeInventory.serializeNBT());
+        compound.setTag(KEY_PATTERN, patternInventory.serializeNBT());
         return compound;
     }
 }

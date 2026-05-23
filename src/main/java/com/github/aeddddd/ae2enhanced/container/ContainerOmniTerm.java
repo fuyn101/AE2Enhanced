@@ -66,7 +66,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // === 编码区 ===
     public OmniTerminalInventory patternCraftingInv;
     public OmniTerminalInventory patternOutputInv;
-    private AppEngInternalInventory patternInv;
+    private OmniTerminalInventory patternInv;
     private final AppEngInternalInventory cOut = new AppEngInternalInventory(null, 1);
 
     private final RCSlotFakeCraftingMatrix[][] patternInputSlots = new RCSlotFakeCraftingMatrix[9][9];
@@ -232,7 +232,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        this.patternInv = new AppEngInternalInventory(null, 2);
+        this.patternInv = this.omniStorage.getPatternInventory();
         this.craftSlot = new SlotPatternTerm(ip.player, this.getActionSource(), this.getPowerSource(), host,
                 this.patternCraftingInv, this.patternInv, this.cOut, 281, 111, this, 2, this);
         this.func_75146_a(this.craftSlot);
