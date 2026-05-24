@@ -223,8 +223,13 @@ public class ItemUniversalMemoryCard extends Item {
                     TileEntity te = event.getWorld().getTileEntity(event.getPos());
                     boolean isCentralInterface = te instanceof TileCentralMEInterface;
 
+                    boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
+                            || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
+
                     PacketUMCAction.ActionType type;
-                    if (isCentralInterface && !isSneaking && !isCtrl) {
+                    if (isCentralInterface && isAlt && !isSneaking && !isCtrl) {
+                        type = PacketUMCAction.ActionType.CLEAR_BINDINGS;
+                    } else if (isCentralInterface && !isSneaking && !isCtrl) {
                         type = PacketUMCAction.ActionType.BIND_SOURCE;
                     } else if (isCtrl) {
                         type = PacketUMCAction.ActionType.SELECT;
@@ -291,6 +296,9 @@ public class ItemUniversalMemoryCard extends Item {
                 break;
             case BIND_SOURCE:
                 handleBindSource(player, stack, message.getPos(), message.getFace());
+                break;
+            case CLEAR_BINDINGS:
+                handleClearBindings(player, message.getPos());
                 break;
             // BIND_TARGET removed: binding is now done via BIND_SOURCE reading selections
         }
@@ -479,6 +487,19 @@ public class ItemUniversalMemoryCard extends Item {
         player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_success", bound));
     }
 
+    private static void handleClearBindings(EntityPlayer player, BlockPos pos) {
+        World world = player.world;
+        TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileCentralMEInterface)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
+            return;
+        }
+        TileCentralMEInterface source = (TileCentralMEInterface) te;
+        int count = source.getInterfaceDuality().getBindings().size();
+        source.getInterfaceDuality().clearBindings();
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_bindings", count));
+    }
+
     // ============================================================
     // Target Resolution
     // ============================================================
@@ -590,6 +611,22 @@ public class ItemUniversalMemoryCard extends Item {
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.sneak"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.use"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.ctrl"));
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.alt"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.air"));
+
+        // 手持 UMC 看向 Central ME Interface 时显示绑定信息
+        if (world != null && world.isRemote) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+            net.minecraft.util.math.RayTraceResult ray = mc.objectMouseOver;
+            if (ray != null && ray.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
+                TileEntity te = world.getTileEntity(ray.getBlockPos());
+                if (te instanceof TileCentralMEInterface) {
+                    TileCentralMEInterface source = (TileCentralMEInterface) te;
+                    int boundCount = source.getInterfaceDuality().getBindings().size();
+                    tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
+                    tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.central_bindings", boundCount));
+                }
+            }
+        }
     }
 }
