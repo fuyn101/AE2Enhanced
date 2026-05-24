@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.centralinterface;
 
+import appeng.api.AEApi;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
@@ -20,12 +21,11 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.ConfigManager;
-import appeng.api.config.LockCraftingMode;
-import appeng.api.config.Upgrades;
 import appeng.util.IConfigManagerHost;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
 import appeng.util.inv.InvOperation;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -70,8 +70,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final List<TargetBinding> bindings = new ArrayList<>();
     private String boundBlockId = null;
     private final Map<TargetBinding, TargetState> targetStates = new HashMap<>();
-    // 记录每个目标当前正在合成的产物，用于 tick 收集时匹配
-    private final Map<TargetBinding, IAEItemStack> pendingOutputs = new HashMap<>();
+    // 记录每个目标当前正在合成的产物列表，用于 tick 收集时匹配
+    private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
 
     public DualityCentralInterface(ICentralInterfaceHost host) {
         this.host = host;
@@ -181,21 +181,31 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        TileEntity te = getTargetTile(target);
-        if (te == null) {
+        World world = this.host.getTileEntity().getWorld();
+        if (world.provider.getDimension() != target.dimension) {
+            return false;
+        }
+
+        IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+        if (!handler.isValidTarget(world, target.pos)) {
             this.targetStates.put(target, TargetState.UNAVAILABLE);
             return false;
         }
 
-        IRemoteHandler handler = resolveHandler(te);
-        boolean pushed = handler.pushMaterials(te, table, new appeng.me.helpers.MachineSource(this.host));
+        if (!handler.canStart(world, target.pos, table)) {
+            return false;
+        }
+
+        boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
             return false;
         }
 
+        handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+
         IAEItemStack[] outputs = patternDetails.getOutputs();
-        if (outputs != null && outputs.length > 0 && outputs[0] != null) {
-            this.pendingOutputs.put(target, outputs[0].copy());
+        if (outputs != null && outputs.length > 0) {
+            this.pendingOutputs.put(target, outputs);
         }
 
         this.targetStates.put(target, TargetState.PROCESSING);
@@ -245,43 +255,42 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (entry.getValue() != TargetState.PROCESSING) continue;
 
             TargetBinding target = entry.getKey();
-            TileEntity te = getTargetTile(target);
-            if (te == null) {
-                // 目标暂时不可访问（chunk 未加载等），保持 PROCESSING 下次再试
+            World world = this.host.getTileEntity().getWorld();
+            if (world.provider.getDimension() != target.dimension) continue;
+            if (!world.isBlockLoaded(target.pos)) continue;
+
+            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+            if (!handler.isIdle(world, target.pos)) {
                 continue;
             }
 
-            IAEItemStack pending = this.pendingOutputs.get(target);
-            if (pending == null) {
-                entry.setValue(TargetState.IDLE);
-                this.pendingOutputs.remove(target);
-                continue;
-            }
+            IAEItemStack[] expected = this.pendingOutputs.get(target);
+            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, new appeng.me.helpers.MachineSource(this.host));
 
-            IRemoteHandler handler = resolveHandler(te);
-            ItemStack collected = handler.collectProducts(te, pending, new appeng.me.helpers.MachineSource(this.host));
-            if (!collected.isEmpty()) {
+            if (!products.isEmpty()) {
                 try {
-                    appeng.api.storage.channels.IItemStorageChannel channel =
-                            appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class);
-                    appeng.api.storage.data.IAEItemStack toInsert = appeng.util.item.AEItemStack.fromItemStack(collected);
-                    appeng.api.storage.data.IAEItemStack remaining = Platform.poweredInsert(
-                            proxy.getEnergy(),
-                            proxy.getStorage().getInventory(channel),
-                            toInsert,
-                            new appeng.me.helpers.MachineSource(this.host));
-                    if (remaining != null && remaining.getStackSize() > 0) {
-                        // 网络未满，将剩余产物放入 storage slots
-                        ItemStack leftover = remaining.createItemStack();
-                        for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
-                            leftover = this.storage.insertItem(s, leftover, false);
-                        }
-                        if (!leftover.isEmpty()) {
-                            // storage 也满了，掉落剩余产物
-                            World world = this.host.getTileEntity().getWorld();
-                            BlockPos pos = this.host.getTileEntity().getPos();
-                            net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
-                            world.spawnEntity(entityItem);
+                    IItemStorageChannel channel =
+                            AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                    for (ItemStack product : products) {
+                        if (product.isEmpty()) continue;
+                        IAEItemStack toInsert = AEItemStack.fromItemStack(product);
+                        IAEItemStack remaining = Platform.poweredInsert(
+                                proxy.getEnergy(),
+                                proxy.getStorage().getInventory(channel),
+                                toInsert,
+                                new appeng.me.helpers.MachineSource(this.host));
+                        if (remaining != null && remaining.getStackSize() > 0) {
+                            // 网络未满，将剩余产物放入 storage slots
+                            ItemStack leftover = remaining.createItemStack();
+                            for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
+                                leftover = this.storage.insertItem(s, leftover, false);
+                            }
+                            if (!leftover.isEmpty()) {
+                                // storage 也满了，掉落剩余产物
+                                BlockPos pos = this.host.getTileEntity().getPos();
+                                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
+                                world.spawnEntity(entityItem);
+                            }
                         }
                     }
                 } catch (GridAccessException e) {
@@ -304,15 +313,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     private void pushStorageToNetwork(AENetworkProxy proxy) {
         try {
-            appeng.api.storage.channels.IItemStorageChannel channel =
-                    appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class);
+            IItemStorageChannel channel =
+                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             for (int s = 0; s < this.storage.getSlots(); s++) {
                 ItemStack stack = this.storage.getStackInSlot(s);
                 if (stack.isEmpty()) continue;
-                appeng.api.storage.data.IAEItemStack notInserted = Platform.poweredInsert(
+                IAEItemStack notInserted = Platform.poweredInsert(
                         proxy.getEnergy(),
                         proxy.getStorage().getInventory(channel),
-                        appeng.util.item.AEItemStack.fromItemStack(stack),
+                        AEItemStack.fromItemStack(stack),
                         new appeng.me.helpers.MachineSource(this.host));
                 if (notInserted == null || notInserted.getStackSize() == 0) {
                     this.storage.extractItem(s, stack.getCount(), false);
@@ -434,6 +443,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public void addBinding(TargetBinding binding) {
+        if (this.boundBlockId == null) {
+            this.boundBlockId = binding.blockId;
+        } else if (!this.boundBlockId.equals(binding.blockId)) {
+            // 只允许绑定同种方块实体
+            return;
+        }
         if (!this.bindings.contains(binding)) {
             this.bindings.add(binding);
             this.targetStates.put(binding, TargetState.IDLE);
@@ -504,9 +519,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return null;
     }
 
-    private IRemoteHandler resolveHandler(TileEntity target) {
-        // TODO: 未来可扩展注册表机制，根据目标类型匹配特定处理器
-        return new DefaultSingleBatchHandler();
+    private IRemoteHandler resolveHandler(String blockId) {
+        return HandlerRegistry.findHandler(blockId);
     }
 
     // ---- NBT ----
