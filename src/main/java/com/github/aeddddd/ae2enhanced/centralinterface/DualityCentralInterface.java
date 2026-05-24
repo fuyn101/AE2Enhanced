@@ -158,10 +158,13 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public void provideCrafting(ICraftingProviderHelper craftingTracker) {
         AENetworkProxy proxy = this.host.getProxy();
-        if (proxy.isActive() && this.craftingList != null) {
+        if (proxy.isActive() && this.craftingList != null && !this.bindings.isEmpty()) {
             for (ICraftingPatternDetails details : this.craftingList) {
                 details.setPriority(this.priority);
-                craftingTracker.addCraftingOption(this.host, details);
+                // 每个 binding 注册一次，使 AE2 网络能并行调度多个相同配方
+                for (int i = 0; i < this.bindings.size(); i++) {
+                    craftingTracker.addCraftingOption(this.host, details);
+                }
             }
         }
     }
@@ -173,37 +176,40 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        boolean anyPushed = false;
-        for (TargetBinding target : this.bindings) {
-            if (this.targetStates.getOrDefault(target, TargetState.IDLE) != TargetState.IDLE) continue;
-            TileEntity te = getTargetTile(target);
-            if (te == null) continue;
-
-            IRemoteHandler handler = resolveHandler(te);
-            InventoryCrafting copy = copyInventoryCrafting(table);
-            boolean pushed = handler.pushMaterials(te, copy, new appeng.me.helpers.MachineSource(this.host));
-            if (!pushed) continue;
-
-            IAEItemStack[] outputs = patternDetails.getOutputs();
-            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
-                this.pendingOutputs.put(target, outputs[0].copy());
-            }
-            this.targetStates.put(target, TargetState.PROCESSING);
-            anyPushed = true;
+        TargetBinding target = findIdleTarget();
+        if (target == null) {
+            return false;
         }
 
-        if (anyPushed) {
-            try {
-                appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
-                if (tm != null) {
-                    tm.wakeDevice(this.host.getProxy().getNode());
-                }
-            } catch (appeng.me.GridAccessException e) {
-                AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
-            }
+        TileEntity te = getTargetTile(target);
+        if (te == null) {
+            this.targetStates.put(target, TargetState.UNAVAILABLE);
+            return false;
         }
 
-        return anyPushed;
+        IRemoteHandler handler = resolveHandler(te);
+        boolean pushed = handler.pushMaterials(te, table, new appeng.me.helpers.MachineSource(this.host));
+        if (!pushed) {
+            return false;
+        }
+
+        IAEItemStack[] outputs = patternDetails.getOutputs();
+        if (outputs != null && outputs.length > 0 && outputs[0] != null) {
+            this.pendingOutputs.put(target, outputs[0].copy());
+        }
+
+        this.targetStates.put(target, TargetState.PROCESSING);
+
+        try {
+            appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
+            if (tm != null) {
+                tm.wakeDevice(this.host.getProxy().getNode());
+            }
+        } catch (appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+        }
+
+        return true;
     }
 
     public boolean isBusy() {
@@ -431,6 +437,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (!this.bindings.contains(binding)) {
             this.bindings.add(binding);
             this.targetStates.put(binding, TargetState.IDLE);
+            postPatternChangeEvent();
         }
     }
 
@@ -441,6 +448,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
         }
+        postPatternChangeEvent();
     }
 
     public void clearBindings() {
@@ -448,6 +456,18 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetStates.clear();
         this.pendingOutputs.clear();
         this.boundBlockId = null;
+        postPatternChangeEvent();
+    }
+
+    private void postPatternChangeEvent() {
+        try {
+            AENetworkProxy proxy = this.host.getProxy();
+            if (proxy.isReady()) {
+                proxy.getGrid().postEvent(new appeng.api.networking.events.MENetworkCraftingPatternChange(this.host, proxy.getNode()));
+            }
+        } catch (appeng.me.GridAccessException e) {
+            // ignore
+        }
     }
 
     // ---- 默认单份材料发配工具方法 ----
