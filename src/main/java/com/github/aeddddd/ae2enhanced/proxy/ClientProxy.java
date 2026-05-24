@@ -196,6 +196,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(ModBlocks.CAUSAL_ANCHOR_CORE);
         registerBlockItemModel(ModBlocks.SUPER_CRAFTING_INTERFACE);
         registerBlockItemModel(ModBlocks.WIRELESS_CHANNEL_TRANSMITTER);
+        registerBlockItemModel(ModBlocks.CENTRAL_ME_INTERFACE);
 
         // 注册升级卡的所有模型 variant
         ModelLoader.registerItemVariants(ModItems.UPGRADE_CARD,

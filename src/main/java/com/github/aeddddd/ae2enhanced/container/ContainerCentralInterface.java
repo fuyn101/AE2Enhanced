@@ -29,16 +29,6 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
         super(ip, te);
         this.tile = te;
         this.duality = te.getInterfaceDuality();
-    }
-
-    @Override
-    protected int getHeight() {
-        return 256;
-    }
-
-    @Override
-    protected void setupConfig() {
-        this.setupUpgrades();
 
         IItemHandler config = this.duality.getConfig();
         IItemHandler patterns = this.duality.getPatterns();
@@ -72,6 +62,16 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
                 );
             }
         }
+    }
+
+    @Override
+    protected int getHeight() {
+        return 256;
+    }
+
+    @Override
+    protected void setupConfig() {
+        this.setupUpgrades();
     }
 
     @Override
