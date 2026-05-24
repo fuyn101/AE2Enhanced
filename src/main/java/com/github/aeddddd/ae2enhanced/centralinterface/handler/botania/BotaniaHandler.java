@@ -105,6 +105,10 @@ public class BotaniaHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileRuneAltar) {
+            return collectProductsRuneAltar(world, pos, expectedOutputs);
+        }
         return collectMatchingEntityItems(world, pos, expectedOutputs);
     }
 
@@ -456,6 +460,40 @@ public class BotaniaHandler implements IRemoteHandler {
                     }
                     break;
                 }
+            }
+        }
+        return collected;
+    }
+
+    private List<ItemStack> collectProductsRuneAltar(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
+        List<EntityItem> items = getEntityItemsInAABB(world, pos);
+        List<ItemStack> collected = new ArrayList<>();
+
+        for (EntityItem entityItem : new ArrayList<>(items)) {
+            if (entityItem.isDead) continue;
+            ItemStack stack = entityItem.getItem();
+            if (stack.isEmpty()) continue;
+
+            boolean collectedThis = false;
+
+            // 1. 收集预期产物
+            if (expectedOutputs != null) {
+                for (IAEItemStack expected : expectedOutputs) {
+                    if (expected == null) continue;
+                    ItemStack expectedStack = expected.createItemStack();
+                    if (ItemStack.areItemsEqual(stack, expectedStack)) {
+                        collected.add(stack.copy());
+                        entityItem.setDead();
+                        collectedThis = true;
+                        break;
+                    }
+                }
+            }
+
+            // 2. 收集返还的符文（Botania 符文祭坛合成时输入槽中的符文会被弹出）
+            if (!collectedThis && stack.getItem() == ModItems.rune) {
+                collected.add(stack.copy());
+                entityItem.setDead();
             }
         }
         return collected;
