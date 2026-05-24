@@ -226,8 +226,6 @@ public class ItemUniversalMemoryCard extends Item {
                     PacketUMCAction.ActionType type;
                     if (isCentralInterface && !isSneaking && !isCtrl) {
                         type = PacketUMCAction.ActionType.BIND_SOURCE;
-                    } else if (hasBinding(stack) && isSneaking && !isCtrl && !isCentralInterface) {
-                        type = PacketUMCAction.ActionType.BIND_TARGET;
                     } else if (isCtrl) {
                         type = PacketUMCAction.ActionType.SELECT;
                     } else if (isSneaking) {
@@ -294,9 +292,7 @@ public class ItemUniversalMemoryCard extends Item {
             case BIND_SOURCE:
                 handleBindSource(player, stack, message.getPos(), message.getFace());
                 break;
-            case BIND_TARGET:
-                handleBindTarget(player, stack, message.getPos(), message.getFace());
-                break;
+            // BIND_TARGET removed: binding is now done via BIND_SOURCE reading selections
         }
 
         // 强制同步玩家背包，使客户端 ItemStack NBT 更新
@@ -459,35 +455,28 @@ public class ItemUniversalMemoryCard extends Item {
             player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
             return;
         }
-        setBinding(stack, pos, world.provider.getDimension());
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_source"));
-    }
 
-    private static void handleBindTarget(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        if (!hasBinding(stack)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_binding"));
-            return;
-        }
-        NBTTagCompound binding = getBinding(stack);
-        BlockPos sourcePos = BlockPos.fromLong(binding.getLong("pos"));
-        int sourceDim = binding.getInteger("dim");
-        World world = player.world;
-
-        if (sourceDim != world.provider.getDimension()) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_cross_dim"));
+        List<SelectionEntry> selections = getSelections(stack);
+        if (selections.isEmpty()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_selections"));
             return;
         }
 
-        TileEntity sourceTe = world.getTileEntity(sourcePos);
-        if (!(sourceTe instanceof TileCentralMEInterface)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_source_gone"));
-            return;
+        TileCentralMEInterface source = (TileCentralMEInterface) te;
+        int bound = 0;
+        for (SelectionEntry entry : selections) {
+            if (entry.dim != world.provider.getDimension()) continue;
+            if (!world.isBlockLoaded(entry.pos)) continue;
+            TileEntity targetTe = world.getTileEntity(entry.pos);
+            if (targetTe == null) continue;
+
+            String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
+            source.getInterfaceDuality().addBinding(new TargetBinding(entry.pos, entry.dim, blockId));
+            bound++;
         }
 
-        TileCentralMEInterface source = (TileCentralMEInterface) sourceTe;
-        String blockId = world.getBlockState(pos).getBlock().getRegistryName().toString();
-        source.getInterfaceDuality().addBinding(new TargetBinding(pos, world.provider.getDimension(), blockId));
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_target"));
+        clearSelections(stack);
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_success", bound));
     }
 
     // ============================================================

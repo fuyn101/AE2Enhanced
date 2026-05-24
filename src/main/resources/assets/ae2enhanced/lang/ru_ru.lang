@@ -154,6 +154,8 @@ gui.ae2enhanced.umc.msg.no_binding=§c▸ На карте памяти не за
 gui.ae2enhanced.umc.msg.bind_cross_dim=§c▸ Привязка между измерениями невозможна
 gui.ae2enhanced.umc.msg.bind_source_gone=§c▸ Источник привязки больше не существует
 gui.ae2enhanced.umc.msg.bind_target=§a▸ Цель привязки добавлена
+gui.ae2enhanced.umc.msg.no_selections=§c▸ На карте памяти нет выбранных целей
+gui.ae2enhanced.umc.msg.bind_success=§a▸ Привязано §e%d§a целей
 
 tile.ae2enhanced.wireless_channel_transmitter.name=Генератор беспроводного канала
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников

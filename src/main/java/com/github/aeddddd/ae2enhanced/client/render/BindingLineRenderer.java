@@ -10,8 +10,6 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -37,19 +35,6 @@ public class BindingLineRenderer {
 
         ItemStack held = player.getHeldItemMainhand();
         if (!(held.getItem() instanceof ItemUniversalMemoryCard)) return;
-        if (!ItemUniversalMemoryCard.hasBinding(held)) return;
-
-        NBTTagCompound binding = ItemUniversalMemoryCard.getBinding(held);
-        BlockPos sourcePos = BlockPos.fromLong(binding.getLong("pos"));
-        int sourceDim = binding.getInteger("dim");
-
-        if (player.world.provider.getDimension() != sourceDim) return;
-
-        TileEntity te = player.world.getTileEntity(sourcePos);
-        if (!(te instanceof TileCentralMEInterface)) return;
-
-        TileCentralMEInterface source = (TileCentralMEInterface) te;
-        List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
 
         double px = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.getPartialTicks();
         double py = player.lastTickPosY + (player.posY - player.lastTickPosY) * event.getPartialTicks();
@@ -67,17 +52,27 @@ public class BindingLineRenderer {
         BufferBuilder buf = tess.getBuffer();
         buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
 
-        // 渲染中枢 ME 接口的青色描边
-        AxisAlignedBB sourceAabb = new AxisAlignedBB(sourcePos).grow(0.002);
-        drawBoxOutline(buf, sourceAabb, 0.0f, 1.0f, 1.0f, 0.85f);
+        boolean any = false;
+        for (TileCentralMEInterface source : TileCentralMEInterface.getActiveInterfaces()) {
+            if (source.getWorld() != player.world) continue;
+            if (source.getPos().distanceSq(player.posX, player.posY, player.posZ) > 32.0 * 32.0) continue;
 
-        // 渲染每个目标机器的橙色描边
-        for (TargetBinding target : bindings) {
-            AxisAlignedBB targetAabb = new AxisAlignedBB(target.pos).grow(0.002);
-            drawBoxOutline(buf, targetAabb, 1.0f, 0.65f, 0.0f, 0.85f);
+            List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
+            if (bindings.isEmpty()) continue;
+
+            any = true;
+            AxisAlignedBB sourceAabb = new AxisAlignedBB(source.getPos()).grow(0.002);
+            drawBoxOutline(buf, sourceAabb, 0.0f, 1.0f, 1.0f, 0.85f);
+
+            for (TargetBinding target : bindings) {
+                AxisAlignedBB targetAabb = new AxisAlignedBB(target.pos).grow(0.002);
+                drawBoxOutline(buf, targetAabb, 1.0f, 0.65f, 0.0f, 0.85f);
+            }
         }
 
-        tess.draw();
+        if (any) {
+            tess.draw();
+        }
 
         GlStateManager.enableTexture2D();
         GlStateManager.enableLighting();

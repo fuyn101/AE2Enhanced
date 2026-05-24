@@ -226,6 +226,8 @@ gui.ae2enhanced.umc.msg.no_binding=§c▸ 内存卡未记录绑定源
 gui.ae2enhanced.umc.msg.bind_cross_dim=§c▸ 无法跨维度绑定
 gui.ae2enhanced.umc.msg.bind_source_gone=§c▸ 绑定源已不存在
 gui.ae2enhanced.umc.msg.bind_target=§a▸ 已添加绑定目标
+gui.ae2enhanced.umc.msg.no_selections=§c▸ 内存卡中没有选取的目标
+gui.ae2enhanced.umc.msg.bind_success=§a▸ 已绑定 §e%d§a 个目标
 
 item.ae2enhanced.omni_wireless_terminal.name=全能无线终端
 gui.ae2enhanced.omni_terminal.title=全能终端

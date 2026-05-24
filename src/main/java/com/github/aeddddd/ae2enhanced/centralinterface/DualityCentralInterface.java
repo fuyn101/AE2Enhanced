@@ -19,6 +19,7 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.tile.inventory.AppEngNetworkInventory;
 import appeng.util.ConfigManager;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Upgrades;
@@ -96,12 +97,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 return stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem;
             }
         };
-        this.storage = new AppEngInternalInventory(this, NUMBER_OF_STORAGE_SLOTS, 512) {
-            @Override
-            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-                return true;
-            }
-        };
+        this.storage = new AppEngNetworkInventory(
+                () -> {
+                    try {
+                        return this.host.getProxy().getStorage();
+                    } catch (appeng.me.GridAccessException e) {
+                        return null;
+                    }
+                },
+                new appeng.me.helpers.MachineSource(this.host),
+                this,
+                NUMBER_OF_STORAGE_SLOTS,
+                512
+        );
     }
 
     // ---- Inventory Access ----
@@ -114,6 +122,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if ("config".equals(name)) return this.config;
         if ("patterns".equals(name)) return this.patterns;
         if ("storage".equals(name)) return this.storage;
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, net.minecraft.util.EnumFacing facing) {
+        if (capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            return (T) this.storage;
+        }
         return null;
     }
 
@@ -188,6 +204,17 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         this.targetStates.put(target, TargetState.PROCESSING);
+
+        // 唤醒 tick 调度，确保 tickingRequest 立即开始收集产物
+        try {
+            appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
+            if (tm != null) {
+                tm.wakeDevice(this.host.getProxy().getNode());
+            }
+        } catch (appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+        }
+
         return true;
     }
 

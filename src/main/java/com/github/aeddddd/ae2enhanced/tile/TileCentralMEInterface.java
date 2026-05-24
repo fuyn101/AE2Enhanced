@@ -35,8 +35,11 @@ import net.minecraft.util.ITickable;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * 中枢 ME 接口的 TileEntity。
@@ -52,7 +55,13 @@ public class TileCentralMEInterface extends TileAENetworkBase
     private DualityCentralInterface duality;
     private StackUpgradeInventory upgrades;
 
+    private static final Set<TileCentralMEInterface> ACTIVE_INTERFACES = Collections.newSetFromMap(new WeakHashMap<>());
+
     public TileCentralMEInterface() {
+    }
+
+    public static Set<TileCentralMEInterface> getActiveInterfaces() {
+        return ACTIVE_INTERFACES;
     }
 
     // ---- ICentralInterfaceHost ----
@@ -198,6 +207,27 @@ public class TileCentralMEInterface extends TileAENetworkBase
     @Override
     public net.minecraft.tileentity.TileEntity getTileEntity() {
         return this;
+    }
+
+    @Override
+    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @javax.annotation.Nullable EnumFacing facing) {
+        T result = getInterfaceDuality().getCapability(capability, facing);
+        if (result != null) {
+            return result;
+        }
+        return super.getCapability(capability, facing);
+    }
+
+    @Override
+    public void validate() {
+        super.validate();
+        ACTIVE_INTERFACES.add(this);
+    }
+
+    @Override
+    public void invalidate() {
+        super.invalidate();
+        ACTIVE_INTERFACES.remove(this);
     }
 
     @Override

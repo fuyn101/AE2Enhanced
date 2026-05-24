@@ -228,6 +228,8 @@ gui.ae2enhanced.umc.msg.no_binding=§c▸ No binding source recorded on memory c
 gui.ae2enhanced.umc.msg.bind_cross_dim=§c▸ Cannot bind across dimensions
 gui.ae2enhanced.umc.msg.bind_source_gone=§c▸ Binding source no longer exists
 gui.ae2enhanced.umc.msg.bind_target=§a▸ Binding target added
+gui.ae2enhanced.umc.msg.no_selections=§c▸ No targets selected on memory card
+gui.ae2enhanced.umc.msg.bind_success=§a▸ Bound §e%d§a targets
 
 item.ae2enhanced.omni_wireless_terminal.name=Omni Wireless Terminal
 gui.ae2enhanced.omni_terminal.title=Omni Terminal
