@@ -52,6 +52,9 @@ dependencies {
     compileOnly files('libs/Baubles-1.12-1.5.2.jar')
     compileOnly files('libs/Botania r1.10-364.4.jar')
     compileOnly files('libs/BloodMagic-1.12.2-2.4.3-105.jar')
+    compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
+    compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
+    compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
     compile('zone.rong:mixinbooter:8.9') {
         transitive = false
     }
