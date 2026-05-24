@@ -18,19 +18,23 @@ import net.minecraftforge.oredict.OreDictionary;
 import vazkii.botania.api.BotaniaAPI;
 import vazkii.botania.api.recipe.RecipeElvenTrade;
 import vazkii.botania.api.recipe.RecipeManaInfusion;
+import vazkii.botania.api.recipe.RecipePetals;
 import vazkii.botania.api.recipe.RecipeRuneAltar;
 import vazkii.botania.api.state.BotaniaStateProps;
 import vazkii.botania.api.state.enums.AlfPortalState;
 import vazkii.botania.common.block.ModBlocks;
 import vazkii.botania.common.block.tile.TileAlfPortal;
+import vazkii.botania.common.block.tile.TileAltar;
 import vazkii.botania.common.block.tile.TileRuneAltar;
 import vazkii.botania.common.block.tile.TileTerraPlate;
 import vazkii.botania.common.block.tile.mana.TilePool;
 import vazkii.botania.common.item.ModItems;
+import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 /**
  * Botania 远程处理器。
@@ -41,6 +45,7 @@ import java.util.List;
  *   <li>精灵门 (botania:alfportal) — 丢入 EntityItem 进行精灵交易</li>
  *   <li>泰拉凝聚板 (botania:terraplate) — 丢入 3 个 manaResource 合成泰拉钢锭</li>
  *   <li>符文祭坛 (botania:runealtar) — addItem 放入物品 + 活石催化 + 魔杖启动合成</li>
+ *   <li>花药台 (botania:altar) — 放入材料后手动触发配方合成</li>
  * </ul>
  */
 public class BotaniaHandler implements IRemoteHandler {
@@ -52,7 +57,8 @@ public class BotaniaHandler implements IRemoteHandler {
         return "botania:pool".equals(blockId)
                 || "botania:alfheimportal".equals(blockId)
                 || "botania:terraplate".equals(blockId)
-                || "botania:runealtar".equals(blockId);
+                || "botania:runealtar".equals(blockId)
+                || "botania:altar".equals(blockId);
     }
 
     @Override
@@ -61,7 +67,8 @@ public class BotaniaHandler implements IRemoteHandler {
         return te instanceof TilePool
                 || te instanceof TileAlfPortal
                 || te instanceof TileTerraPlate
-                || te instanceof TileRuneAltar;
+                || te instanceof TileRuneAltar
+                || te instanceof TileAltar;
     }
 
     @Override
@@ -75,6 +82,8 @@ public class BotaniaHandler implements IRemoteHandler {
             return canStartTerraPlate(world, pos, (TileTerraPlate) te, ingredients);
         } else if (te instanceof TileRuneAltar) {
             return canStartRuneAltar(world, pos, (TileRuneAltar) te, ingredients);
+        } else if (te instanceof TileAltar) {
+            return canStartAltar(world, pos, (TileAltar) te, ingredients);
         }
         return false;
     }
@@ -90,6 +99,8 @@ public class BotaniaHandler implements IRemoteHandler {
             return pushMaterialsTerraPlate(world, pos, (TileTerraPlate) te, ingredients);
         } else if (te instanceof TileRuneAltar) {
             return pushMaterialsRuneAltar(world, pos, (TileRuneAltar) te, ingredients);
+        } else if (te instanceof TileAltar) {
+            return pushMaterialsAltar(world, pos, (TileAltar) te, ingredients);
         }
         return false;
     }
@@ -99,6 +110,8 @@ public class BotaniaHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileRuneAltar) {
             return startProcessRuneAltar(world, pos, (TileRuneAltar) te);
+        } else if (te instanceof TileAltar) {
+            return startProcessAltar(world, pos, (TileAltar) te);
         }
         return true;
     }
@@ -108,6 +121,8 @@ public class BotaniaHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileRuneAltar) {
             return collectProductsRuneAltar(world, pos, expectedOutputs);
+        } else if (te instanceof TileAltar) {
+            return collectMatchingEntityItems(world, pos, expectedOutputs);
         }
         return collectMatchingEntityItems(world, pos, expectedOutputs);
     }
@@ -123,6 +138,8 @@ public class BotaniaHandler implements IRemoteHandler {
             return isIdleTerraPlate(world, pos);
         } else if (te instanceof TileRuneAltar) {
             return isIdleRuneAltar(world, pos, (TileRuneAltar) te);
+        } else if (te instanceof TileAltar) {
+            return isIdleAltar(world, pos, (TileAltar) te);
         }
         return true;
     }
@@ -425,6 +442,121 @@ public class BotaniaHandler implements IRemoteHandler {
         // 不通过扫描 AABB 判断 idle，防止无关物品导致误判
         // 产物是否存在由 collectProducts 在 tick 中按 expectedOutputs 匹配收集
         return false;
+    }
+
+    // ==================== Petal Apothecary (Altar) ====================
+
+    private boolean canStartAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
+        if (!altar.hasWater()) return false;
+        if (altar.hasLava()) return false;
+        if (!altar.isEmpty()) return false;
+        return findMatchingRecipe(ingredients) != null;
+    }
+
+    private boolean pushMaterialsAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
+        IItemHandlerModifiable handler = altar.getItemHandler();
+        int slot = 0;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            // 找到下一个空槽
+            while (slot < altar.getSizeInventory()) {
+                if (handler.getStackInSlot(slot).isEmpty()) {
+                    handler.setStackInSlot(slot, stack.copy());
+                    break;
+                }
+                slot++;
+            }
+            if (slot >= altar.getSizeInventory()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean startProcessAltar(World world, BlockPos pos, TileAltar altar) {
+        IItemHandlerModifiable handler = altar.getItemHandler();
+        RecipePetals recipe = findMatchingRecipe(handler);
+
+        if (recipe == null) {
+            // 配方不匹配，退还所有物品
+            for (int i = 0; i < altar.getSizeInventory(); i++) {
+                ItemStack stack = handler.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    EntityItem entity = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, stack.copy());
+                    entity.setNoPickupDelay();
+                    entity.motionX = 0;
+                    entity.motionY = 0;
+                    entity.motionZ = 0;
+                    world.spawnEntity(entity);
+                    handler.setStackInSlot(i, ItemStack.EMPTY);
+                }
+            }
+            return false;
+        }
+
+        // 清空物品栏
+        for (int i = 0; i < altar.getSizeInventory(); i++) {
+            handler.setStackInSlot(i, ItemStack.EMPTY);
+        }
+
+        // 生成产物
+        ItemStack output = recipe.getOutput().copy();
+        EntityItem outputItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, output);
+        outputItem.addTag("ApothecarySpawned");
+        outputItem.setNoPickupDelay();
+        outputItem.motionX = 0;
+        outputItem.motionY = 0;
+        outputItem.motionZ = 0;
+        world.spawnEntity(outputItem);
+
+        // 清空水
+        altar.setWater(false);
+
+        // 保存配方（用于 HUD 显示）
+        altar.saveLastRecipe();
+
+        // 发送 block event，触发客户端粒子效果
+        world.addBlockEvent(pos, ModBlocks.altar, 1, 0);
+
+        return true;
+    }
+
+    private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar) {
+        // 花药台合成在 startProcess 中瞬时完成，只要产物存在即可收集
+        List<EntityItem> items = getEntityItemsInAABB(world, pos);
+        for (EntityItem item : items) {
+            if (item.isDead) continue;
+            if (item.getEntityData().hasKey("ApothecarySpawned")) {
+                return true;
+            }
+        }
+        // 如果没有带标记的产物，检查是否有任何 EntityItem（可能是其他产物）
+        return !items.isEmpty();
+    }
+
+    private RecipePetals findMatchingRecipe(InventoryCrafting ingredients) {
+        // 提取非空物品到临时 IItemHandler
+        ItemStackHandler temp = new ItemStackHandler(16);
+        int slot = 0;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                temp.setStackInSlot(slot++, stack.copy());
+            }
+        }
+        if (slot == 0) return null;
+        return findMatchingRecipe(temp);
+    }
+
+    private RecipePetals findMatchingRecipe(net.minecraftforge.items.IItemHandler handler) {
+        for (RecipePetals recipe : BotaniaAPI.petalRecipes) {
+            if (recipe.matches(handler)) {
+                return recipe;
+            }
+        }
+        return null;
     }
 
     // ==================== Common Helpers ====================
