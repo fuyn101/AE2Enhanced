@@ -51,6 +51,8 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Field FIELD_CAULDRON_MODE;
     private static Field FIELD_CAULDRON_CRAFTING_TIMER;
     private static Field FIELD_CAULDRON_HAS_POWER;
+    private static Field FIELD_CAULDRON_HEAT_TIMER;
+    private static Field FIELD_CAULDRON_TANK;
 
     private static boolean reflectionReady = false;
 
@@ -69,6 +71,9 @@ public class BewitchmentHandler implements IRemoteHandler {
             FIELD_CAULDRON_MODE = CLASS_CAULDRON.getField("mode");
             FIELD_CAULDRON_CRAFTING_TIMER = CLASS_CAULDRON.getField("craftingTimer");
             FIELD_CAULDRON_HAS_POWER = CLASS_CAULDRON.getField("hasPower");
+            FIELD_CAULDRON_HEAT_TIMER = CLASS_CAULDRON.getDeclaredField("heatTimer");
+            FIELD_CAULDRON_HEAT_TIMER.setAccessible(true);
+            FIELD_CAULDRON_TANK = CLASS_CAULDRON.getField("tank");
 
             reflectionReady = true;
         } catch (Exception e) {
@@ -128,7 +133,10 @@ public class BewitchmentHandler implements IRemoteHandler {
         // 非 DOWN face 获取 inventory_up（输入槽）
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
         if (up == null) return false;
-        int needed = ingredients.getSizeInventory();
+        int needed = 0;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
+        }
         int empty = 0;
         for (int i = 0; i < up.getSlots(); i++) {
             if (up.getStackInSlot(i).isEmpty()) empty++;
@@ -301,6 +309,15 @@ public class BewitchmentHandler implements IRemoteHandler {
         try {
             boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
             if (!hasPower) return false; // 祭坛能量不足
+
+            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
+            if (heatTimer < 5) return false; // 未沸腾
+
+            Object tank = FIELD_CAULDRON_TANK.get(te);
+            if (tank == null) return false;
+            int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
+            if (fluidAmount <= 0) return false; // 无流体
+
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return false;
             // 统计空槽
@@ -308,7 +325,11 @@ public class BewitchmentHandler implements IRemoteHandler {
             for (int i = 0; i < inv.getSlots(); i++) {
                 if (inv.getStackInSlot(i).isEmpty()) empty++;
             }
-            return empty >= ingredients.getSizeInventory();
+            int needed = 0;
+            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+                if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
+            }
+            return empty >= needed;
         } catch (Exception e) {
             return false;
         }
@@ -333,6 +354,13 @@ public class BewitchmentHandler implements IRemoteHandler {
                 inv.setStackInSlot(slotIdx, single);
                 slotIdx++;
             }
+
+            // 触发合成：如果当前 mode 为空闲，设置为合成模式
+            int mode = (int) FIELD_CAULDRON_MODE.get(te);
+            if (mode == 0 || mode == 3 || mode == 4) {
+                FIELD_CAULDRON_MODE.set(te, 5);
+                FIELD_CAULDRON_CRAFTING_TIMER.set(te, 0);
+            }
             return true;
         } catch (Exception e) {
             return false;
@@ -341,11 +369,15 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     private boolean isIdleCauldron(World world, BlockPos pos, TileEntity te) {
         try {
-            int craftingTimer = (int) FIELD_CAULDRON_CRAFTING_TIMER.get(te);
-            if (craftingTimer != 0) return false;
-
             int mode = (int) FIELD_CAULDRON_MODE.get(te);
-            // mode 0 是空闲，mode 2 是排空流体，mode 3/5 是合成相关
+            int craftingTimer = (int) FIELD_CAULDRON_CRAFTING_TIMER.get(te);
+
+            // mode 5 是合成阶段，timer > 0 表示合成进行中
+            if (mode == 5 && craftingTimer > 0) return false;
+
+            // mode 2 是排空流体，视为处理中
+            if (mode == 2) return false;
+
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return true;
 
@@ -360,14 +392,26 @@ public class BewitchmentHandler implements IRemoteHandler {
             // 空闲：inventory 为空（合成已完成清空）
             if (inventoryEmpty) return true;
 
-            // inventory 有物品但 timer==0：检查是否有能量
-            // 如果没有能量，认为空闲，回收物品
+            // inventory 有物品：检查是否有能量和沸腾
             boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
             if (!hasPower) return true;
 
-            // 有能量但 timer==0：可能缺少热源/流体，合成未开始
-            // 也认为是空闲，回收物品（避免无限等待）
-            return true;
+            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
+            if (heatTimer < 5) return true;
+
+            Object tank = FIELD_CAULDRON_TANK.get(te);
+            if (tank != null) {
+                int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
+                if (fluidAmount <= 0) return true;
+            }
+
+            // 有能量、沸腾、有流体，但 inventory 有物品且 timer==0：
+            // 可能合成已结束但产物还未掉落，或合成未正确开始
+            // 如果是 mode 5 且 timer == 0，说明合成已完成（产物已生成或正在生成）
+            if (mode == 5 && craftingTimer == 0) return true;
+
+            // 其他情况（mode 0/3/4 但有物品），视为处理中等待
+            return false;
         } catch (Exception e) {
             return false;
         }
