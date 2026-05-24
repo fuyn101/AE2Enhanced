@@ -19,7 +19,6 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.tile.inventory.AppEngNetworkInventory;
 import appeng.util.ConfigManager;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Upgrades;
@@ -97,19 +96,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 return stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem;
             }
         };
-        this.storage = new AppEngNetworkInventory(
-                () -> {
-                    try {
-                        return this.host.getProxy().getStorage();
-                    } catch (appeng.me.GridAccessException e) {
-                        return null;
-                    }
-                },
-                new appeng.me.helpers.MachineSource(this.host),
-                this,
-                NUMBER_OF_STORAGE_SLOTS,
-                512
-        );
+        this.storage = new AppEngInternalInventory(this, NUMBER_OF_STORAGE_SLOTS, 512) {
+            @Override
+            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+                return true;
+            }
+        };
     }
 
     // ---- Inventory Access ----
@@ -181,41 +173,37 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        TargetBinding target = findIdleTarget();
-        if (target == null) {
-            return false;
-        }
+        boolean anyPushed = false;
+        for (TargetBinding target : this.bindings) {
+            if (this.targetStates.getOrDefault(target, TargetState.IDLE) != TargetState.IDLE) continue;
+            TileEntity te = getTargetTile(target);
+            if (te == null) continue;
 
-        TileEntity te = getTargetTile(target);
-        if (te == null) {
-            this.targetStates.put(target, TargetState.UNAVAILABLE);
-            return false;
-        }
+            IRemoteHandler handler = resolveHandler(te);
+            InventoryCrafting copy = copyInventoryCrafting(table);
+            boolean pushed = handler.pushMaterials(te, copy, new appeng.me.helpers.MachineSource(this.host));
+            if (!pushed) continue;
 
-        IRemoteHandler handler = resolveHandler(te);
-        boolean pushed = handler.pushMaterials(te, table, new appeng.me.helpers.MachineSource(this.host));
-        if (!pushed) {
-            return false;
-        }
-
-        IAEItemStack[] outputs = patternDetails.getOutputs();
-        if (outputs != null && outputs.length > 0 && outputs[0] != null) {
-            this.pendingOutputs.put(target, outputs[0].copy());
-        }
-
-        this.targetStates.put(target, TargetState.PROCESSING);
-
-        // 唤醒 tick 调度，确保 tickingRequest 立即开始收集产物
-        try {
-            appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
-            if (tm != null) {
-                tm.wakeDevice(this.host.getProxy().getNode());
+            IAEItemStack[] outputs = patternDetails.getOutputs();
+            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
+                this.pendingOutputs.put(target, outputs[0].copy());
             }
-        } catch (appeng.me.GridAccessException e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+            this.targetStates.put(target, TargetState.PROCESSING);
+            anyPushed = true;
         }
 
-        return true;
+        if (anyPushed) {
+            try {
+                appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
+                if (tm != null) {
+                    tm.wakeDevice(this.host.getProxy().getNode());
+                }
+            } catch (appeng.me.GridAccessException e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+            }
+        }
+
+        return anyPushed;
     }
 
     public boolean isBusy() {
@@ -234,7 +222,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // ---- Ticking ----
 
     public TickingRequest getTickingRequest(IGridNode node) {
-        return new TickingRequest(10, 60, !hasWorkToDo(), true);
+        return new TickingRequest(1, 5, !hasWorkToDo(), true);
     }
 
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
@@ -300,9 +288,38 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
+        // 将 storage slots 中的物品推入网络（如果有空间）
+        pushStorageToNetwork(proxy);
+
         return hasWorkToDo()
                 ? (didWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
                 : TickRateModulation.SLEEP;
+    }
+
+    private void pushStorageToNetwork(AENetworkProxy proxy) {
+        try {
+            appeng.api.storage.channels.IItemStorageChannel channel =
+                    appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class);
+            for (int s = 0; s < this.storage.getSlots(); s++) {
+                ItemStack stack = this.storage.getStackInSlot(s);
+                if (stack.isEmpty()) continue;
+                appeng.api.storage.data.IAEItemStack notInserted = Platform.poweredInsert(
+                        proxy.getEnergy(),
+                        proxy.getStorage().getInventory(channel),
+                        appeng.util.item.AEItemStack.fromItemStack(stack),
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (notInserted == null || notInserted.getStackSize() == 0) {
+                    this.storage.extractItem(s, stack.getCount(), false);
+                } else {
+                    int inserted = (int) (stack.getCount() - notInserted.getStackSize());
+                    if (inserted > 0) {
+                        this.storage.extractItem(s, inserted, false);
+                    }
+                }
+            }
+        } catch (appeng.me.GridAccessException e) {
+            // 网络未连接，保持 storage 中
+        }
     }
 
     private boolean hasWorkToDo() {
@@ -407,11 +424,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public void addBinding(TargetBinding binding) {
-        if (this.boundBlockId == null) {
-            this.boundBlockId = binding.blockId;
-        } else if (!this.boundBlockId.equals(binding.blockId)) {
-            return; // 只允许同一种方块
-        }
         if (!this.bindings.contains(binding)) {
             this.bindings.add(binding);
             this.targetStates.put(binding, TargetState.IDLE);
@@ -435,6 +447,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     // ---- 默认单份材料发配工具方法 ----
+
+    private InventoryCrafting copyInventoryCrafting(InventoryCrafting original) {
+        InventoryCrafting copy = new InventoryCrafting(new net.minecraft.inventory.Container() {
+            @Override public boolean canInteractWith(net.minecraft.entity.player.EntityPlayer playerIn) { return false; }
+        }, 3, 3);
+        for (int i = 0; i < original.getSizeInventory(); i++) {
+            ItemStack stack = original.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                copy.setInventorySlotContents(i, stack.copy());
+            }
+        }
+        return copy;
+    }
 
     private TileEntity getTargetTile(TargetBinding target) {
         World world = this.host.getTileEntity().getWorld();
