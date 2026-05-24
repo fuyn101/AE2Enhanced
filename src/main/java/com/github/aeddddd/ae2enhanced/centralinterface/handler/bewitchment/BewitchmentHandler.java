@@ -19,7 +19,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Bewitchment 处理器：SpinningWheel + WitchesCauldron。
@@ -53,6 +55,10 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Field FIELD_CAULDRON_HAS_POWER;
     private static Field FIELD_CAULDRON_HEAT_TIMER;
     private static Field FIELD_CAULDRON_TANK;
+
+    // 坩埚超时：记录 push 时间（key = dim:pos）
+    private static final Map<String, Long> CAULDRON_PUSH_TIME = new HashMap<>();
+    private static final long CAULDRON_TIMEOUT_MS = 30000;
 
     private static boolean reflectionReady = false;
 
@@ -155,7 +161,7 @@ public class BewitchmentHandler implements IRemoteHandler {
             return pushDistillery(te, ingredients);
         }
         if (CLASS_CAULDRON.isInstance(te)) {
-            return pushCauldron(te, ingredients);
+            return pushCauldron(world, pos, te, ingredients);
         }
         return false;
     }
@@ -335,32 +341,31 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
     }
 
-    private boolean pushCauldron(TileEntity te, InventoryCrafting ingredients) {
+    private boolean pushCauldron(World world, BlockPos pos, TileEntity te, InventoryCrafting ingredients) {
         try {
-            ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
-            if (inv == null) return false;
-
-            int slotIdx = 0;
+            // 改为生成 EntityItem，让坩埚的 insertNextItem 自然收集
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
                 ItemStack stack = ingredients.getStackInSlot(i);
                 if (stack.isEmpty()) continue;
-                // 找到下一个空槽
-                while (slotIdx < inv.getSlots() && !inv.getStackInSlot(slotIdx).isEmpty()) {
-                    slotIdx++;
-                }
-                if (slotIdx >= inv.getSlots()) return false;
                 ItemStack single = stack.copy();
                 single.setCount(1);
-                inv.setStackInSlot(slotIdx, single);
-                slotIdx++;
+
+                EntityItem entity = new EntityItem(
+                    world,
+                    pos.getX() + 0.5,
+                    pos.getY() + 1.0,
+                    pos.getZ() + 0.5,
+                    single
+                );
+                entity.setPickupDelay(40); // 2秒延迟，防止玩家拾取
+                entity.motionX = 0;
+                entity.motionY = 0;
+                entity.motionZ = 0;
+                world.spawnEntity(entity);
             }
 
-            // 触发合成：如果当前 mode 为空闲，设置为合成模式
-            int mode = (int) FIELD_CAULDRON_MODE.get(te);
-            if (mode == 0 || mode == 3 || mode == 4) {
-                FIELD_CAULDRON_MODE.set(te, 5);
-                FIELD_CAULDRON_CRAFTING_TIMER.set(te, 0);
-            }
+            String key = world.provider.getDimension() + ":" + pos.toLong();
+            CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
             return true;
         } catch (Exception e) {
             return false;
@@ -389,10 +394,23 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            // 空闲：inventory 为空（合成已完成清空）
-            if (inventoryEmpty) return true;
+            // 检查是否有未收集的 EntityItem（我们 push 的物品或产物）
+            AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(1.0);
+            List<EntityItem> nearbyItems = world.getEntitiesWithinAABB(EntityItem.class, aabb);
+            boolean hasNearbyItems = !nearbyItems.isEmpty();
 
-            // inventory 有物品：检查是否有能量和沸腾
+            // 空闲：inventory 为空且周围无 EntityItem
+            if (inventoryEmpty && !hasNearbyItems) return true;
+
+            // 超时检查：如果 push 后超过 30 秒仍然未处理完毕，强制回收
+            String key = world.provider.getDimension() + ":" + pos.toLong();
+            Long pushTime = CAULDRON_PUSH_TIME.get(key);
+            if (pushTime != null && System.currentTimeMillis() - pushTime > CAULDRON_TIMEOUT_MS) {
+                CAULDRON_PUSH_TIME.remove(key);
+                return true; // 超时，允许 collectProducts 回收
+            }
+
+            // inventory 有物品或周围有 EntityItem：检查是否有能量和沸腾
             boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
             if (!hasPower) return true;
 
@@ -405,12 +423,10 @@ public class BewitchmentHandler implements IRemoteHandler {
                 if (fluidAmount <= 0) return true;
             }
 
-            // 有能量、沸腾、有流体，但 inventory 有物品且 timer==0：
-            // 可能合成已结束但产物还未掉落，或合成未正确开始
-            // 如果是 mode 5 且 timer == 0，说明合成已完成（产物已生成或正在生成）
+            // mode 5 且 timer == 0：合成已完成，允许收集
             if (mode == 5 && craftingTimer == 0) return true;
 
-            // 其他情况（mode 0/3/4 但有物品），视为处理中等待
+            // 仍在处理中
             return false;
         } catch (Exception e) {
             return false;
@@ -419,7 +435,7 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     private void collectCauldron(World world, BlockPos pos, TileEntity te, List<ItemStack> result) {
         try {
-            // 1. 扫描周围 EntityItem（坩埚产物以掉落物形式出现）
+            // 1. 扫描周围 EntityItem（坩埚产物或未收集的输入物品）
             AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(1.0);
             List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, aabb);
             for (EntityItem entity : items) {
@@ -431,7 +447,7 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            // 2. 回收 inventory 中的残余物品（合成未开始时）
+            // 2. 回收 inventory 中的残余物品
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv != null) {
                 for (int i = 0; i < inv.getSlots(); i++) {
@@ -442,6 +458,10 @@ public class BewitchmentHandler implements IRemoteHandler {
                     }
                 }
             }
+
+            // 3. 清理超时记录
+            String key = world.provider.getDimension() + ":" + pos.toLong();
+            CAULDRON_PUSH_TIME.remove(key);
         } catch (Exception ignored) {}
     }
 }
