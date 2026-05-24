@@ -20,6 +20,8 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.ConfigManager;
+import appeng.api.config.LockCraftingMode;
+import appeng.api.config.Upgrades;
 import appeng.util.IConfigManagerHost;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
@@ -109,6 +111,35 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if ("patterns".equals(name)) return this.patterns;
         if ("storage".equals(name)) return this.storage;
         return null;
+    }
+
+    public void dropExcessPatterns() {
+        IItemHandler patterns = this.getPatterns();
+        java.util.ArrayList<net.minecraft.item.ItemStack> dropList = new java.util.ArrayList<>();
+        int allowedSlots = 9 + getInstalledUpgrades(Upgrades.PATTERN_EXPANSION) * 9;
+        for (int invSlot = allowedSlots; invSlot < patterns.getSlots(); ++invSlot) {
+            net.minecraft.item.ItemStack is = patterns.getStackInSlot(invSlot);
+            if (!is.isEmpty()) {
+                dropList.add(patterns.extractItem(invSlot, Integer.MAX_VALUE, false));
+            }
+        }
+        if (dropList.size() > 0) {
+            net.minecraft.world.World world = this.host.getTileEntity().getWorld();
+            net.minecraft.util.math.BlockPos pos = this.host.getTileEntity().getPos();
+            for (net.minecraft.item.ItemStack stack : dropList) {
+                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
+                world.spawnEntity(entityItem);
+            }
+        }
+    }
+
+    public int getInstalledUpgrades(Upgrades upgrade) {
+        return ((appeng.api.implementations.IUpgradeableHost) this.host).getInstalledUpgrades(upgrade);
+    }
+
+    public LockCraftingMode getCraftingLockedReason() {
+        // 当前未实现红石状态检测和 unlockEvent 追踪，默认返回 NONE
+        return LockCraftingMode.NONE;
     }
 
     // ---- Crafting Provider ----

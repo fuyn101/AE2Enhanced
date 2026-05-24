@@ -1,13 +1,19 @@
 package com.github.aeddddd.ae2enhanced.container;
 
+import appeng.api.config.LockCraftingMode;
+import appeng.api.config.Settings;
+import appeng.api.config.SecurityPermissions;
 import appeng.api.config.Upgrades;
+import appeng.api.config.YesNo;
 import appeng.api.implementations.IUpgradeableHost;
 import appeng.container.implementations.ContainerUpgradeable;
 import appeng.container.slot.IOptionalSlotHost;
 import appeng.container.slot.OptionalSlotRestrictedInput;
 import appeng.container.slot.SlotFake;
 import appeng.container.slot.SlotOversized;
+import appeng.container.guisync.GuiSync;
 import appeng.container.slot.SlotRestrictedInput;
+import appeng.core.localization.PlayerMessages;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
@@ -24,6 +30,17 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
 
     private final TileCentralMEInterface tile;
     private final DualityCentralInterface duality;
+
+    @GuiSync(value = 3)
+    public YesNo bMode = YesNo.NO;
+    @GuiSync(value = 4)
+    public LockCraftingMode lMode = LockCraftingMode.NONE;
+    @GuiSync(value = 7)
+    public int patternExpansions = 0;
+    @GuiSync(value = 8)
+    public YesNo iTermMode = YesNo.YES;
+    @GuiSync(value = 9)
+    public LockCraftingMode lockReason = LockCraftingMode.NONE;
 
     public ContainerCentralInterface(InventoryPlayer ip, TileCentralMEInterface te) {
         super(ip, te);
@@ -100,6 +117,62 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
 
     public DualityCentralInterface getDuality() {
         return this.duality;
+    }
+
+    @Override
+    public void func_75142_b() {
+        this.verifyPermissions(SecurityPermissions.BUILD, false);
+        if (this.patternExpansions != this.getPatternUpgrades()) {
+            this.patternExpansions = this.getPatternUpgrades();
+            this.duality.dropExcessPatterns();
+        }
+        if (Platform.isServer()) {
+            this.lockReason = this.duality.getCraftingLockedReason();
+        }
+        super.func_75142_b();
+    }
+
+    @Override
+    protected void loadSettingsFromHost(appeng.api.util.IConfigManager cm) {
+        this.setBlockingMode((YesNo) cm.getSetting(Settings.BLOCK));
+        this.setUnlockMode((LockCraftingMode) cm.getSetting(Settings.UNLOCK));
+        this.setInterfaceTerminalMode((YesNo) cm.getSetting(Settings.INTERFACE_TERMINAL));
+    }
+
+    @Override
+    public void onUpdate(String field, Object oldValue, Object newValue) {
+        super.onUpdate(field, oldValue, newValue);
+        if (Platform.isClient() && field.equals("patternExpansions")) {
+            this.duality.dropExcessPatterns();
+        }
+    }
+
+    public void setUnlockMode(LockCraftingMode mode) {
+        this.lMode = mode;
+    }
+
+    public LockCraftingMode getUnlockMode() {
+        return this.lMode;
+    }
+
+    public void setBlockingMode(YesNo bMode) {
+        this.bMode = bMode;
+    }
+
+    public YesNo getBlockingMode() {
+        return this.bMode;
+    }
+
+    private void setInterfaceTerminalMode(YesNo iTermMode) {
+        this.iTermMode = iTermMode;
+    }
+
+    public YesNo getInterfaceTerminalMode() {
+        return this.iTermMode;
+    }
+
+    public LockCraftingMode getCraftingLockedReason() {
+        return this.lockReason;
     }
 
     public int getPatternUpgrades() {
