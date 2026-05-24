@@ -261,6 +261,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
             IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
             if (!handler.isIdle(world, target.pos)) {
+                // 对于需要条件启动的设备（如符文祭坛），在 tick 中尝试启动
+                handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
                 continue;
             }
 
