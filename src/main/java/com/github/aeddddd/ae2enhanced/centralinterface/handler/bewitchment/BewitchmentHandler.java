@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.bewitchment;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.inventory.InventoryCrafting;
@@ -13,10 +14,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,14 +25,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bewitchment 处理器：SpinningWheel + WitchesCauldron。
+ * Bewitchment 处理器：SpinningWheel + Distillery + WitchesCauldron。
  *
- * <p><b>SpinningWheel</b>：4槽输入(inventory_up) + 2槽输出(inventory_down)。
- * 通过非 DOWN face 推入材料，配方自动匹配，需要外部祭坛供能。</p>
+ * <p><b>SpinningWheel / Distillery</b>：通过 {@link EnumFacing#UP} 的 IItemHandler 推入材料，
+ * 通过 {@link EnumFacing#DOWN} 的 IItemHandler 收集产物。Bewitchment 的 getCapability 映射为：
+ * <ul>
+ *   <li>DOWN → inventory_down（输出槽，isItemValid 返回 false）</li>
+ *   <li>UP / 其他面 → inventory_up（输入槽，isItemValid 返回 true）</li>
+ * </ul>
+ * 若从底部（DOWN）输入，物品会被插入输出槽且无法被配方识别，因此 handler 必须显式使用 UP 面。</p>
  *
- * <p><b>WitchesCauldron</b>：127槽 inventory + 流体 tank。不暴露 IItemHandler capability，
- * 通过反射直接操作 inventory。产物以 EntityItem 掉落。<br>
- * <b>限制</b>：handler 不负责热源/流体准备，需玩家预先 setup。超时 30 秒未合成则回收物品。</p>
+ * <p><b>WitchesCauldron</b>：不暴露 IItemHandler capability，通过生成 EntityItem 让其
+ * {@code insertNextItem} 自然收集。handler 不负责热源/流体准备，需玩家预先 setup。</p>
  */
 public class BewitchmentHandler implements IRemoteHandler {
 
@@ -42,14 +47,10 @@ public class BewitchmentHandler implements IRemoteHandler {
     // 反射缓存 — SpinningWheel
     private static Class<?> CLASS_SPINNING_WHEEL;
     private static Field FIELD_SPINNING_PROGRESS;
-    private static Field FIELD_SPINNING_INVENTORY_UP;
-    private static Field FIELD_SPINNING_INVENTORY_DOWN;
 
     // 反射缓存 — Distillery
     private static Class<?> CLASS_DISTILLERY;
     private static Field FIELD_DISTILLERY_PROGRESS;
-    private static Field FIELD_DISTILLERY_INVENTORY_UP;
-    private static Field FIELD_DISTILLERY_INVENTORY_DOWN;
 
     // 反射缓存 — Cauldron
     private static Class<?> CLASS_CAULDRON;
@@ -71,17 +72,9 @@ public class BewitchmentHandler implements IRemoteHandler {
         try {
             CLASS_SPINNING_WHEEL = Class.forName("com.bewitchment.common.block.tile.entity.TileEntitySpinningWheel");
             FIELD_SPINNING_PROGRESS = CLASS_SPINNING_WHEEL.getField("progress");
-            FIELD_SPINNING_INVENTORY_UP = CLASS_SPINNING_WHEEL.getDeclaredField("inventory_up");
-            FIELD_SPINNING_INVENTORY_UP.setAccessible(true);
-            FIELD_SPINNING_INVENTORY_DOWN = CLASS_SPINNING_WHEEL.getDeclaredField("inventory_down");
-            FIELD_SPINNING_INVENTORY_DOWN.setAccessible(true);
 
             CLASS_DISTILLERY = Class.forName("com.bewitchment.common.block.tile.entity.TileEntityDistillery");
             FIELD_DISTILLERY_PROGRESS = CLASS_DISTILLERY.getField("progress");
-            FIELD_DISTILLERY_INVENTORY_UP = CLASS_DISTILLERY.getDeclaredField("inventory_up");
-            FIELD_DISTILLERY_INVENTORY_UP.setAccessible(true);
-            FIELD_DISTILLERY_INVENTORY_DOWN = CLASS_DISTILLERY.getDeclaredField("inventory_down");
-            FIELD_DISTILLERY_INVENTORY_DOWN.setAccessible(true);
 
             CLASS_CAULDRON = Class.forName("com.bewitchment.common.block.tile.entity.TileEntityWitchesCauldron");
             FIELD_CAULDRON_INVENTORY = CLASS_CAULDRON.getDeclaredField("inventory");
@@ -115,7 +108,7 @@ public class BewitchmentHandler implements IRemoteHandler {
             || CLASS_CAULDRON.isInstance(te);
     }
 
-    // ===================== SpinningWheel =====================
+    // ===================== canStart =====================
 
     @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
@@ -133,41 +126,36 @@ public class BewitchmentHandler implements IRemoteHandler {
         return false;
     }
 
-    private boolean canStartDistillery(TileEntity te, InventoryCrafting ingredients) {
-        try {
-            ItemStackHandler up = (ItemStackHandler) FIELD_DISTILLERY_INVENTORY_UP.get(te);
-            if (up == null) return false;
-            int needed = 0;
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
-            }
-            int empty = 0;
-            for (int i = 0; i < up.getSlots(); i++) {
-                if (up.getStackInSlot(i).isEmpty()) empty++;
-            }
-            return empty >= needed;
-        } catch (Exception e) {
-            return false;
+    private boolean canStartSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
+        IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+        if (up == null) return false;
+        // 要求输入槽完全为空，避免残留物品干扰配方匹配
+        for (int i = 0; i < up.getSlots(); i++) {
+            if (!up.getStackInSlot(i).isEmpty()) return false;
         }
+        int needed = countNonEmpty(ingredients);
+        return up.getSlots() >= needed;
     }
 
-    private boolean canStartSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
-        try {
-            ItemStackHandler up = (ItemStackHandler) FIELD_SPINNING_INVENTORY_UP.get(te);
-            if (up == null) return false;
-            int needed = 0;
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
-            }
-            int empty = 0;
-            for (int i = 0; i < up.getSlots(); i++) {
-                if (up.getStackInSlot(i).isEmpty()) empty++;
-            }
-            return empty >= needed;
-        } catch (Exception e) {
-            return false;
+    private boolean canStartDistillery(TileEntity te, InventoryCrafting ingredients) {
+        IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+        if (up == null) return false;
+        for (int i = 0; i < up.getSlots(); i++) {
+            if (!up.getStackInSlot(i).isEmpty()) return false;
         }
+        int needed = countNonEmpty(ingredients);
+        return up.getSlots() >= needed;
     }
+
+    private static int countNonEmpty(InventoryCrafting inv) {
+        int count = 0;
+        for (int i = 0; i < inv.getSizeInventory(); i++) {
+            if (!inv.getStackInSlot(i).isEmpty()) count++;
+        }
+        return count;
+    }
+
+    // ===================== pushMaterials =====================
 
     @Override
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
@@ -185,57 +173,55 @@ public class BewitchmentHandler implements IRemoteHandler {
         return false;
     }
 
-    private boolean pushDistillery(TileEntity te, InventoryCrafting ingredients) {
-        try {
-            ItemStackHandler up = (ItemStackHandler) FIELD_DISTILLERY_INVENTORY_UP.get(te);
-            if (up == null) return false;
-            int slotIdx = 0;
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                ItemStack stack = ingredients.getStackInSlot(i);
-                if (stack.isEmpty()) continue;
-                ItemStack single = stack.copy();
-                single.setCount(1);
-                while (slotIdx < up.getSlots() && !up.getStackInSlot(slotIdx).isEmpty()) {
-                    slotIdx++;
-                }
-                if (slotIdx >= up.getSlots()) return false;
-                up.setStackInSlot(slotIdx, single);
-                slotIdx++;
-            }
-            return true;
-        } catch (Exception e) {
+    private boolean pushSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
+        IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+        if (up == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment SpinningWheel has no UP capability");
             return false;
         }
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            ItemStack single = stack.copy();
+            single.setCount(1);
+            ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
+            if (!remaining.isEmpty()) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment SpinningWheel failed to insert {}", stack);
+                return false;
+            }
+        }
+        AE2Enhanced.LOGGER.info("[AE2E] Pushed materials to SpinningWheel");
+        return true;
     }
 
-    private boolean pushSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
-        try {
-            ItemStackHandler up = (ItemStackHandler) FIELD_SPINNING_INVENTORY_UP.get(te);
-            if (up == null) return false;
-            int slotIdx = 0;
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                ItemStack stack = ingredients.getStackInSlot(i);
-                if (stack.isEmpty()) continue;
-                ItemStack single = stack.copy();
-                single.setCount(1);
-                while (slotIdx < up.getSlots() && !up.getStackInSlot(slotIdx).isEmpty()) {
-                    slotIdx++;
-                }
-                if (slotIdx >= up.getSlots()) return false;
-                up.setStackInSlot(slotIdx, single);
-                slotIdx++;
-            }
-            return true;
-        } catch (Exception e) {
+    private boolean pushDistillery(TileEntity te, InventoryCrafting ingredients) {
+        IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+        if (up == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment Distillery has no UP capability");
             return false;
         }
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            ItemStack single = stack.copy();
+            single.setCount(1);
+            ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
+            if (!remaining.isEmpty()) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment Distillery failed to insert {}", stack);
+                return false;
+            }
+        }
+        AE2Enhanced.LOGGER.info("[AE2E] Pushed materials to Distillery");
+        return true;
     }
 
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
-        // SpinningWheel 配方自动匹配，Cauldron 需玩家手动启动或环境条件
+        // SpinningWheel / Distillery 配方自动匹配，Cauldron 由原生逻辑处理
         return true;
     }
+
+    // ===================== isIdle =====================
 
     @Override
     public boolean isIdle(World world, BlockPos pos) {
@@ -253,11 +239,11 @@ public class BewitchmentHandler implements IRemoteHandler {
         return false;
     }
 
-    private boolean isIdleDistillery(TileEntity te) {
+    private boolean isIdleSpinningWheel(TileEntity te) {
         try {
-            int progress = (int) FIELD_DISTILLERY_PROGRESS.get(te);
+            int progress = (int) FIELD_SPINNING_PROGRESS.get(te);
             if (progress != 0) return false;
-            ItemStackHandler down = (ItemStackHandler) FIELD_DISTILLERY_INVENTORY_DOWN.get(te);
+            IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
             if (down != null) {
                 for (int i = 0; i < down.getSlots(); i++) {
                     if (!down.getStackInSlot(i).isEmpty()) return false;
@@ -269,11 +255,11 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
     }
 
-    private boolean isIdleSpinningWheel(TileEntity te) {
+    private boolean isIdleDistillery(TileEntity te) {
         try {
-            int progress = (int) FIELD_SPINNING_PROGRESS.get(te);
+            int progress = (int) FIELD_DISTILLERY_PROGRESS.get(te);
             if (progress != 0) return false;
-            ItemStackHandler down = (ItemStackHandler) FIELD_SPINNING_INVENTORY_DOWN.get(te);
+            IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
             if (down != null) {
                 for (int i = 0; i < down.getSlots(); i++) {
                     if (!down.getStackInSlot(i).isEmpty()) return false;
@@ -284,6 +270,8 @@ public class BewitchmentHandler implements IRemoteHandler {
             return false;
         }
     }
+
+    // ===================== collectProducts =====================
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
@@ -300,32 +288,26 @@ public class BewitchmentHandler implements IRemoteHandler {
         return result;
     }
 
-    private void collectDistillery(TileEntity te, List<ItemStack> result) {
-        try {
-            ItemStackHandler down = (ItemStackHandler) FIELD_DISTILLERY_INVENTORY_DOWN.get(te);
-            if (down == null) return;
-            for (int i = 0; i < down.getSlots(); i++) {
-                ItemStack stack = down.getStackInSlot(i);
-                if (!stack.isEmpty()) {
-                    result.add(stack.copy());
-                    down.setStackInSlot(i, ItemStack.EMPTY);
-                }
+    private void collectSpinningWheel(TileEntity te, List<ItemStack> result) {
+        IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
+        if (down == null) return;
+        for (int i = 0; i < down.getSlots(); i++) {
+            ItemStack stack = down.extractItem(i, Integer.MAX_VALUE, false);
+            if (!stack.isEmpty()) {
+                result.add(stack);
             }
-        } catch (Exception ignored) {}
+        }
     }
 
-    private void collectSpinningWheel(TileEntity te, List<ItemStack> result) {
-        try {
-            ItemStackHandler down = (ItemStackHandler) FIELD_SPINNING_INVENTORY_DOWN.get(te);
-            if (down == null) return;
-            for (int i = 0; i < down.getSlots(); i++) {
-                ItemStack stack = down.getStackInSlot(i);
-                if (!stack.isEmpty()) {
-                    result.add(stack.copy());
-                    down.setStackInSlot(i, ItemStack.EMPTY);
-                }
+    private void collectDistillery(TileEntity te, List<ItemStack> result) {
+        IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
+        if (down == null) return;
+        for (int i = 0; i < down.getSlots(); i++) {
+            ItemStack stack = down.extractItem(i, Integer.MAX_VALUE, false);
+            if (!stack.isEmpty()) {
+                result.add(stack);
             }
-        } catch (Exception ignored) {}
+        }
     }
 
     // ===================== WitchesCauldron =====================
@@ -333,36 +315,31 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean canStartCauldron(TileEntity te, InventoryCrafting ingredients) {
         try {
             boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
-            if (!hasPower) return false; // 祭坛能量不足
+            if (!hasPower) return false;
 
             int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
-            if (heatTimer < 5) return false; // 未沸腾
+            if (heatTimer < 5) return false;
 
             Object tank = FIELD_CAULDRON_TANK.get(te);
             if (tank == null) return false;
             int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
-            if (fluidAmount <= 0) return false; // 无流体
+            if (fluidAmount <= 0) return false;
 
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return false;
-            // 统计空槽
-            int empty = 0;
+            // 要求 inventory 完全为空，避免残留干扰
             for (int i = 0; i < inv.getSlots(); i++) {
-                if (inv.getStackInSlot(i).isEmpty()) empty++;
+                if (!inv.getStackInSlot(i).isEmpty()) return false;
             }
-            int needed = 0;
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
-            }
-            return empty >= needed;
+            return true;
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron canStart failed", e);
             return false;
         }
     }
 
     private boolean pushCauldron(World world, BlockPos pos, TileEntity te, InventoryCrafting ingredients) {
         try {
-            // 改为生成 EntityItem，让坩埚的 insertNextItem 自然收集
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
                 ItemStack stack = ingredients.getStackInSlot(i);
                 if (stack.isEmpty()) continue;
@@ -377,17 +354,21 @@ public class BewitchmentHandler implements IRemoteHandler {
                     pos.getZ() + 0.5,
                     single
                 );
-                entity.setPickupDelay(40); // 2秒延迟，防止玩家拾取
+                entity.setPickupDelay(40);
                 entity.motionX = 0;
                 entity.motionY = 0;
                 entity.motionZ = 0;
+                // 防止重力导致 EntityItem 掉出 collectionZone
+                entity.setNoGravity(true);
                 world.spawnEntity(entity);
             }
 
             String key = world.provider.getDimension() + ":" + pos.toLong();
             CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
+            AE2Enhanced.LOGGER.info("[AE2E] Spawned {} cauldron ingredients as EntityItem", countNonEmpty(ingredients));
             return true;
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron push failed", e);
             return false;
         }
     }
@@ -422,12 +403,13 @@ public class BewitchmentHandler implements IRemoteHandler {
             // 空闲：inventory 为空且周围无 EntityItem
             if (inventoryEmpty && !hasNearbyItems) return true;
 
-            // 超时检查：如果 push 后超过 30 秒仍然未处理完毕，强制回收
+            // 超时检查
             String key = world.provider.getDimension() + ":" + pos.toLong();
             Long pushTime = CAULDRON_PUSH_TIME.get(key);
             if (pushTime != null && System.currentTimeMillis() - pushTime > CAULDRON_TIMEOUT_MS) {
                 CAULDRON_PUSH_TIME.remove(key);
-                return true; // 超时，允许 collectProducts 回收
+                AE2Enhanced.LOGGER.warn("[AE2E] Cauldron at {} timed out, forcing idle", pos);
+                return true;
             }
 
             // inventory 有物品或周围有 EntityItem：检查是否有能量和沸腾

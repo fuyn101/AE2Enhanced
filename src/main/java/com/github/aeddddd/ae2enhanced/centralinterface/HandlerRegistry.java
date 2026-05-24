@@ -38,7 +38,8 @@ public class HandlerRegistry {
         tryLoad("botania", "com.github.aeddddd.ae2enhanced.centralinterface.handler.botania.BotaniaHandler");
         // P5 - Blood Magic
         tryLoad("bloodmagic", "com.github.aeddddd.ae2enhanced.centralinterface.handler.bloodmagic.BloodMagicHandler");
-        // P6 - Astral Sorcery / Actually Additions / Extended Crafting / Draconic Evolution
+        // P6 - Astral Sorcery / Actually Additions / Extended Crafting / Draconic Evolution / Bewitchment
+        tryLoad("bewitchment", "com.github.aeddddd.ae2enhanced.centralinterface.handler.bewitchment.BewitchmentHandler");
         tryLoad("astralsorcery", "com.github.aeddddd.ae2enhanced.centralinterface.handler.astralsorcery.AstralSorceryHandler");
         tryLoad("actuallyadditions", "com.github.aeddddd.ae2enhanced.centralinterface.handler.actuallyadditions.ActuallyAdditionsHandler");
         tryLoad("extendedcrafting", "com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting.ExtendedCraftingHandler");
