@@ -267,16 +267,26 @@ public class TileCentralMEInterface extends TileAENetworkBase
     public void addBinding(TargetBinding binding) {
         getInterfaceDuality().addBinding(binding);
         this.markDirty();
+        syncToClient();
     }
 
     public void removeBinding(TargetBinding binding) {
         getInterfaceDuality().removeBinding(binding);
         this.markDirty();
+        syncToClient();
     }
 
     public void clearBindings() {
         getInterfaceDuality().clearBindings();
         this.markDirty();
+        syncToClient();
+    }
+
+    private void syncToClient() {
+        if (world != null && !world.isRemote) {
+            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
+            world.notifyBlockUpdate(pos, state, state, 2);
+        }
     }
 
     public String getBoundBlockId() {
@@ -301,5 +311,15 @@ public class TileCentralMEInterface extends TileAENetworkBase
             NBTTagCompound dualityTag = tag.getCompoundTag("duality");
             getInterfaceDuality().readFromNBT(dualityTag);
         }
+    }
+
+    @Override
+    public net.minecraft.network.play.server.SPacketUpdateTileEntity getUpdatePacket() {
+        return new net.minecraft.network.play.server.SPacketUpdateTileEntity(pos, -1, getUpdateTag());
+    }
+
+    @Override
+    public void onDataPacket(net.minecraft.network.NetworkManager net, net.minecraft.network.play.server.SPacketUpdateTileEntity pkt) {
+        handleUpdateTag(pkt.getNbtCompound());
     }
 }

@@ -50,7 +50,7 @@ public class BotaniaHandler implements IRemoteHandler {
     @Override
     public boolean canHandle(String blockId) {
         return "botania:pool".equals(blockId)
-                || "botania:alfportal".equals(blockId)
+                || "botania:alfheimportal".equals(blockId)
                 || "botania:terraplate".equals(blockId)
                 || "botania:runealtar".equals(blockId);
     }
