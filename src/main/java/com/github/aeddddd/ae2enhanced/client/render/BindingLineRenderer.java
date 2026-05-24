@@ -16,6 +16,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -48,11 +49,8 @@ public class BindingLineRenderer {
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.glLineWidth(2.5f);
 
-        Tessellator tess = Tessellator.getInstance();
-        BufferBuilder buf = tess.getBuffer();
-        buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
-
-        boolean any = false;
+        // 先收集所有需要渲染的 AABB，避免空渲染时 begin() 未配对 draw()
+        List<RenderEntry> entries = new ArrayList<>();
         for (net.minecraft.tileentity.TileEntity te : player.world.loadedTileEntityList) {
             if (!(te instanceof TileCentralMEInterface)) continue;
             TileCentralMEInterface source = (TileCentralMEInterface) te;
@@ -61,17 +59,21 @@ public class BindingLineRenderer {
             List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
             if (bindings.isEmpty()) continue;
 
-            any = true;
-            AxisAlignedBB sourceAabb = new AxisAlignedBB(source.getPos()).grow(0.002);
-            drawBoxOutline(buf, sourceAabb, 0.0f, 1.0f, 1.0f, 0.85f);
-
+            entries.add(new RenderEntry(new AxisAlignedBB(source.getPos()).grow(0.002), 0.0f, 1.0f, 1.0f, 0.85f));
             for (TargetBinding target : bindings) {
-                AxisAlignedBB targetAabb = new AxisAlignedBB(target.pos).grow(0.002);
-                drawBoxOutline(buf, targetAabb, 1.0f, 0.65f, 0.0f, 0.85f);
+                entries.add(new RenderEntry(new AxisAlignedBB(target.pos).grow(0.002), 1.0f, 0.65f, 0.0f, 0.85f));
             }
         }
 
-        if (any) {
+        if (!entries.isEmpty()) {
+            Tessellator tess = Tessellator.getInstance();
+            BufferBuilder buf = tess.getBuffer();
+            buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
+
+            for (RenderEntry entry : entries) {
+                drawBoxOutline(buf, entry.aabb, entry.r, entry.g, entry.b, entry.a);
+            }
+
             tess.draw();
         }
 
@@ -79,6 +81,18 @@ public class BindingLineRenderer {
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
+    }
+
+    private static class RenderEntry {
+        final AxisAlignedBB aabb;
+        final float r, g, b, a;
+        RenderEntry(AxisAlignedBB aabb, float r, float g, float b, float a) {
+            this.aabb = aabb;
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.a = a;
+        }
     }
 
     private static void drawBoxOutline(BufferBuilder buf, AxisAlignedBB aabb, float r, float g, float b, float a) {
