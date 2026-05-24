@@ -18,6 +18,16 @@ public class GuiCentralInterface extends GuiUpgradeable {
     }
 
     @Override
+    protected void addButtons() {
+        // 中枢 ME 接口模式固定，不显示任何配置按钮
+    }
+
+    @Override
+    protected void handleButtonVisibility() {
+        // 无按钮需要处理可见性
+    }
+
+    @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
         this.fontRenderer.drawString(this.getGuiDisplayName(GuiText.Interface.getLocal()), 8, 6, 0x404040);
         this.fontRenderer.drawString(GuiText.Config.getLocal(), 8, 24, 0x404040);

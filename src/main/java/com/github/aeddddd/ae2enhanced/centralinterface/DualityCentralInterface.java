@@ -85,6 +85,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.cm.registerSetting(Settings.INTERFACE_TERMINAL, YesNo.YES);
         this.cm.registerSetting(Settings.UNLOCK, LockCraftingMode.NONE);
 
+        this.bindings.clear();
+        this.targetStates.clear();
+        this.pendingOutputs.clear();
+
         this.config = new AppEngInternalAEInventory(this, NUMBER_OF_CONFIG_SLOTS, 512);
         this.patterns = new AppEngInternalInventory(this, NUMBER_OF_PATTERN_SLOTS, 1) {
             @Override
@@ -161,44 +165,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        // 找到第一个 IDLE 的目标
         TargetBinding target = findIdleTarget();
         if (target == null) {
             return false;
         }
 
-        // P1：单份材料发配（默认 fallback）
-        // 将 InventoryCrafting 中的物品推送到目标的 IItemHandler
         TileEntity te = getTargetTile(target);
         if (te == null) {
             this.targetStates.put(target, TargetState.UNAVAILABLE);
             return false;
         }
 
-        // 收集所有非空物品
-        List<ItemStack> toPush = new ArrayList<>();
-        for (int i = 0; i < table.getSizeInventory(); i++) {
-            ItemStack stack = table.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                toPush.add(stack.copy());
-            }
-        }
-
-        // 推送到目标（遍历所有面，找到可以接收的 IItemHandler）
-        boolean allPushed = true;
-        for (ItemStack stack : toPush) {
-            ItemStack remaining = pushItemToTarget(te, stack);
-            if (!remaining.isEmpty()) {
-                allPushed = false;
-                break;
-            }
-        }
-
-        if (!allPushed) {
+        IRemoteHandler handler = resolveHandler(te);
+        boolean pushed = handler.pushMaterials(te, table, new appeng.me.helpers.MachineSource(this.host));
+        if (!pushed) {
             return false;
         }
 
-        // 记录期望产物
         IAEItemStack[] outputs = patternDetails.getOutputs();
         if (outputs != null && outputs.length > 0 && outputs[0] != null) {
             this.pendingOutputs.put(target, outputs[0].copy());
@@ -250,9 +233,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 continue;
             }
 
-            // 尝试从目标收集产物
-            ItemStack expected = pending.createItemStack();
-            ItemStack collected = collectItemFromTarget(te, expected);
+            IRemoteHandler handler = resolveHandler(te);
+            ItemStack collected = handler.collectProducts(te, pending, new appeng.me.helpers.MachineSource(this.host));
             if (!collected.isEmpty()) {
                 // 注入网络
                 try {
@@ -427,55 +409,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return null;
     }
 
-    /**
-     * 将单个物品推送到目标的 IItemHandler（遍历所有面）。
-     * 返回未能推送的剩余物品。
-     */
-    private ItemStack pushItemToTarget(TileEntity target, ItemStack stack) {
-        ItemStack remaining = stack.copy();
-        for (EnumFacing face : EnumFacing.values()) {
-            IItemHandler handler = target.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
-            if (handler == null) continue;
-            for (int slot = 0; slot < handler.getSlots() && !remaining.isEmpty(); slot++) {
-                remaining = handler.insertItem(slot, remaining, false);
-            }
-            if (remaining.isEmpty()) break;
-        }
-        return remaining;
-    }
-
-    /**
-     * 从目标的 IItemHandler 中收集指定物品（遍历所有面）。
-     * 返回实际收集到的物品。
-     */
-    private ItemStack collectItemFromTarget(TileEntity target, ItemStack expected) {
-        ItemStack collected = ItemStack.EMPTY;
-        int remainingAmount = expected.getCount();
-
-        for (EnumFacing face : EnumFacing.values()) {
-            IItemHandler handler = target.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
-            if (handler == null) continue;
-            for (int slot = 0; slot < handler.getSlots() && remainingAmount > 0; slot++) {
-                ItemStack inSlot = handler.getStackInSlot(slot);
-                if (inSlot.isEmpty()) continue;
-                if (!ItemStack.areItemsEqual(inSlot, expected)
-                        || !ItemStack.areItemStackTagsEqual(inSlot, expected)) {
-                    continue;
-                }
-                int toExtract = Math.min(remainingAmount, inSlot.getCount());
-                ItemStack extracted = handler.extractItem(slot, toExtract, false);
-                if (!extracted.isEmpty()) {
-                    if (collected.isEmpty()) {
-                        collected = extracted.copy();
-                    } else {
-                        collected.grow(extracted.getCount());
-                    }
-                    remainingAmount -= extracted.getCount();
-                }
-            }
-            if (remainingAmount <= 0) break;
-        }
-        return collected;
+    private IRemoteHandler resolveHandler(TileEntity target) {
+        // TODO: 未来可扩展注册表机制，根据目标类型匹配特定处理器
+        return new DefaultSingleBatchHandler();
     }
 
     // ---- NBT ----

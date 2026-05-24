@@ -148,6 +148,13 @@ item.ae2enhanced.channel_receiver_card.name=Карта приема канала
 item.ae2enhanced.channel_receiver_card.tooltip.bound=§aПривязана §7к [%d, %d, %d] Изм: %d
 item.ae2enhanced.channel_receiver_card.tooltip.unbound=§eНе привязана §7— Вставьте в генератор беспроводного канала для привязки
 
+gui.ae2enhanced.umc.msg.bind_invalid_source=§c▸ Цель не является Центральным ME-интерфейсом
+gui.ae2enhanced.umc.msg.bind_source=§a▸ Источник привязки установлен
+gui.ae2enhanced.umc.msg.no_binding=§c▸ На карте памяти не записан источник привязки
+gui.ae2enhanced.umc.msg.bind_cross_dim=§c▸ Привязка между измерениями невозможна
+gui.ae2enhanced.umc.msg.bind_source_gone=§c▸ Источник привязки больше не существует
+gui.ae2enhanced.umc.msg.bind_target=§a▸ Цель привязки добавлена
+
 tile.ae2enhanced.wireless_channel_transmitter.name=Генератор беспроводного канала
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников
 

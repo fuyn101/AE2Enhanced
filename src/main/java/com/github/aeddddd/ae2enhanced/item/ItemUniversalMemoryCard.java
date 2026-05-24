@@ -4,7 +4,9 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
 import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
+import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import com.github.aeddddd.ae2enhanced.util.memorycard.IMemoryCardHandler;
 import com.github.aeddddd.ae2enhanced.util.memorycard.MemoryCardHandlerRegistry;
 import net.minecraft.client.util.ITooltipFlag;
@@ -218,8 +220,15 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isSneaking = player.isSneaking();
                     boolean isCtrl = net.minecraft.client.Minecraft.getMinecraft().gameSettings.keyBindSprint.isKeyDown();
 
+                    TileEntity te = event.getWorld().getTileEntity(event.getPos());
+                    boolean isCentralInterface = te instanceof TileCentralMEInterface;
+
                     PacketUMCAction.ActionType type;
-                    if (isCtrl) {
+                    if (isCentralInterface && !isSneaking && !isCtrl) {
+                        type = PacketUMCAction.ActionType.BIND_SOURCE;
+                    } else if (hasBinding(stack) && isSneaking && !isCtrl && !isCentralInterface) {
+                        type = PacketUMCAction.ActionType.BIND_TARGET;
+                    } else if (isCtrl) {
                         type = PacketUMCAction.ActionType.SELECT;
                     } else if (isSneaking) {
                         type = PacketUMCAction.ActionType.COPY;
@@ -281,6 +290,12 @@ public class ItemUniversalMemoryCard extends Item {
             case OPEN_GUI:
                 player.openGui(AE2Enhanced.instance, GUI_ID, player.world,
                         (int) player.posX, (int) player.posY, (int) player.posZ);
+                break;
+            case BIND_SOURCE:
+                handleBindSource(player, stack, message.getPos(), message.getFace());
+                break;
+            case BIND_TARGET:
+                handleBindTarget(player, stack, message.getPos(), message.getFace());
                 break;
         }
 
@@ -435,6 +450,44 @@ public class ItemUniversalMemoryCard extends Item {
             addSelection(stack, new SelectionEntry(pos, world.provider.getDimension(), blockId, -1));
                 player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_block"));
         }
+    }
+
+    private static void handleBindSource(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
+        World world = player.world;
+        TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileCentralMEInterface)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
+            return;
+        }
+        setBinding(stack, pos, world.provider.getDimension());
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_source"));
+    }
+
+    private static void handleBindTarget(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
+        if (!hasBinding(stack)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_binding"));
+            return;
+        }
+        NBTTagCompound binding = getBinding(stack);
+        BlockPos sourcePos = BlockPos.fromLong(binding.getLong("pos"));
+        int sourceDim = binding.getInteger("dim");
+        World world = player.world;
+
+        if (sourceDim != world.provider.getDimension()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_cross_dim"));
+            return;
+        }
+
+        TileEntity sourceTe = world.getTileEntity(sourcePos);
+        if (!(sourceTe instanceof TileCentralMEInterface)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_source_gone"));
+            return;
+        }
+
+        TileCentralMEInterface source = (TileCentralMEInterface) sourceTe;
+        String blockId = world.getBlockState(pos).getBlock().getRegistryName().toString();
+        source.getInterfaceDuality().addBinding(new TargetBinding(pos, world.provider.getDimension(), blockId));
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_target"));
     }
 
     // ============================================================

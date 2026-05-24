@@ -222,6 +222,12 @@ gui.ae2enhanced.umc.msg.deselect=§e▸ Deselected
 gui.ae2enhanced.umc.msg.select_part=§a▸ Selected Part
 gui.ae2enhanced.umc.msg.select_tile=§a▸ Selected §e%d§a similar blocks
 gui.ae2enhanced.umc.msg.select_block=§a▸ Selected block
+gui.ae2enhanced.umc.msg.bind_invalid_source=§c▸ Target is not a Central ME Interface
+gui.ae2enhanced.umc.msg.bind_source=§a▸ Binding source set
+gui.ae2enhanced.umc.msg.no_binding=§c▸ No binding source recorded on memory card
+gui.ae2enhanced.umc.msg.bind_cross_dim=§c▸ Cannot bind across dimensions
+gui.ae2enhanced.umc.msg.bind_source_gone=§c▸ Binding source no longer exists
+gui.ae2enhanced.umc.msg.bind_target=§a▸ Binding target added
 
 item.ae2enhanced.omni_wireless_terminal.name=Omni Wireless Terminal
 gui.ae2enhanced.omni_terminal.title=Omni Terminal
