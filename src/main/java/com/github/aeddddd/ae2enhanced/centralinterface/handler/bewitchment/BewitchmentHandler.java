@@ -203,13 +203,20 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean pushSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
         if (up == null) return false;
+        int slotIdx = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             ItemStack single = stack.copy();
             single.setCount(1);
-            ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
+            // 找到下一个空槽，避免合并到已有物品
+            while (slotIdx < up.getSlots() && !up.getStackInSlot(slotIdx).isEmpty()) {
+                slotIdx++;
+            }
+            if (slotIdx >= up.getSlots()) return false;
+            ItemStack remaining = up.insertItem(slotIdx, single, false);
             if (!remaining.isEmpty()) return false;
+            slotIdx++;
         }
         return true;
     }
@@ -217,13 +224,19 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean pushDistillery(TileEntity te, InventoryCrafting ingredients) {
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
         if (up == null) return false;
+        int slotIdx = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             ItemStack single = stack.copy();
             single.setCount(1);
-            ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
+            while (slotIdx < up.getSlots() && !up.getStackInSlot(slotIdx).isEmpty()) {
+                slotIdx++;
+            }
+            if (slotIdx >= up.getSlots()) return false;
+            ItemStack remaining = up.insertItem(slotIdx, single, false);
             if (!remaining.isEmpty()) return false;
+            slotIdx++;
         }
         return true;
     }
