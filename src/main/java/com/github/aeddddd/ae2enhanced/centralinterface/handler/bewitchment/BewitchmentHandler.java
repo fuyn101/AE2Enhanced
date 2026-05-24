@@ -80,8 +80,10 @@ public class BewitchmentHandler implements IRemoteHandler {
             FIELD_CAULDRON_INVENTORY = CLASS_CAULDRON.getDeclaredField("inventory");
             FIELD_CAULDRON_INVENTORY.setAccessible(true);
             FIELD_CAULDRON_MODE = CLASS_CAULDRON.getField("mode");
-            FIELD_CAULDRON_CRAFTING_TIMER = CLASS_CAULDRON.getField("craftingTimer");
-            FIELD_CAULDRON_HAS_POWER = CLASS_CAULDRON.getField("hasPower");
+            FIELD_CAULDRON_CRAFTING_TIMER = CLASS_CAULDRON.getDeclaredField("craftingTimer");
+            FIELD_CAULDRON_CRAFTING_TIMER.setAccessible(true);
+            FIELD_CAULDRON_HAS_POWER = CLASS_CAULDRON.getDeclaredField("hasPower");
+            FIELD_CAULDRON_HAS_POWER.setAccessible(true);
             FIELD_CAULDRON_HEAT_TIMER = CLASS_CAULDRON.getDeclaredField("heatTimer");
             FIELD_CAULDRON_HEAT_TIMER.setAccessible(true);
             FIELD_CAULDRON_TANK = CLASS_CAULDRON.getField("tank");
@@ -190,7 +192,6 @@ public class BewitchmentHandler implements IRemoteHandler {
                 return false;
             }
         }
-        AE2Enhanced.LOGGER.info("[AE2E] Pushed materials to SpinningWheel");
         return true;
     }
 
@@ -211,7 +212,6 @@ public class BewitchmentHandler implements IRemoteHandler {
                 return false;
             }
         }
-        AE2Enhanced.LOGGER.info("[AE2E] Pushed materials to Distillery");
         return true;
     }
 
@@ -365,7 +365,6 @@ public class BewitchmentHandler implements IRemoteHandler {
 
             String key = world.provider.getDimension() + ":" + pos.toLong();
             CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
-            AE2Enhanced.LOGGER.info("[AE2E] Spawned {} cauldron ingredients as EntityItem", countNonEmpty(ingredients));
             return true;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron push failed", e);
