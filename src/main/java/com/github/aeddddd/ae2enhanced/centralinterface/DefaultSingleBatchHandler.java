@@ -76,8 +76,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
             for (int slot = 0; slot < handler.getSlots() && remainingAmount > 0; slot++) {
                 ItemStack inSlot = handler.getStackInSlot(slot);
                 if (inSlot.isEmpty()) continue;
-                if (!ItemStack.areItemsEqual(inSlot, expected)
-                        || !ItemStack.areItemStackTagsEqual(inSlot, expected)) {
+                if (!ItemStack.areItemsEqual(inSlot, expected)) {
                     continue;
                 }
                 int toExtract = Math.min(remainingAmount, inSlot.getCount());

@@ -12,6 +12,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -20,10 +21,12 @@ import org.lwjgl.opengl.GL11;
 import java.util.List;
 
 /**
- * 客户端绑定线渲染器。
+ * 客户端绑定高亮渲染器。
  *
  * 当玩家主手持有 Universal Memory Card 且内存卡记录了绑定源时，
- * 渲染从 Central ME Interface 到其所有绑定目标的青色连线。
+ * 为 Central ME Interface 和目标机器渲染高亮描边边框：
+ * - 中枢 ME 接口：青色描边
+ * - 目标机器：橙色描边
  */
 public class BindingLineRenderer {
 
@@ -47,7 +50,6 @@ public class BindingLineRenderer {
 
         TileCentralMEInterface source = (TileCentralMEInterface) te;
         List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
-        if (bindings.isEmpty()) return;
 
         double px = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.getPartialTicks();
         double py = player.lastTickPosY + (player.posY - player.lastTickPosY) * event.getPartialTicks();
@@ -59,18 +61,20 @@ public class BindingLineRenderer {
         GlStateManager.disableLighting();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.glLineWidth(2.0f);
+        GlStateManager.glLineWidth(2.5f);
 
         Tessellator tess = Tessellator.getInstance();
         BufferBuilder buf = tess.getBuffer();
         buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
 
+        // 渲染中枢 ME 接口的青色描边
+        AxisAlignedBB sourceAabb = new AxisAlignedBB(sourcePos).grow(0.002);
+        drawBoxOutline(buf, sourceAabb, 0.0f, 1.0f, 1.0f, 0.85f);
+
+        // 渲染每个目标机器的橙色描边
         for (TargetBinding target : bindings) {
-            BlockPos tp = target.pos;
-            buf.pos(sourcePos.getX() + 0.5, sourcePos.getY() + 0.5, sourcePos.getZ() + 0.5)
-               .color(0.0f, 1.0f, 1.0f, 0.8f).endVertex();
-            buf.pos(tp.getX() + 0.5, tp.getY() + 0.5, tp.getZ() + 0.5)
-               .color(0.0f, 1.0f, 1.0f, 0.8f).endVertex();
+            AxisAlignedBB targetAabb = new AxisAlignedBB(target.pos).grow(0.002);
+            drawBoxOutline(buf, targetAabb, 1.0f, 0.65f, 0.0f, 0.85f);
         }
 
         tess.draw();
@@ -79,5 +83,40 @@ public class BindingLineRenderer {
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
+    }
+
+    private static void drawBoxOutline(BufferBuilder buf, AxisAlignedBB aabb, float r, float g, float b, float a) {
+        double minX = aabb.minX, minY = aabb.minY, minZ = aabb.minZ;
+        double maxX = aabb.maxX, maxY = aabb.maxY, maxZ = aabb.maxZ;
+
+        // 底面 4 条边
+        buf.pos(minX, minY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, minY, minZ).color(r, g, b, a).endVertex();
+
+        // 顶面 4 条边
+        buf.pos(minX, maxY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, maxY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, maxY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, maxY, minZ).color(r, g, b, a).endVertex();
+
+        // 侧面 4 条边
+        buf.pos(minX, minY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, maxY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, minZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(maxX, maxY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, minY, maxZ).color(r, g, b, a).endVertex();
+        buf.pos(minX, maxY, maxZ).color(r, g, b, a).endVertex();
     }
 }

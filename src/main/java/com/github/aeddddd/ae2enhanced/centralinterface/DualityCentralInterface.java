@@ -192,12 +192,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public boolean isBusy() {
-        for (TargetState state : this.targetStates.values()) {
-            if (state == TargetState.PROCESSING || state == TargetState.PUSHING || state == TargetState.COLLECTING) {
-                return true;
+        if (this.bindings.isEmpty()) {
+            return false;
+        }
+        for (TargetBinding binding : this.bindings) {
+            TargetState state = this.targetStates.getOrDefault(binding, TargetState.IDLE);
+            if (state == TargetState.IDLE) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     // ---- Ticking ----
@@ -222,7 +226,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             TargetBinding target = entry.getKey();
             TileEntity te = getTargetTile(target);
             if (te == null) {
-                entry.setValue(TargetState.UNAVAILABLE);
+                // 目标暂时不可访问（chunk 未加载等），保持 PROCESSING 下次再试
                 continue;
             }
 
@@ -236,17 +240,32 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             IRemoteHandler handler = resolveHandler(te);
             ItemStack collected = handler.collectProducts(te, pending, new appeng.me.helpers.MachineSource(this.host));
             if (!collected.isEmpty()) {
-                // 注入网络
                 try {
                     appeng.api.storage.channels.IItemStorageChannel channel =
                             appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class);
-                    Platform.poweredInsert(
+                    appeng.api.storage.data.IAEItemStack toInsert = appeng.util.item.AEItemStack.fromItemStack(collected);
+                    appeng.api.storage.data.IAEItemStack remaining = Platform.poweredInsert(
                             proxy.getEnergy(),
                             proxy.getStorage().getInventory(channel),
-                            appeng.util.item.AEItemStack.fromItemStack(collected),
+                            toInsert,
                             new appeng.me.helpers.MachineSource(this.host));
+                    if (remaining != null && remaining.getStackSize() > 0) {
+                        // 网络未满，将剩余产物放入 storage slots
+                        ItemStack leftover = remaining.createItemStack();
+                        for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
+                            leftover = this.storage.insertItem(s, leftover, false);
+                        }
+                        if (!leftover.isEmpty()) {
+                            // storage 也满了，掉落剩余产物
+                            World world = this.host.getTileEntity().getWorld();
+                            BlockPos pos = this.host.getTileEntity().getPos();
+                            net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
+                            world.spawnEntity(entityItem);
+                        }
+                    }
                 } catch (GridAccessException e) {
                     AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject collected items", e);
+                    continue;
                 }
                 entry.setValue(TargetState.IDLE);
                 this.pendingOutputs.remove(target);
