@@ -18,8 +18,8 @@ import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +28,10 @@ import java.util.Map;
  * Bewitchment 处理器：SpinningWheel + Distillery + WitchesCauldron。
  *
  * <p><b>SpinningWheel / Distillery</b>：通过 {@link EnumFacing#UP} 的 IItemHandler 推入材料，
- * 通过 {@link EnumFacing#DOWN} 的 IItemHandler 收集产物。Bewitchment 的 getCapability 映射为：
- * <ul>
- *   <li>DOWN → inventory_down（输出槽，isItemValid 返回 false）</li>
- *   <li>UP / 其他面 → inventory_up（输入槽，isItemValid 返回 true）</li>
- * </ul>
- * 若从底部（DOWN）输入，物品会被插入输出槽且无法被配方识别，因此 handler 必须显式使用 UP 面。</p>
+ * 通过 {@link EnumFacing#DOWN} 的 IItemHandler 收集产物。每个槽位仅放入单个物品。</p>
  *
- * <p><b>WitchesCauldron</b>：不暴露 IItemHandler capability，通过生成 EntityItem 让其
- * {@code insertNextItem} 自然收集。handler 不负责热源/流体准备，需玩家预先 setup。</p>
+ * <p><b>WitchesCauldron</b>：不暴露 IItemHandler capability，IO 完全通过反射操作内部字段完成。
+ * push 时直接写入 inventory 并立即触发配方匹配与产物生成；collect 时回收周围 EntityItem 与 inventory 残余。</p>
  */
 public class BewitchmentHandler implements IRemoteHandler {
 
@@ -54,12 +49,16 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     // 反射缓存 — Cauldron
     private static Class<?> CLASS_CAULDRON;
+    private static Class<?> CLASS_CAULDRON_RECIPE;
     private static Field FIELD_CAULDRON_INVENTORY;
     private static Field FIELD_CAULDRON_MODE;
     private static Field FIELD_CAULDRON_CRAFTING_TIMER;
     private static Field FIELD_CAULDRON_HAS_POWER;
     private static Field FIELD_CAULDRON_HEAT_TIMER;
     private static Field FIELD_CAULDRON_TANK;
+    private static Method METHOD_CAULDRON_SET_POWER;
+    private static Method METHOD_CAULDRON_RECIPE_MATCHES;
+    private static Field FIELD_CAULDRON_RECIPE_OUTPUT;
 
     // 坩埚超时：记录 push 时间（key = dim:pos）
     private static final Map<String, Long> CAULDRON_PUSH_TIME = new HashMap<>();
@@ -87,6 +86,12 @@ public class BewitchmentHandler implements IRemoteHandler {
             FIELD_CAULDRON_HEAT_TIMER = CLASS_CAULDRON.getDeclaredField("heatTimer");
             FIELD_CAULDRON_HEAT_TIMER.setAccessible(true);
             FIELD_CAULDRON_TANK = CLASS_CAULDRON.getField("tank");
+            METHOD_CAULDRON_SET_POWER = CLASS_CAULDRON.getDeclaredMethod("setPower");
+            METHOD_CAULDRON_SET_POWER.setAccessible(true);
+
+            CLASS_CAULDRON_RECIPE = Class.forName("com.bewitchment.api.registry.CauldronRecipe");
+            METHOD_CAULDRON_RECIPE_MATCHES = CLASS_CAULDRON_RECIPE.getMethod("matches", ItemStackHandler.class);
+            FIELD_CAULDRON_RECIPE_OUTPUT = CLASS_CAULDRON_RECIPE.getField("output");
 
             reflectionReady = true;
         } catch (Exception e) {
@@ -131,7 +136,6 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean canStartSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
         if (up == null) return false;
-        // 要求输入槽完全为空，避免残留物品干扰配方匹配
         for (int i = 0; i < up.getSlots(); i++) {
             if (!up.getStackInSlot(i).isEmpty()) return false;
         }
@@ -147,6 +151,27 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
         int needed = countNonEmpty(ingredients);
         return up.getSlots() >= needed;
+    }
+
+    private boolean canStartCauldron(TileEntity te, InventoryCrafting ingredients) {
+        try {
+            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
+            if (heatTimer < 5) return false;
+
+            Object tank = FIELD_CAULDRON_TANK.get(te);
+            if (tank == null) return false;
+            int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
+            if (fluidAmount <= 0) return false;
+
+            ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
+            if (inv == null) return false;
+            for (int i = 0; i < inv.getSlots(); i++) {
+                if (!inv.getStackInSlot(i).isEmpty()) return false;
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static int countNonEmpty(InventoryCrafting inv) {
@@ -177,47 +202,138 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     private boolean pushSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
-        if (up == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment SpinningWheel has no UP capability");
-            return false;
-        }
+        if (up == null) return false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             ItemStack single = stack.copy();
             single.setCount(1);
             ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
-            if (!remaining.isEmpty()) {
-                AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment SpinningWheel failed to insert {}", stack);
-                return false;
-            }
+            if (!remaining.isEmpty()) return false;
         }
         return true;
     }
 
     private boolean pushDistillery(TileEntity te, InventoryCrafting ingredients) {
         IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
-        if (up == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment Distillery has no UP capability");
-            return false;
-        }
+        if (up == null) return false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             ItemStack single = stack.copy();
             single.setCount(1);
             ItemStack remaining = ItemHandlerHelper.insertItem(up, single, false);
-            if (!remaining.isEmpty()) {
-                AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment Distillery failed to insert {}", stack);
-                return false;
-            }
+            if (!remaining.isEmpty()) return false;
         }
         return true;
     }
 
+    private boolean pushCauldron(World world, BlockPos pos, TileEntity te, InventoryCrafting ingredients) {
+        try {
+            ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
+            if (inv == null) return false;
+
+            // 1. 将材料逐个放入 inventory（每个槽位仅单个物品）
+            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+                ItemStack stack = ingredients.getStackInSlot(i);
+                if (stack.isEmpty()) continue;
+                ItemStack single = stack.copy();
+                single.setCount(1);
+                int slot = getFirstEmptySlot(inv);
+                if (slot < 0) return false;
+                inv.setStackInSlot(slot, single);
+            }
+
+            // 2. 更新祭坛能量状态
+            METHOD_CAULDRON_SET_POWER.invoke(te);
+
+            // 3. 尝试立即触发配方匹配与产物生成
+            boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
+            int mode = (int) FIELD_CAULDRON_MODE.get(te);
+            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
+
+            // canCraft 条件：有能量、非 mode4、已沸腾
+            boolean canCraft = hasPower && mode != 4 && heatTimer >= 5;
+            // mode3 为酿造模式，需要额外判断 isBrewItem，自动化普通配方通常不走此分支
+
+            if (canCraft && mode == 0) {
+                FIELD_CAULDRON_MODE.set(te, 5);
+                FIELD_CAULDRON_CRAFTING_TIMER.set(te, 0);
+            }
+
+            if (mode == 0 || mode == 5) {
+                // 匹配 CauldronRecipe
+                Object recipe = findMatchingCauldronRecipe(inv);
+                if (recipe != null) {
+                    @SuppressWarnings("unchecked")
+                    List<ItemStack> outputs = (List<ItemStack>) FIELD_CAULDRON_RECIPE_OUTPUT.get(recipe);
+                    for (ItemStack output : outputs) {
+                        if (output.isEmpty()) continue;
+                        EntityItem entity = new EntityItem(
+                            world,
+                            pos.getX() + 0.5,
+                            pos.getY() + 1.0,
+                            pos.getZ() + 0.5,
+                            output.copy()
+                        );
+                        entity.setNoGravity(true);
+                        entity.motionX = 0;
+                        entity.motionY = 0;
+                        entity.motionZ = 0;
+                        world.spawnEntity(entity);
+                    }
+
+                    // drain tank 1000mb
+                    Object tank = FIELD_CAULDRON_TANK.get(te);
+                    if (tank != null) {
+                        tank.getClass().getMethod("drain", int.class, boolean.class).invoke(tank, 1000, true);
+                    }
+
+                    // 清空 inventory
+                    for (int i = 0; i < inv.getSlots(); i++) {
+                        inv.setStackInSlot(i, ItemStack.EMPTY);
+                    }
+
+                    // 重置 mode
+                    FIELD_CAULDRON_MODE.set(te, 0);
+                }
+            }
+
+            String key = world.provider.getDimension() + ":" + pos.toLong();
+            CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
+            return true;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron push failed", e);
+            return false;
+        }
+    }
+
+    private static Object findMatchingCauldronRecipe(ItemStackHandler inv) {
+        try {
+            Class<?> registryClass = Class.forName("net.minecraftforge.fml.common.registry.GameRegistry");
+            Object registry = registryClass.getMethod("findRegistry", Class.class).invoke(null, CLASS_CAULDRON_RECIPE);
+            @SuppressWarnings("unchecked")
+            java.util.Collection<Object> recipes = (java.util.Collection<Object>) registry.getClass()
+                .getMethod("getValuesCollection").invoke(registry);
+            for (Object recipe : recipes) {
+                boolean matches = (boolean) METHOD_CAULDRON_RECIPE_MATCHES.invoke(recipe, inv);
+                if (matches) return recipe;
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to match cauldron recipe", e);
+        }
+        return null;
+    }
+
+    private static int getFirstEmptySlot(ItemStackHandler inv) {
+        for (int i = 0; i < inv.getSlots(); i++) {
+            if (inv.getStackInSlot(i).isEmpty()) return i;
+        }
+        return -1;
+    }
+
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
-        // SpinningWheel / Distillery 配方自动匹配，Cauldron 由原生逻辑处理
         return true;
     }
 
@@ -242,14 +358,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean isIdleSpinningWheel(TileEntity te) {
         try {
             int progress = (int) FIELD_SPINNING_PROGRESS.get(te);
-            if (progress != 0) return false;
-            IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
-            if (down != null) {
-                for (int i = 0; i < down.getSlots(); i++) {
-                    if (!down.getStackInSlot(i).isEmpty()) return false;
-                }
-            }
-            return true;
+            return progress == 0;
         } catch (Exception e) {
             return false;
         }
@@ -258,13 +367,19 @@ public class BewitchmentHandler implements IRemoteHandler {
     private boolean isIdleDistillery(TileEntity te) {
         try {
             int progress = (int) FIELD_DISTILLERY_PROGRESS.get(te);
-            if (progress != 0) return false;
-            IItemHandler down = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
-            if (down != null) {
-                for (int i = 0; i < down.getSlots(); i++) {
-                    if (!down.getStackInSlot(i).isEmpty()) return false;
-                }
-            }
+            return progress == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isIdleCauldron(World world, BlockPos pos, TileEntity te) {
+        try {
+            int mode = (int) FIELD_CAULDRON_MODE.get(te);
+            // mode 0/1 为空闲或已完成
+            if (mode == 0 || mode == 1) return true;
+            // mode 2/3/4/5 为处理中
+            if (mode == 2 || mode == 3 || mode == 4 || mode == 5) return false;
             return true;
         } catch (Exception e) {
             return false;
@@ -310,133 +425,9 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
     }
 
-    // ===================== WitchesCauldron =====================
-
-    private boolean canStartCauldron(TileEntity te, InventoryCrafting ingredients) {
-        try {
-            boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
-            if (!hasPower) return false;
-
-            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
-            if (heatTimer < 5) return false;
-
-            Object tank = FIELD_CAULDRON_TANK.get(te);
-            if (tank == null) return false;
-            int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
-            if (fluidAmount <= 0) return false;
-
-            ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
-            if (inv == null) return false;
-            // 要求 inventory 完全为空，避免残留干扰
-            for (int i = 0; i < inv.getSlots(); i++) {
-                if (!inv.getStackInSlot(i).isEmpty()) return false;
-            }
-            return true;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron canStart failed", e);
-            return false;
-        }
-    }
-
-    private boolean pushCauldron(World world, BlockPos pos, TileEntity te, InventoryCrafting ingredients) {
-        try {
-            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-                ItemStack stack = ingredients.getStackInSlot(i);
-                if (stack.isEmpty()) continue;
-                ItemStack single = stack.copy();
-                single.setCount(1);
-
-                // collectionZone AABB 为 [pos, pos+(1,0.65,1)]，EntityItem 必须落在该范围内
-                EntityItem entity = new EntityItem(
-                    world,
-                    pos.getX() + 0.5,
-                    pos.getY() + 0.3,
-                    pos.getZ() + 0.5,
-                    single
-                );
-                entity.setPickupDelay(40);
-                entity.motionX = 0;
-                entity.motionY = 0;
-                entity.motionZ = 0;
-                // 防止重力导致 EntityItem 掉出 collectionZone
-                entity.setNoGravity(true);
-                world.spawnEntity(entity);
-            }
-
-            String key = world.provider.getDimension() + ":" + pos.toLong();
-            CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
-            return true;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron push failed", e);
-            return false;
-        }
-    }
-
-    private boolean isIdleCauldron(World world, BlockPos pos, TileEntity te) {
-        try {
-            int mode = (int) FIELD_CAULDRON_MODE.get(te);
-            int craftingTimer = (int) FIELD_CAULDRON_CRAFTING_TIMER.get(te);
-
-            // mode 5 是合成阶段，timer > 0 表示合成进行中
-            if (mode == 5 && craftingTimer > 0) return false;
-
-            // mode 2 是排空流体，视为处理中
-            if (mode == 2) return false;
-
-            ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
-            if (inv == null) return true;
-
-            boolean inventoryEmpty = true;
-            for (int i = 0; i < inv.getSlots(); i++) {
-                if (!inv.getStackInSlot(i).isEmpty()) {
-                    inventoryEmpty = false;
-                    break;
-                }
-            }
-
-            // 检查是否有未收集的 EntityItem（我们 push 的物品或产物）
-            AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(1.0);
-            List<EntityItem> nearbyItems = world.getEntitiesWithinAABB(EntityItem.class, aabb);
-            boolean hasNearbyItems = !nearbyItems.isEmpty();
-
-            // 空闲：inventory 为空且周围无 EntityItem
-            if (inventoryEmpty && !hasNearbyItems) return true;
-
-            // 超时检查
-            String key = world.provider.getDimension() + ":" + pos.toLong();
-            Long pushTime = CAULDRON_PUSH_TIME.get(key);
-            if (pushTime != null && System.currentTimeMillis() - pushTime > CAULDRON_TIMEOUT_MS) {
-                CAULDRON_PUSH_TIME.remove(key);
-                AE2Enhanced.LOGGER.warn("[AE2E] Cauldron at {} timed out, forcing idle", pos);
-                return true;
-            }
-
-            // inventory 有物品或周围有 EntityItem：检查是否有能量和沸腾
-            boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
-            if (!hasPower) return true;
-
-            int heatTimer = (int) FIELD_CAULDRON_HEAT_TIMER.get(te);
-            if (heatTimer < 5) return true;
-
-            Object tank = FIELD_CAULDRON_TANK.get(te);
-            if (tank != null) {
-                int fluidAmount = (int) tank.getClass().getMethod("getFluidAmount").invoke(tank);
-                if (fluidAmount <= 0) return true;
-            }
-
-            // mode 5 且 timer == 0：合成已完成，允许收集
-            if (mode == 5 && craftingTimer == 0) return true;
-
-            // 仍在处理中
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     private void collectCauldron(World world, BlockPos pos, TileEntity te, List<ItemStack> result) {
         try {
-            // 1. 扫描周围 EntityItem（坩埚产物或未收集的输入物品）
+            // 1. 扫描周围 EntityItem（产物或未收集物品）
             AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(1.0);
             List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, aabb);
             for (EntityItem entity : items) {
@@ -448,7 +439,7 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            // 2. 回收 inventory 中的残余物品
+            // 2. 回收 inventory 残余
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv != null) {
                 for (int i = 0; i < inv.getSlots(); i++) {
