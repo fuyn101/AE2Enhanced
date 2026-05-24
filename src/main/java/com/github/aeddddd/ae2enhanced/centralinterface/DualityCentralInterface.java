@@ -192,6 +192,30 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
+        // P7: 虚拟合成路径（Extended Crafting 工作台等）
+        if (handler instanceof IVirtualCraftingHandler) {
+            IVirtualCraftingHandler vh = (IVirtualCraftingHandler) handler;
+            IAEItemStack[] outputs = patternDetails.getOutputs();
+            if (vh.canCraftVirtually(world, target.pos, table, outputs)) {
+                List<ItemStack> products = vh.virtualCraft(world, target.pos, table, outputs, new appeng.me.helpers.MachineSource(this.host));
+                if (!products.isEmpty()) {
+                    injectItemsToNetwork(proxy, world, products);
+                }
+                // 虚拟合成不占用物理设备，target 保持 IDLE，可立即复用
+                try {
+                    appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
+                    if (tm != null) {
+                        tm.wakeDevice(this.host.getProxy().getNode());
+                    }
+                } catch (appeng.me.GridAccessException e) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
             return false;
         }
@@ -220,6 +244,39 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         return true;
+    }
+
+    /**
+     * 将物品列表注入 AE 网络，溢出部分先进入 storage slots，再溢出则掉落。
+     */
+    private boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
+        try {
+            IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            for (ItemStack product : items) {
+                if (product.isEmpty()) continue;
+                IAEItemStack toInsert = AEItemStack.fromItemStack(product);
+                IAEItemStack remaining = Platform.poweredInsert(
+                        proxy.getEnergy(),
+                        proxy.getStorage().getInventory(channel),
+                        toInsert,
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (remaining != null && remaining.getStackSize() > 0) {
+                    ItemStack leftover = remaining.createItemStack();
+                    for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
+                        leftover = this.storage.insertItem(s, leftover, false);
+                    }
+                    if (!leftover.isEmpty()) {
+                        BlockPos pos = this.host.getTileEntity().getPos();
+                        net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
+                        world.spawnEntity(entityItem);
+                    }
+                }
+            }
+            return true;
+        } catch (appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject items to network", e);
+            return false;
+        }
     }
 
     public boolean isBusy() {
@@ -270,38 +327,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             List<ItemStack> products = handler.collectProducts(world, target.pos, expected, new appeng.me.helpers.MachineSource(this.host));
 
             if (!products.isEmpty()) {
-                try {
-                    IItemStorageChannel channel =
-                            AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-                    for (ItemStack product : products) {
-                        if (product.isEmpty()) continue;
-                        IAEItemStack toInsert = AEItemStack.fromItemStack(product);
-                        IAEItemStack remaining = Platform.poweredInsert(
-                                proxy.getEnergy(),
-                                proxy.getStorage().getInventory(channel),
-                                toInsert,
-                                new appeng.me.helpers.MachineSource(this.host));
-                        if (remaining != null && remaining.getStackSize() > 0) {
-                            // 网络未满，将剩余产物放入 storage slots
-                            ItemStack leftover = remaining.createItemStack();
-                            for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
-                                leftover = this.storage.insertItem(s, leftover, false);
-                            }
-                            if (!leftover.isEmpty()) {
-                                // storage 也满了，掉落剩余产物
-                                BlockPos pos = this.host.getTileEntity().getPos();
-                                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
-                                world.spawnEntity(entityItem);
-                            }
-                        }
-                    }
-                } catch (GridAccessException e) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject collected items", e);
-                    continue;
+                if (injectItemsToNetwork(proxy, world, products)) {
+                    entry.setValue(TargetState.IDLE);
+                    this.pendingOutputs.remove(target);
+                    didWork = true;
                 }
-                entry.setValue(TargetState.IDLE);
-                this.pendingOutputs.remove(target);
-                didWork = true;
             }
         }
 
