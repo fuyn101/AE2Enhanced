@@ -89,6 +89,13 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         if (!CLASS_CORE.isInstance(te)) return false;
         if (isCrafting(te)) return false;
 
+        // 重新加载后 injectors 列表可能为空，先刷新
+        try {
+            METHOD_UPDATE_INJECTORS.invoke(te);
+        } catch (Exception e) {
+            return false;
+        }
+
         // Core slot 0 必须为空
         IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
         if (coreInv == null) {
@@ -194,6 +201,10 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
+        // 重新加载后 injectors 列表可能为空，先刷新
+        try {
+            METHOD_UPDATE_INJECTORS.invoke(te);
+        } catch (Exception ignored) {}
         return !isCrafting(te) && getCraftingStage(te) == 0;
     }
 
@@ -204,6 +215,10 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return result;
         if (isCrafting(te)) return result;
+        // 重新加载后 injectors 列表可能为空，先刷新
+        try {
+            METHOD_UPDATE_INJECTORS.invoke(te);
+        } catch (Exception ignored) {}
 
         // 从 Core 提取产物（slot 0 或 slot 1）
         IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);

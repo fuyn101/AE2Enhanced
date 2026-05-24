@@ -23,10 +23,11 @@ public class PacketLoadOmniRecipe implements IMessage {
     public PacketLoadOmniRecipe() {
     }
 
-    public PacketLoadOmniRecipe(byte mode, boolean isCrafting, Map<Integer, ItemStack> inputs, Map<Integer, ItemStack> outputs) {
+    public PacketLoadOmniRecipe(byte mode, boolean isCrafting, int gridSize, Map<Integer, ItemStack> inputs, Map<Integer, ItemStack> outputs) {
         this.data = new NBTTagCompound();
         this.data.setByte("mode", mode);
         this.data.setBoolean("isCrafting", isCrafting);
+        this.data.setInteger("gridSize", gridSize);
 
         NBTTagCompound inputsTag = new NBTTagCompound();
         for (Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
@@ -74,6 +75,7 @@ public class PacketLoadOmniRecipe implements IMessage {
 
                 byte mode = data.getByte("mode");
                 boolean isCrafting = data.getBoolean("isCrafting");
+                int gridSize = data.hasKey("gridSize") ? data.getInteger("gridSize") : 3;
 
                 Map<Integer, net.minecraft.item.ItemStack> inputs = new HashMap<>();
                 Map<Integer, net.minecraft.item.ItemStack> outputs = new HashMap<>();
@@ -90,7 +92,7 @@ public class PacketLoadOmniRecipe implements IMessage {
                     outputs.put(slot, new net.minecraft.item.ItemStack(outTag.getCompoundTag(key)));
                 }
 
-                c.loadPattern(mode, isCrafting, inputs, outputs);
+                c.loadPattern(mode, isCrafting, gridSize, inputs, outputs);
             });
             return null;
         }

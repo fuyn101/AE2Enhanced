@@ -34,7 +34,18 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
     @Override
     public IRecipeTransferError transferRecipe(ContainerOmniTerm container, IRecipeLayout recipeLayout, EntityPlayer player, boolean maxTransfer, boolean doTransfer) {
-        boolean isCrafting = recipeLayout.getRecipeCategory().getUid().equals("minecraft.crafting");
+        String recipeUid = recipeLayout.getRecipeCategory().getUid();
+        boolean isCrafting = recipeUid.equals("minecraft.crafting");
+        int gridSize = 3; // default 3x3
+
+        // 识别 Extended Crafting 工作台配方
+        if (recipeUid.startsWith("jei.ec.table_crafting_")) {
+            isCrafting = true;
+            try {
+                String suffix = recipeUid.substring("jei.ec.table_crafting_".length());
+                gridSize = Integer.parseInt(suffix.substring(0, suffix.indexOf('x')));
+            } catch (Exception ignored) {}
+        }
 
         // 收集 JEI ingredients，按 key 排序以保留顺序
         List<Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>>> sortedIngredients = new ArrayList<>();
@@ -99,7 +110,7 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
             mode = 0;
         }
 
-        AE2Enhanced.network.sendToServer(new PacketLoadOmniRecipe(mode, isCrafting, inputs, outputs));
+        AE2Enhanced.network.sendToServer(new PacketLoadOmniRecipe(mode, isCrafting, gridSize, inputs, outputs));
         return null;
     }
 

@@ -836,13 +836,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // ================== JEI 配方转移 ==================
 
-    public void loadPattern(byte mode, boolean isCrafting, java.util.Map<Integer, ItemStack> inputs, java.util.Map<Integer, ItemStack> outputs) {
+    public void loadPattern(byte mode, boolean isCrafting, int gridSize, java.util.Map<Integer, ItemStack> inputs, java.util.Map<Integer, ItemStack> outputs) {
         // mode: 0=default/both, 1=encoding only (shift), 2=crafting only (alt)
 
         if (isCrafting) {
             // Crafting recipe: 可以填充左边合成台和右边编码区
 
-            // 1. 填充左边真实合成台（mode=0 或 mode=2）
+            // 1. 填充左边真实合成台（mode=0 或 mode=2），只支持 3x3
             if (mode == 0 || mode == 2) {
                 this.fillCraftingGridFromJEI(inputs);
             }
@@ -852,13 +852,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 if (!this.patternCraftMode) {
                     this.setPatternCraftMode(true);
                 }
-                for (int i = 0; i < 9; i++) {
+                // 清空所有 crafting slots（支持 Extended Crafting 大 grid）
+                int maxSlots = gridSize * gridSize;
+                for (int i = 0; i < 81; i++) {
                     this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
                 }
                 this.cOut.setStackInSlot(0, ItemStack.EMPTY);
                 for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
                     int slot = entry.getKey();
-                    if (slot >= 0 && slot < 9) {
+                    if (slot >= 0 && slot < maxSlots && slot < 81) {
                         this.patternCraftingInv.setStackInSlot(slot, entry.getValue().copy());
                     }
                 }
@@ -876,21 +878,27 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 if (this.patternCraftMode) {
                     this.setPatternCraftMode(false);
                 }
-                // 清空当前 scrollOffset 对应的输入和输出
-                int startIdx = this.scrollOffset * 9;
-                for (int i = 0; i < 9 && startIdx + i < 81; i++) {
-                    this.patternCraftingInv.setStackInSlot(startIdx + i, ItemStack.EMPTY);
+                // 计算需要显示的 group 范围，清空相关 slots
+                int maxSlot = 0;
+                for (int slot : inputs.keySet()) {
+                    if (slot > maxSlot) maxSlot = slot;
+                }
+                int neededGroups = (maxSlot / 9) + 1;
+                for (int g = 0; g < neededGroups && g < 9; g++) {
+                    int startIdx = g * 9;
+                    for (int i = 0; i < 9 && startIdx + i < 81; i++) {
+                        this.patternCraftingInv.setStackInSlot(startIdx + i, ItemStack.EMPTY);
+                    }
                 }
                 int startOutIdx = this.scrollOffset * 3;
                 for (int i = 0; i < 3 && startOutIdx + i < 27; i++) {
                     this.patternOutputInv.setStackInSlot(startOutIdx + i, ItemStack.EMPTY);
                 }
-                // 填充输入：按 JEI slot index 映射到当前 group 的本地 slot
+                // 填充输入：按 JEI slot index 直接映射到 patternCraftingInv
                 for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
                     int slot = entry.getKey();
-                    int localSlot = slot; // JEI slot index 直接映射
-                    if (localSlot >= 0 && localSlot < 9 && startIdx + localSlot < 81) {
-                        this.patternCraftingInv.setStackInSlot(startIdx + localSlot, entry.getValue().copy());
+                    if (slot >= 0 && slot < 81) {
+                        this.patternCraftingInv.setStackInSlot(slot, entry.getValue().copy());
                     }
                 }
                 // 填充输出

@@ -38,11 +38,14 @@ public class TargetBinding {
         if (this == o) return true;
         if (!(o instanceof TargetBinding)) return false;
         TargetBinding that = (TargetBinding) o;
-        return dimension == that.dimension && pos.equals(that.pos);
+        return dimension == that.dimension && pos.equals(that.pos)
+            && (blockId == null ? that.blockId == null : blockId.equals(that.blockId));
     }
 
     @Override
     public int hashCode() {
-        return 31 * pos.hashCode() + dimension;
+        int result = 31 * pos.hashCode() + dimension;
+        result = 31 * result + (blockId != null ? blockId.hashCode() : 0);
+        return result;
     }
 }

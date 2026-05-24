@@ -50,6 +50,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Field FIELD_CAULDRON_INVENTORY;
     private static Field FIELD_CAULDRON_MODE;
     private static Field FIELD_CAULDRON_CRAFTING_TIMER;
+    private static Field FIELD_CAULDRON_HAS_POWER;
 
     private static boolean reflectionReady = false;
 
@@ -67,6 +68,7 @@ public class BewitchmentHandler implements IRemoteHandler {
             FIELD_CAULDRON_INVENTORY.setAccessible(true);
             FIELD_CAULDRON_MODE = CLASS_CAULDRON.getField("mode");
             FIELD_CAULDRON_CRAFTING_TIMER = CLASS_CAULDRON.getField("craftingTimer");
+            FIELD_CAULDRON_HAS_POWER = CLASS_CAULDRON.getField("hasPower");
 
             reflectionReady = true;
         } catch (Exception e) {
@@ -297,6 +299,8 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     private boolean canStartCauldron(TileEntity te, InventoryCrafting ingredients) {
         try {
+            boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
+            if (!hasPower) return false; // 祭坛能量不足
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return false;
             // 统计空槽
@@ -342,7 +346,6 @@ public class BewitchmentHandler implements IRemoteHandler {
 
             int mode = (int) FIELD_CAULDRON_MODE.get(te);
             // mode 0 是空闲，mode 2 是排空流体，mode 3/5 是合成相关
-            // 如果 mode 不是空闲且 inventory 为空，说明合成刚完成
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return true;
 
@@ -354,12 +357,16 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            // 空闲：mode==0 且 inventory 为空
-            // 或者 inventory 为空（合成已完成清空）
+            // 空闲：inventory 为空（合成已完成清空）
             if (inventoryEmpty) return true;
 
-            // inventory 有物品但 timer==0：可能缺少热源未开始合成
-            // 这种情况下我们认为设备空闲，让 collectProducts 回收物品
+            // inventory 有物品但 timer==0：检查是否有能量
+            // 如果没有能量，认为空闲，回收物品
+            boolean hasPower = (boolean) FIELD_CAULDRON_HAS_POWER.get(te);
+            if (!hasPower) return true;
+
+            // 有能量但 timer==0：可能缺少热源/流体，合成未开始
+            // 也认为是空闲，回收物品（避免无限等待）
             return true;
         } catch (Exception e) {
             return false;

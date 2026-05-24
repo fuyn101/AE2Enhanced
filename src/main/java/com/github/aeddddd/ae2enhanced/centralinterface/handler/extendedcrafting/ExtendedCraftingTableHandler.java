@@ -39,6 +39,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     private static Method METHOD_GET_LINE_SIZE;
     private static Method METHOD_FIND_MATCHING_RECIPE;
     private static Method METHOD_GET_REMAINING_ITEMS;
+    private static Object RECIPE_MANAGER_INSTANCE;
     private static boolean reflectionReady = false;
 
     private static void initReflection() {
@@ -48,11 +49,9 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             METHOD_GET_LINE_SIZE = CLASS_ABSTRACT_TABLE.getMethod("getLineSize");
             Class<?> recipeManagerClass = Class.forName("com.blakebr0.extendedcrafting.crafting.table.TableRecipeManager");
             Method getInstance = recipeManagerClass.getMethod("getInstance");
-            Object instance = getInstance.invoke(null);
+            RECIPE_MANAGER_INSTANCE = getInstance.invoke(null);
             METHOD_FIND_MATCHING_RECIPE = recipeManagerClass.getMethod("findMatchingRecipe", InventoryCrafting.class, World.class);
             METHOD_GET_REMAINING_ITEMS = recipeManagerClass.getMethod("getRemainingItems", InventoryCrafting.class, World.class);
-            // 缓存 instance，因为 TableRecipeManager 是单例
-            METHOD_FIND_MATCHING_RECIPE = recipeManagerClass.getMethod("findMatchingRecipe", InventoryCrafting.class, World.class);
             reflectionReady = true;
         } catch (Exception e) {
             throw new RuntimeException("[AE2E] ExtendedCraftingTable reflection init failed", e);
@@ -195,10 +194,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
 
     private static ItemStack findMatchingRecipe(InventoryCrafting matrix, World world) {
         try {
-            Class<?> recipeManagerClass = Class.forName("com.blakebr0.extendedcrafting.crafting.table.TableRecipeManager");
-            Object instance = recipeManagerClass.getMethod("getInstance").invoke(null);
-            return (ItemStack) recipeManagerClass.getMethod("findMatchingRecipe", InventoryCrafting.class, World.class)
-                    .invoke(instance, matrix, world);
+            return (ItemStack) METHOD_FIND_MATCHING_RECIPE.invoke(RECIPE_MANAGER_INSTANCE, matrix, world);
         } catch (Exception e) {
             return ItemStack.EMPTY;
         }
@@ -207,11 +203,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     @SuppressWarnings("unchecked")
     private static List<ItemStack> getRemainingItems(InventoryCrafting matrix, World world) {
         try {
-            Class<?> recipeManagerClass = Class.forName("com.blakebr0.extendedcrafting.crafting.table.TableRecipeManager");
-            Object instance = recipeManagerClass.getMethod("getInstance").invoke(null);
-            Object result = recipeManagerClass.getMethod("getRemainingItems", InventoryCrafting.class, World.class)
-                    .invoke(instance, matrix, world);
-            return (List<ItemStack>) result;
+            return (List<ItemStack>) METHOD_GET_REMAINING_ITEMS.invoke(RECIPE_MANAGER_INSTANCE, matrix, world);
         } catch (Exception e) {
             return Collections.emptyList();
         }
