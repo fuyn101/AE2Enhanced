@@ -490,8 +490,8 @@ public class BotaniaHandler implements IRemoteHandler {
                 }
             }
 
-            // 2. 收集返还的符文（Botania 符文祭坛合成时输入槽中的符文会被弹出）
-            if (!collectedThis && stack.getItem() == ModItems.rune) {
+            // 2. 收集返还物品（整合包可能有非符文返还；活石是催化剂不应收集）
+            if (!collectedThis && !(stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0)) {
                 collected.add(stack.copy());
                 entityItem.setDead();
             }
