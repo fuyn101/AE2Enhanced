@@ -356,6 +356,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     // ---- Crafting List Management ----
 
+    public void initialize() {
+        updateCraftingList();
+    }
+
     private void updateCraftingList() {
         AENetworkProxy proxy = this.host.getProxy();
         if (!proxy.isReady()) return;

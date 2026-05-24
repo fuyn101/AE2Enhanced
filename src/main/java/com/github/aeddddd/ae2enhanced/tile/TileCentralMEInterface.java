@@ -237,6 +237,7 @@ public class TileCentralMEInterface extends TileAENetworkBase
             clearNeedsReady();
             getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
             getProxy().onReady();
+            getInterfaceDuality().initialize();
         }
     }
 

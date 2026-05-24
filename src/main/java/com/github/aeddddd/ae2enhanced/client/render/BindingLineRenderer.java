@@ -53,8 +53,9 @@ public class BindingLineRenderer {
         buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
 
         boolean any = false;
-        for (TileCentralMEInterface source : TileCentralMEInterface.getActiveInterfaces()) {
-            if (source.getWorld() != player.world) continue;
+        for (net.minecraft.tileentity.TileEntity te : player.world.loadedTileEntityList) {
+            if (!(te instanceof TileCentralMEInterface)) continue;
+            TileCentralMEInterface source = (TileCentralMEInterface) te;
             if (source.getPos().distanceSq(player.posX, player.posY, player.posZ) > 32.0 * 32.0) continue;
 
             List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
