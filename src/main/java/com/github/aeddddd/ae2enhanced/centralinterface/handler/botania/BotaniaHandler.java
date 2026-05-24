@@ -212,14 +212,18 @@ public class BotaniaHandler implements IRemoteHandler {
 
     private boolean isIdleAlfPortal(World world, BlockPos pos) {
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
+        boolean hasProducts = false;
         for (EntityItem item : items) {
             if (item.isDead) continue;
             // 未带 _elvenPortal 标记的物品是未处理的输入
             if (!item.getEntityData().getBoolean(TAG_PORTAL_FLAG)) {
                 return false;
             }
+            hasProducts = true;
         }
-        return true; // 全是产物或为空
+        // 只有 AABB 内确实存在产物时才返回 true
+        // AABB 为空时返回 false，避免在输入被吞噬后、产物生成前过早触发
+        return hasProducts;
     }
 
     // ==================== Terra Plate ====================
@@ -406,6 +410,7 @@ public class BotaniaHandler implements IRemoteHandler {
 
     private boolean isIdleRuneAltar(World world, BlockPos pos, TileRuneAltar altar) {
         int cooldown = BotaniaReflectionHelper.getRuneAltarCooldown(altar);
+        // cooldown > 0 表示合成刚完成，正在冷却
         if (cooldown > 0) return true;
 
         // 如果祭坛内有物品且 manaToGet > 0，说明正在充能，不 idle
@@ -413,9 +418,9 @@ public class BotaniaHandler implements IRemoteHandler {
             return false;
         }
 
-        // 扫描产物
-        List<EntityItem> items = getEntityItemsInAABB(world, pos);
-        return !items.isEmpty();
+        // 不通过扫描 AABB 判断 idle，防止无关物品导致误判
+        // 产物是否存在由 collectProducts 在 tick 中按 expectedOutputs 匹配收集
+        return false;
     }
 
     // ==================== Common Helpers ====================

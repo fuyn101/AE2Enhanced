@@ -10,8 +10,10 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
@@ -22,10 +24,10 @@ import java.util.List;
 /**
  * 客户端绑定高亮渲染器。
  *
- * 当玩家主手持有 Universal Memory Card 且内存卡记录了绑定源时，
- * 为 Central ME Interface 和目标机器渲染高亮描边边框：
- * - 中枢 ME 接口：青色描边
- * - 目标机器：橙色描边
+ * 当玩家主手持有 Universal Memory Card 且准心指向某个 1 对多网络中的设备时，
+ * 只为该网络渲染高亮描边边框：
+ * - 中枢 ME 接口（source）：青色描边
+ * - 目标机器（target）：橙色描边
  */
 public class BindingLineRenderer {
 
@@ -36,6 +38,38 @@ public class BindingLineRenderer {
 
         ItemStack held = player.getHeldItemMainhand();
         if (!(held.getItem() instanceof ItemUniversalMemoryCard)) return;
+
+        Minecraft mc = Minecraft.getMinecraft();
+        RayTraceResult ray = mc.objectMouseOver;
+        if (ray == null || ray.typeOfHit != RayTraceResult.Type.BLOCK) return;
+
+        BlockPos lookedPos = ray.getBlockPos();
+        int lookedDim = player.world.provider.getDimension();
+
+        // 查找准心指向的 block 属于哪个 Central ME Interface 网络
+        TileCentralMEInterface matchedSource = null;
+        for (TileEntity te : player.world.loadedTileEntityList) {
+            if (!(te instanceof TileCentralMEInterface)) continue;
+            TileCentralMEInterface source = (TileCentralMEInterface) te;
+
+            // 准心指向 source 本身
+            if (source.getPos().equals(lookedPos)) {
+                matchedSource = source;
+                break;
+            }
+
+            // 准心指向该 source 的某个 target
+            for (TargetBinding binding : source.getInterfaceDuality().getBindings()) {
+                if (binding.pos.equals(lookedPos) && binding.dimension == lookedDim) {
+                    matchedSource = source;
+                    break;
+                }
+            }
+
+            if (matchedSource != null) break;
+        }
+
+        if (matchedSource == null) return;
 
         double px = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.getPartialTicks();
         double py = player.lastTickPosY + (player.posY - player.lastTickPosY) * event.getPartialTicks();
@@ -49,20 +83,18 @@ public class BindingLineRenderer {
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.glLineWidth(2.5f);
 
-        // 先收集所有需要渲染的 AABB，避免空渲染时 begin() 未配对 draw()
         List<RenderEntry> entries = new ArrayList<>();
-        for (net.minecraft.tileentity.TileEntity te : player.world.loadedTileEntityList) {
-            if (!(te instanceof TileCentralMEInterface)) continue;
-            TileCentralMEInterface source = (TileCentralMEInterface) te;
-            if (source.getPos().distanceSq(player.posX, player.posY, player.posZ) > 32.0 * 32.0) continue;
 
-            List<TargetBinding> bindings = source.getInterfaceDuality().getBindings();
-            if (bindings.isEmpty()) continue;
+        // Source
+        entries.add(new RenderEntry(
+                new AxisAlignedBB(matchedSource.getPos()).grow(0.002),
+                0.0f, 1.0f, 1.0f, 0.85f));
 
-            entries.add(new RenderEntry(new AxisAlignedBB(source.getPos()).grow(0.002), 0.0f, 1.0f, 1.0f, 0.85f));
-            for (TargetBinding target : bindings) {
-                entries.add(new RenderEntry(new AxisAlignedBB(target.pos).grow(0.002), 1.0f, 0.65f, 0.0f, 0.85f));
-            }
+        // Targets
+        for (TargetBinding target : matchedSource.getInterfaceDuality().getBindings()) {
+            entries.add(new RenderEntry(
+                    new AxisAlignedBB(target.pos).grow(0.002),
+                    1.0f, 0.65f, 0.0f, 0.85f));
         }
 
         if (!entries.isEmpty()) {

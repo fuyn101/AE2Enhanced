@@ -211,7 +211,7 @@ public class ItemUniversalMemoryCard extends Item {
     @SideOnly(Side.CLIENT)
     public static class ClientEvents {
         @SideOnly(Side.CLIENT)
-        @SubscribeEvent
+        @SubscribeEvent(priority = net.minecraftforge.fml.common.eventhandler.EventPriority.HIGH)
         public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
             if (event.getWorld().isRemote && event.getHand() == EnumHand.MAIN_HAND) {
                 ItemStack stack = event.getEntityPlayer().getHeldItemMainhand();
@@ -241,6 +241,7 @@ public class ItemUniversalMemoryCard extends Item {
 
                     AE2Enhanced.network.sendToServer(new PacketUMCAction(type, event.getPos(), event.getFace()));
                     event.setCanceled(true);
+                    event.setCancellationResult(EnumActionResult.SUCCESS);
                 }
             }
         }

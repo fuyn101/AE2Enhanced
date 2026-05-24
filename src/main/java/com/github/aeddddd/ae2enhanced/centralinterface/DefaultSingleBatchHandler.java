@@ -34,7 +34,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
 
     @Override
     public boolean canHandle(String blockId) {
-        return true; // 通用 fallback，始终匹配
+        return false; // 不主动匹配任何 blockId，由 HandlerRegistry 作为兜底 fallback
     }
 
     @Override
