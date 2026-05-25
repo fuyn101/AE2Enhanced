@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.player.EntityPlayer;
@@ -214,21 +215,20 @@ public class ThaumcraftHandler implements IRemoteHandler {
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
 
         // 先尝试让矩阵自己走正常流程：craftingStart 内部会查找配方、检查研究、吸收源质
+        // 注意：craftingStart 返回 void，不能读取 boolean 返回值
         if (world instanceof WorldServer) {
             try {
                 FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world,
                     new GameProfile(UUID.randomUUID(), "[AE2E]"));
 
-                // 先不加研究直接调用，让 craftingStart 内部自行匹配
-                // 如果失败（研究不足等），再查找配方并尝试临时授予研究
-                boolean started = (Boolean) METHOD_CRAFTING_START.invoke(te, fakePlayer);
-                if (started) {
+                // 第一次调用：不加研究，让 craftingStart 内部自行匹配
+                METHOD_CRAFTING_START.invoke(te, fakePlayer);
+                if (isActive(te)) {
                     recipeCache.remove(pos);
                     return true;
                 }
 
-                // craftingStart 返回 false，可能是研究不足
-                // 从基座物品反查配方，临时授予研究后重试
+                // 未启动，可能是研究不足。从基座反查配方，临时授予研究后重试
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
                     IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
@@ -237,11 +237,11 @@ public class ThaumcraftHandler implements IRemoteHandler {
                     if (knowledge != null && research != null && !research.isEmpty()) {
                         added = knowledge.addResearch(research);
                     }
-                    started = (Boolean) METHOD_CRAFTING_START.invoke(te, fakePlayer);
+                    METHOD_CRAFTING_START.invoke(te, fakePlayer);
                     if (added && knowledge != null) {
                         knowledge.removeResearch(research);
                     }
-                    if (started) {
+                    if (isActive(te)) {
                         recipeCache.remove(pos);
                         return true;
                     }
@@ -250,7 +250,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
                     return forceStartCrafting(world, pos, te, recipe);
                 }
             } catch (Exception e) {
-                // 反射异常，回退到强制完成
+                AE2Enhanced.LOGGER.warn("[AE2E] ThaumcraftHandler startProcess exception", e);
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
                     recipeCache.put(pos, recipe);
