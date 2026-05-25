@@ -13,12 +13,12 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,37 +29,43 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>支持全部 5 个等级（DISCOVERY~BRILLIANCE）。
  * 配方匹配策略：在 {@code canStart} 中通过输入物品种类+数量遍历祭坛配方列表，
- * 找到唯一匹配后缓存；{@code pushMaterials} 按缓存配方的 slot 布局精确放置物品；
- * {@code startProcess} 调用 {@code AltarRecipeRegistry.findMatchingRecipe} 触发合成。</p>
+ * 找到唯一匹配后缓存；{@code pushMaterials} 按缓存配方的 slot 布局精确放置物品
+ * （包括 3x3 主网格与 Attunement/Constellation/Trait 额外槽位）；
+ * {@code startProcess} 直接创建 {@code ActiveCraftingTask} 并注入 TileAltar，
+ * 绕过 FakePlayer 进度门控。</p>
  */
 public class AstralSorceryHandler implements IRemoteHandler {
 
     private static final String BLOCK_ID = "astralsorcery:blockaltar";
+    private static final UUID FAKE_PLAYER_UUID = UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e");
 
     // 反射缓存
     private static Class<?> CLASS_TILE_ALTAR;
     private static Class<?> CLASS_ABSTRACT_ALTAR_RECIPE;
     private static Class<?> CLASS_ALTAR_RECIPE_REGISTRY;
-    private static Class<?> CLASS_ACCESSIBLE_RECIPE;
     private static Class<?> CLASS_ITEM_HANDLE;
     private static Class<?> CLASS_ACTIVE_CRAFTING_TASK;
+    private static Class<?> CLASS_ATTUNEMENT_RECIPE;
+    private static Class<?> CLASS_CONSTELLATION_RECIPE;
+    private static Class<?> CLASS_TRAIT_RECIPE;
     private static Method METHOD_GET_INVENTORY_HANDLER;
     private static Method METHOD_GET_ACTIVE_CRAFTING_TASK;
     private static Method METHOD_GET_MULTIBLOCK_STATE;
-    private static Method METHOD_GET_STARLIGHT_STORED;
     private static Method METHOD_GET_ALTAR_LEVEL;
+    private static Method METHOD_MARK_FOR_UPDATE;
     private static Method METHOD_GET_NEEDED_LEVEL;
     private static Method METHOD_GET_OUTPUT_FOR_MATCHING;
     private static Method METHOD_GET_NATIVE_RECIPE;
     private static Method METHOD_FULFILLES_STARLIGHT;
     private static Method METHOD_FIND_MATCHING_RECIPE;
     private static Method METHOD_MATCH_CRAFTING;
-    private static Method METHOD_GET_SLOT_ID;
-    private static Method METHOD_MARK_FOR_UPDATE;
+    private static Method METHOD_GET_RECIPE_INGREDIENT;
     private static Method METHOD_CRAFTING_TICK_TIME;
     private static Field FIELD_CRAFTING_TASK;
     private static Field FIELD_RECIPES_MAP;
     private static Field FIELD_ADDITIONAL_SLOTS;
+    private static Field FIELD_MATCH_STACKS;
+    private static Field FIELD_MATCH_TRAIT_STACKS;
     private static Constructor<?> CTOR_ACTIVE_CRAFTING_TASK;
     private static boolean reflectionReady = false;
 
@@ -72,14 +78,15 @@ public class AstralSorceryHandler implements IRemoteHandler {
             CLASS_TILE_ALTAR = Class.forName("hellfirepvp.astralsorcery.common.tile.TileAltar");
             CLASS_ABSTRACT_ALTAR_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.AbstractAltarRecipe");
             CLASS_ALTAR_RECIPE_REGISTRY = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.AltarRecipeRegistry");
-            CLASS_ACCESSIBLE_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.helper.AccessibleRecipe");
             CLASS_ITEM_HANDLE = Class.forName("hellfirepvp.astralsorcery.common.crafting.ItemHandle");
             CLASS_ACTIVE_CRAFTING_TASK = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.ActiveCraftingTask");
+            CLASS_ATTUNEMENT_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.AttunementRecipe");
+            CLASS_CONSTELLATION_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.ConstellationRecipe");
+            CLASS_TRAIT_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.TraitRecipe");
 
             METHOD_GET_INVENTORY_HANDLER = CLASS_TILE_ALTAR.getMethod("getInventoryHandler");
             METHOD_GET_ACTIVE_CRAFTING_TASK = CLASS_TILE_ALTAR.getMethod("getActiveCraftingTask");
             METHOD_GET_MULTIBLOCK_STATE = CLASS_TILE_ALTAR.getMethod("getMultiblockState");
-            METHOD_GET_STARLIGHT_STORED = CLASS_TILE_ALTAR.getMethod("getStarlightStored");
             METHOD_GET_ALTAR_LEVEL = CLASS_TILE_ALTAR.getMethod("getAltarLevel");
             METHOD_MARK_FOR_UPDATE = CLASS_TILE_ALTAR.getMethod("markForUpdate");
 
@@ -93,9 +100,16 @@ public class AstralSorceryHandler implements IRemoteHandler {
             FIELD_RECIPES_MAP = CLASS_ALTAR_RECIPE_REGISTRY.getField("recipes");
 
             METHOD_MATCH_CRAFTING = CLASS_ITEM_HANDLE.getMethod("matchCrafting", ItemStack.class);
-            METHOD_GET_SLOT_ID = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.AttunementRecipe$AttunementAltarSlot").getMethod("getSlotId");
-            FIELD_ADDITIONAL_SLOTS = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.AttunementRecipe").getDeclaredField("additionalSlots");
+            METHOD_GET_RECIPE_INGREDIENT = CLASS_ITEM_HANDLE.getMethod("getRecipeIngredient");
+
+            FIELD_ADDITIONAL_SLOTS = CLASS_ATTUNEMENT_RECIPE.getDeclaredField("additionalSlots");
             FIELD_ADDITIONAL_SLOTS.setAccessible(true);
+
+            FIELD_MATCH_STACKS = CLASS_CONSTELLATION_RECIPE.getDeclaredField("matchStacks");
+            FIELD_MATCH_STACKS.setAccessible(true);
+
+            FIELD_MATCH_TRAIT_STACKS = CLASS_TRAIT_RECIPE.getDeclaredField("matchTraitStacks");
+            FIELD_MATCH_TRAIT_STACKS.setAccessible(true);
 
             FIELD_CRAFTING_TASK = CLASS_TILE_ALTAR.getDeclaredField("craftingTask");
             FIELD_CRAFTING_TASK.setAccessible(true);
@@ -131,10 +145,11 @@ public class AstralSorceryHandler implements IRemoteHandler {
         // 结构必须匹配
         if (!getMultiblockState(te)) return false;
 
-        // 祭坛所有 slot 必须为空；如有残留物品则尝试清空
+        // 祭坛所有可访问 slot 必须为空；如有残留物品则尝试清空
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
-        for (int i = 0; i < handler.getSlots(); i++) {
+        int accessibleSize = getAccessibleSize(te);
+        for (int i = 0; i < accessibleSize; i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
                 ItemStack extracted = handler.extractItem(i, current.getCount(), false);
@@ -171,30 +186,49 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (recipe == null) return false;
         }
 
-        // 清空祭坛所有 slot
-        for (int i = 0; i < handler.getSlots(); i++) {
+        // 清空祭坛所有可访问 slot
+        int accessibleSize = getAccessibleSize(te);
+        for (int i = 0; i < accessibleSize; i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
                 handler.extractItem(i, current.getCount(), false);
             }
         }
 
-        // 直接按 AE 样板 slot 顺序放置物品到 slot 0~8
-        // 避免通过 recipeIngs 匹配导致的顺序/位置偏差
-        for (int slot = 0; slot < Math.min(ingredients.getSizeInventory(), 9); slot++) {
-            ItemStack stack = ingredients.getStackInSlot(slot);
+        // 收集可用物品（AE 样板中的所有非空物品）
+        List<ItemStack> available = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                ItemStack remainder = handler.insertItem(slot, stack.copy(), false);
-                if (!remainder.isEmpty()) {
-                    // insertItem 失败，尝试直接设置（fallback）
-                    try {
-                        if (handler instanceof net.minecraftforge.items.IItemHandlerModifiable) {
-                            ((net.minecraftforge.items.IItemHandlerModifiable) handler).setStackInSlot(slot, stack.copy());
+                available.add(stack.copy());
+            }
+        }
+
+        // 放置 3x3 部分：按配方的 Ingredient 顺序从 available 中匹配并放置
+        Object nativeRecipe = getNativeRecipe(recipe);
+        if (nativeRecipe != null) {
+            NonNullList<Ingredient> recipeIngs = ((net.minecraft.item.crafting.IRecipe) nativeRecipe).getIngredients();
+            for (int slot = 0; slot < Math.min(recipeIngs.size(), 9); slot++) {
+                Ingredient ing = recipeIngs.get(slot);
+                if (ing == null || ing == Ingredient.EMPTY) continue;
+                for (int i = 0; i < available.size(); i++) {
+                    ItemStack stack = available.get(i);
+                    if (ing.apply(stack)) {
+                        ItemStack remainder = handler.insertItem(slot, stack.copy(), false);
+                        if (!remainder.isEmpty()) {
+                            fallbackSetStack(handler, slot, stack.copy());
                         }
-                    } catch (Exception ignored) {}
+                        available.remove(i);
+                        break;
+                    }
                 }
             }
         }
+
+        // 放置额外槽位（Attunement / Constellation / Trait）
+        placeExtraSlots(recipe, available, handler, CLASS_ATTUNEMENT_RECIPE, FIELD_ADDITIONAL_SLOTS);
+        placeExtraSlots(recipe, available, handler, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
+        placeExtraSlots(recipe, available, handler, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
 
         return true;
     }
@@ -215,7 +249,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             // 直接使用 canStart/pushMaterials 已验证的配方创建 ActiveCraftingTask
             Object recipe = recipeCache.get(pos);
             if (recipe == null) {
-                // 回退：通过 findMatchingRecipe 查找
+                // 回退：通过 findMatchingRecipe 查找（此时物品已放置好，应该能找到）
                 recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
             }
             if (recipe == null) {
@@ -228,7 +262,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             int diff = Math.max(0, ((Enum<?>) altarLevel).ordinal() - ((Enum<?>) neededLevel).ordinal());
             int multiplier = (int) Math.round(Math.pow(2, diff));
 
-            Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e"));
+            Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, FAKE_PLAYER_UUID);
             FIELD_CRAFTING_TASK.set(te, task);
             METHOD_MARK_FOR_UPDATE.invoke(te);
             recipeCache.remove(pos);
@@ -272,12 +306,13 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 无论是否收集到产物，清空祭坛所有 slot，防止残留物品阻塞下一次推送
+        // 无论是否收集到产物，清空祭坛所有可访问 slot，防止残留物品阻塞下一次推送
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_TILE_ALTAR.isInstance(te)) {
             IItemHandler handler = getInventoryHandler(te);
             if (handler != null) {
-                for (int i = 0; i < handler.getSlots(); i++) {
+                int accessibleSize = getAccessibleSize(te);
+                for (int i = 0; i < accessibleSize; i++) {
                     ItemStack current = handler.getStackInSlot(i);
                     if (!current.isEmpty()) {
                         result.add(current.copy());
@@ -336,24 +371,13 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
 
             // AttunementRecipe 额外 slot
-            try {
-                if (FIELD_ADDITIONAL_SLOTS.getDeclaringClass().isInstance(recipe)) {
-                    @SuppressWarnings("unchecked")
-                    Map<Object, Object> additionalSlots = (Map<Object, Object>) FIELD_ADDITIONAL_SLOTS.get(recipe);
-                    if (additionalSlots != null) {
-                        for (Object itemHandle : additionalSlots.values()) {
-                            if (itemHandle != null) {
-                                Ingredient ing = (Ingredient) CLASS_ITEM_HANDLE.getMethod("getRecipeIngredient").invoke(itemHandle);
-                                if (ing != null && ing != Ingredient.EMPTY) {
-                                    required.add(ing);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                // ignore
-            }
+            addExtraSlotRequirements(recipe, required, CLASS_ATTUNEMENT_RECIPE, FIELD_ADDITIONAL_SLOTS);
+
+            // ConstellationRecipe 额外 slot
+            addExtraSlotRequirements(recipe, required, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
+
+            // TraitRecipe 额外 slot
+            addExtraSlotRequirements(recipe, required, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
 
             List<ItemStack> available = new ArrayList<>();
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -380,6 +404,62 @@ public class AstralSorceryHandler implements IRemoteHandler {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addExtraSlotRequirements(Object recipe, List<Ingredient> required, Class<?> recipeClass, Field field) {
+        try {
+            if (!recipeClass.isInstance(recipe)) return;
+            Map<Object, Object> slots = (Map<Object, Object>) field.get(recipe);
+            if (slots == null) return;
+            for (Object itemHandle : slots.values()) {
+                if (itemHandle != null) {
+                    Ingredient ing = (Ingredient) METHOD_GET_RECIPE_INGREDIENT.invoke(itemHandle);
+                    if (ing != null && ing != Ingredient.EMPTY) {
+                        required.add(ing);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void placeExtraSlots(Object recipe, List<ItemStack> available, IItemHandler handler, Class<?> recipeClass, Field field) {
+        try {
+            if (!recipeClass.isInstance(recipe)) return;
+            Map<Object, Object> slots = (Map<Object, Object>) field.get(recipe);
+            if (slots == null) return;
+            for (Map.Entry<Object, Object> entry : slots.entrySet()) {
+                Object slotEnum = entry.getKey();
+                Object itemHandle = entry.getValue();
+                if (slotEnum == null || itemHandle == null) continue;
+                int slotId = (int) slotEnum.getClass().getMethod("getSlotId").invoke(slotEnum);
+                for (int i = 0; i < available.size(); i++) {
+                    ItemStack stack = available.get(i);
+                    boolean match = (boolean) METHOD_MATCH_CRAFTING.invoke(itemHandle, stack);
+                    if (match) {
+                        ItemStack remainder = handler.insertItem(slotId, stack.copy(), false);
+                        if (!remainder.isEmpty()) {
+                            fallbackSetStack(handler, slotId, stack.copy());
+                        }
+                        available.remove(i);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private static void fallbackSetStack(IItemHandler handler, int slot, ItemStack stack) {
+        try {
+            if (handler instanceof IItemHandlerModifiable) {
+                ((IItemHandlerModifiable) handler).setStackInSlot(slot, stack);
+            }
+        } catch (Exception ignored) {}
     }
 
     private static Object getNativeRecipe(Object recipe) {
