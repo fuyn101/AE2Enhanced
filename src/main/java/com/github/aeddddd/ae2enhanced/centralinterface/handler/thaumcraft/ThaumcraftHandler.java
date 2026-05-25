@@ -129,29 +129,51 @@ public class ThaumcraftHandler implements IRemoteHandler {
     public boolean isValidTarget(World world, BlockPos pos) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
-        return CLASS_TILE_INFUSION_MATRIX.isInstance(te);
+        boolean valid = CLASS_TILE_INFUSION_MATRIX.isInstance(te);
+        if (!valid) {
+            AE2Enhanced.LOGGER.warn("[AE2E] ThaumcraftHandler isValidTarget failed at {}: te={}", pos, te);
+        }
+        return valid;
     }
 
     @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
-        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
+        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: not a TileInfusionMatrix at {}", pos);
+            return false;
+        }
 
-        if (isActive(te) || isCrafting(te)) return false;
-        if (!validLocation(te)) return false;
+        if (isActive(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: matrix is active at {}", pos);
+            return false;
+        }
+        if (isCrafting(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: matrix is crafting at {}", pos);
+            return false;
+        }
+        if (!validLocation(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: validLocation=false at {}. Check pedestal at {} and pillars at diagonals.", pos, pos.down(2));
+            return false;
+        }
 
         // 清空并检查基座
-        if (!clearAndCheckPedestals(world, pos, te)) return false;
+        if (!clearAndCheckPedestals(world, pos, te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: clearAndCheckPedestals failed at {}. Check main pedestal at {} is empty and is a TilePedestal.", pos, pos.down(2));
+            return false;
+        }
 
         // AE 样板约定：第一个非空槽位 = 主材，其余 = 辅材
-        // 不需要配方验证——用户编码的 pattern 本身已定义了主辅材关系
         boolean hasItems = false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             if (!ingredients.getStackInSlot(i).isEmpty()) {
                 hasItems = true;
                 break;
             }
+        }
+        if (!hasItems) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: no items in ingredients at {}", pos);
         }
         return hasItems;
     }
@@ -160,7 +182,10 @@ public class ThaumcraftHandler implements IRemoteHandler {
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
-        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
+        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: not a TileInfusionMatrix at {}", pos);
+            return false;
+        }
 
         // 清空所有基座
         clearAllPedestals(world, pos, te);
@@ -173,16 +198,24 @@ public class ThaumcraftHandler implements IRemoteHandler {
                 stacks.add(stack.copy());
             }
         }
-        if (stacks.isEmpty()) return false;
+        if (stacks.isEmpty()) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: no items to push at {}", pos);
+            return false;
+        }
 
         // 放入主材基座（矩阵正下方 2 格）
         ItemStack mainItem = stacks.remove(0);
         BlockPos mainPos = pos.down(2);
         TileEntity mainTe = world.getTileEntity(mainPos);
-        if (!CLASS_TILE_PEDESTAL.isInstance(mainTe)) return false;
+        if (!CLASS_TILE_PEDESTAL.isInstance(mainTe)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: main pedestal at {} is not a TilePedestal (te={})", mainPos, mainTe);
+            return false;
+        }
         try {
             METHOD_PEDESTAL_SET_STACK.invoke(mainTe, 0, mainItem);
+            AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft pushMaterials: placed main item {} at {}", mainItem, mainPos);
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: failed to place main item at {}", mainPos, e);
             return false;
         }
 
@@ -192,19 +225,31 @@ public class ThaumcraftHandler implements IRemoteHandler {
             METHOD_GET_SURROUNDINGS.invoke(te);
             @SuppressWarnings("unchecked")
             List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
+            AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft pushMaterials: found {} aux pedestals, {} aux items to place", pedestals.size(), stacks.size());
             for (BlockPos pPos : pedestals) {
                 if (stacks.isEmpty()) break;
                 TileEntity pTe = world.getTileEntity(pPos);
-                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
-                if (!((ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0)).isEmpty()) continue;
-                METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, stacks.remove(0));
+                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: skipping non-pedestal at {}", pPos);
+                    continue;
+                }
+                if (!((ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0)).isEmpty()) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: pedestal at {} is not empty, skipping", pPos);
+                    continue;
+                }
+                ItemStack aux = stacks.remove(0);
+                METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, aux);
+                AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft pushMaterials: placed aux item {} at {}", aux, pPos);
                 placed++;
             }
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: exception placing aux items", e);
             return false;
         }
 
-        // 基座必须足够放下所有辅材
+        if (!stacks.isEmpty()) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft pushMaterials: {} aux items could not be placed (not enough pedestals)", stacks.size());
+        }
         return stacks.isEmpty();
     }
 
@@ -212,7 +257,10 @@ public class ThaumcraftHandler implements IRemoteHandler {
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
-        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
+        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft startProcess: not a TileInfusionMatrix at {}", pos);
+            return false;
+        }
 
         // 先尝试让矩阵自己走正常流程：craftingStart 内部会查找配方、检查研究、吸收源质
         // 注意：craftingStart 返回 void，不能读取 boolean 返回值
@@ -224,13 +272,16 @@ public class ThaumcraftHandler implements IRemoteHandler {
                 // 第一次调用：不加研究，让 craftingStart 内部自行匹配
                 METHOD_CRAFTING_START.invoke(te, fakePlayer);
                 if (isActive(te)) {
+                    AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: crafting started successfully at {}", pos);
                     recipeCache.remove(pos);
                     return true;
                 }
+                AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: first craftingStart did not activate matrix at {}", pos);
 
                 // 未启动，可能是研究不足。从基座反查配方，临时授予研究后重试
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
+                    AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: found recipe '{}', attempting research bypass", recipe.getResearch());
                     IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
                     String research = recipe.getResearch();
                     boolean added = false;
@@ -242,21 +293,27 @@ public class ThaumcraftHandler implements IRemoteHandler {
                         knowledge.removeResearch(research);
                     }
                     if (isActive(te)) {
+                        AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: crafting started with research bypass at {}", pos);
                         recipeCache.remove(pos);
                         return true;
                     }
+                    AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: second craftingStart also failed at {}, falling back to forceStart", pos);
                     // 仍然失败（可能是源质不足等），回退到强制完成
                     recipeCache.put(pos, recipe);
                     return forceStartCrafting(world, pos, te, recipe);
+                } else {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft startProcess: could not find matching recipe from pedestals at {}", pos);
                 }
             } catch (Exception e) {
-                AE2Enhanced.LOGGER.warn("[AE2E] ThaumcraftHandler startProcess exception", e);
+                AE2Enhanced.LOGGER.warn("[AE2E] ThaumcraftHandler startProcess exception at {}", pos, e);
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
                     recipeCache.put(pos, recipe);
                     return forceStartCrafting(world, pos, te, recipe);
                 }
             }
+        } else {
+            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft startProcess: world is not WorldServer at {}", pos);
         }
 
         recipeCache.remove(pos);
