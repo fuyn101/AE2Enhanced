@@ -131,11 +131,10 @@ public class AstralSorceryHandler implements IRemoteHandler {
         // 结构必须匹配
         if (!getMultiblockState(te)) return false;
 
-        // 祭坛所有可访问 slot 必须为空
+        // 祭坛所有 slot 必须为空（包括高等级祭坛中不可见但 handler 中存在的 slot）
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
-        int accessibleSize = getAccessibleSize(te);
-        for (int i = 0; i < accessibleSize; i++) {
+        for (int i = 0; i < handler.getSlots(); i++) {
             if (!handler.getStackInSlot(i).isEmpty()) return false;
         }
 
@@ -166,9 +165,8 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (recipe == null) return false;
         }
 
-        // 清空祭坛所有可访问 slot
-        int accessibleSize = getAccessibleSize(te);
-        for (int i = 0; i < accessibleSize; i++) {
+        // 清空祭坛所有 slot（防止高 slot 残留物品导致 recipe.matches 失败）
+        for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
                 handler.extractItem(i, current.getCount(), false);
@@ -246,8 +244,11 @@ public class AstralSorceryHandler implements IRemoteHandler {
         }
 
         try {
-            // 调用 AltarRecipeRegistry.findMatchingRecipe(tile, false)
-            Object recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
+            // 优先使用 canStart/pushMaterials 已缓存的配方，避免 findMatchingRecipe 因内部匹配逻辑差异返回 null
+            Object recipe = recipeCache.get(pos);
+            if (recipe == null) {
+                recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
+            }
             if (recipe == null) {
                 recipeCache.remove(pos);
                 return false;

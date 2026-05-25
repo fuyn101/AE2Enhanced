@@ -228,7 +228,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+        boolean started = handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+        if (!started) {
+            return false;
+        }
 
         IAEItemStack[] outputs = patternDetails.getOutputs();
         if (outputs != null && outputs.length > 0) {
@@ -320,6 +323,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (!world.isBlockLoaded(target.pos)) continue;
 
             IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+            if (handler == null) {
+                entry.setValue(TargetState.IDLE);
+                this.pendingOutputs.remove(target);
+                continue;
+            }
             if (!handler.isIdle(world, target.pos)) {
                 // 对于需要条件启动的设备（如符文祭坛），在 tick 中尝试启动
                 handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
@@ -335,6 +343,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     this.pendingOutputs.remove(target);
                     didWork = true;
                 }
+            } else {
+                // 设备已 idle 但没有产物，重置状态允许重试
+                entry.setValue(TargetState.IDLE);
+                this.pendingOutputs.remove(target);
             }
         }
 
