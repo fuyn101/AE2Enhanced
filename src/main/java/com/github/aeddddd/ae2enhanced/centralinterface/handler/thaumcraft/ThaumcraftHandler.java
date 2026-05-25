@@ -145,10 +145,6 @@ public class ThaumcraftHandler implements IRemoteHandler {
             return false;
         }
 
-        if (isActive(te)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: matrix is active at {}", pos);
-            return false;
-        }
         if (isCrafting(te)) {
             AE2Enhanced.LOGGER.warn("[AE2E] Thaumcraft canStart: matrix is crafting at {}", pos);
             return false;
@@ -270,13 +266,21 @@ public class ThaumcraftHandler implements IRemoteHandler {
                     new GameProfile(UUID.randomUUID(), "[AE2E]"));
 
                 // 第一次调用：不加研究，让 craftingStart 内部自行匹配
+                // 确保矩阵已激活（active 是电源开关，craftingStart 不检查它，但 craftCycle 需要 active=true）
+                if (!isActive(te)) {
+                    FIELD_ACTIVE.setBoolean(te, true);
+                    METHOD_MARK_DIRTY.invoke(te);
+                    METHOD_SYNC_TILE.invoke(te, false);
+                    AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: activated matrix at {}", pos);
+                }
+
                 METHOD_CRAFTING_START.invoke(te, fakePlayer);
-                if (isActive(te)) {
+                if (isCrafting(te)) {
                     AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: crafting started successfully at {}", pos);
                     recipeCache.remove(pos);
                     return true;
                 }
-                AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: first craftingStart did not activate matrix at {}", pos);
+                AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: first craftingStart did not start crafting at {}", pos);
 
                 // 未启动，可能是研究不足。从基座反查配方，临时授予研究后重试
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
@@ -292,7 +296,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
                     if (added && knowledge != null) {
                         knowledge.removeResearch(research);
                     }
-                    if (isActive(te)) {
+                    if (isCrafting(te)) {
                         AE2Enhanced.LOGGER.info("[AE2E] Thaumcraft startProcess: crafting started with research bypass at {}", pos);
                         recipeCache.remove(pos);
                         return true;
@@ -390,7 +394,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
-        return !isActive(te) && !isCrafting(te);
+        return !isCrafting(te);
     }
 
     @Override
