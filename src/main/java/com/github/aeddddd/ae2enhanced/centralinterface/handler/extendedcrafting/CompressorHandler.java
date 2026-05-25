@@ -8,11 +8,8 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.energy.CapabilityEnergy;
-import net.minecraftforge.energy.IEnergyStorage;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -36,15 +33,11 @@ public class CompressorHandler implements IRemoteHandler {
     private static Class<?> CLASS_RECIPE_MANAGER;
     private static Object RECIPE_MANAGER_INSTANCE;
     private static Method METHOD_GET_RECIPES;
-    private static Method METHOD_GET_RECIPE;
-    private static Method METHOD_GET_OUTPUT;
+
     private static Method METHOD_GET_INPUT;
-    private static Method METHOD_GET_INPUT_COUNT;
-    private static Method METHOD_GET_CATALYST;
-    private static Method METHOD_CONSUME_CATALYST;
-    private static Method METHOD_GET_POWER_COST;
     private static Field FIELD_MATERIAL_STACK;
     private static Field FIELD_MATERIAL_COUNT;
+    private static Field FIELD_INPUT_LIMIT;
     private static Field FIELD_PROGRESS;
     private static Field FIELD_EJECTING;
     private static boolean reflectionReady = false;
@@ -59,18 +52,14 @@ public class CompressorHandler implements IRemoteHandler {
             RECIPE_MANAGER_INSTANCE = getInstance.invoke(null);
             METHOD_GET_RECIPES = CLASS_RECIPE_MANAGER.getMethod("getRecipes");
 
-            METHOD_GET_RECIPE = CLASS_TILE_COMPRESSOR.getMethod("getRecipe");
-            METHOD_GET_OUTPUT = CLASS_COMPRESSOR_RECIPE.getMethod("getOutput");
-            METHOD_GET_INPUT = CLASS_COMPRESSOR_RECIPE.getMethod("getInput");
-            METHOD_GET_INPUT_COUNT = CLASS_COMPRESSOR_RECIPE.getMethod("getInputCount");
-            METHOD_GET_CATALYST = CLASS_COMPRESSOR_RECIPE.getMethod("getCatalyst");
-            METHOD_CONSUME_CATALYST = CLASS_COMPRESSOR_RECIPE.getMethod("consumeCatalyst");
-            METHOD_GET_POWER_COST = CLASS_COMPRESSOR_RECIPE.getMethod("getPowerCost");
 
+            METHOD_GET_INPUT = CLASS_COMPRESSOR_RECIPE.getMethod("getInput");
             FIELD_MATERIAL_STACK = CLASS_TILE_COMPRESSOR.getDeclaredField("materialStack");
             FIELD_MATERIAL_STACK.setAccessible(true);
             FIELD_MATERIAL_COUNT = CLASS_TILE_COMPRESSOR.getDeclaredField("materialCount");
             FIELD_MATERIAL_COUNT.setAccessible(true);
+            FIELD_INPUT_LIMIT = CLASS_TILE_COMPRESSOR.getDeclaredField("inputLimit");
+            FIELD_INPUT_LIMIT.setAccessible(true);
             FIELD_PROGRESS = CLASS_TILE_COMPRESSOR.getDeclaredField("progress");
             FIELD_PROGRESS.setAccessible(true);
             FIELD_EJECTING = CLASS_TILE_COMPRESSOR.getDeclaredField("ejecting");
@@ -99,7 +88,14 @@ public class CompressorHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
-        return getProgress(te) == 0;
+        if (getProgress(te) != 0) return false;
+        // 强制关闭输入限制，允许一次性注入全部材料
+        try {
+            FIELD_INPUT_LIMIT.setBoolean(te, false);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to disable compressor inputLimit", e);
+        }
+        return true;
     }
 
     @Override
@@ -126,35 +122,16 @@ public class CompressorHandler implements IRemoteHandler {
         Object recipe = findRecipeByInputs(inputs);
         if (recipe == null) return false;
 
-        // 注入能量（如果不够）
-        int powerCost = getPowerCost(recipe);
-        if (powerCost > 0) {
-            injectEnergy(te, powerCost);
-        }
-
-        // 设置催化剂（slot 2）
-        net.minecraft.item.crafting.Ingredient catalystIng = getCatalyst(recipe);
-        if (catalystIng != null && catalystIng != net.minecraft.item.crafting.Ingredient.EMPTY) {
-            ItemStack catalystStack = findMatchingStack(inputs, catalystIng);
-            if (!catalystStack.isEmpty()) {
-                setSlot(te, 2, catalystStack.copy());
-            }
-        }
-
         // 主材料：取第一个匹配 recipe input 的物品
         net.minecraft.item.crafting.Ingredient recipeInput = getRecipeInput(recipe);
         ItemStack mainMaterial = findMatchingStack(inputs, recipeInput);
         if (mainMaterial.isEmpty()) return false;
 
-        int neededCount = getInputCount(recipe);
-
-        // 突破输入限制：直接设置 materialStack / materialCount 和 slot 1
+        // 直接设置 materialStack / materialCount 和 slot 1，不限制数量
         try {
-            ItemStack material = mainMaterial.copy();
-            material.setCount(Math.min(material.getCount(), neededCount));
-            setSlot(te, 1, material.copy());
-            FIELD_MATERIAL_STACK.set(te, material.copy());
-            FIELD_MATERIAL_COUNT.setInt(te, material.getCount());
+            setSlot(te, 1, mainMaterial.copy());
+            FIELD_MATERIAL_STACK.set(te, mainMaterial.copy());
+            FIELD_MATERIAL_COUNT.setInt(te, mainMaterial.getCount());
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to inject compressor materials", e);
             return false;
@@ -201,18 +178,6 @@ public class CompressorHandler implements IRemoteHandler {
         ItemStack output = extractSlot(te, 0, 64);
         if (!output.isEmpty()) {
             result.add(output);
-        }
-
-        // 清理催化剂（如果不消耗）
-        try {
-            Object recipe = METHOD_GET_RECIPE.invoke(te);
-            if (recipe != null) {
-                boolean consume = (boolean) METHOD_CONSUME_CATALYST.invoke(recipe);
-                if (consume) {
-                    extractSlot(te, 2, 64);
-                }
-            }
-        } catch (Exception ignored) {
         }
 
         // 重置 materialStack / materialCount，防止干扰下一次
@@ -264,16 +229,6 @@ public class CompressorHandler implements IRemoteHandler {
         return ItemStack.EMPTY;
     }
 
-    private static void injectEnergy(TileEntity te, int amount) {
-        IEnergyStorage energy = te.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
-        if (energy != null) {
-            int needed = amount - energy.getEnergyStored();
-            if (needed > 0) {
-                energy.receiveEnergy(needed, false);
-            }
-        }
-    }
-
     @SuppressWarnings("unchecked")
     private static Object findRecipeByInputs(List<ItemStack> inputs) {
         try {
@@ -282,7 +237,6 @@ public class CompressorHandler implements IRemoteHandler {
 
             for (Object recipe : recipes) {
                 net.minecraft.item.crafting.Ingredient recipeInput = getRecipeInput(recipe);
-                net.minecraft.item.crafting.Ingredient recipeCatalyst = getCatalyst(recipe);
 
                 // 检查是否有输入匹配 recipe input
                 boolean hasInput = false;
@@ -293,18 +247,6 @@ public class CompressorHandler implements IRemoteHandler {
                     }
                 }
                 if (!hasInput) continue;
-
-                // 检查是否有输入匹配 recipe catalyst（如果需要）
-                if (recipeCatalyst != null && recipeCatalyst != net.minecraft.item.crafting.Ingredient.EMPTY) {
-                    boolean hasCatalyst = false;
-                    for (ItemStack stack : inputs) {
-                        if (recipeCatalyst.apply(stack)) {
-                            hasCatalyst = true;
-                            break;
-                        }
-                    }
-                    if (!hasCatalyst) continue;
-                }
 
                 return recipe;
             }
@@ -329,30 +271,6 @@ public class CompressorHandler implements IRemoteHandler {
             return (net.minecraft.item.crafting.Ingredient) METHOD_GET_INPUT.invoke(recipe);
         } catch (Exception e) {
             return net.minecraft.item.crafting.Ingredient.EMPTY;
-        }
-    }
-
-    private static int getInputCount(Object recipe) {
-        try {
-            return (int) METHOD_GET_INPUT_COUNT.invoke(recipe);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private static net.minecraft.item.crafting.Ingredient getCatalyst(Object recipe) {
-        try {
-            return (net.minecraft.item.crafting.Ingredient) METHOD_GET_CATALYST.invoke(recipe);
-        } catch (Exception e) {
-            return net.minecraft.item.crafting.Ingredient.EMPTY;
-        }
-    }
-
-    private static int getPowerCost(Object recipe) {
-        try {
-            return (int) METHOD_GET_POWER_COST.invoke(recipe);
-        } catch (Exception e) {
-            return 0;
         }
     }
 }

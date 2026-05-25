@@ -142,10 +142,11 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         IRecipe recipe = findRecipeByOutput(expectedOutput, lineSize);
         if (recipe == null) return products;
 
-        // 直接返回配方产物，不构造 matrix、不调用 getCraftingResult/getRemainingItems
-        ItemStack result = recipe.getRecipeOutput();
-        if (result != null && !result.isEmpty()) {
-            products.add(result.copy());
+        // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
+        for (IAEItemStack output : outputs) {
+            if (output != null) {
+                products.add(output.createItemStack());
+            }
         }
         return products;
     }

@@ -72,6 +72,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final Map<TargetBinding, TargetState> targetStates = new HashMap<>();
     // 记录每个目标当前正在合成的产物列表，用于 tick 收集时匹配
     private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
+    // 虚拟合成产物暂存队列（等待 waitingFor 注册后再注入网络）
+    private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
     public DualityCentralInterface(ICentralInterfaceHost host) {
         this.host = host;
@@ -202,7 +204,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (vh.canCraftVirtually(world, target.pos, table, outputs)) {
                 List<ItemStack> products = vh.virtualCraft(world, target.pos, table, outputs, new appeng.me.helpers.MachineSource(this.host));
                 if (!products.isEmpty()) {
-                    injectItemsToNetwork(proxy, world, products);
+                    // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
+                    for (IAEItemStack output : outputs) {
+                        if (output != null) {
+                            this.pendingVirtualProducts.add(output.createItemStack());
+                        }
+                    }
                 }
                 // 虚拟合成不占用物理设备，target 保持 IDLE，可立即复用
                 try {
@@ -350,6 +357,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
+        // 注入待处理的虚拟合成产物（waitingFor 已注册，此时注入可被 CPU cluster 识别）
+        if (!this.pendingVirtualProducts.isEmpty()) {
+            List<ItemStack> toInject = new ArrayList<>(this.pendingVirtualProducts);
+            this.pendingVirtualProducts.clear();
+            if (injectItemsToNetwork(proxy, this.host.getTileEntity().getWorld(), toInject)) {
+                didWork = true;
+            }
+        }
+
         // 将 storage slots 中的物品推入网络（如果有空间）
         pushStorageToNetwork(proxy);
 
@@ -385,6 +401,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     private boolean hasWorkToDo() {
+        if (!this.pendingVirtualProducts.isEmpty()) {
+            return true;
+        }
         for (TargetState state : this.targetStates.values()) {
             if (state == TargetState.PROCESSING) {
                 return true;
