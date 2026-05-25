@@ -48,7 +48,9 @@ public class AstralSorceryHandler implements IRemoteHandler {
     private static Class<?> CLASS_ATTUNEMENT_RECIPE;
     private static Class<?> CLASS_CONSTELLATION_RECIPE;
     private static Class<?> CLASS_TRAIT_RECIPE;
+    private static Class<?> CLASS_TILE_ATTUNEMENT_RELAY;
     private static Method METHOD_GET_INVENTORY_HANDLER;
+    private static Method METHOD_RELAY_GET_INVENTORY_HANDLER;
     private static Method METHOD_GET_ACTIVE_CRAFTING_TASK;
     private static Method METHOD_GET_MULTIBLOCK_STATE;
     private static Method METHOD_GET_ALTAR_LEVEL;
@@ -66,6 +68,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
     private static Field FIELD_ADDITIONAL_SLOTS;
     private static Field FIELD_MATCH_STACKS;
     private static Field FIELD_MATCH_TRAIT_STACKS;
+    private static Field FIELD_ADDITIONALLY_REQUIRED_STACKS;
     private static Constructor<?> CTOR_ACTIVE_CRAFTING_TASK;
     private static boolean reflectionReady = false;
 
@@ -83,8 +86,10 @@ public class AstralSorceryHandler implements IRemoteHandler {
             CLASS_ATTUNEMENT_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.AttunementRecipe");
             CLASS_CONSTELLATION_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.ConstellationRecipe");
             CLASS_TRAIT_RECIPE = Class.forName("hellfirepvp.astralsorcery.common.crafting.altar.recipes.TraitRecipe");
+            CLASS_TILE_ATTUNEMENT_RELAY = Class.forName("hellfirepvp.astralsorcery.common.tile.TileAttunementRelay");
 
             METHOD_GET_INVENTORY_HANDLER = CLASS_TILE_ALTAR.getMethod("getInventoryHandler");
+            METHOD_RELAY_GET_INVENTORY_HANDLER = CLASS_TILE_ATTUNEMENT_RELAY.getMethod("getInventoryHandler");
             METHOD_GET_ACTIVE_CRAFTING_TASK = CLASS_TILE_ALTAR.getMethod("getActiveCraftingTask");
             METHOD_GET_MULTIBLOCK_STATE = CLASS_TILE_ALTAR.getMethod("getMultiblockState");
             METHOD_GET_ALTAR_LEVEL = CLASS_TILE_ALTAR.getMethod("getAltarLevel");
@@ -110,6 +115,9 @@ public class AstralSorceryHandler implements IRemoteHandler {
 
             FIELD_MATCH_TRAIT_STACKS = CLASS_TRAIT_RECIPE.getDeclaredField("matchTraitStacks");
             FIELD_MATCH_TRAIT_STACKS.setAccessible(true);
+
+            FIELD_ADDITIONALLY_REQUIRED_STACKS = CLASS_TRAIT_RECIPE.getDeclaredField("additionallyRequiredStacks");
+            FIELD_ADDITIONALLY_REQUIRED_STACKS.setAccessible(true);
 
             FIELD_CRAFTING_TASK = CLASS_TILE_ALTAR.getDeclaredField("craftingTask");
             FIELD_CRAFTING_TASK.setAccessible(true);
@@ -228,6 +236,9 @@ public class AstralSorceryHandler implements IRemoteHandler {
         placeExtraSlots(recipe, available, handler, CLASS_ATTUNEMENT_RECIPE, FIELD_ADDITIONAL_SLOTS);
         placeExtraSlots(recipe, available, handler, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
         placeExtraSlots(recipe, available, handler, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
+
+        // 放置 TraitRecipe 的外部 additionallyRequiredStacks（光波增幅器 / AttunementRelay）
+        placeOuterStacks(world, pos, recipe, available);
 
         return true;
     }
@@ -374,8 +385,11 @@ public class AstralSorceryHandler implements IRemoteHandler {
             // ConstellationRecipe 额外 slot
             addExtraSlotRequirements(recipe, required, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
 
-            // TraitRecipe 额外 slot
+            // TraitRecipe 额外 slot（内部 matchTraitStacks）
             addExtraSlotRequirements(recipe, required, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
+
+            // TraitRecipe 外部 additionallyRequiredStacks（光波增幅器 / AttunementRelay）
+            addOuterStackRequirements(recipe, required);
 
             List<ItemStack> available = new ArrayList<>();
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -401,6 +415,25 @@ public class AstralSorceryHandler implements IRemoteHandler {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addOuterStackRequirements(Object recipe, List<Ingredient> required) {
+        try {
+            if (!CLASS_TRAIT_RECIPE.isInstance(recipe)) return;
+            List<Object> outerStacks = (List<Object>) FIELD_ADDITIONALLY_REQUIRED_STACKS.get(recipe);
+            if (outerStacks == null) return;
+            for (Object itemHandle : outerStacks) {
+                if (itemHandle != null) {
+                    Ingredient ing = (Ingredient) METHOD_GET_RECIPE_INGREDIENT.invoke(itemHandle);
+                    if (ing != null && ing != Ingredient.EMPTY) {
+                        required.add(ing);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
         }
     }
 
@@ -443,6 +476,55 @@ public class AstralSorceryHandler implements IRemoteHandler {
                             fallbackSetStack(handler, slotId, stack.copy());
                         }
                         available.remove(i);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private static void placeOuterStacks(World world, BlockPos altarPos, Object recipe, List<ItemStack> available) {
+        try {
+            if (!CLASS_TRAIT_RECIPE.isInstance(recipe)) return;
+            List<Object> outerStacks = (List<Object>) FIELD_ADDITIONALLY_REQUIRED_STACKS.get(recipe);
+            if (outerStacks == null || outerStacks.isEmpty()) return;
+
+            // 收集祭坛周围空的 TileAttunementRelay
+            List<TileEntity> emptyRelays = new ArrayList<>();
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    BlockPos relayPos = altarPos.add(dx, 0, dz);
+                    TileEntity te = world.getTileEntity(relayPos);
+                    if (CLASS_TILE_ATTUNEMENT_RELAY.isInstance(te)) {
+                        IItemHandler relayHandler = (IItemHandler) METHOD_RELAY_GET_INVENTORY_HANDLER.invoke(te);
+                        if (relayHandler != null && relayHandler.getStackInSlot(0).isEmpty()) {
+                            emptyRelays.add(te);
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < outerStacks.size() && i < emptyRelays.size(); i++) {
+                Object itemHandle = outerStacks.get(i);
+                if (itemHandle == null) continue;
+                for (int j = 0; j < available.size(); j++) {
+                    ItemStack stack = available.get(j);
+                    boolean match = (boolean) METHOD_MATCH_CRAFTING.invoke(itemHandle, stack);
+                    if (match) {
+                        TileEntity relay = emptyRelays.get(i);
+                        IItemHandler relayHandler = (IItemHandler) METHOD_RELAY_GET_INVENTORY_HANDLER.invoke(relay);
+                        if (relayHandler != null) {
+                            ItemStack toInsert = stack.copy();
+                            toInsert.setCount(1);
+                            ItemStack remainder = relayHandler.insertItem(0, toInsert, false);
+                            if (!remainder.isEmpty()) {
+                                fallbackSetStack(relayHandler, 0, toInsert);
+                            }
+                            available.remove(j);
+                        }
                         break;
                     }
                 }
