@@ -145,11 +145,11 @@ public class AstralSorceryHandler implements IRemoteHandler {
         // 结构必须匹配
         if (!getMultiblockState(te)) return false;
 
-        // 祭坛所有可访问 slot 必须为空；如有残留物品则尝试清空
+        // 祭坛所有 slot 必须为空；如有残留物品则尝试清空
+        // 注意：matches() 检查的是 handler.getSlots() 中的所有 slot，不能仅清空 accessibleSize
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
-        int accessibleSize = getAccessibleSize(te);
-        for (int i = 0; i < accessibleSize; i++) {
+        for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
                 ItemStack extracted = handler.extractItem(i, current.getCount(), false);
@@ -186,9 +186,8 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (recipe == null) return false;
         }
 
-        // 清空祭坛所有可访问 slot
-        int accessibleSize = getAccessibleSize(te);
-        for (int i = 0; i < accessibleSize; i++) {
+        // 清空祭坛所有 slot（matches() 会检查 handler 的全部 slot）
+        for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
                 handler.extractItem(i, current.getCount(), false);
@@ -306,13 +305,12 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 无论是否收集到产物，清空祭坛所有可访问 slot，防止残留物品阻塞下一次推送
+        // 无论是否收集到产物，清空祭坛所有 slot，防止残留物品阻塞下一次推送
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_TILE_ALTAR.isInstance(te)) {
             IItemHandler handler = getInventoryHandler(te);
             if (handler != null) {
-                int accessibleSize = getAccessibleSize(te);
-                for (int i = 0; i < accessibleSize; i++) {
+                for (int i = 0; i < handler.getSlots(); i++) {
                     ItemStack current = handler.getStackInSlot(i);
                     if (!current.isEmpty()) {
                         result.add(current.copy());
@@ -517,10 +515,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
         if (a.isEmpty() || b.isEmpty()) return false;
         if (a.getItem() != b.getItem()) return false;
         if (a.getMetadata() != b.getMetadata()) return false;
-        if (a.hasTagCompound() != b.hasTagCompound()) return false;
-        if (a.hasTagCompound() && b.hasTagCompound()) {
-            return a.getTagCompound().equals(b.getTagCompound());
-        }
+        // 星辉产物可能带有随机 NBT（如 Rock Crystal），回收时忽略 NBT
         return true;
     }
 }
