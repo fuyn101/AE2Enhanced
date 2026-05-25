@@ -75,6 +75,25 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = 86400)
         public int flushIntervalSeconds = 5;
+
+        @Config.Comment({
+            "Full-scan interval for the AE2 NetworkMonitor cache reconciliation (ticks).",
+            "The Hyperdimensional Storage Nexus uses postAlterationOfStoredItems() for",
+            "real-time incremental updates. This full scan is ONLY a safety net to correct",
+            "any cache drift that may occur under extreme edge cases (e.g. chunk load/unload",
+            "races, network splits, or AE2-UEL internal inconsistencies).",
+            "",
+            "Set to 0 to disable the safety-net scan entirely. If you observe ME terminals",
+            "showing stale or incorrect item counts, try lowering this value. If performance",
+            "is critical and terminals remain accurate, raise it or set to 0.",
+            "",
+            "WARNING: Values below 100 (5 seconds) defeat the purpose and may reintroduce",
+            "the lag caused by excessive forceUpdate() calls. The default of 200 ticks",
+            "(10 seconds) provides a reasonable balance between correctness and performance.",
+            "Range: 0 ~ 72000, Default: 200 (10 seconds)"
+        })
+        @Config.RangeInt(min = 0, max = 72000)
+        public int monitorFullScanIntervalTicks = 200;
     }
 
     public static class Render {
