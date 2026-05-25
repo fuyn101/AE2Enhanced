@@ -56,6 +56,11 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     private int cellArrayRetry = 0;
     private int delayedNotifyTick = 0;
 
+    // ---- Monitor refresh debouncing ----
+    /** 全量刷新 NetworkMonitor 的冷却计数器（tick）。>0 表示已排期，每 tick 递减。 */
+    private int monitorRefreshCooldown = 0;
+    private static final int MONITOR_REFRESH_DELAY = 5; // 5 ticks ≈ 250ms
+
     // 客户端同步的存储统计
     private int clientStorageTypes = 0;
     private String clientStorageTotal = "0";
@@ -200,13 +205,13 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             storageFile = new HyperdimensionalStorageFile(world, nexusId);
             itemAdapter = new ItemStorageAdapter(storageFile);
             storageFile.setStorageRef(itemAdapter.getStorageMap());
-            itemAdapter.setOnChangeCallback(this::refreshNetworkMonitor);
+            itemAdapter.setOnChangeCallback(this::scheduleMonitorRefresh);
             itemAdapter.setPostChangeCallback(this::postItemAlteration);
             itemMonitor = new SimpleMEMonitor(itemAdapter);
 
             fluidAdapter = new FluidStorageAdapter(storageFile);
             storageFile.setFluidStorageRef(fluidAdapter.getStorageMap());
-            fluidAdapter.setOnChangeCallback(this::refreshNetworkMonitor);
+            fluidAdapter.setOnChangeCallback(this::scheduleMonitorRefresh);
             fluidAdapter.setPostChangeCallback(this::postFluidAlteration);
 
             optionalStorage = new OptionalStorageManager();
@@ -216,7 +221,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                 try {
                     Object map = gasAdapter.getClass().getMethod("getStorageMap").invoke(gasAdapter);
                     if (map instanceof java.util.Map) storageFile.setGasStorageRef((java.util.Map) map);
-                    Runnable refreshCallback = this::refreshNetworkMonitor;
+                    Runnable refreshCallback = this::scheduleMonitorRefresh;
                     java.util.function.BiConsumer<Object, appeng.api.networking.security.IActionSource> gasCallback = this::postGasAlteration;
                     gasAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(gasAdapter, refreshCallback);
                     gasAdapter.getClass().getMethod("setPostChangeCallback", java.util.function.BiConsumer.class).invoke(gasAdapter, gasCallback);
@@ -229,7 +234,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                 try {
                     Object map = essentiaAdapter.getClass().getMethod("getStorageMap").invoke(essentiaAdapter);
                     if (map instanceof java.util.Map) storageFile.setEssentiaStorageRef((java.util.Map) map);
-                    Runnable refreshCallback = this::refreshNetworkMonitor;
+                    Runnable refreshCallback = this::scheduleMonitorRefresh;
                     java.util.function.BiConsumer<Object, appeng.api.networking.security.IActionSource> essentiaCallback = this::postEssentiaAlteration;
                     essentiaAdapter.getClass().getMethod("setOnChangeCallback", Runnable.class).invoke(essentiaAdapter, refreshCallback);
                     essentiaAdapter.getClass().getMethod("setPostChangeCallback", java.util.function.BiConsumer.class).invoke(essentiaAdapter, essentiaCallback);
@@ -271,10 +276,28 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     /**
+     * 排期一次 NetworkMonitor 全量刷新。
+     * 通过冷却计数器实现防抖：高频存储操作（如大量合成）不会导致每 tick 都触发
+     * forceUpdate，而是批量延迟到冷却结束后只执行一次。
+     *
+     * <p>增量更新仍由 {@link #postItemAlteration} / {@link #postFluidAlteration}
+     * 等通过 {@code postAlterationOfStoredItems} 实时投递，不受此延迟影响。</p>
+     */
+    private void scheduleMonitorRefresh() {
+        if (monitorRefreshCooldown <= 0) {
+            monitorRefreshCooldown = MONITOR_REFRESH_DELAY;
+        }
+    }
+
+    /**
      * 强制刷新 AE2 NetworkMonitor 缓存，使终端立即显示最新存储内容。
      * AE2-UEL 的 forceUpdate() 只刷新服务端缓存，不会触发客户端同步事件。
      * 必须同时设置 sendEvent=true 并调用 onTick()，让 NetworkMonitor 发送
      * MENetworkStorageEvent 到客户端，终端才会实时刷新。
+     *
+     * <p><b>注意</b>：当前版本下 {@code postAlterationOfStoredItems} 已足以处理
+     * 大多数增量同步场景；此方法仅作为兜底全量扫描，由
+     * {@link #scheduleMonitorRefresh()} 控制调用频率。</p>
      */
     private void refreshNetworkMonitor() {
         if (FORCE_UPDATE_FIELD == null || FORCE_UPDATE_METHOD == null) return;
@@ -528,6 +551,15 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
 
         tickCounter++;
+
+        // 延迟批量刷新 NetworkMonitor（防抖）
+        if (monitorRefreshCooldown > 0) {
+            monitorRefreshCooldown--;
+            if (monitorRefreshCooldown == 0) {
+                refreshNetworkMonitor();
+            }
+        }
+
         if (formed && world.getTotalWorldTime() % 20 == 0) {
             updateCableConnections();
         }
