@@ -2,8 +2,40 @@
 
 AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组, 为后期游戏引入了多个大型多方块结构以及一系列实用物品:
 
-*当前版本:1.3.3,开发版本1.4.0-dev*
+*当前版本:1.4.4,开发版本1.5.0-dev*
 >目前关于修改和实用物品的添加仍处于dev开发中,当完成开发后会发布Release
+
+## 核心物品
+
+### 全能终端(Omni 终端)
+一款现代、通用、多功能的终端。
+
+- 支持编码 **81 输入**与 **27 输出**的样板。
+- 在同一界面中同时进行样板编码与物品合成
+
+### 中枢 ME 接口 *(1.5.x 新增!)*
+
+一种高级 ME 接口，可远程绑定至目标方块实体，实现真正的物理并行与外部合成设备的原生自动化。
+
+- **样板存储** — 直接存放编码的合成样板。
+- **远程绑定** — 可在任意距离链接至目标方块实体。
+- **自动适配** — 自动识别并适配绑定的设备。
+- **物理并行** — 绑定多个相同设备以扩展吞吐量。
+- **自动回收** — 自动回收成品。
+
+**支持的模组与设备：**
+
+| 模组 | 支持的设备 |
+|------|-----------|
+| **血魔法 (Blood Magic)** | 炼金术桌、狱火锻炉、血之祭坛 |
+| **神秘时代 6 (Thaumcraft 6)** | 注魔祭坛 |
+| **星辉魔法 (Astral Sorcery)** | 星辉合成台、五彩祭坛 |
+| **实用拓展 (Actually Additions)** | 充能台 |
+| **合成拓展 (Extended Crafting)** | 聚合合成、各类工作台、量子压缩机 |
+| **植物魔法 (Botania)** | 魔力池、精灵门、符文祭坛、泰拉凝聚板 |
+| **巫师之路 (Bewitchment)** | 女巫釜锅、纺车、蒸馏塔 |
+| **龙之研究 (Draconic Evolution)** | 聚合注入器 |
+
 
 ## 多方块部分
 
@@ -13,14 +45,7 @@ AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组
 
 ---
 
-## 对AE2-uel的修改
-- 支持下单超过`Int.MAX_VALUE`的物品
-- 合成计划优化, 把高版本的合成计划中缺失物品置顶功能带回了`1.12.2`
-- 修改创造物品元件的存储物品数量为`Long.MAX_VALUE`
-- **更现代的ME终端**: 现在你可以丢掉流体终端,气体终端甚至源质终端, 现在所有的东西都会统一显示在一个终端中, 就像高版本那样(感谢 [AE2fc-rework-unofficial](https://github.com/Circulate233/AE2FluidCraft-Rework-Unofficial/tree/main) 的部分代码,我参考了部分实现方式, 并且保证了相关兼容性) 
-- 对于其他Qol改进(例如合成置顶), 可以使用 [RandomComplement](https://github.com/Circulate233/RandomComplement) 这个mod提供了许多高版本AE2功能
 
----
 
 ## 额外添加的实用物品
 - **通用输入总线,输出总线** 允许使用单个总线完成所有类型的IO操作
@@ -35,21 +60,25 @@ AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组
 - ME收集节点, 允许从世界中收集物品到ME网络
 
 ---
+## 对AE2-uel的修改
+- 支持下单超过`Int.MAX_VALUE`的物品
+- 合成计划优化, 把高版本的合成计划中缺失物品置顶功能带回了`1.12.2`
+- 修改创造物品元件的存储物品数量为`Long.MAX_VALUE`
+- **更现代的ME终端**: 现在你可以丢掉流体终端,气体终端甚至源质终端, 现在所有的东西都会统一显示在一个终端中, 就像高版本那样(感谢 [AE2fc-rework-unofficial](https://github.com/Circulate233/AE2FluidCraft-Rework-Unofficial/tree/main) 的部分代码,我参考了部分实现方式, 并且保证了相关兼容性) 
+- 对于其他Qol改进(例如合成置顶), 可以使用 [RandomComplement](https://github.com/Circulate233/RandomComplement) 这个mod提供了许多高版本AE2功能
 
+---
 ## 性能
 
 ### 装配枢纽
 采取虚拟合成 + 真实合成的混合机制. 即使对于极大数目的下单, `mspt` 也不会受到明显影响, 对于绝大多数 AE 允许的下单均完成了适配.
 
-> 额外补充
-> 在 CRT 魔改合成配方时, 简单的 `.reuse` 并不能让 AE 知道这个物品不被消耗, 下单时仍会正常请求对应份数.
+
 
 ### 超维度仓储中枢
 采取异步加增量刷新模式, 使用外部文件存储数据, 从根本上解决了NBT溢出和卡顿的问题, 并且支持极高的存储空间.
 
-### 计算核心
-虚拟 CPU 集群将实际合成委托给现有的网络装配室和 ME 接口, 最小化开销. 动态池确保资源仅在需要时分配, 且始终保留 1 个空闲 CPU 供终端下单使用.
-
+使用不同于AE2-uel本身的全增量刷新机制, 并且定时进行全额检查确保正确性. 并且额外支持了配置文件, 允许玩家更改定时检查的频率(*默认情况下是200ticks一次*).
 
 ---
 
@@ -68,6 +97,7 @@ AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组
 - **Thaumcraft + Thaumic Energistics** 启用源质存储支持
 - **CraftTweak** 提供合成修改方法
 - **JEI/HEI** 相关支持
+- 对于大量mod存在特殊适配:(神秘6,星辉魔法,血魔法,植物魔法,巫师之路,实用拓展,合成拓展,mek,热力配置,末影接口,...)
 
 **兼容**
 - **AE2fc-rework-unofficial** 不重复注册假流体
@@ -110,3 +140,7 @@ id: "stable_spacetime_manifold"
 id: "differential_form_stabilizer"
 id: "conformal_invariant_charge"
 ```
+
+
+> 额外对于装配枢纽的补充
+> 在 CRT 魔改合成配方时, 简单的 `.reuse` 并不能让 AE 知道这个物品不被消耗, 下单时仍会正常请求对应份数.

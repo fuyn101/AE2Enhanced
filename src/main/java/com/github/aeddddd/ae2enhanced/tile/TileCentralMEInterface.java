@@ -96,18 +96,53 @@ public class TileCentralMEInterface extends TileAENetworkBase
         return new ItemStack(ModBlocks.CENTRAL_ME_INTERFACE);
     }
 
+    /**
+     * 掉落中枢 ME 接口的所有内容物（样板、存储/返回栏、升级卡）。
+     */
+    public void dropAllContents() {
+        if (world == null || world.isRemote) return;
+        DualityCentralInterface duality = getInterfaceDuality();
+        duality.clearContents();
+        // 升级卡
+        appeng.util.Platform.spawnDrops(world, pos, getUpgradeStacks());
+        clearUpgradeInventory();
+    }
+
+    private void clearUpgradeInventory() {
+        IItemHandler upgrades = getInventoryByName("upgrades");
+        if (upgrades != null) {
+            for (int i = 0; i < upgrades.getSlots(); i++) {
+                upgrades.extractItem(i, Integer.MAX_VALUE, false);
+            }
+        }
+    }
+
+    private java.util.List<ItemStack> getUpgradeStacks() {
+        java.util.List<ItemStack> list = new java.util.ArrayList<>();
+        IItemHandler upgrades = getInventoryByName("upgrades");
+        if (upgrades != null) {
+            for (int i = 0; i < upgrades.getSlots(); i++) {
+                ItemStack stack = upgrades.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    list.add(stack);
+                }
+            }
+        }
+        return list;
+    }
+
     @Override
     public void disassemble() {
         if (world != null && !world.isRemote) {
-            getInterfaceDuality().clearContents();
+            dropAllContents();
         }
     }
 
     @Override
     public void securityBreak() {
         if (world != null && !world.isRemote) {
-            getInterfaceDuality().clearContents();
-            world.destroyBlock(pos, true);
+            // 安全破坏时不掉落物品，与标准 AE2 行为一致
+            world.destroyBlock(pos, false);
         }
     }
 

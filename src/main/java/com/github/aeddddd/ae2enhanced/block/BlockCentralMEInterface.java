@@ -64,7 +64,7 @@ public class BlockCentralMEInterface extends Block {
     public void breakBlock(World world, BlockPos pos, IBlockState state) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileCentralMEInterface) {
-            ((TileCentralMEInterface) te).getInterfaceDuality().clearContents();
+            ((TileCentralMEInterface) te).dropAllContents();
         }
         super.breakBlock(world, pos, state);
     }

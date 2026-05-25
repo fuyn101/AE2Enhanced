@@ -617,19 +617,21 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // ---- Cleanup ----
 
     public void clearContents() {
-        // 掉落物品
+        // 掉落物品并清空库存
         World world = this.host.getTileEntity().getWorld();
         BlockPos pos = this.host.getTileEntity().getPos();
         for (int i = 0; i < this.patterns.getSlots(); i++) {
             ItemStack stack = this.patterns.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 Platform.spawnDrops(world, pos, Collections.singletonList(stack));
+                this.patterns.setStackInSlot(i, ItemStack.EMPTY);
             }
         }
         for (int i = 0; i < this.storage.getSlots(); i++) {
             ItemStack stack = this.storage.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 Platform.spawnDrops(world, pos, Collections.singletonList(stack));
+                this.storage.setStackInSlot(i, ItemStack.EMPTY);
             }
         }
     }

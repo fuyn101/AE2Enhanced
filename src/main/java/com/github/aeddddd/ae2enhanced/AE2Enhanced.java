@@ -176,6 +176,15 @@ public class AE2Enhanced {
             Upgrades.CRAFTING.registerItem(busStack, 1);
         }
 
+        // 中枢 ME 接口升级卡支持
+        if (ModBlocks.CENTRAL_ME_INTERFACE != null) {
+            net.minecraft.item.ItemStack centralInterface = new net.minecraft.item.ItemStack(ModBlocks.CENTRAL_ME_INTERFACE);
+            Upgrades.PATTERN_EXPANSION.registerItem(centralInterface, 3);
+        }
+
+        // 中枢 ME 接口合成配方：4 ME 接口围绕稳态时空流形，产出 4 个
+        registerCentralInterfaceRecipe();
+
         registerSingularityRecipes();
         // 执行 CraftTweaker 延迟移除（CT 脚本可能在 init() 之前执行）
         BlackHoleRecipeRegistry.applyPendingRemovals();
@@ -268,6 +277,28 @@ public class AE2Enhanced {
 
         // ⑤ 燃烧
         entity.setFire(10);
+    }
+
+    private void registerCentralInterfaceRecipe() {
+        ItemStack centralInterface = new ItemStack(ModBlocks.CENTRAL_ME_INTERFACE, 4);
+        ItemStack stableManifold = new ItemStack(ModItems.STABLE_SPACETIME_MANIFOLD);
+
+        // 获取 AE2 ME 接口方块物品
+        ItemStack ae2Interface = appeng.api.AEApi.instance().definitions().blocks().iface()
+                .maybeStack(1).orElse(ItemStack.EMPTY);
+
+        if (!ae2Interface.isEmpty() && !stableManifold.isEmpty()) {
+            net.minecraftforge.fml.common.registry.GameRegistry.addShapedRecipe(
+                    new net.minecraft.util.ResourceLocation(MOD_ID, "central_me_interface"),
+                    null,
+                    centralInterface,
+                    " I ", "IMI", " I ",
+                    'I', ae2Interface,
+                    'M', stableManifold
+            );
+        } else {
+            LOGGER.warn("[AE2E] 无法注册中枢 ME 接口合成配方：AE2 ME 接口或稳态时空流形不可用");
+        }
     }
 
     private void registerSingularityRecipes() {
