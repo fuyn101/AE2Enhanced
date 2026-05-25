@@ -112,7 +112,10 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
 
         // 检查有足够空 injectors
         List<Object> injectors = getConnectedInjectors(te);
-        int needed = ingredients.getSizeInventory() - 1;
+        int needed = 0;
+        for (int i = 1; i < ingredients.getSizeInventory(); i++) {
+            if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
+        }
         int empty = 0;
         for (Object injector : injectors) {
             try {

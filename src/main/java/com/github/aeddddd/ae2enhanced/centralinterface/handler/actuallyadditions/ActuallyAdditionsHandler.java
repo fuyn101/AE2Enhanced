@@ -72,7 +72,10 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
         Object[] stands = getNearbyStands(te);
         if (stands == null) return false;
 
-        int auxCount = ingredients.getSizeInventory() - 1;
+        int auxCount = 0;
+        for (int i = 1; i < ingredients.getSizeInventory(); i++) {
+            if (!ingredients.getStackInSlot(i).isEmpty()) auxCount++;
+        }
         for (int i = 0; i < Math.min(auxCount, stands.length); i++) {
             if (stands[i] == null) return false;
             TileEntity standTe = (TileEntity) stands[i];

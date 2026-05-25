@@ -80,7 +80,10 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
 
         // 检查周围有足够 pedestals（空或已有匹配材料的也算，简化处理）
         List<BlockPos> pedestalPositions = getPedestalPositions(te);
-        int needed = ingredients.getSizeInventory() - 1;
+        int needed = 0;
+        for (int i = 1; i < ingredients.getSizeInventory(); i++) {
+            if (!ingredients.getStackInSlot(i).isEmpty()) needed++;
+        }
         return pedestalPositions.size() >= needed;
     }
 
