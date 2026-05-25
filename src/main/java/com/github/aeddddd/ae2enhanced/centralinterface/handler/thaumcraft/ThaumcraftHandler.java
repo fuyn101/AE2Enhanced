@@ -199,11 +199,11 @@ public class ThaumcraftHandler implements IRemoteHandler {
 
         // 放入辅材
         NonNullList<Ingredient> components = recipe.getComponents();
+        int compIdx = 0;
         try {
             METHOD_GET_SURROUNDINGS.invoke(te);
             @SuppressWarnings("unchecked")
             List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
-            int compIdx = 0;
             for (BlockPos pPos : pedestals) {
                 if (compIdx >= components.size()) break;
                 TileEntity pTe = world.getTileEntity(pPos);
@@ -223,7 +223,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
             return false;
         }
 
-        return true;
+        return compIdx >= components.size();
     }
 
     @Override
@@ -402,28 +402,49 @@ public class ThaumcraftHandler implements IRemoteHandler {
             Ingredient input = ir.getRecipeInput();
             NonNullList<Ingredient> components = ir.getComponents();
             if (input == null || components == null) continue;
+            if (components.isEmpty()) continue;
 
-            // 需要 1 个主材 + N 个辅材
-            if (available.size() != 1 + components.size()) continue;
+            // 尝试把 available 中的每一个匹配 input 的物品都当作主材候选
+            for (int mainIdx = 0; mainIdx < available.size(); mainIdx++) {
+                if (!input.apply(available.get(mainIdx))) continue;
 
-            // 找到主材
-            ItemStack mainItem = null;
-            List<ItemStack> auxItems = new ArrayList<>();
-            for (ItemStack stack : available) {
-                if (input.apply(stack) && mainItem == null) {
-                    mainItem = stack;
-                } else {
-                    auxItems.add(stack);
+                // 从剩余物品中找大小为 components.size() 的匹配子集
+                List<ItemStack> remaining = new ArrayList<>(available);
+                remaining.remove(mainIdx);
+
+                if (remaining.size() < components.size()) continue;
+                if (canMatchComponents(remaining, components)) {
+                    return ir;
                 }
-            }
-            if (mainItem == null) continue;
-
-            // 检查辅材是否匹配
-            if (RecipeMatcher.findMatches(auxItems, components) != null) {
-                return ir;
             }
         }
         return null;
+    }
+
+    /**
+     * 从 items 中选出大小为 components.size() 的子集，检查是否能匹配所有 components。
+     * 使用回溯法处理排列组合（注魔辅材通常 2~8 个，计算量极小）。
+     */
+    private static boolean canMatchComponents(List<ItemStack> items, NonNullList<Ingredient> components) {
+        if (components.isEmpty()) return true;
+        boolean[] used = new boolean[items.size()];
+        return backtrackMatch(items, components, 0, used);
+    }
+
+    private static boolean backtrackMatch(List<ItemStack> items, NonNullList<Ingredient> components, int compIdx, boolean[] used) {
+        if (compIdx >= components.size()) return true;
+        Ingredient ing = components.get(compIdx);
+        for (int i = 0; i < items.size(); i++) {
+            if (used[i]) continue;
+            if (ing.apply(items.get(i))) {
+                used[i] = true;
+                if (backtrackMatch(items, components, compIdx + 1, used)) {
+                    return true;
+                }
+                used[i] = false;
+            }
+        }
+        return false;
     }
 
     // ---- 辅助方法 ----
