@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AstralSorceryHandler implements IRemoteHandler {
 
     private static final String BLOCK_ID = "astralsorcery:blockaltar";
-    private static final UUID FAKE_PLAYER_UUID = UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e");
+    private static final UUID FAKE_PLAYER_UUID = UUID.fromString("ae2e0000-fa2e-4e2e-ae2e-ae2e00000000");
 
     // 反射缓存
     private static Class<?> CLASS_TILE_ALTAR;
