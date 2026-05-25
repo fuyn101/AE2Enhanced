@@ -82,7 +82,6 @@ storage_upgrade_area.png
 
 ### Bytecode / Decompiled classes ###
 *.class
-thaumcraft/
 
 ### Inspection Reports ###
 inspection_reports/
