@@ -146,6 +146,25 @@ public class MixinCraftingCPUCluster {
         }
     }
 
+    /**
+     * 将 CraftingCPUCluster.executeCrafting 中的 InventoryCrafting 在 processing 模式下从 4×4 扩展为 10×10，
+     * 以支持超过 16 个输入的 processing pattern。
+     */
+    @Redirect(
+        method = "executeCrafting",
+        at = @At(
+            value = "NEW",
+            target = "net/minecraft/inventory/InventoryCrafting",
+            remap = true
+        )
+    )
+    public InventoryCrafting onNewInventoryCraftingCPU(net.minecraft.inventory.Container eventHandler, int width, int height) {
+        if (width == 4 && height == 4) {
+            return new InventoryCrafting(eventHandler, 10, 10);
+        }
+        return new InventoryCrafting(eventHandler, width, height);
+    }
+
     // ==================== Batch Crafting (Assembly Hub) — retained ====================
 
     private static Field tasksField;

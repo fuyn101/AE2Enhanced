@@ -24,11 +24,11 @@ public class MixinPatternHelper {
         method = "<init>",
         at = @At(
             value = "NEW",
-            target = "(Lnet/minecraft/inventory/Container;II)Lnet/minecraft/inventory/InventoryCrafting;",
+            target = "net/minecraft/inventory/InventoryCrafting",
             remap = true
         )
     )
-    public InventoryCrafting onNewInventoryCrafting(PatternHelper self, Container eventHandler, int width, int height) {
+    public InventoryCrafting onNewInventoryCrafting(Container eventHandler, int width, int height) {
         if (!this.isCrafting) {
             return new InventoryCrafting(eventHandler, 10, 10);
         }
