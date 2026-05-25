@@ -4,9 +4,6 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualCraftingHandler;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
@@ -26,12 +23,10 @@ import java.util.List;
  *
  * <p>支持 Basic(3x3)、Advanced(5x5)、Elite(7x7)、Ultimate(9x9) 四种工作台。
  * 通过 {@link IVirtualCraftingHandler} 实现即时虚拟合成：
- * 不将物品推送到物理工作台，而是直接查询 {@code TableRecipeManager} 获取产物和残余。</p>
+ * 不将物品推送到物理工作台，直接验证输入材料是否满足配方即可返回产物。</p>
  *
- * <p>配方匹配策略（P8 重构）：
- * 由于 AE 处理样板提供的是扁平数组，没有位置信息，因此不再使用严格位置匹配的
- * {@code findMatchingRecipe}。改为：<strong>先通过产物输出找到唯一配方，再验证输入
- * 物品种类与数量是否满足该配方的 ingredients</strong>（忽略空位与位置）。</p>
+ * <p>核心策略：忽略槽位与顺序，将输入材料按数量拆分为单件列表，
+ * 与配方的非空 ingredients 进行多对多匹配。输出匹配忽略 NBT。</p>
  */
 public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
 
@@ -45,7 +40,6 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     // 反射缓存
     private static Class<?> CLASS_ABSTRACT_TABLE;
     private static Method METHOD_GET_LINE_SIZE;
-    private static Method METHOD_GET_REMAINING_ITEMS;
     private static Method METHOD_GET_RECIPES;
     private static Method METHOD_GET_TIER;
     private static Object RECIPE_MANAGER_INSTANCE;
@@ -60,7 +54,6 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             Method getInstance = recipeManagerClass.getMethod("getInstance");
             RECIPE_MANAGER_INSTANCE = getInstance.invoke(null);
             METHOD_GET_RECIPES = recipeManagerClass.getMethod("getRecipes");
-            METHOD_GET_REMAINING_ITEMS = recipeManagerClass.getMethod("getRemainingItems", InventoryCrafting.class, World.class);
             Class<?> tieredRecipeClass = Class.forName("com.blakebr0.extendedcrafting.crafting.table.ITieredRecipe");
             METHOD_GET_TIER = tieredRecipeClass.getMethod("getTier");
             reflectionReady = true;
@@ -88,27 +81,27 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
 
     @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
-        return true; // 虚拟合成不占用物理设备
+        return true;
     }
 
     @Override
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
-        return true; // 虚拟合成不推送物理材料
+        return true;
     }
 
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
-        return true; // 虚拟合成不需要启动
+        return true;
     }
 
     @Override
     public boolean isIdle(World world, BlockPos pos) {
-        return true; // 虚拟合成不占用设备，始终空闲
+        return true;
     }
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
-        return Collections.emptyList(); // 产物在 virtualCraft 中直接返回
+        return Collections.emptyList();
     }
 
     // ---- IVirtualCraftingHandler ----
@@ -129,7 +122,6 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         IRecipe recipe = findRecipeByOutput(expectedOutput, lineSize);
         if (recipe == null) return false;
 
-        // 验证输入物品种类与数量是否满足配方 ingredients（忽略位置）
         return ingredientsMatch(recipe, ingredients);
     }
 
@@ -150,36 +142,16 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         IRecipe recipe = findRecipeByOutput(expectedOutput, lineSize);
         if (recipe == null) return products;
 
-        // 构造正确位置的 InventoryCrafting
-        InventoryCrafting matrix = createMatrix(lineSize);
-        fillMatrixByRecipe(matrix, recipe, ingredients);
-
-        // 产物
-        ItemStack result = recipe.getCraftingResult(matrix);
+        // 直接返回配方产物，不构造 matrix、不调用 getCraftingResult/getRemainingItems
+        ItemStack result = recipe.getRecipeOutput();
         if (result != null && !result.isEmpty()) {
             products.add(result.copy());
         }
-
-        // 残余物品
-        List<ItemStack> remaining = getRemainingItems(matrix, world);
-        for (ItemStack stack : remaining) {
-            if (!stack.isEmpty()) {
-                products.add(stack.copy());
-            }
-        }
-
         return products;
     }
 
     // ---- 配方查找与匹配 ----
 
-    /**
-     * 通过产物输出在 TableRecipeManager 中查找匹配的配方。
-     *
-     * @param output   预期产物
-     * @param lineSize 工作台边长（3/5/7/9）
-     * @return 匹配的 IRecipe；未找到返回 null
-     */
     @SuppressWarnings("unchecked")
     private static IRecipe findRecipeByOutput(ItemStack output, int lineSize) {
         try {
@@ -189,11 +161,9 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             int gridTier = getTierFromGridSize(lineSize * lineSize);
 
             for (IRecipe recipe : recipes) {
-                // tier 校验：tier > 0 时必须与 grid size 匹配
                 int tier = getRecipeTier(recipe);
                 if (tier > 0 && tier != gridTier) continue;
 
-                // 产物匹配
                 if (outputsMatch(recipe.getRecipeOutput(), output)) {
                     return recipe;
                 }
@@ -212,10 +182,6 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         }
     }
 
-    /**
-     * 根据 grid 总 slot 数计算 ExtendedCrafting 的 tier。
-     * 与 TableRecipeBase.getTierFromGridSize 一致。
-     */
     private static int getTierFromGridSize(int size) {
         if (size < 10) return 1;
         if (size < 26) return 2;
@@ -224,14 +190,17 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     }
 
     /**
-     * 检查 ingredients 中的非空物品是否满足 recipe 的所有非空 ingredients。
-     * 忽略位置与空位，只看种类和数量。
+     * 检查 ingredients 中的材料是否满足 recipe 的所有非空 ingredients。
+     *
+     * <p>关键处理：AE2 传来的 InventoryCrafting 中同一物品可能堆叠在一个槽位（count>1），
+     * 而 Extended Crafting 配方中每个 ingredient 槽位固定最多 1 个物品。
+     * 因此将输入按 count 拆分为单件列表后再进行一对一匹配。</p>
      */
     private static boolean ingredientsMatch(IRecipe recipe, InventoryCrafting ingredients) {
         NonNullList<Ingredient> recipeIngredients = recipe.getIngredients();
         if (recipeIngredients == null || recipeIngredients.isEmpty()) return false;
 
-        // 收集 recipe 中所有非空 ingredient
+        // 收集 recipe 中所有非空 ingredient（每个代表 1 个物品需求）
         List<Ingredient> required = new ArrayList<>();
         for (Ingredient ing : recipeIngredients) {
             if (ing != null && ing != Ingredient.EMPTY) {
@@ -239,19 +208,24 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             }
         }
 
-        // 收集 ingredients 中所有非空物品
+        // 收集输入物品并按 count 拆分为单件
         List<ItemStack> available = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                available.add(stack.copy());
+                int count = stack.getCount();
+                for (int c = 0; c < count; c++) {
+                    ItemStack single = stack.copy();
+                    single.setCount(1);
+                    available.add(single);
+                }
             }
         }
 
         // 数量必须一致
         if (required.size() != available.size()) return false;
 
-        // 贪心匹配：每个 required ingredient 在 available 中找一个匹配项并移除
+        // 贪心匹配
         for (Ingredient ing : required) {
             boolean found = false;
             for (int i = 0; i < available.size(); i++) {
@@ -268,37 +242,6 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         return true;
     }
 
-    /**
-     * 根据 recipe 的 ingredient 布局，将 available items 放入 matrix 的正确位置。
-     */
-    private static void fillMatrixByRecipe(InventoryCrafting matrix, IRecipe recipe, InventoryCrafting ingredients) {
-        NonNullList<Ingredient> recipeIngredients = recipe.getIngredients();
-
-        // 复制可用物品列表
-        List<ItemStack> available = new ArrayList<>();
-        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-            ItemStack stack = ingredients.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                available.add(stack.copy());
-            }
-        }
-
-        // 按 ingredient 顺序填充 matrix
-        for (int slot = 0; slot < recipeIngredients.size() && slot < matrix.getSizeInventory(); slot++) {
-            Ingredient ing = recipeIngredients.get(slot);
-            if (ing == null || ing == Ingredient.EMPTY) continue;
-
-            for (int i = 0; i < available.size(); i++) {
-                ItemStack stack = available.get(i);
-                if (ing.apply(stack)) {
-                    matrix.setInventorySlotContents(slot, stack);
-                    available.remove(i);
-                    break;
-                }
-            }
-        }
-    }
-
     // ---- 辅助方法 ----
 
     private static int getLineSize(TileEntity te) {
@@ -309,37 +252,13 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         }
     }
 
-    private static InventoryCrafting createMatrix(int lineSize) {
-        Container dummy = new Container() {
-            @Override
-            public boolean canInteractWith(EntityPlayer playerIn) {
-                return false;
-            }
-            @Override
-            public void onCraftMatrixChanged(IInventory inventoryIn) {
-                // no-op
-            }
-        };
-        return new InventoryCrafting(dummy, lineSize, lineSize);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<ItemStack> getRemainingItems(InventoryCrafting matrix, World world) {
-        try {
-            return (List<ItemStack>) METHOD_GET_REMAINING_ITEMS.invoke(RECIPE_MANAGER_INSTANCE, matrix, world);
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
-    }
-
+    /**
+     * 输出匹配：忽略 NBT 与数量，只比较 Item + Metadata。
+     */
     private static boolean outputsMatch(ItemStack recipeOutput, ItemStack expected) {
         if (recipeOutput.isEmpty() || expected.isEmpty()) return false;
         if (recipeOutput.getItem() != expected.getItem()) return false;
         if (recipeOutput.getMetadata() != expected.getMetadata()) return false;
-        if (recipeOutput.hasTagCompound() != expected.hasTagCompound()) return false;
-        if (recipeOutput.hasTagCompound() && expected.hasTagCompound()) {
-            return recipeOutput.getTagCompound().equals(expected.getTagCompound());
-        }
         return true;
     }
 }

@@ -44,6 +44,7 @@ public class HandlerRegistry {
         tryLoad("actuallyadditions", "com.github.aeddddd.ae2enhanced.centralinterface.handler.actuallyadditions.ActuallyAdditionsHandler");
         tryLoad("extendedcrafting", "com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting.ExtendedCraftingHandler");
         tryLoad("extendedcrafting", "com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting.ExtendedCraftingTableHandler");
+        tryLoad("extendedcrafting", "com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting.CompressorHandler");
         tryLoad("draconicevolution", "com.github.aeddddd.ae2enhanced.centralinterface.handler.draconicevolution.DraconicEvolutionHandler");
         // P8 - Thaumcraft (Infusion)
         tryLoad("thaumcraft", "com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft.ThaumcraftHandler");
