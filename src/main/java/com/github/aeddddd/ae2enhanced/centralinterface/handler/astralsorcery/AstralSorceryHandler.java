@@ -3,13 +3,8 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.astralsorcery;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
-import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.InventoryCrafting;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
@@ -136,11 +131,17 @@ public class AstralSorceryHandler implements IRemoteHandler {
         // 结构必须匹配
         if (!getMultiblockState(te)) return false;
 
-        // 祭坛所有 slot 必须为空（包括高等级祭坛中不可见但 handler 中存在的 slot）
+        // 祭坛所有 slot 必须为空；如有残留物品则尝试清空
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
         for (int i = 0; i < handler.getSlots(); i++) {
-            if (!handler.getStackInSlot(i).isEmpty()) return false;
+            ItemStack current = handler.getStackInSlot(i);
+            if (!current.isEmpty()) {
+                ItemStack extracted = handler.extractItem(i, current.getCount(), false);
+                if (!handler.getStackInSlot(i).isEmpty()) {
+                    return false; // 无法清空，祭坛被占用
+                }
+            }
         }
 
         // 通过输入物品种类+数量查找配方并缓存
@@ -170,7 +171,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (recipe == null) return false;
         }
 
-        // 清空祭坛所有 slot（防止高 slot 残留物品导致 recipe.matches 失败）
+        // 清空祭坛所有 slot
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
@@ -178,61 +179,23 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 收集可用物品
-        List<ItemStack> available = new ArrayList<>();
-        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-            ItemStack stack = ingredients.getStackInSlot(i);
+        // 直接按 AE 样板 slot 顺序放置物品到 slot 0~8
+        // 避免通过 recipeIngs 匹配导致的顺序/位置偏差
+        for (int slot = 0; slot < Math.min(ingredients.getSizeInventory(), 9); slot++) {
+            ItemStack stack = ingredients.getStackInSlot(slot);
             if (!stack.isEmpty()) {
-                available.add(stack.copy());
-            }
-        }
-
-        // 填充 slot 0~8（3x3 grid）
-        Object nativeRecipe = getNativeRecipe(recipe);
-        if (nativeRecipe != null && CLASS_ACCESSIBLE_RECIPE.isInstance(nativeRecipe)) {
-            NonNullList<Ingredient> recipeIngs = ((net.minecraft.item.crafting.IRecipe) nativeRecipe).getIngredients();
-            for (int slot = 0; slot < Math.min(recipeIngs.size(), 9); slot++) {
-                Ingredient ing = recipeIngs.get(slot);
-                if (ing == null || ing == Ingredient.EMPTY) continue;
-                for (int i = 0; i < available.size(); i++) {
-                    ItemStack stack = available.get(i);
-                    if (ing.apply(stack)) {
-                        handler.insertItem(slot, stack, false);
-                        available.remove(i);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // 填充额外 slot（AttunementRecipe 的 additionalSlots）
-        try {
-            if (FIELD_ADDITIONAL_SLOTS.getDeclaringClass().isInstance(recipe)) {
-                @SuppressWarnings("unchecked")
-                Map<Object, Object> additionalSlots = (Map<Object, Object>) FIELD_ADDITIONAL_SLOTS.get(recipe);
-                if (additionalSlots != null) {
-                    for (Map.Entry<Object, Object> entry : additionalSlots.entrySet()) {
-                        Object slotEnum = entry.getKey();
-                        Object itemHandle = entry.getValue();
-                        if (slotEnum == null || itemHandle == null) continue;
-                        int slotId = (int) METHOD_GET_SLOT_ID.invoke(slotEnum);
-                        for (int i = 0; i < available.size(); i++) {
-                            ItemStack stack = available.get(i);
-                            boolean match = (boolean) METHOD_MATCH_CRAFTING.invoke(itemHandle, stack);
-                            if (match) {
-                                handler.insertItem(slotId, stack, false);
-                                available.remove(i);
-                                break;
-                            }
+                ItemStack remainder = handler.insertItem(slot, stack.copy(), false);
+                if (!remainder.isEmpty()) {
+                    // insertItem 失败，尝试直接设置（fallback）
+                    try {
+                        if (handler instanceof net.minecraftforge.items.IItemHandlerModifiable) {
+                            ((net.minecraftforge.items.IItemHandlerModifiable) handler).setStackInSlot(slot, stack.copy());
                         }
-                    }
+                    } catch (Exception ignored) {}
                 }
             }
-        } catch (Exception e) {
-            // ignore
         }
 
-        // 如果有剩余物品未放置，说明推断有误，但不阻止流程
         return true;
     }
 
@@ -249,24 +212,10 @@ public class AstralSorceryHandler implements IRemoteHandler {
         }
 
         try {
-            if (world instanceof WorldServer) {
-                FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world,
-                    new GameProfile(UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e"), "[AE2E]"));
-
-                // 模拟玩家交互触发 findRecipe（和法杖右键行为一致）
-                Method methodFindRecipe = CLASS_TILE_ALTAR.getDeclaredMethod("findRecipe", EntityPlayer.class);
-                methodFindRecipe.setAccessible(true);
-                methodFindRecipe.invoke(te, fakePlayer);
-
-                if (getActiveCraftingTask(te) != null) {
-                    recipeCache.remove(pos);
-                    return true;
-                }
-            }
-
-            // 回退：直接创建 ActiveCraftingTask
+            // 直接使用 canStart/pushMaterials 已验证的配方创建 ActiveCraftingTask
             Object recipe = recipeCache.get(pos);
             if (recipe == null) {
+                // 回退：通过 findMatchingRecipe 查找
                 recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
             }
             if (recipe == null) {
@@ -322,6 +271,22 @@ public class AstralSorceryHandler implements IRemoteHandler {
                 entity.setDead();
             }
         }
+
+        // 无论是否收集到产物，清空祭坛所有 slot，防止残留物品阻塞下一次推送
+        TileEntity te = world.getTileEntity(pos);
+        if (CLASS_TILE_ALTAR.isInstance(te)) {
+            IItemHandler handler = getInventoryHandler(te);
+            if (handler != null) {
+                for (int i = 0; i < handler.getSlots(); i++) {
+                    ItemStack current = handler.getStackInSlot(i);
+                    if (!current.isEmpty()) {
+                        result.add(current.copy());
+                        handler.extractItem(i, current.getCount(), false);
+                    }
+                }
+            }
+        }
+
         return result;
     }
 
