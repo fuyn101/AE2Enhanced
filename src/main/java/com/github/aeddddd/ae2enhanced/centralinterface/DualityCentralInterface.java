@@ -173,29 +173,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         AENetworkProxy proxy = this.host.getProxy();
         if (!proxy.isActive() || this.craftingList == null
                 || !this.craftingList.contains(patternDetails)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: proxy inactive or pattern not in craftingList");
             return false;
         }
 
         TargetBinding target = findIdleTarget();
         if (target == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: no idle target available");
             return false;
         }
 
         World world = this.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: dimension mismatch target={} world={}", target.dimension, world.provider.getDimension());
             return false;
         }
 
         IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
         if (handler == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: no handler for blockId '{}' at {}", target.blockId, target.pos);
             return false;
         }
         if (!handler.isValidTarget(world, target.pos)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: isValidTarget=false for '{}' at {}", target.blockId, target.pos);
             this.targetStates.put(target, TargetState.UNAVAILABLE);
             return false;
         }
@@ -220,23 +215,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 }
                 return true;
             }
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: virtual craft failed at {}", target.pos);
             return false;
         }
 
         // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: canStart=false for '{}' at {}", target.blockId, target.pos);
             return false;
         }
 
         boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
-            AE2Enhanced.LOGGER.warn("[AE2E] pushPattern: pushMaterials=false for '{}' at {}", target.blockId, target.pos);
             return false;
         }
 
-        AE2Enhanced.LOGGER.info("[AE2E] pushPattern: materials pushed to '{}' at {}, calling startProcess", target.blockId, target.pos);
         handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
 
         IAEItemStack[] outputs = patternDetails.getOutputs();

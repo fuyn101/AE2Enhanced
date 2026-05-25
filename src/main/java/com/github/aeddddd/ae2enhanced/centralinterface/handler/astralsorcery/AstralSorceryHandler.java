@@ -259,8 +259,8 @@ public class AstralSorceryHandler implements IRemoteHandler {
             int diff = Math.max(0, ((Enum<?>) altarLevel).ordinal() - ((Enum<?>) neededLevel).ordinal());
             int multiplier = (int) Math.round(Math.pow(2, diff));
 
-            // 创建 ActiveCraftingTask
-            Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, (UUID) null);
+            // 创建 ActiveCraftingTask（playerUUID 不能为 null，否则序列化时 NPE）
+            Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e"));
             FIELD_CRAFTING_TASK.set(te, task);
             METHOD_MARK_FOR_UPDATE.invoke(te);
             recipeCache.remove(pos);
