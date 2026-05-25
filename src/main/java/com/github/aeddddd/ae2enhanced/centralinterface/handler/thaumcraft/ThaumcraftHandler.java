@@ -69,7 +69,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
     private static Field FIELD_CHECK_SURROUNDINGS;
     private static boolean reflectionReady = false;
 
-    // 配方缓存：BlockPos → InfusionRecipe
+    // 配方缓存：BlockPos → InfusionRecipe（仅在 startProcess 中使用，用于 FakePlayer research 和回退）
     private final Map<BlockPos, InfusionRecipe> recipeCache = new ConcurrentHashMap<>();
 
     private static void initReflection() {
@@ -143,12 +143,16 @@ public class ThaumcraftHandler implements IRemoteHandler {
         // 清空并检查基座
         if (!clearAndCheckPedestals(world, pos, te)) return false;
 
-        // 通过 ingredients 推断配方
-        InfusionRecipe recipe = findRecipeByIngredients(ingredients);
-        if (recipe == null) return false;
-
-        recipeCache.put(pos, recipe);
-        return true;
+        // AE 样板约定：第一个非空槽位 = 主材，其余 = 辅材
+        // 不需要配方验证——用户编码的 pattern 本身已定义了主辅材关系
+        boolean hasItems = false;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            if (!ingredients.getStackInSlot(i).isEmpty()) {
+                hasItems = true;
+                break;
+            }
+        }
+        return hasItems;
     }
 
     @Override
@@ -157,37 +161,21 @@ public class ThaumcraftHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
 
-        InfusionRecipe recipe = recipeCache.get(pos);
-        if (recipe == null) {
-            recipe = findRecipeByIngredients(ingredients);
-            if (recipe == null) return false;
-            recipeCache.put(pos, recipe);
-        }
-
         // 清空所有基座
         clearAllPedestals(world, pos, te);
 
-        // 收集可用物品
-        List<ItemStack> available = new ArrayList<>();
+        // 按 AE 样板槽位顺序收集：第一个非空 = 主材，其余 = 辅材
+        List<ItemStack> stacks = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                available.add(stack.copy());
+                stacks.add(stack.copy());
             }
         }
-
-        // 找到主材
-        Ingredient mainIngredient = recipe.getRecipeInput();
-        ItemStack mainItem = ItemStack.EMPTY;
-        for (int i = 0; i < available.size(); i++) {
-            if (mainIngredient.apply(available.get(i))) {
-                mainItem = available.remove(i);
-                break;
-            }
-        }
-        if (mainItem.isEmpty()) return false;
+        if (stacks.isEmpty()) return false;
 
         // 放入主材基座（矩阵正下方 2 格）
+        ItemStack mainItem = stacks.remove(0);
         BlockPos mainPos = pos.down(2);
         TileEntity mainTe = world.getTileEntity(mainPos);
         if (!CLASS_TILE_PEDESTAL.isInstance(mainTe)) return false;
@@ -197,33 +185,26 @@ public class ThaumcraftHandler implements IRemoteHandler {
             return false;
         }
 
-        // 放入辅材
-        NonNullList<Ingredient> components = recipe.getComponents();
-        int compIdx = 0;
+        // 放入辅材（按 pedestals 列表顺序，逐个基座放剩余物品）
+        int placed = 0;
         try {
             METHOD_GET_SURROUNDINGS.invoke(te);
             @SuppressWarnings("unchecked")
             List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
             for (BlockPos pPos : pedestals) {
-                if (compIdx >= components.size()) break;
+                if (stacks.isEmpty()) break;
                 TileEntity pTe = world.getTileEntity(pPos);
                 if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
                 if (!((ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0)).isEmpty()) continue;
-
-                Ingredient ing = components.get(compIdx);
-                for (int i = 0; i < available.size(); i++) {
-                    if (ing.apply(available.get(i))) {
-                        METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, available.remove(i));
-                        compIdx++;
-                        break;
-                    }
-                }
+                METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, stacks.remove(0));
+                placed++;
             }
         } catch (Exception e) {
             return false;
         }
 
-        return compIdx >= components.size();
+        // 基座必须足够放下所有辅材
+        return stacks.isEmpty();
     }
 
     @Override
@@ -232,34 +213,49 @@ public class ThaumcraftHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
 
-        InfusionRecipe recipe = recipeCache.get(pos);
-        if (recipe == null) return false;
-
-        // 使用 FakePlayer 调用 craftingStart，临时添加研究以跳过进度检查
+        // 先尝试让矩阵自己走正常流程：craftingStart 内部会查找配方、检查研究、吸收源质
         if (world instanceof WorldServer) {
             try {
                 FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world,
                     new GameProfile(UUID.randomUUID(), "[AE2E]"));
-                IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
-                String research = recipe.getResearch();
-                boolean added = false;
-                if (knowledge != null && research != null && !research.isEmpty()) {
-                    added = knowledge.addResearch(research);
+
+                // 先不加研究直接调用，让 craftingStart 内部自行匹配
+                // 如果失败（研究不足等），再查找配方并尝试临时授予研究
+                boolean started = (Boolean) METHOD_CRAFTING_START.invoke(te, fakePlayer);
+                if (started) {
+                    recipeCache.remove(pos);
+                    return true;
                 }
 
-                METHOD_CRAFTING_START.invoke(te, fakePlayer);
-
-                // 清理临时研究
-                if (added && knowledge != null) {
-                    knowledge.removeResearch(research);
+                // craftingStart 返回 false，可能是研究不足
+                // 从基座物品反查配方，临时授予研究后重试
+                InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
+                if (recipe != null) {
+                    IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
+                    String research = recipe.getResearch();
+                    boolean added = false;
+                    if (knowledge != null && research != null && !research.isEmpty()) {
+                        added = knowledge.addResearch(research);
+                    }
+                    started = (Boolean) METHOD_CRAFTING_START.invoke(te, fakePlayer);
+                    if (added && knowledge != null) {
+                        knowledge.removeResearch(research);
+                    }
+                    if (started) {
+                        recipeCache.remove(pos);
+                        return true;
+                    }
+                    // 仍然失败（可能是源质不足等），回退到强制完成
+                    recipeCache.put(pos, recipe);
+                    return forceStartCrafting(world, pos, te, recipe);
                 }
-
-                recipeCache.remove(pos);
-                return true;
             } catch (Exception e) {
-                // FakePlayer 方案失败，回退到手动触发
-                recipeCache.remove(pos);
-                return forceStartCrafting(world, pos, te, recipe);
+                // 反射异常，回退到强制完成
+                InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
+                if (recipe != null) {
+                    recipeCache.put(pos, recipe);
+                    return forceStartCrafting(world, pos, te, recipe);
+                }
             }
         }
 
@@ -383,68 +379,58 @@ public class ThaumcraftHandler implements IRemoteHandler {
         return result;
     }
 
-    // ---- 配方查找 ----
+    // ---- 配方查找（仅在 startProcess 回退路径中使用） ----
 
-    private static InfusionRecipe findRecipeByIngredients(InventoryCrafting ingredients) {
-        List<ItemStack> available = new ArrayList<>();
-        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-            ItemStack stack = ingredients.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                available.add(stack.copy());
+    /**
+     * 从已放置到基座的物品反查注魔配方。
+     * 用于 craftingStart 失败后的 FakePlayer research 授予和强制回退。
+     */
+    private static InfusionRecipe findRecipeFromPedestals(World world, BlockPos pos, TileEntity te) {
+        // 读取主材
+        BlockPos mainPos = pos.down(2);
+        TileEntity mainTe = world.getTileEntity(mainPos);
+        if (!CLASS_TILE_PEDESTAL.isInstance(mainTe)) return null;
+        ItemStack mainItem;
+        try {
+            mainItem = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(mainTe, 0);
+        } catch (Exception e) {
+            return null;
+        }
+        if (mainItem.isEmpty()) return null;
+
+        // 读取辅材
+        List<ItemStack> auxItems = new ArrayList<>();
+        try {
+            METHOD_GET_SURROUNDINGS.invoke(te);
+            @SuppressWarnings("unchecked")
+            List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
+            for (BlockPos pPos : pedestals) {
+                TileEntity pTe = world.getTileEntity(pPos);
+                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
+                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0);
+                if (!stack.isEmpty()) {
+                    auxItems.add(stack);
+                }
             }
+        } catch (Exception e) {
+            return null;
         }
 
+        // 遍历配方匹配
         Map<net.minecraft.util.ResourceLocation, IThaumcraftRecipe> recipes = ThaumcraftApi.getCraftingRecipes();
         for (IThaumcraftRecipe recipe : recipes.values()) {
             if (!(recipe instanceof InfusionRecipe)) continue;
             InfusionRecipe ir = (InfusionRecipe) recipe;
-
             Ingredient input = ir.getRecipeInput();
             NonNullList<Ingredient> components = ir.getComponents();
             if (input == null || components == null) continue;
-            if (components.isEmpty()) continue;
-
-            // 尝试把 available 中的每一个匹配 input 的物品都当作主材候选
-            for (int mainIdx = 0; mainIdx < available.size(); mainIdx++) {
-                if (!input.apply(available.get(mainIdx))) continue;
-
-                // 从剩余物品中找大小为 components.size() 的匹配子集
-                List<ItemStack> remaining = new ArrayList<>(available);
-                remaining.remove(mainIdx);
-
-                if (remaining.size() < components.size()) continue;
-                if (canMatchComponents(remaining, components)) {
-                    return ir;
-                }
+            if (!input.apply(mainItem)) continue;
+            if (auxItems.size() != components.size()) continue;
+            if (RecipeMatcher.findMatches(auxItems, components) != null) {
+                return ir;
             }
         }
         return null;
-    }
-
-    /**
-     * 从 items 中选出大小为 components.size() 的子集，检查是否能匹配所有 components。
-     * 使用回溯法处理排列组合（注魔辅材通常 2~8 个，计算量极小）。
-     */
-    private static boolean canMatchComponents(List<ItemStack> items, NonNullList<Ingredient> components) {
-        if (components.isEmpty()) return true;
-        boolean[] used = new boolean[items.size()];
-        return backtrackMatch(items, components, 0, used);
-    }
-
-    private static boolean backtrackMatch(List<ItemStack> items, NonNullList<Ingredient> components, int compIdx, boolean[] used) {
-        if (compIdx >= components.size()) return true;
-        Ingredient ing = components.get(compIdx);
-        for (int i = 0; i < items.size(); i++) {
-            if (used[i]) continue;
-            if (ing.apply(items.get(i))) {
-                used[i] = true;
-                if (backtrackMatch(items, components, compIdx + 1, used)) {
-                    return true;
-                }
-                used[i] = false;
-            }
-        }
-        return false;
     }
 
     // ---- 辅助方法 ----
