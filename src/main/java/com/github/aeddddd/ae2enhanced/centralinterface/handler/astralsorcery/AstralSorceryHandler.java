@@ -3,8 +3,13 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.astralsorcery;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.InventoryCrafting;
+import net.minecraft.world.WorldServer;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
@@ -244,7 +249,22 @@ public class AstralSorceryHandler implements IRemoteHandler {
         }
 
         try {
-            // 优先使用 canStart/pushMaterials 已缓存的配方，避免 findMatchingRecipe 因内部匹配逻辑差异返回 null
+            if (world instanceof WorldServer) {
+                FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world,
+                    new GameProfile(UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e"), "[AE2E]"));
+
+                // 模拟玩家交互触发 findRecipe（和法杖右键行为一致）
+                Method methodFindRecipe = CLASS_TILE_ALTAR.getDeclaredMethod("findRecipe", EntityPlayer.class);
+                methodFindRecipe.setAccessible(true);
+                methodFindRecipe.invoke(te, fakePlayer);
+
+                if (getActiveCraftingTask(te) != null) {
+                    recipeCache.remove(pos);
+                    return true;
+                }
+            }
+
+            // 回退：直接创建 ActiveCraftingTask
             Object recipe = recipeCache.get(pos);
             if (recipe == null) {
                 recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
@@ -254,13 +274,11 @@ public class AstralSorceryHandler implements IRemoteHandler {
                 return false;
             }
 
-            // 计算 crafting time multiplier
             Object altarLevel = METHOD_GET_ALTAR_LEVEL.invoke(te);
             Object neededLevel = METHOD_GET_NEEDED_LEVEL.invoke(recipe);
             int diff = Math.max(0, ((Enum<?>) altarLevel).ordinal() - ((Enum<?>) neededLevel).ordinal());
             int multiplier = (int) Math.round(Math.pow(2, diff));
 
-            // 创建 ActiveCraftingTask（playerUUID 不能为 null，否则序列化时 NPE）
             Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, UUID.fromString("ae2e-fake-ae2e-fake-ae2efakeae2e"));
             FIELD_CRAFTING_TASK.set(te, task);
             METHOD_MARK_FOR_UPDATE.invoke(te);
