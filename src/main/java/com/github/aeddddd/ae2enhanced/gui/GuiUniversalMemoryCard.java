@@ -74,9 +74,9 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         this.buttonList.add(new GuiModernButton(1, this.guiLeft + 111, this.guiTop + 222, 52, 17,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
-        // 删除按钮（X），与列表项同步：纹理中 X 在(160,62)，尺寸 8×9
+        // 删除按钮（X），与列表项同步：纹理中 X 在(160,62)，尺寸 8×9，图标已由纹理提供
         for (int i = 0; i < VISIBLE_COUNT; i++) {
-            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + 160, this.guiTop + 62 + i * ENTRY_HEIGHT, 8, 9, "\u00d7");
+            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + 160, this.guiTop + 62 + i * ENTRY_HEIGHT, 8, 9, "");
             btn.visible = false;
             this.buttonList.add(btn);
         }
@@ -223,16 +223,17 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         Minecraft.getMinecraft().getTextureManager().bindTexture(GUI_TEXTURE);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
-        // 1. 整体背景（纯色，与纹理底色一致 #CBCCD4）
-        drawRect(x, y, x + GUI_WIDTH, y + GUI_HEIGHT, 0xFFCBCCD4);
+        // 1. 绘制整个 GUI 纹理作为背景（包含标题栏、配置栏、默认列表项、滚动条、按钮）
+        drawTexturedModalRect(x, y, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
-        // 2. 标题栏条带：纹理(2,2) 191×20
-        drawTexturedModalRect(x + 2, y + 2, 2, 2, 191, 20);
+        // 2. 覆盖列表项区域：用纹理中的纯色片段擦除默认列表项，为实际数据做准备
+        for (int i = 0; i < VISIBLE_COUNT; i++) {
+            int rowY = y + 57 + i * ENTRY_HEIGHT;
+            drawTexturedModalRect(x + 7, rowY, 50, 100, 146, ENTRY_HEIGHT);
+            drawTexturedModalRect(x + 160, rowY + 5, 50, 100, 8, 9);
+        }
 
-        // 3. 配置栏条带：纹理(2,26) 191×22
-        drawTexturedModalRect(x + 2, y + 26, 2, 26, 191, 22);
-
-        // 4. 列表项条带 + X 按钮（一并重复）
+        // 3. 绘制实际的列表项条带 + X 按钮（一并重复）
         int maxDisplay = Math.min(selections.size() - scrollIndex, VISIBLE_COUNT);
         for (int i = 0; i < maxDisplay; i++) {
             // 列表项条带：纹理(7,57) 146×18
@@ -241,19 +242,12 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             drawTexturedModalRect(x + 160, y + 62 + i * ENTRY_HEIGHT, 160, 62, 8, 9);
         }
 
-        // 5. 滚动条轨道：纹理(178,53) 6×168
-        drawTexturedModalRect(x + 178, y + 53, 178, 53, 6, 168);
-
-        // 滚动条滑块（代码绘制，在轨道内）
+        // 4. 滚动条滑块（代码绘制，纹理中没有专门滑块）
         if (selections.size() > VISIBLE_COUNT) {
             int thumbY = getThumbY();
             int thumbH = getThumbHeight();
             drawRect(x + 178, thumbY, x + 178 + 6, thumbY + thumbH, COLOR_SCROLL_THUMB);
         }
-
-        // 6. 底部按钮：纹理(18,222) 52×17 与 (111,222) 52×17
-        drawTexturedModalRect(x + 18, y + 222, 18, 222, 52, 17);
-        drawTexturedModalRect(x + 111, y + 222, 111, 222, 52, 17);
 
         // ===== 文字绘制 =====
 
