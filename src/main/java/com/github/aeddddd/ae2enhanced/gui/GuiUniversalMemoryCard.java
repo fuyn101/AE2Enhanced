@@ -11,6 +11,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +22,8 @@ import java.util.List;
  */
 public class GuiUniversalMemoryCard extends GuiContainer {
 
+    private static final ResourceLocation GUI_TEXTURE = new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/umc_gui.png");
+
     private static final int GUI_WIDTH = 220;
     private static final int GUI_HEIGHT = 220;
 
@@ -29,15 +32,10 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     private static final int LIST_Y = 72;
     private static final int LIST_HEIGHT = VISIBLE_COUNT * ENTRY_HEIGHT;
 
-    // 配色
-    private static final int COLOR_BG = 0xE02B2B3B;
-    private static final int COLOR_BORDER = 0xFF3A8EBF;
-    private static final int COLOR_TITLE_BG = 0xE0353549;
-    private static final int COLOR_TITLE_LINE = 0xFF3A8EBF;
+    // 配色（保留文字与滚动条配色，背景和边框由纹理提供）
     private static final int COLOR_TEXT = 0xFFFFFF;
     private static final int COLOR_TEXT_DIM = 0xAAAAAA;
     private static final int COLOR_TEXT_MUTED = 0x888888;
-    private static final int COLOR_SEPARATOR = 0xFF3A8EBF;
     private static final int COLOR_SCROLL_TRACK = 0x40FFFFFF;
     private static final int COLOR_SCROLL_THUMB = 0xFF3A8EBF;
 
@@ -217,18 +215,11 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         int x = this.guiLeft;
         int y = this.guiTop;
 
-        // 主背景（半透明深色）
-        drawRect(x, y, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BG);
-        // 外边框（浅蓝）
-        drawRect(x, y, x + GUI_WIDTH, y + 1, COLOR_BORDER);
-        drawRect(x, y + GUI_HEIGHT - 1, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BORDER);
-        drawRect(x, y, x + 1, y + GUI_HEIGHT, COLOR_BORDER);
-        drawRect(x + GUI_WIDTH - 1, y, x + GUI_WIDTH, y + GUI_HEIGHT, COLOR_BORDER);
+        // 绘制 GUI 纹理背景（256x256 纹理缩放至 220x220）
+        Minecraft.getMinecraft().getTextureManager().bindTexture(GUI_TEXTURE);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        drawModalRectWithCustomSizedTexture(x, y, 0, 0, GUI_WIDTH, GUI_HEIGHT, 256, 256);
 
-        // 标题栏背景
-        drawRect(x + 1, y + 1, x + GUI_WIDTH - 1, y + 20, COLOR_TITLE_BG);
-        // 标题栏底部分隔线
-        drawRect(x + 1, y + 20, x + GUI_WIDTH - 1, y + 21, COLOR_TITLE_LINE);
         // 标题文字
         String title = I18n.format("gui.ae2enhanced.umc.title");
         int titleWidth = this.fontRenderer.getStringWidth(title);
@@ -241,9 +232,6 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         } else {
             this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 10, y + 28, COLOR_TEXT_MUTED);
         }
-
-        // 分隔线
-        drawRect(x + 10, y + 54, x + GUI_WIDTH - 10, y + 55, COLOR_SEPARATOR);
 
         // 选取区标题
         this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 10, y + 60, COLOR_TEXT);
