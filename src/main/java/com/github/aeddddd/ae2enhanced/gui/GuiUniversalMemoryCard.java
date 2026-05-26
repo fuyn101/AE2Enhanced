@@ -226,11 +226,14 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         // 1. 绘制整个 GUI 纹理作为背景（包含标题栏、配置栏、默认列表项、滚动条、按钮）
         drawTexturedModalRect(x, y, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
-        // 2. 覆盖列表项区域：用纹理中的纯色片段擦除默认列表项，为实际数据做准备
+        // 2. 覆盖列表项区域：用条带正下方的纯色纹理片段向上平移覆盖，
+        //    保证横向纹理坐标完全一致，避免错位
         for (int i = 0; i < VISIBLE_COUNT; i++) {
             int rowY = y + 57 + i * ENTRY_HEIGHT;
-            drawTexturedModalRect(x + 7, rowY, 50, 100, 146, ENTRY_HEIGHT);
-            drawTexturedModalRect(x + 160, rowY + 5, 50, 100, 8, 9);
+            // 列表项条带覆盖：源坐标(7, 75) = 原条带(7,57) 向下平移 18
+            drawTexturedModalRect(x + 7, rowY, 7, 57 + ENTRY_HEIGHT, 146, ENTRY_HEIGHT);
+            // X 按钮覆盖：源坐标(160, 80) = 原X(160,62) 向下平移 18
+            drawTexturedModalRect(x + 160, rowY + 5, 160, 62 + ENTRY_HEIGHT, 8, 9);
         }
 
         // 3. 绘制实际的列表项条带 + X 按钮（一并重复）
