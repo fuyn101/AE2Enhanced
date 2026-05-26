@@ -18,25 +18,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 通用内存卡管理 GUI（半透明现代风格，支持滚动条）。
+ * 通用内存卡管理 GUI（使用 UMCGUI.png 纹理，支持条带拼接与滚动条）。
  */
 public class GuiUniversalMemoryCard extends GuiContainer {
 
     private static final ResourceLocation GUI_TEXTURE = new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/umc_gui.png");
 
-    private static final int GUI_WIDTH = 220;
-    private static final int GUI_HEIGHT = 220;
+    // GUI 内容区域尺寸（与纹理内容区 195×251 一致）
+    private static final int GUI_WIDTH = 195;
+    private static final int GUI_HEIGHT = 251;
 
+    // 列表项参数（条带高 18，与纹理匹配）
     private static final int VISIBLE_COUNT = 8;
-    private static final int ENTRY_HEIGHT = 14;
-    private static final int LIST_Y = 72;
+    private static final int ENTRY_HEIGHT = 18;
+    private static final int LIST_Y = 57;
     private static final int LIST_HEIGHT = VISIBLE_COUNT * ENTRY_HEIGHT;
 
-    // 配色（保留文字与滚动条配色，背景和边框由纹理提供）
+    // 文字配色
     private static final int COLOR_TEXT = 0xFFFFFF;
-    private static final int COLOR_TEXT_DIM = 0xAAAAAA;
+    private static final int COLOR_TEXT_DIM = 0xDDDDDD;
     private static final int COLOR_TEXT_MUTED = 0x888888;
-    private static final int COLOR_SCROLL_TRACK = 0x40FFFFFF;
+
+    // 滚动条滑块配色
     private static final int COLOR_SCROLL_THUMB = 0xFF3A8EBF;
 
     private final EntityPlayer player;
@@ -65,13 +68,15 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         clampScroll();
 
         this.buttonList.clear();
-        this.buttonList.add(new GuiModernButton(0, this.guiLeft + 10, this.guiTop + GUI_HEIGHT - 24, 80, 18,
+        // 底部按钮：左(18,222) 右(111,222) 均 52×17
+        this.buttonList.add(new GuiModernButton(0, this.guiLeft + 18, this.guiTop + 222, 52, 17,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_config")));
-        this.buttonList.add(new GuiModernButton(1, this.guiLeft + GUI_WIDTH - 90, this.guiTop + GUI_HEIGHT - 24, 80, 18,
+        this.buttonList.add(new GuiModernButton(1, this.guiLeft + 111, this.guiTop + 222, 52, 17,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
+        // 删除按钮（X），与列表项同步：纹理中 X 在(160,62)，尺寸 8×9
         for (int i = 0; i < VISIBLE_COUNT; i++) {
-            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + GUI_WIDTH - 38, this.guiTop + LIST_Y + i * ENTRY_HEIGHT - 1, 16, 12, "\u00d7");
+            GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + 160, this.guiTop + 62 + i * ENTRY_HEIGHT, 8, 9, "\u00d7");
             btn.visible = false;
             this.buttonList.add(btn);
         }
@@ -101,11 +106,11 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     }
 
     private int getScrollBarX() {
-        return this.guiLeft + GUI_WIDTH - 18;
+        return this.guiLeft + 178;
     }
 
     private int getScrollBarY() {
-        return this.guiTop + LIST_Y;
+        return this.guiTop + 53;
     }
 
     private int getThumbHeight() {
@@ -166,7 +171,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         int sbX = getScrollBarX();
         int sbY = getScrollBarY();
-        if (mouseX >= sbX && mouseX < sbX + 8 &&
+        if (mouseX >= sbX && mouseX < sbX + 6 &&
             mouseY >= sbY && mouseY < sbY + LIST_HEIGHT &&
             selections.size() > VISIBLE_COUNT) {
             int thumbY = getThumbY();
@@ -215,46 +220,67 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         int x = this.guiLeft;
         int y = this.guiTop;
 
-        // 绘制 GUI 纹理背景（256x256 纹理缩放至 220x220）
         Minecraft.getMinecraft().getTextureManager().bindTexture(GUI_TEXTURE);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-        drawModalRectWithCustomSizedTexture(x, y, 0, 0, GUI_WIDTH, GUI_HEIGHT, 256, 256);
 
-        // 标题文字
+        // 1. 整体背景（纯色，与纹理底色一致 #CBCCD4）
+        drawRect(x, y, x + GUI_WIDTH, y + GUI_HEIGHT, 0xFFCBCCD4);
+
+        // 2. 标题栏条带：纹理(2,2) 191×20
+        drawTexturedModalRect(x + 2, y + 2, 2, 2, 191, 20);
+
+        // 3. 配置栏条带：纹理(2,26) 191×22
+        drawTexturedModalRect(x + 2, y + 26, 2, 26, 191, 22);
+
+        // 4. 列表项条带 + X 按钮（一并重复）
+        int maxDisplay = Math.min(selections.size() - scrollIndex, VISIBLE_COUNT);
+        for (int i = 0; i < maxDisplay; i++) {
+            // 列表项条带：纹理(7,57) 146×18
+            drawTexturedModalRect(x + 7, y + 57 + i * ENTRY_HEIGHT, 7, 57, 146, ENTRY_HEIGHT);
+            // X 删除按钮：纹理(160,62) 8×9
+            drawTexturedModalRect(x + 160, y + 62 + i * ENTRY_HEIGHT, 160, 62, 8, 9);
+        }
+
+        // 5. 滚动条轨道：纹理(178,53) 6×168
+        drawTexturedModalRect(x + 178, y + 53, 178, 53, 6, 168);
+
+        // 滚动条滑块（代码绘制，在轨道内）
+        if (selections.size() > VISIBLE_COUNT) {
+            int thumbY = getThumbY();
+            int thumbH = getThumbHeight();
+            drawRect(x + 178, thumbY, x + 178 + 6, thumbY + thumbH, COLOR_SCROLL_THUMB);
+        }
+
+        // 6. 底部按钮：纹理(18,222) 52×17 与 (111,222) 52×17
+        drawTexturedModalRect(x + 18, y + 222, 18, 222, 52, 17);
+        drawTexturedModalRect(x + 111, y + 222, 111, 222, 52, 17);
+
+        // ===== 文字绘制 =====
+
+        // 标题文字（居中于标题栏）
         String title = I18n.format("gui.ae2enhanced.umc.title");
         int titleWidth = this.fontRenderer.getStringWidth(title);
-        this.fontRenderer.drawString(title, x + (GUI_WIDTH - titleWidth) / 2, y + 6, COLOR_TEXT);
+        this.fontRenderer.drawString(title, x + 2 + (191 - titleWidth) / 2, y + 2 + 6, COLOR_TEXT);
 
-        // 配置区
+        // 配置区文字
         if (hasConfig) {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.source", configName), x + 10, y + 28, COLOR_TEXT);
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.upgrades", upgradeCount), x + 10, y + 40, COLOR_TEXT_DIM);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.source", configName), x + 10, y + 30, COLOR_TEXT);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.upgrades", upgradeCount), x + 10, y + 42, COLOR_TEXT_DIM);
         } else {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 10, y + 28, COLOR_TEXT_MUTED);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.no_config"), x + 10, y + 30, COLOR_TEXT_MUTED);
         }
 
         // 选取区标题
-        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 10, y + 60, COLOR_TEXT);
+        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.umc.selections", selections.size()), x + 10, y + 52, COLOR_TEXT);
 
-        // 选取列表
-        int maxDisplay = Math.min(selections.size() - scrollIndex, VISIBLE_COUNT);
+        // 选取列表文字
         for (int i = 0; i < maxDisplay; i++) {
             ItemUniversalMemoryCard.SelectionEntry entry = selections.get(scrollIndex + i);
             String text = entry.pos.getX() + ", " + entry.pos.getY() + ", " + entry.pos.getZ();
             if (entry.side >= 0) {
                 text += " [P]";
             }
-            this.fontRenderer.drawString(text, x + 10, y + LIST_Y + i * ENTRY_HEIGHT, COLOR_TEXT_DIM);
-        }
-
-        // 滚动条
-        int sbX = getScrollBarX();
-        int sbY = getScrollBarY();
-        drawRect(sbX, sbY, sbX + 8, sbY + LIST_HEIGHT, COLOR_SCROLL_TRACK);
-        if (selections.size() > VISIBLE_COUNT) {
-            int thumbY = getThumbY();
-            int thumbH = getThumbHeight();
-            drawRect(sbX, thumbY, sbX + 8, thumbY + thumbH, COLOR_SCROLL_THUMB);
+            this.fontRenderer.drawString(text, x + 12, y + 62 + i * ENTRY_HEIGHT, COLOR_TEXT_DIM);
         }
 
         // 更新按钮位置和可见性
@@ -262,7 +288,8 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             int btnIdx = 2 + i;
             if (btnIdx < this.buttonList.size()) {
                 GuiButton btn = this.buttonList.get(btnIdx);
-                btn.y = y + LIST_Y + i * ENTRY_HEIGHT - 1;
+                btn.x = x + 160;
+                btn.y = y + 62 + i * ENTRY_HEIGHT;
                 btn.visible = i < maxDisplay;
             }
         }
@@ -276,15 +303,11 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     }
 
     // ============================================================
-    // 现代半透明按钮
+    // 现代半透明按钮（保留 hover 效果，文字叠加在纹理按钮上）
     // ============================================================
 
     public static class GuiModernButton extends GuiButton {
 
-        private static final int COLOR_BTN_BG = 0x603A8EBF;
-        private static final int COLOR_BTN_BG_HOVER = 0xA04A9EDF;
-        private static final int COLOR_BTN_BORDER = 0xFF3A8EBF;
-        private static final int COLOR_BTN_BORDER_HOVER = 0xFF80C0FF;
         private static final int COLOR_BTN_TEXT = 0xFFFFFF;
         private static final int COLOR_BTN_TEXT_DISABLED = 0x888888;
 
@@ -296,17 +319,6 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
             if (!this.visible) return;
             this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
-
-            // 背景
-            int bgColor = this.hovered ? COLOR_BTN_BG_HOVER : COLOR_BTN_BG;
-            drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-            // 边框
-            int borderColor = this.hovered ? COLOR_BTN_BORDER_HOVER : COLOR_BTN_BORDER;
-            drawRect(this.x, this.y, this.x + this.width, this.y + 1, borderColor);
-            drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, borderColor);
-            drawRect(this.x, this.y, this.x + 1, this.y + this.height, borderColor);
-            drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, borderColor);
 
             // 文字
             int textColor = this.enabled ? COLOR_BTN_TEXT : COLOR_BTN_TEXT_DISABLED;
