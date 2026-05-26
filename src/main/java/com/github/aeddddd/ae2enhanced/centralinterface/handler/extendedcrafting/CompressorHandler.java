@@ -127,11 +127,14 @@ public class CompressorHandler implements IRemoteHandler {
         ItemStack mainMaterial = findMatchingStack(inputs, recipeInput);
         if (mainMaterial.isEmpty()) return false;
 
-        // 直接设置 materialStack / materialCount 和 slot 1，不限制数量
+        // 直接设置 materialStack / materialCount，不限制数量
+        // 注意：必须清空 slot 1，因为 TileCompressor.setInventorySlotContents
+        // 会将堆叠截断到 64，然后 update() tick 会继续从 slot 1 吸取到 materialCount，
+        // 导致实际材料数量 = 反射值 + 64（例如 1000 → 1064）
         try {
-            setSlot(te, 1, mainMaterial.copy());
             FIELD_MATERIAL_STACK.set(te, mainMaterial.copy());
             FIELD_MATERIAL_COUNT.setInt(te, mainMaterial.getCount());
+            setSlot(te, 1, ItemStack.EMPTY);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to inject compressor materials", e);
             return false;
