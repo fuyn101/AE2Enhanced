@@ -480,7 +480,7 @@ public class ItemUniversalMemoryCard extends Item {
             if (targetTe == null) continue;
 
             String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
-            source.getInterfaceDuality().addBinding(new TargetBinding(entry.pos, entry.dim, blockId));
+            source.addBinding(new TargetBinding(entry.pos, entry.dim, blockId));
             bound++;
         }
 
@@ -497,7 +497,7 @@ public class ItemUniversalMemoryCard extends Item {
         }
         TileCentralMEInterface source = (TileCentralMEInterface) te;
         int count = source.getInterfaceDuality().getBindings().size();
-        source.getInterfaceDuality().clearBindings();
+        source.clearBindings();
         player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_bindings", count));
     }
 
