@@ -24,8 +24,8 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     private static final boolean AVAILABLE;
     private static final Class<?> CONFIG_CARD_CAPABILITY_CLASS;
     private static final Class<?> SPECIAL_CONFIG_DATA_CLASS;
-    private static final Object CONFIG_CARD_CAPABILITY;
-    private static final Object SPECIAL_CONFIG_DATA_CAPABILITY;
+    private static Object CONFIG_CARD_CAPABILITY;
+    private static Object SPECIAL_CONFIG_DATA_CAPABILITY;
 
     private static final Class<?> REDSTONE_CONTROL_CLASS;
     private static final Method REDSTONE_GET_CONTROL_TYPE;
@@ -224,9 +224,24 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     public boolean canHandle(Object target) {
         if (!AVAILABLE || !(target instanceof TileEntity)) return false;
         try {
+            // 延迟获取 capability（Forge @CapabilityInject 可能在 init 之后才注入）
+            if (CONFIG_CARD_CAPABILITY == null) {
+                Class<?> capabilitiesClass = Class.forName("mekanism.common.capabilities.Capabilities");
+                CONFIG_CARD_CAPABILITY = capabilitiesClass.getField("CONFIG_CARD_CAPABILITY").get(null);
+            }
+            if (CONFIG_CARD_CAPABILITY == null) {
+                // 回退：按类名前缀匹配
+                return target.getClass().getName().startsWith("mekanism.common.tile.");
+            }
+            // 尝试 null facing 和所有 6 个面
+            for (EnumFacing face : EnumFacing.values()) {
+                if ((Boolean) CAPABILITY_UTILS_HAS_CAPABILITY.invoke(null, target, CONFIG_CARD_CAPABILITY, face)) {
+                    return true;
+                }
+            }
             return (Boolean) CAPABILITY_UTILS_HAS_CAPABILITY.invoke(null, target, CONFIG_CARD_CAPABILITY, null);
         } catch (Exception e) {
-            return false;
+            return target.getClass().getName().startsWith("mekanism.common.tile.");
         }
     }
 

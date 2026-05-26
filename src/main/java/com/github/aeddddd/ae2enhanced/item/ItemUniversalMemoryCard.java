@@ -390,18 +390,9 @@ public class ItemUniversalMemoryCard extends Item {
                     break;
                 case MISSING_UPGRADES:
                     StringBuilder req = new StringBuilder();
-                    if (data.hasKey("ae2e:upgrades")) {
-                        NBTTagList upgList = data.getTagList("ae2e:upgrades", 10);
-                        for (int i = 0; i < upgList.tagCount(); i++) {
-                            NBTTagCompound tag = upgList.getCompoundTagAt(i);
-                            ItemStack upg = new ItemStack(tag);
-                            if (!upg.isEmpty()) {
-                                if (req.length() > 0) req.append(", ");
-                                req.append(upg.getDisplayName());
-                                if (upg.getCount() > 1) req.append("×").append(upg.getCount());
-                            }
-                        }
-                    }
+                    appendUpgradeNames(req, data, "ae2e:upgrades");
+                    appendUpgradeNames(req, data, "eio:upgrades");
+                    appendUpgradeNames(req, data, "Augments");
                     player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.missing_upgrades", req.toString()));
                     break;
                 case INVALID_MACHINE:
@@ -486,6 +477,20 @@ public class ItemUniversalMemoryCard extends Item {
 
         clearSelections(stack);
         player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_success", bound));
+    }
+
+    private static void appendUpgradeNames(StringBuilder req, NBTTagCompound data, String key) {
+        if (!data.hasKey(key)) return;
+        NBTTagList upgList = data.getTagList(key, 10);
+        for (int i = 0; i < upgList.tagCount(); i++) {
+            NBTTagCompound tag = upgList.getCompoundTagAt(i);
+            ItemStack upg = new ItemStack(tag);
+            if (!upg.isEmpty()) {
+                if (req.length() > 0) req.append(", ");
+                req.append(upg.getDisplayName());
+                if (upg.getCount() > 1) req.append("×").append(upg.getCount());
+            }
+        }
     }
 
     private static void handleClearBindings(EntityPlayer player, BlockPos pos) {
