@@ -115,7 +115,7 @@ public class MemoryCardUpgradeHelper {
         return IMemoryCardHandler.PasteResult.SUCCESS;
     }
 
-    private static boolean tryPullFromNetwork(EntityPlayer player, List<ItemStack> missing) {
+    public static boolean tryPullFromNetwork(EntityPlayer player, List<ItemStack> missing) {
         ItemStack handStack = player.getHeldItemMainhand();
         if (!(handStack.getItem() instanceof ItemUniversalMemoryCard)) return false;
         if (!ItemUniversalMemoryCard.hasBinding(handStack)) return false;
@@ -143,17 +143,25 @@ public class MemoryCardUpgradeHelper {
 
             List<ItemStack> stillMissing = new ArrayList<>();
             List<ItemStack> craftable = new ArrayList<>();
+            List<ItemStack> directExtract = new ArrayList<>();
 
             // 模拟提取，分类：可直接提取 vs 需要合成
             for (ItemStack deficit : missing) {
                 AEItemStack want = AEItemStack.fromItemStack(deficit);
                 IAEItemStack sim = inv.extractItems(want, Actionable.SIMULATE, source);
                 if (sim != null && sim.getStackSize() >= deficit.getCount()) {
-                    // 网络有足够库存，直接提取
+                    // 网络有足够库存，全部直接提取
+                    directExtract.add(deficit.copy());
                     continue;
                 }
 
                 long available = sim != null ? sim.getStackSize() : 0;
+                if (available > 0) {
+                    // 部分可提取
+                    ItemStack partial = deficit.copy();
+                    partial.setCount((int) available);
+                    directExtract.add(partial);
+                }
                 int needCount = deficit.getCount() - (int) available;
                 if (needCount > 0) {
                     ItemStack need = deficit.copy();
@@ -180,11 +188,8 @@ public class MemoryCardUpgradeHelper {
             }
 
             // 实际提取可直接获取的物品
-            for (ItemStack deficit : missing) {
-                if (craftable.stream().anyMatch(c -> ItemStack.areItemsEqual(c, deficit) && ItemStack.areItemStackTagsEqual(c, deficit))) {
-                    continue; // 跳过需要合成的物品
-                }
-                AEItemStack want = AEItemStack.fromItemStack(deficit);
+            for (ItemStack toExtract : directExtract) {
+                AEItemStack want = AEItemStack.fromItemStack(toExtract);
                 IAEItemStack extracted = inv.extractItems(want, Actionable.MODULATE, source);
                 if (extracted != null && extracted.getStackSize() > 0) {
                     ItemStack stack = extracted.createItemStack();

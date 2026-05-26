@@ -241,7 +241,7 @@ public class ItemUniversalMemoryCard extends Item {
 
                     AE2Enhanced.network.sendToServer(new PacketUMCAction(type, event.getPos(), event.getFace()));
                     event.setCanceled(true);
-                    event.setCancellationResult(EnumActionResult.SUCCESS);
+                    event.setCancellationResult(EnumActionResult.FAIL);
                 }
             }
         }
@@ -570,6 +570,17 @@ public class ItemUniversalMemoryCard extends Item {
     // ============================================================
     // GUI Open: only when right-clicking air (handled by ClientEvents.onRightClickEmpty)
     // ============================================================
+
+    @Override
+    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
+        // UMC 的交互完全通过 PacketUMCAction 处理
+        // 返回 FAIL 阻止默认的方块激活 / 物品使用，作为服务器端兜底
+        ItemStack stack = player.getHeldItem(hand);
+        if (stack.getItem() instanceof ItemUniversalMemoryCard) {
+            return EnumActionResult.FAIL;
+        }
+        return EnumActionResult.PASS;
+    }
 
     // ============================================================
     // Tooltip

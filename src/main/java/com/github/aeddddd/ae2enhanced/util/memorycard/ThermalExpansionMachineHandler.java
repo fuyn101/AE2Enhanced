@@ -150,8 +150,10 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             int levelsNeeded = sourceLevel - targetLevel;
 
             // 策略1：尝试使用 Full Conversion Kit 直接跳到目标 level
-            if (UPGRADE_FULL != null && sourceLevel < UPGRADE_FULL.length) {
-                ItemStack fullKit = UPGRADE_FULL[sourceLevel];
+            // UPGRADE_FULL[i] 对应目标 level = i+1（索引比 level 小 1）
+            int fullKitIndex = sourceLevel - 1;
+            if (UPGRADE_FULL != null && fullKitIndex >= 0 && fullKitIndex < UPGRADE_FULL.length) {
+                ItemStack fullKit = UPGRADE_FULL[fullKitIndex];
                 if (fullKit != null && !fullKit.isEmpty()
                         && MemoryCardUpgradeHelper.countInInventory(player, fullKit) >= 1) {
                     MemoryCardUpgradeHelper.consumeFromInventory(player, fullKit);

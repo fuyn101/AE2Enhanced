@@ -12,7 +12,9 @@ import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -68,6 +70,13 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     private static final Class<?> TILE_ENTITY_CONTAINER_BLOCK_CLASS;
     private static final Field CONTAINER_BLOCK_FULL_NAME;
 
+    // Tier upgrade reflection
+    private static final Class<?> TIER_UPGRADEABLE_CLASS;
+    private static final Method TIER_UPGRADEABLE_UPGRADE;
+    private static final Class<?> BASE_TIER_CLASS;
+    private static final Object[] BASE_TIER_VALUES;
+    private static final ItemStack[] TIER_INSTALLER_CACHE = new ItemStack[4];
+
     static {
         boolean available = false;
         Class<?> configCardCapabilityClass = null;
@@ -115,6 +124,11 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
 
         Class<?> tileEntityContainerBlockClass = null;
         Field containerBlockFullName = null;
+
+        Class<?> tierUpgradeableClass = null;
+        Method tierUpgradeableUpgrade = null;
+        Class<?> baseTierClass = null;
+        Object[] baseTierValues = null;
 
         try {
             if (Loader.isModLoaded("mekanism")) {
@@ -165,6 +179,11 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
 
                 tileEntityContainerBlockClass = Class.forName("mekanism.common.tile.prefab.TileEntityContainerBlock");
                 containerBlockFullName = tileEntityContainerBlockClass.getField("fullName");
+
+                tierUpgradeableClass = Class.forName("mekanism.common.base.ITierUpgradeable");
+                tierUpgradeableUpgrade = tierUpgradeableClass.getMethod("upgrade", Class.forName("mekanism.common.tier.BaseTier"));
+                baseTierClass = Class.forName("mekanism.common.tier.BaseTier");
+                baseTierValues = baseTierClass.getEnumConstants();
 
                 available = true;
             }
@@ -218,6 +237,11 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
 
         TILE_ENTITY_CONTAINER_BLOCK_CLASS = tileEntityContainerBlockClass;
         CONTAINER_BLOCK_FULL_NAME = containerBlockFullName;
+
+        TIER_UPGRADEABLE_CLASS = tierUpgradeableClass;
+        TIER_UPGRADEABLE_UPGRADE = tierUpgradeableUpgrade;
+        BASE_TIER_CLASS = baseTierClass;
+        BASE_TIER_VALUES = baseTierValues;
     }
 
     @Override
@@ -293,6 +317,19 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 TILE_COMPONENT_UPGRADE_WRITE.invoke(component, upgradeNbt);
                 if (!upgradeNbt.isEmpty()) {
                     output.setTag("mekanism:upgrades", upgradeNbt);
+
+                    // 同时存储 ae2e:upgrades 格式，供 MISSING_UPGRADES 消息显示
+                    NBTTagList ae2eUpgrades = new NBTTagList();
+                    @SuppressWarnings("unchecked")
+                    Map<Object, Integer> upgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, upgradeNbt);
+                    for (Map.Entry<Object, Integer> entry : upgrades.entrySet()) {
+                        ItemStack upgStack = ((ItemStack) UPGRADE_GET_STACK.invoke(entry.getKey())).copy();
+                        upgStack.setCount(entry.getValue());
+                        ae2eUpgrades.appendTag(upgStack.writeToNBT(new NBTTagCompound()));
+                    }
+                    if (!ae2eUpgrades.isEmpty()) {
+                        output.setTag("ae2e:upgrades", ae2eUpgrades);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -312,6 +349,22 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
             String targetDataType = getDataType(tile);
             if (!isCompatible(sourceDataType, targetDataType)) {
                 return PasteResult.INVALID_MACHINE;
+            }
+
+            // 0. 处理工厂 tier 升级（需要在其他配置之前）
+            PasteResult tierResult = applyTierUpgrade(tile, data, player);
+            if (tierResult == PasteResult.INVALID_MACHINE || tierResult == PasteResult.FAILED) {
+                return tierResult;
+            }
+            if (tierResult == PasteResult.MISSING_UPGRADES) {
+                return tierResult;
+            }
+            if (tierResult == PasteResult.SUCCESS) {
+                // upgrade 可能替换了 tile，重新获取
+                TileEntity newTile = player.world.getTileEntity(tile.getPos());
+                if (newTile != null) {
+                    tile = newTile;
+                }
             }
 
             // 1. 红石控制
@@ -345,7 +398,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 setConfigurationData.invoke(special, specialData);
             }
 
-            // 4. 升级处理
+            // 4. 升级处理（支持网络回退）
             if (data.hasKey("mekanism:upgrades") && UPGRADE_TILE_CLASS.isInstance(tile)) {
                 Object component = UPGRADE_TILE_GET_COMPONENT.invoke(tile);
                 NBTTagCompound upgradeNbt = data.getCompoundTag("mekanism:upgrades");
@@ -355,44 +408,59 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 Map<Object, Integer> sourceUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, upgradeNbt);
 
                 // 读取目标当前升级 map
-                @SuppressWarnings("unchecked")
-                Map<Object, Integer> targetUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, new NBTTagCompound());
-                // 实际上需要调用 component.write 来获取当前状态
                 NBTTagCompound currentNbt = new NBTTagCompound();
                 TILE_COMPONENT_UPGRADE_WRITE.invoke(component, currentNbt);
-                targetUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, currentNbt);
+                @SuppressWarnings("unchecked")
+                Map<Object, Integer> targetUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, currentNbt);
 
-                // 计算差额并应用
+                // 4a. 先检查所有需要增加的升级是否可获得（含网络回退）
+                List<ItemStack> missingUpgrades = new ArrayList<>();
+                for (Map.Entry<Object, Integer> entry : sourceUpgrades.entrySet()) {
+                    Object upgradeType = entry.getKey();
+                    int sourceCount = entry.getValue();
+                    int targetCount = targetUpgrades.getOrDefault(upgradeType, 0);
+                    if (targetCount < sourceCount) {
+                        int needed = sourceCount - targetCount;
+                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
+                        stack.setCount(needed);
+                        if (MemoryCardUpgradeHelper.countInInventory(player, stack) < needed) {
+                            missingUpgrades.add(stack.copy());
+                        }
+                    }
+                }
+                if (!missingUpgrades.isEmpty()) {
+                    boolean pulled = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missingUpgrades);
+                    if (!pulled) {
+                        return PasteResult.MISSING_UPGRADES;
+                    }
+                    // 回退后再次验证
+                    for (ItemStack need : missingUpgrades) {
+                        if (MemoryCardUpgradeHelper.countInInventory(player, need) < need.getCount()) {
+                            return PasteResult.MISSING_UPGRADES;
+                        }
+                    }
+                }
+
+                // 4b. 应用升级差异
                 for (Map.Entry<Object, Integer> entry : sourceUpgrades.entrySet()) {
                     Object upgradeType = entry.getKey();
                     int sourceCount = entry.getValue();
                     int targetCount = targetUpgrades.getOrDefault(upgradeType, 0);
 
                     if (targetCount < sourceCount) {
-                        // 需要增加升级
                         int needed = sourceCount - targetCount;
-                        ItemStack stack = (ItemStack) UPGRADE_GET_STACK.invoke(upgradeType);
+                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
                         stack.setCount(needed);
-
-                        // 检查玩家是否有足够的物品
-                        if (MemoryCardUpgradeHelper.countInInventory(player, stack) < needed) {
-                            // 尝试从网络拉取
-                            // TODO: 扩展 MemoryCardUpgradeHelper 支持合成请求
-                            return PasteResult.MISSING_UPGRADES;
-                        }
-
                         MemoryCardUpgradeHelper.consumeFromInventory(player, stack);
                         for (int i = 0; i < needed; i++) {
                             TILE_COMPONENT_UPGRADE_ADD_UPGRADE.invoke(component, upgradeType);
                         }
                     } else if (targetCount > sourceCount) {
-                        // 需要减少升级
                         int remove = targetCount - sourceCount;
                         for (int i = 0; i < remove; i++) {
                             TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE.invoke(component, upgradeType);
                         }
-                        // 将移除的升级物品返还给玩家
-                        ItemStack stack = (ItemStack) UPGRADE_GET_STACK.invoke(upgradeType);
+                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
                         stack.setCount(remove);
                         if (!player.addItemStackToInventory(stack)) {
                             player.world.spawnEntity(new net.minecraft.entity.item.EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
@@ -408,7 +476,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                         for (int i = 0; i < remove; i++) {
                             TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE.invoke(component, upgradeType);
                         }
-                        ItemStack stack = (ItemStack) UPGRADE_GET_STACK.invoke(upgradeType);
+                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
                         stack.setCount(remove);
                         if (!player.addItemStackToInventory(stack)) {
                             player.world.spawnEntity(new net.minecraft.entity.item.EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
@@ -417,7 +485,12 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 5. 更新 tile
+            // 5. 显式处理 sorting 字段（双重保险）
+            if (data.hasKey("sorting")) {
+                applySorting(tile, data.getBoolean("sorting"));
+            }
+
+            // 6. 更新 tile
             tile.markDirty();
             if (tile.getWorld() != null) {
                 tile.getWorld().notifyBlockUpdate(tile.getPos(), tile.getWorld().getBlockState(tile.getPos()), tile.getWorld().getBlockState(tile.getPos()), 3);
@@ -436,6 +509,128 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
             return ((TileEntity) target).getBlockType().getLocalizedName();
         }
         return target.getClass().getSimpleName();
+    }
+
+    /**
+     * 尝试应用工厂 tier 升级。如果不是工厂或不需要升级，返回 SUCCESS。
+     */
+    private PasteResult applyTierUpgrade(TileEntity tile, NBTTagCompound data, EntityPlayer player) {
+        if (TIER_UPGRADEABLE_CLASS == null || BASE_TIER_VALUES == null) {
+            return PasteResult.SUCCESS; // 反射不可用
+        }
+        try {
+            String sourceDataType = data.getString("dataType");
+            String targetDataType = getDataType(tile);
+
+            // 只处理工厂类型
+            if (!sourceDataType.contains("Factory") || !targetDataType.contains("Factory")) {
+                return PasteResult.SUCCESS;
+            }
+
+            // 提取 tier
+            Object sourceTier = extractBaseTier(sourceDataType);
+            Object targetTier = extractBaseTier(targetDataType);
+            if (sourceTier == null || targetTier == null) {
+                return PasteResult.SUCCESS;
+            }
+
+            int sourceOrdinal = ((Enum<?>) sourceTier).ordinal();
+            int targetOrdinal = ((Enum<?>) targetTier).ordinal();
+
+            if (sourceOrdinal <= targetOrdinal) {
+                return PasteResult.SUCCESS; // 无需升级或降级
+            }
+
+            // 需要升级：消耗 Tier Installer（meta = 目标 tier ordinal）
+            if (!TIER_UPGRADEABLE_CLASS.isInstance(tile)) {
+                return PasteResult.INVALID_MACHINE;
+            }
+
+            // 逐级升级（从当前 tier+1 到源 tier）
+            for (int tierOrd = targetOrdinal + 1; tierOrd <= sourceOrdinal; tierOrd++) {
+                Object tier = BASE_TIER_VALUES[tierOrd];
+                ItemStack installer = getTierInstaller(tierOrd);
+                if (installer.isEmpty()) {
+                    return PasteResult.FAILED;
+                }
+                if (MemoryCardUpgradeHelper.countInInventory(player, installer) < 1) {
+                    // 尝试从网络拉取
+                    List<ItemStack> missing = new ArrayList<>();
+                    missing.add(installer.copy());
+                    boolean pulled = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missing);
+                    if (!pulled || MemoryCardUpgradeHelper.countInInventory(player, installer) < 1) {
+                        return PasteResult.MISSING_UPGRADES;
+                    }
+                }
+                MemoryCardUpgradeHelper.consumeFromInventory(player, installer);
+                TIER_UPGRADEABLE_UPGRADE.invoke(tile, tier);
+
+                // 升级后重新获取 tile（block 被替换）
+                TileEntity newTile = player.world.getTileEntity(tile.getPos());
+                if (newTile == null || !TIER_UPGRADEABLE_CLASS.isInstance(newTile)) {
+                    return PasteResult.FAILED;
+                }
+                tile = newTile;
+            }
+
+            return PasteResult.SUCCESS;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to apply Mekanism tier upgrade", e);
+            return PasteResult.FAILED;
+        }
+    }
+
+    private Object extractBaseTier(String dataType) {
+        // dataType 示例: "Basic Smelting Factory", "Elite Enriching Factory"
+        String[] parts = dataType.split(" ");
+        if (parts.length == 0) return null;
+        String tierName = parts[0];
+        for (Object tier : BASE_TIER_VALUES) {
+            if (((Enum<?>) tier).name().equalsIgnoreCase(tierName)) {
+                return tier;
+            }
+        }
+        return null;
+    }
+
+    private ItemStack getTierInstaller(int meta) {
+        if (meta >= 0 && meta < TIER_INSTALLER_CACHE.length && TIER_INSTALLER_CACHE[meta] != null) {
+            return TIER_INSTALLER_CACHE[meta].copy();
+        }
+        try {
+            net.minecraft.util.ResourceLocation rl = new net.minecraft.util.ResourceLocation("mekanism", "tierinstaller");
+            net.minecraft.item.Item item = net.minecraft.item.Item.REGISTRY.getObject(rl);
+            if (item != null) {
+                ItemStack stack = new ItemStack(item, 1, meta);
+                if (meta >= 0 && meta < TIER_INSTALLER_CACHE.length) {
+                    TIER_INSTALLER_CACHE[meta] = stack.copy();
+                }
+                return stack;
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Could not get Mekanism tier installer", e);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private void applySorting(TileEntity tile, boolean sorting) {
+        try {
+            Class<?> current = tile.getClass();
+            while (current != null && current != Object.class) {
+                try {
+                    Field field = current.getDeclaredField("sorting");
+                    if (field.getType() == boolean.class) {
+                        field.setAccessible(true);
+                        field.setBoolean(tile, sorting);
+                        return;
+                    }
+                } catch (NoSuchFieldException ignored) {
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Could not set sorting field on {}", tile.getClass().getName());
+        }
     }
 
     private String getDataType(TileEntity tile) throws Exception {

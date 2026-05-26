@@ -63,9 +63,8 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         }
         registry.addRecipes(wrappers, BlackHoleRecipeCategory.UID);
 
-        // Omni Terminal 配方转移
-        registry.getRecipeTransferRegistry().addRecipeTransferHandler(
-                (IRecipeTransferHandler) new com.github.aeddddd.ae2enhanced.integration.jei.OmniTermRecipeTransferHandler(),
-                "universal recipe transfer handler");
+        // Omni Terminal 配方转移：使用 universal handler 支持所有 recipe category
+        registry.getRecipeTransferRegistry().addUniversalRecipeTransferHandler(
+                new com.github.aeddddd.ae2enhanced.integration.jei.OmniTermRecipeTransferHandler());
     }
 }
