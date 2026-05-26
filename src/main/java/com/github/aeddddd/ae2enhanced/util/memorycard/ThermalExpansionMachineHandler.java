@@ -17,16 +17,20 @@ import java.util.Set;
 
 /**
  * Thermal Expansion 机器的配置复制粘贴 Handler。
- * 通过 NBT 读写关键配置字段（Facing, SideCache, Augments 等）。
- * 注意：不复制 Level，避免免费升级；Augment 通过反射直接操作字段。
+ * 通过 NBT 读写关键配置字段（Facing, SideCache, Level, Augments 等）。
+ * Level 升级会消耗对应的 Upgrade Kit / Conversion Kit。
  */
 public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
 
     private static final boolean AVAILABLE;
     private static final Set<String> CONFIG_KEYS = new HashSet<>(Arrays.asList(
-            "Facing", "SideCache", "RSControl",
+            "Facing", "SideCache", "Level", "RSControl",
             "EnableAutoInput", "EnableAutoOutput", "Mode"
     ));
+
+    // Thermal Foundation 升级套件缓存
+    private static ItemStack[] UPGRADE_INCREMENTAL = null;
+    private static ItemStack[] UPGRADE_FULL = null;
 
     static {
         AVAILABLE = Loader.isModLoaded("thermalexpansion");
@@ -50,19 +54,16 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         try {
             NBTTagCompound fullNbt = tile.writeToNBT(new NBTTagCompound());
 
-            // 复制配置键（不含 Level）
             for (String key : CONFIG_KEYS) {
                 if (fullNbt.hasKey(key)) {
                     output.setTag(key, fullNbt.getTag(key));
                 }
             }
 
-            // 复制 Augments
             if (fullNbt.hasKey("Augments")) {
                 output.setTag("Augments", fullNbt.getTag("Augments"));
             }
 
-            // 复制 dataType 用于验证
             output.setString("dataType", target.getClass().getName());
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to copy TE machine config", e);
@@ -76,7 +77,6 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         TileEntity tile = (TileEntity) target;
 
         try {
-            // 验证机器类型
             if (data.hasKey("dataType")) {
                 String sourceType = data.getString("dataType");
                 String targetType = target.getClass().getName();
@@ -85,35 +85,42 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 获取当前完整 NBT
+            // 1. 先处理 Level 升级（消耗转换套件）
+            if (data.hasKey("Level")) {
+                PasteResult levelResult = applyLevelUpgrade(tile, data.getByte("Level"), player);
+                if (levelResult != PasteResult.SUCCESS) {
+                    return levelResult;
+                }
+            }
+
+            // 2. 获取当前完整 NBT（level 已更新）
             NBTTagCompound currentNbt = tile.writeToNBT(new NBTTagCompound());
 
-            // 覆盖配置键（不含 Level）
+            // 3. 覆盖配置键（不含 Level，已手动处理）
             for (String key : CONFIG_KEYS) {
-                if (data.hasKey(key)) {
+                if (!key.equals("Level") && data.hasKey(key)) {
                     currentNbt.setTag(key, data.getTag(key));
                 }
             }
 
-            // 处理 augment
+            // 4. 处理 augment（在 level 更新后，槽位数量正确）
             if (data.hasKey("Augments")) {
                 PasteResult augmentResult = applyAugments(tile, data.getTagList("Augments", 10), player);
                 if (augmentResult != PasteResult.SUCCESS) {
                     return augmentResult;
                 }
-                // 保留 Augments 在 currentNbt 中，让 readFromNBT 处理基类状态
                 currentNbt.setTag("Augments", data.getTag("Augments"));
             }
 
-            // 调用 readFromNBT 恢复配置（不含 Level）
+            // 5. 调用 readFromNBT 恢复配置
             tile.readFromNBT(currentNbt);
 
-            // 更新 augment 状态（如果存在该方法）
+            // 6. 更新 augment 状态
             try {
                 Method updateAugmentStatus = tile.getClass().getMethod("updateAugmentStatus");
                 updateAugmentStatus.invoke(tile);
             } catch (NoSuchMethodException e) {
-                // 某些 TE 设备可能没有此方法
+                // 某些设备无此方法
             }
 
             tile.markDirty();
@@ -129,15 +136,106 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * 手动处理 augment 的粘贴：
-     * 1. 读取源 augment 列表
-     * 2. 弹出目标现有 augment 并返还给玩家
-     * 3. 验证并消耗玩家背包中的 augment
-     * 4. 通过反射设置 augments 字段，并触发安装流程
+     * 处理 Level 升级：消耗 Upgrade Kit / Conversion Kit，然后设置 level。
      */
+    private PasteResult applyLevelUpgrade(TileEntity tile, byte sourceLevel, EntityPlayer player) {
+        try {
+            int targetLevel = getCurrentLevel(tile);
+            if (sourceLevel <= targetLevel) {
+                return PasteResult.SUCCESS; // 无需升级或降级
+            }
+
+            initUpgradeKits();
+
+            int levelsNeeded = sourceLevel - targetLevel;
+
+            // 策略1：尝试使用 Full Conversion Kit 直接跳到目标 level
+            if (UPGRADE_FULL != null && sourceLevel < UPGRADE_FULL.length) {
+                ItemStack fullKit = UPGRADE_FULL[sourceLevel];
+                if (fullKit != null && !fullKit.isEmpty()
+                        && MemoryCardUpgradeHelper.countInInventory(player, fullKit) >= 1) {
+                    MemoryCardUpgradeHelper.consumeFromInventory(player, fullKit);
+                    setLevel(tile, sourceLevel);
+                    return PasteResult.SUCCESS;
+                }
+            }
+
+            // 策略2：使用 Incremental Upgrade Kit 逐级升级
+            if (UPGRADE_INCREMENTAL != null) {
+                for (int i = targetLevel; i < sourceLevel; i++) {
+                    if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
+                    ItemStack incKit = UPGRADE_INCREMENTAL[i];
+                    if (incKit == null || incKit.isEmpty()) {
+                        return PasteResult.MISSING_UPGRADES;
+                    }
+                    if (MemoryCardUpgradeHelper.countInInventory(player, incKit) < 1) {
+                        return PasteResult.MISSING_UPGRADES;
+                    }
+                }
+                // 消耗
+                for (int i = targetLevel; i < sourceLevel; i++) {
+                    if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
+                    ItemStack incKit = UPGRADE_INCREMENTAL[i];
+                    MemoryCardUpgradeHelper.consumeFromInventory(player, incKit);
+                }
+                setLevel(tile, sourceLevel);
+                return PasteResult.SUCCESS;
+            }
+
+            return PasteResult.MISSING_UPGRADES;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to apply TE level upgrade", e);
+            return PasteResult.FAILED;
+        }
+    }
+
+    private void initUpgradeKits() {
+        if (UPGRADE_INCREMENTAL != null) return;
+        try {
+            Class<?> itemUpgradeClass = Class.forName("cofh.thermalfoundation.item.ItemUpgrade");
+            Field incField = itemUpgradeClass.getField("upgradeIncremental");
+            Field fullField = itemUpgradeClass.getField("upgradeFull");
+            UPGRADE_INCREMENTAL = (ItemStack[]) incField.get(null);
+            UPGRADE_FULL = (ItemStack[]) fullField.get(null);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Could not load Thermal Foundation upgrade kits", e);
+        }
+    }
+
+    private int getCurrentLevel(TileEntity tile) {
+        try {
+            Field levelField = findFieldInHierarchy(tile.getClass(), "level");
+            if (levelField != null) {
+                levelField.setAccessible(true);
+                return levelField.getInt(tile);
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Could not get TE level", e);
+        }
+        return 0;
+    }
+
+    private void setLevel(TileEntity tile, int level) {
+        try {
+            Method setLevel = findMethodInHierarchy(tile.getClass(), "setLevel", int.class);
+            if (setLevel != null) {
+                setLevel.setAccessible(true);
+                setLevel.invoke(tile, level);
+                return;
+            }
+            // fallback: 直接写字段
+            Field levelField = findFieldInHierarchy(tile.getClass(), "level");
+            if (levelField != null) {
+                levelField.setAccessible(true);
+                levelField.setInt(tile, level);
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Could not set TE level", e);
+        }
+    }
+
     private PasteResult applyAugments(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
         try {
-            // 解析源 augment 列表
             java.util.List<ItemStack> neededAugments = new java.util.ArrayList<>();
             for (int i = 0; i < sourceAugments.tagCount(); i++) {
                 NBTTagCompound tag = sourceAugments.getCompoundTagAt(i);
@@ -151,13 +249,12 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 return PasteResult.SUCCESS;
             }
 
-            // 获取 augment 槽位数
             int targetSlots = getNumAugmentSlots(tile);
             if (targetSlots > 0 && neededAugments.size() > targetSlots) {
                 neededAugments = neededAugments.subList(0, targetSlots);
             }
 
-            // 弹出目标现有 augment 并返还给玩家
+            // 弹出目标现有 augment
             ItemStack[] existingAugments = getAugmentsArray(tile);
             if (existingAugments != null) {
                 for (ItemStack aug : existingAugments) {
@@ -169,35 +266,25 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 验证玩家是否有足够的 augment
+            // 验证并消耗 augment
             for (ItemStack needed : neededAugments) {
                 if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
                     return PasteResult.MISSING_UPGRADES;
                 }
             }
-
-            // 消耗 augment
             for (ItemStack needed : neededAugments) {
                 MemoryCardUpgradeHelper.consumeFromInventory(player, needed);
             }
 
-            // 通过反射设置 augments 字段
+            // 设置 augment 数组
             if (existingAugments != null && existingAugments.length > 0) {
-                // 清空现有 augment 数组
                 Arrays.fill(existingAugments, ItemStack.EMPTY);
-
-                // 放入新的 augment
                 for (int i = 0; i < neededAugments.size() && i < existingAugments.length; i++) {
                     existingAugments[i] = neededAugments.get(i).copy();
                 }
-
-                // 触发 augment 安装流程
                 invokeIfExists(tile, "preAugmentInstall");
-                // installAugmentToSlot 通常在循环中调用，但直接设置数组后
-                // 调用 postAugmentInstall 应该足够
                 invokeIfExists(tile, "postAugmentInstall");
             } else {
-                // 回退：尝试 readAugmentsFromNBT
                 NBTTagList augmentList = new NBTTagList();
                 for (int i = 0; i < neededAugments.size(); i++) {
                     NBTTagCompound tag = new NBTTagCompound();
@@ -254,14 +341,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         try {
             Method getNumAugmentSlots = findMethodInHierarchy(tile.getClass(), "getNumAugmentSlots", int.class);
             if (getNumAugmentSlots != null) {
-                int level = 0;
-                try {
-                    Field levelField = findFieldInHierarchy(tile.getClass(), "level");
-                    if (levelField != null) {
-                        levelField.setAccessible(true);
-                        level = levelField.getInt(tile);
-                    }
-                } catch (Exception ignored) {}
+                int level = getCurrentLevel(tile);
                 return (int) getNumAugmentSlots.invoke(tile, level);
             }
         } catch (Exception e) {
