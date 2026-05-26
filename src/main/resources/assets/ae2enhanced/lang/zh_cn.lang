@@ -215,6 +215,7 @@ gui.ae2enhanced.umc.msg.bulk_success=§a▸ 批量粘贴: §a成功 §e%d§a 个
 gui.ae2enhanced.umc.msg.paste_success=§a▸ 配置已粘贴至 §e%s
 gui.ae2enhanced.umc.msg.missing_upgrades=§c▸ 升级卡不足. 需要: §e%s
 gui.ae2enhanced.umc.msg.invalid_machine=§c▸ 设备类型不匹配
+gui.ae2enhanced.umc.msg.crafting_requested=§e▸ ME 网络正在合成缺少的物品，请稍后重试
 gui.ae2enhanced.umc.msg.paste_failed=§c▸ 粘贴失败
 gui.ae2enhanced.umc.msg.deselect=§e▸ 已取消选取
 gui.ae2enhanced.umc.msg.select_part=§a▸ 已选取 Part

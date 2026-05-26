@@ -217,6 +217,7 @@ gui.ae2enhanced.umc.msg.bulk_success=§a▸ Bulk paste: §aSuccess §e%d§a, §c
 gui.ae2enhanced.umc.msg.paste_success=§a▸ Configuration pasted to §e%s
 gui.ae2enhanced.umc.msg.missing_upgrades=§c▸ Insufficient upgrades. Required: §e%s
 gui.ae2enhanced.umc.msg.invalid_machine=§c▸ Device type mismatch
+gui.ae2enhanced.umc.msg.crafting_requested=§e▸ Missing items are being crafted by the ME network, please retry later
 gui.ae2enhanced.umc.msg.paste_failed=§c▸ Paste failed
 gui.ae2enhanced.umc.msg.deselect=§e▸ Deselected
 gui.ae2enhanced.umc.msg.select_part=§a▸ Selected Part

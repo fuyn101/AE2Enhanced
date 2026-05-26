@@ -2,15 +2,23 @@ package com.github.aeddddd.ae2enhanced.util.memorycard;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.crafting.ICraftingCallback;
+import appeng.api.networking.crafting.ICraftingGrid;
+import appeng.api.networking.crafting.ICraftingJob;
+import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.util.AEPartLocation;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
+import com.google.common.collect.ImmutableSet;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -18,11 +26,14 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 通用内存卡升级槽序列化与粘贴的公共辅助方法。
@@ -128,18 +139,51 @@ public class MemoryCardUpgradeHelper {
             IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             PlayerSource source = new PlayerSource(player, null);
+            ICraftingGrid craftingGrid = grid.getCache(ICraftingGrid.class);
 
-            // 模拟提取，确保网络库存足够
+            List<ItemStack> stillMissing = new ArrayList<>();
+            List<ItemStack> craftable = new ArrayList<>();
+
+            // 模拟提取，分类：可直接提取 vs 需要合成
             for (ItemStack deficit : missing) {
                 AEItemStack want = AEItemStack.fromItemStack(deficit);
                 IAEItemStack sim = inv.extractItems(want, Actionable.SIMULATE, source);
-                if (sim == null || sim.getStackSize() < deficit.getCount()) {
-                    return false;
+                if (sim != null && sim.getStackSize() >= deficit.getCount()) {
+                    // 网络有足够库存，直接提取
+                    continue;
+                }
+
+                long available = sim != null ? sim.getStackSize() : 0;
+                int needCount = deficit.getCount() - (int) available;
+                if (needCount > 0) {
+                    ItemStack need = deficit.copy();
+                    need.setCount(needCount);
+
+                    // 检查是否能合成
+                    if (craftingGrid != null && craftingGrid.canEmitFor(AEItemStack.fromItemStack(need))) {
+                        craftable.add(need);
+                    } else {
+                        stillMissing.add(need);
+                    }
                 }
             }
 
-            // 实际提取
+            // 如果有无法合成也无法提取的物品，直接失败
+            if (!stillMissing.isEmpty()) {
+                return false;
+            }
+
+            // 尝试为可合成的物品发起合成请求
+            boolean craftingRequested = false;
+            if (!craftable.isEmpty() && craftingGrid != null) {
+                craftingRequested = requestCrafting(player, world, grid, source, craftingGrid, craftable, transmitter);
+            }
+
+            // 实际提取可直接获取的物品
             for (ItemStack deficit : missing) {
+                if (craftable.stream().anyMatch(c -> ItemStack.areItemsEqual(c, deficit) && ItemStack.areItemStackTagsEqual(c, deficit))) {
+                    continue; // 跳过需要合成的物品
+                }
                 AEItemStack want = AEItemStack.fromItemStack(deficit);
                 IAEItemStack extracted = inv.extractItems(want, Actionable.MODULATE, source);
                 if (extracted != null && extracted.getStackSize() > 0) {
@@ -149,11 +193,78 @@ public class MemoryCardUpgradeHelper {
                     }
                 }
             }
-            return true;
+
+            if (craftingRequested) {
+                // 发送消息提示玩家已请求合成
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.crafting_requested"));
+            }
+
+            // 如果还有需要合成的物品，返回 false（物品未实际到账）
+            return !craftingRequested;
         } catch (GridAccessException e) {
             AE2Enhanced.LOGGER.debug("[AE2E] UMC bound transmitter grid not accessible at {}", pos);
             return false;
         }
+    }
+
+    private static boolean requestCrafting(EntityPlayer player, World world, appeng.api.networking.IGrid grid,
+                                           PlayerSource source, ICraftingGrid craftingGrid,
+                                           List<ItemStack> toCraft, TileWirelessChannelTransmitter transmitter) {
+        boolean anyRequested = false;
+
+        ICraftingRequester requester = new ICraftingRequester() {
+            @Override
+            public IGridNode getActionableNode() {
+                return transmitter.getProxy().getNode();
+            }
+
+            @Override
+            public ImmutableSet<ICraftingLink> getRequestedJobs() {
+                return ImmutableSet.of();
+            }
+
+            @Override
+            public IAEItemStack injectCraftedItems(ICraftingLink link, IAEItemStack items, Actionable mode) {
+                return items;
+            }
+
+            @Override
+            public void jobStateChange(ICraftingLink link) {
+            }
+        };
+
+        for (ItemStack stack : toCraft) {
+            try {
+                IAEItemStack want = AEItemStack.fromItemStack(stack);
+                Future<ICraftingJob> future = craftingGrid.beginCraftingJob(world, grid, source, want, new ICraftingCallback() {
+                    @Override
+                    public void calculationComplete(ICraftingJob job) {
+                        // 同步回调中提交合成
+                        try {
+                            craftingGrid.submitJob(job, requester, null, false, source);
+                        } catch (Exception e) {
+                            AE2Enhanced.LOGGER.debug("[AE2E] Failed to submit crafting job", e);
+                        }
+                    }
+                });
+
+                // 短暂等待计算完成
+                ICraftingJob job = future.get(200, TimeUnit.MILLISECONDS);
+                if (job != null) {
+                    ICraftingLink link = craftingGrid.submitJob(job, requester, null, false, source);
+                    if (link != null) {
+                        anyRequested = true;
+                    }
+                }
+            } catch (java.util.concurrent.TimeoutException e) {
+                // 计算超时，但异步回调可能仍会提交
+                anyRequested = true;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Crafting request failed for {}", stack.getDisplayName(), e);
+            }
+        }
+
+        return anyRequested;
     }
 
     public static int countInInventory(EntityPlayer player, ItemStack stack) {

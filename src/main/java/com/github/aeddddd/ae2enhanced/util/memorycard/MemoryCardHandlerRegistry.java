@@ -27,6 +27,10 @@ public class MemoryCardHandlerRegistry {
     public static void init() {
         register(new AE2PartHandler());
         register(new AE2TileHandler());
+        register(new MekanismMachineHandler());
+        register(new EnderIOMachineHandler());
+        register(new EnderIOConduitHandler());
+        register(new ThermalExpansionMachineHandler());
         register(new AE2EnhancedHandler());
     }
 }
