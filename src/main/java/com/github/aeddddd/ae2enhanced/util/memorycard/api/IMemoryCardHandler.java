@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.api;
 
-import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 

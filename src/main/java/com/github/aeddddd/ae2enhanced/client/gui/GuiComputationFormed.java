@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
-import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import net.minecraft.client.gui.GuiScreen;

@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.integration.crafttweaker;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import crafttweaker.CraftTweakerAPI;

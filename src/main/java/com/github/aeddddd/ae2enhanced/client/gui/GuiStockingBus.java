@@ -2,10 +2,7 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 
 import appeng.client.gui.implementations.GuiUpgradeable;
 import appeng.client.gui.widgets.ITooltip;
-import appeng.container.slot.SlotFake;
 import appeng.core.localization.GuiText;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketConfigButton;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;

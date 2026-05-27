@@ -1,7 +1,5 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.ae2;
 
-import appeng.api.storage.IMEInventory;
-import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.tile.storage.TileIOPort;
@@ -10,9 +8,7 @@ import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * E2a：防止流体/气体/源质假物品在 IO Port 传输时被计数为真实物品。

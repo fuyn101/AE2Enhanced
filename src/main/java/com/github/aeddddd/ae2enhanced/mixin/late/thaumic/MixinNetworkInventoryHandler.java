@@ -11,7 +11,6 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.me.cache.SecurityCache;
 import appeng.me.storage.NetworkInventoryHandler;
-import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import org.spongepowered.asm.mixin.Mixin;

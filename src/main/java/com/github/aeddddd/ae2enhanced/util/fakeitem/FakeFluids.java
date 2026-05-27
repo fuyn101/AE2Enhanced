@@ -1,8 +1,5 @@
 package com.github.aeddddd.ae2enhanced.util.fakeitem;
 
-import appeng.api.AEApi;
-import appeng.api.storage.channels.IFluidStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.fluids.util.AEFluidStack;

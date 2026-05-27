@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
 import appeng.me.helpers.PlayerSource;

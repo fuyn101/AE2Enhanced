@@ -1,7 +1,5 @@
 package com.github.aeddddd.ae2enhanced.crafting;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

@@ -19,7 +19,6 @@ import appeng.client.ActionKey;
 import appeng.core.AEConfig;
 import appeng.core.AppEng;
 import appeng.core.localization.GuiText;
-import appeng.util.IConfigManagerHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
@@ -39,7 +38,6 @@ import org.lwjgl.input.Mouse;
 
 import java.lang.reflect.Field;
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * 全能无线终端 GUI —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储

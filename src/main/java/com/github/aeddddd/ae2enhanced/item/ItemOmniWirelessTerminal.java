@@ -10,7 +10,6 @@ import appeng.core.localization.PlayerMessages;
 import appeng.util.ConfigManager;
 import appeng.api.util.IConfigManager;
 import appeng.core.AEConfig;
-import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.items.tools.powered.powersink.AEBasePoweredItem;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;

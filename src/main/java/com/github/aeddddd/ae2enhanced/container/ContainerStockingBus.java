@@ -1,15 +1,12 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.config.FuzzyMode;
-import appeng.api.config.RedstoneMode;
-import appeng.api.config.SchedulingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
 import appeng.api.config.YesNo;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerUpgradeable;
 import appeng.container.slot.IOptionalSlotHost;
-import appeng.container.slot.SlotRestrictedInput;
 import com.github.aeddddd.ae2enhanced.container.slot.OptionalSlotStockingConfig;
 import com.github.aeddddd.ae2enhanced.container.slot.SlotStockingConfig;
 import appeng.helpers.InventoryAction;

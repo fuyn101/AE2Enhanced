@@ -1,8 +1,6 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.api.config.FuzzyMode;
-import appeng.api.config.RedstoneMode;
-import appeng.api.config.SchedulingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
 import appeng.api.config.YesNo;

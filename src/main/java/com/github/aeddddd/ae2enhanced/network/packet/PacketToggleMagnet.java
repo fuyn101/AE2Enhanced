@@ -1,7 +1,5 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.util.Platform;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalData;
@@ -9,9 +7,7 @@ import com.github.aeddddd.ae2enhanced.storage.OmniTerminalInventory;
 import com.github.aeddddd.ae2enhanced.storage.OmniTerminalStorage;
 import com.github.aeddddd.ae2enhanced.util.OmniTerminalFinder;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;

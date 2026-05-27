@@ -4,16 +4,11 @@ import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.client.me.ItemRepo;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.proxy.ClientProxy;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.IIngredientListOverlay;
 import mezz.jei.api.IBookmarkOverlay;
-import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

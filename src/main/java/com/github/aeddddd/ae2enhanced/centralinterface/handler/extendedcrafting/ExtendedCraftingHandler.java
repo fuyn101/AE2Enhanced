@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
-import net.minecraft.block.Block;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -11,7 +10,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.IItemHandlerModifiable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

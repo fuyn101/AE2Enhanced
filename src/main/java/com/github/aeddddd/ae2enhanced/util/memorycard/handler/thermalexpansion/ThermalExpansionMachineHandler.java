@@ -1,5 +1,4 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.handler.thermalexpansion;
-import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
 import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemStackArrayUpgradeAdapter;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;

@@ -3,11 +3,9 @@ package com.github.aeddddd.ae2enhanced.container;
 import appeng.container.AEBaseContainer;
 import appeng.container.slot.AppEngSlot;
 import appeng.util.Platform;
-import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.ItemStack;
 
 /**
  * F1a：无线频道发生器 GUI 的 Container。

@@ -14,7 +14,6 @@ import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEPartLocation;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.item.AEItemStack;

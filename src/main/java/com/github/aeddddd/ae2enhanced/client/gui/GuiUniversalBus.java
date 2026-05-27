@@ -4,7 +4,6 @@ import appeng.client.gui.implementations.GuiUpgradeable;
 import appeng.container.slot.SlotFake;
 import appeng.core.localization.GuiText;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiBusModeButton;
 import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.container.AbstractUniversalBusContainer;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUniversalBusConfig;

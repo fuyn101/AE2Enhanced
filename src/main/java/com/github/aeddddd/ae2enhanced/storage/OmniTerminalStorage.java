@@ -1,14 +1,7 @@
 package com.github.aeddddd.ae2enhanced.storage;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * 单个 Omni Terminal 的全部持久化数据。

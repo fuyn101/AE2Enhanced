@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
-import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;

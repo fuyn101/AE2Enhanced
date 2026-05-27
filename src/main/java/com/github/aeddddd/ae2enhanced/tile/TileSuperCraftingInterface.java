@@ -1,16 +1,6 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.api.util.DimensionalCoord;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.me.helpers.IGridProxyable;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
-
-import javax.annotation.Nonnull;
 
 /**
  * 超因果合成接口 TileEntity。

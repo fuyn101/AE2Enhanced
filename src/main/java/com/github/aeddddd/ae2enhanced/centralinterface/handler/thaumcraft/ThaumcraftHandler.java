@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.player.EntityPlayer;
@@ -26,7 +25,6 @@ import thaumcraft.api.crafting.InfusionRecipe;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

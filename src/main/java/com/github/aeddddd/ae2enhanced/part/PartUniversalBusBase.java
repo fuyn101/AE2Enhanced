@@ -13,7 +13,6 @@ import appeng.api.parts.IPartCollisionHelper;
 import appeng.api.parts.IPartModel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
 import appeng.api.config.FuzzyMode;
 import appeng.core.settings.TickRates;
 import appeng.me.GridAccessException;

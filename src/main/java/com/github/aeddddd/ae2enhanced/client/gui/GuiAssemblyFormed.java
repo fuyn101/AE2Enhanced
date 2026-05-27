@@ -2,8 +2,6 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiColors;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiTechPanel;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.gui.GuiButton;

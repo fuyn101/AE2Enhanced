@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
-import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualCraftingHandler;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;

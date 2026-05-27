@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
@@ -13,7 +12,6 @@ import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.ingredients.IIngredientBlacklist;
 import mezz.jei.api.ingredients.IIngredientRegistry;
 import mezz.jei.api.recipe.IRecipeCategoryRegistration;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import net.minecraft.item.ItemStack;
 
 import java.util.ArrayList;

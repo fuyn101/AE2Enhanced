@@ -5,7 +5,6 @@ import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.init.Blocks;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -13,7 +12,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.oredict.OreDictionary;
 import vazkii.botania.api.BotaniaAPI;
 import vazkii.botania.api.recipe.RecipeElvenTrade;
@@ -32,7 +30,6 @@ import vazkii.botania.common.item.ModItems;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import net.minecraftforge.items.IItemHandlerModifiable;
 

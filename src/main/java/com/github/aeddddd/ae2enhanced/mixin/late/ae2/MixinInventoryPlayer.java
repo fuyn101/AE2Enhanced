@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.ae2;
 
-import com.github.aeddddd.ae2enhanced.item.AbstractNbtDrop;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;

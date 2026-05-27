@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.util.fakeitem;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
-import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.item.ItemStack;
 import thaumicenergistics.api.EssentiaStack;

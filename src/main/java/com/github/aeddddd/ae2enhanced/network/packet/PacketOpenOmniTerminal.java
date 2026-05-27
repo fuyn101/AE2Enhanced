@@ -2,10 +2,8 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
-import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.util.OmniTerminalFinder;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;

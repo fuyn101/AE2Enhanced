@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.client.render;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;

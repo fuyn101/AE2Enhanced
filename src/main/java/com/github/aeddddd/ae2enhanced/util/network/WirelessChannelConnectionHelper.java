@@ -8,7 +8,6 @@ import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.parts.automation.PartUpgradeable;
-import appeng.tile.misc.TileInterface;
 import appeng.util.Platform;
 import appeng.util.inv.IAEAppEngInventory;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
