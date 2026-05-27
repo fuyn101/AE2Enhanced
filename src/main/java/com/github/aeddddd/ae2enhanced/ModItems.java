@@ -7,6 +7,8 @@ import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.item.ItemPartStockingBus;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemPartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.item.ItemStableSpacetimeManifold;
@@ -33,6 +35,8 @@ public class ModItems {
     public static com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard UNIVERSAL_MEMORY_CARD;
     public static ItemOmniWirelessTerminal OMNI_WIRELESS_TERMINAL;
     public static ItemOmniUpgradeCard OMNI_UPGRADE_CARD;
+    public static ItemSmartBlankPattern SMART_BLANK_PATTERN;
+    public static ItemSmartPattern SMART_PATTERN;
 
     public static void init() {
         UPGRADE_CARD = new ItemUpgradeCard();
@@ -61,6 +65,8 @@ public class ModItems {
         UNIVERSAL_MEMORY_CARD = new com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard();
         OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
         OMNI_UPGRADE_CARD = new ItemOmniUpgradeCard();
+        SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
+        SMART_PATTERN = new ItemSmartPattern();
     }
 
     @SubscribeEvent
@@ -83,5 +89,7 @@ public class ModItems {
         event.getRegistry().register(UNIVERSAL_MEMORY_CARD);
         event.getRegistry().register(OMNI_WIRELESS_TERMINAL);
         event.getRegistry().register(OMNI_UPGRADE_CARD);
+        event.getRegistry().register(SMART_BLANK_PATTERN);
+        event.getRegistry().register(SMART_PATTERN);
     }
 }

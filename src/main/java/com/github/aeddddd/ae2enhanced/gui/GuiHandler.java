@@ -61,6 +61,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_UNIVERSAL_MEMORY_CARD = 10;
     public static final int GUI_OMNI_TERMINAL = 11;
     public static final int GUI_CENTRAL_ME_INTERFACE = 12;
+    public static final int GUI_SMART_PATTERN_INTERFACE = 13;
 
     /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -177,6 +178,11 @@ public class GuiHandler implements IGuiHandler {
                 return new com.github.aeddddd.ae2enhanced.container.ContainerCentralInterface(player.inventory, (TileCentralMEInterface) te);
             }
         }
+        if (ID == GUI_SMART_PATTERN_INTERFACE) {
+            if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) {
+                return new com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface(player.inventory, (com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) te);
+            }
+        }
 
         return null;
     }
@@ -272,6 +278,11 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_CENTRAL_ME_INTERFACE) {
             if (te instanceof TileCentralMEInterface) {
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiCentralInterface(player.inventory, (TileCentralMEInterface) te);
+            }
+        }
+        if (ID == GUI_SMART_PATTERN_INTERFACE) {
+            if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) {
+                return new com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface(player.inventory, (com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) te);
             }
         }
 
