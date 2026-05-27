@@ -517,8 +517,10 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                     return PasteResult.FAILED;
                 }
 
+                // 升级后 block 被替换，重新获取 tile
+                // 注意：TileEntityFactory 没有显式实现 ITierUpgradeable，因此不能检查 isInstance
                 TileEntity newTile = player.world.getTileEntity(tile.getPos());
-                if (newTile == null || !TIER_UPGRADEABLE_CLASS.isInstance(newTile)) {
+                if (newTile == null) {
                     return PasteResult.FAILED;
                 }
                 tile = newTile;
