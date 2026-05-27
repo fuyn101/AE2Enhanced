@@ -102,6 +102,11 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
+            // Level 改变后 augment slot 数量可能变化，必须关闭已打开的 GUI，否则客户端容器 slot 数量不匹配会崩溃
+            if (getCurrentLevel(tile) != originalLevel) {
+                closeOpenGUIs(tile);
+            }
+
             // 2. 获取当前完整 NBT（level 已更新）
             NBTTagCompound currentNbt = tile.writeToNBT(new NBTTagCompound());
 
@@ -423,7 +428,9 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
             try {
-                return current.getDeclaredMethod(name, paramTypes);
+                Method m = current.getDeclaredMethod(name, paramTypes);
+                m.setAccessible(true);
+                return m;
             } catch (NoSuchMethodException e) {
                 current = current.getSuperclass();
             }
@@ -435,12 +442,44 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
             try {
-                return current.getDeclaredField(name);
+                Field f = current.getDeclaredField(name);
+                f.setAccessible(true);
+                return f;
             } catch (NoSuchFieldException e) {
                 current = current.getSuperclass();
             }
         }
         return null;
+    }
+
+    /**
+     * 强制关闭所有与该 TileEntity 关联的 GUI。
+     * TE 机器升级 level 后 augment slot 数量会变化，已打开的 Container 不会自动重建，
+     * 若继续同步 SPacketWindowItems 会导致客户端 IndexOutOfBoundsException。
+     */
+    private void closeOpenGUIs(TileEntity tile) {
+        if (tile.getWorld() == null) return;
+        for (EntityPlayer player : tile.getWorld().playerEntities) {
+            if (player.openContainer == null || player.openContainer == player.inventoryContainer) continue;
+            for (Object slotObj : player.openContainer.inventorySlots) {
+                if (slotObj instanceof net.minecraft.inventory.Slot) {
+                    net.minecraft.inventory.Slot slot = (net.minecraft.inventory.Slot) slotObj;
+                    if (slot.inventory == tile) {
+                        player.closeScreen();
+                        break;
+                    }
+                    // Forge IItemHandler slot（如 SlotItemHandler）
+                    try {
+                        java.lang.reflect.Method m = slot.getClass().getMethod("getItemHandler");
+                        Object handler = m.invoke(slot);
+                        if (handler == tile) {
+                            player.closeScreen();
+                            break;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
     }
 
     private boolean isCompatible(String sourceType, String targetType) {
