@@ -253,6 +253,11 @@ gui.ae2enhanced.smart_pattern_interface.recipe_count=配方: %d / %d 已启用
 tooltip.ae2enhanced.smart_pattern.bound_to=§7绑定目标: §f%s
 tooltip.ae2enhanced.smart_pattern.recipe_count=§7配方数量: §f%d
 
+gui.ae2enhanced.smart_pattern_interface.prev_page=上一页
+gui.ae2enhanced.smart_pattern_interface.next_page=下一页
+gui.ae2enhanced.smart_pattern_interface.keep_primary=只保留主产物
+gui.ae2enhanced.smart_pattern_interface.double_amounts=翻倍数量
+
 # Omni 终端升级卡
 item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡
 item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§l高级磁引卡 §r§8[类型: 磁引]

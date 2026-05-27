@@ -175,5 +175,27 @@ key.ae2enhanced.openOmniTerminal=Open Omni Terminal
 key.ae2enhanced.toggleMagnet=Toggle Magnet Card
 
 message.ae2enhanced.magnet.off=§cMagnet: OFF
+
+tile.ae2enhanced.smart_pattern_interface.name=Интерфейс интеллектуальных шаблонов
+item.ae2enhanced.smart_blank_pattern.name=Пустой интеллектуальный шаблон
+item.ae2enhanced.smart_pattern.name=Интеллектуальный шаблон
+
+gui.ae2enhanced.smart_pattern_interface.title=Интерфейс интеллектуальных шаблонов
+gui.ae2enhanced.smart_pattern_interface.bound_to=Привязан к: %s
+gui.ae2enhanced.smart_pattern_interface.no_target=§cНет привязанной цели
+gui.ae2enhanced.smart_pattern_interface.encode_tooltip=Закодировать шаблон
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=Невозможно закодировать: обнаружены конфликты
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=Невозможно закодировать: рецепты не загружены
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=Невозможно закодировать: вставьте пустой интеллектуальный шаблон
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=Невозможно закодировать: выходной слот занят
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7Отключено (нажмите для включения)
+gui.ae2enhanced.smart_pattern_interface.conflict_marker=§cКонфликт — одинаковый выход с другим рецептом
+gui.ae2enhanced.smart_pattern_interface.recipe_count=Рецептов: %d / %d включено
+gui.ae2enhanced.smart_pattern_interface.prev_page=Предыдущая страница
+gui.ae2enhanced.smart_pattern_interface.next_page=Следующая страница
+gui.ae2enhanced.smart_pattern_interface.keep_primary=Оставить только основной продукт
+gui.ae2enhanced.smart_pattern_interface.double_amounts=Удвоить все количества
+tooltip.ae2enhanced.smart_pattern.bound_to=§7Привязан к: §f%s
+tooltip.ae2enhanced.smart_pattern.recipe_count=§7Количество рецептов: §f%d
 message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode

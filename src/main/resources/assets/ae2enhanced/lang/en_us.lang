@@ -255,6 +255,11 @@ gui.ae2enhanced.smart_pattern_interface.recipe_count=Recipes: %d / %d enabled
 tooltip.ae2enhanced.smart_pattern.bound_to=§7Bound to: §f%s
 tooltip.ae2enhanced.smart_pattern.recipe_count=§7Recipes: §f%d
 
+gui.ae2enhanced.smart_pattern_interface.prev_page=Previous Page
+gui.ae2enhanced.smart_pattern_interface.next_page=Next Page
+gui.ae2enhanced.smart_pattern_interface.keep_primary=Keep Only Primary Output
+gui.ae2enhanced.smart_pattern_interface.double_amounts=Double All Amounts
+
 # Omni Terminal Upgrade Cards
 item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card
 item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§lAdvanced Magnet Card §r§8[Type: Magnet]

@@ -51,6 +51,50 @@ public class SmartRecipe {
         return null;
     }
 
+    public void setInput(int index, @Nullable IAEItemStack stack) {
+        if (index >= 0 && index < inputs.length) {
+            inputs[index] = stack;
+        }
+    }
+
+    public void setOutput(int index, @Nullable IAEItemStack stack) {
+        if (index >= 0 && index < outputs.length) {
+            outputs[index] = stack;
+        }
+    }
+
+    /**
+     * 只保留主输出，清空其他输出。
+     */
+    public void keepPrimary() {
+        IAEItemStack primary = getPrimaryOutput();
+        for (int i = 0; i < outputs.length; i++) {
+            outputs[i] = null;
+        }
+        if (primary != null && outputs.length > 0) {
+            outputs[0] = primary.copy();
+            outputs[0].setStackSize(primary.getStackSize());
+        }
+    }
+
+    /**
+     * 所有输入输出数量翻倍，上限 Integer.MAX_VALUE。
+     */
+    public void doubleAmounts() {
+        for (int i = 0; i < inputs.length; i++) {
+            if (inputs[i] != null) {
+                long newSize = inputs[i].getStackSize() * 2L;
+                inputs[i].setStackSize(newSize > Integer.MAX_VALUE ? Integer.MAX_VALUE : newSize);
+            }
+        }
+        for (int i = 0; i < outputs.length; i++) {
+            if (outputs[i] != null) {
+                long newSize = outputs[i].getStackSize() * 2L;
+                outputs[i].setStackSize(newSize > Integer.MAX_VALUE ? Integer.MAX_VALUE : newSize);
+            }
+        }
+    }
+
     /**
      * 序列化为 NBT。
      */

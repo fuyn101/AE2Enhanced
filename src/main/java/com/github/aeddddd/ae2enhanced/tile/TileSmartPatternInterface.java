@@ -1,8 +1,11 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import appeng.api.storage.data.IAEItemStack;
+import appeng.util.item.AEItemStack;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternStorageFile;
+import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import net.minecraft.entity.player.EntityPlayer;
@@ -13,13 +16,9 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.items.ItemStackHandler;
 
-import appeng.api.storage.data.IAEItemStack;
-import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.BitSet;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -31,6 +30,7 @@ import java.util.UUID;
  *   <li>管理 SmartPatternData（配方列表、冲突/禁用掩码）</li>
  *   <li>提供样板输入槽和输出槽（通过 ItemStackHandler）</li>
  *   <li>处理编码逻辑（空白样板 → 编码后样板）</li>
+ *   <li>MiniGUI 编辑：锁定配方后可修改输入输出</li>
  * </ul>
  *
  * <p>注意：不接入 ME 网络，纯手动配置终端。</p>
@@ -53,8 +53,35 @@ public class TileSmartPatternInterface extends TileEntity {
     @Nullable
     private SmartPatternData patternData;
 
-    // 配方显示滚动偏移（0 = 显示前45个配方）
+    // 配方显示页码（0 = 第1页，每页45个配方）
     private int scrollOffset = 0;
+
+    // 锁定配方的排序索引（-1 = 未锁定）
+    private int lockedRecipeIndex = -1;
+
+    // MiniGUI 滚动偏移
+    private int miniGuiInputScroll = 0;
+    private int miniGuiOutputScroll = 0;
+
+    // 防止 onContentsChanged 递归
+    private boolean isUpdatingMiniGui = false;
+
+    // MiniGUI 物品栏：前9=输入，后9=输出
+    private final ItemStackHandler miniGuiInventory = new ItemStackHandler(18) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            if (!isUpdatingMiniGui && world != null && !world.isRemote
+                    && lockedRecipeIndex >= 0 && patternData != null) {
+                syncMiniGuiSlotToRecipe(slot);
+            }
+            markDirty();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+            return lockedRecipeIndex >= 0;
+        }
+    };
 
     // 配方显示槽位：45槽 (9列 x 5行)，用于GUI展示配方输出
     private final ItemStackHandler recipeDisplayInventory = new ItemStackHandler(45) {
@@ -113,6 +140,8 @@ public class TileSmartPatternInterface extends TileEntity {
         this.boundDim = dim;
         this.boundBlockId = blockId;
         this.patternData = null; // 重新绑定后清除旧数据
+        this.lockedRecipeIndex = -1;
+        clearMiniGuiInventory();
         markDirty();
         syncToClient();
     }
@@ -122,6 +151,8 @@ public class TileSmartPatternInterface extends TileEntity {
         this.boundDim = Integer.MIN_VALUE;
         this.boundBlockId = "";
         this.patternData = null;
+        this.lockedRecipeIndex = -1;
+        clearMiniGuiInventory();
         markDirty();
         syncToClient();
     }
@@ -135,6 +166,8 @@ public class TileSmartPatternInterface extends TileEntity {
 
     public void setPatternData(@Nullable SmartPatternData data) {
         this.patternData = data;
+        this.lockedRecipeIndex = -1;
+        clearMiniGuiInventory();
         markDirty();
     }
 
@@ -188,20 +221,150 @@ public class TileSmartPatternInterface extends TileEntity {
         return inventory;
     }
 
+    @Nonnull
+    public ItemStackHandler getMiniGuiInventory() {
+        return miniGuiInventory;
+    }
+
     public int getScrollOffset() {
         return scrollOffset;
     }
 
     public void setScrollOffset(int scrollOffset) {
-        if (this.scrollOffset != scrollOffset) {
-            this.scrollOffset = Math.max(0, scrollOffset);
+        int maxPage = getMaxPage();
+        int newOffset = Math.max(0, Math.min(maxPage, scrollOffset));
+        if (this.scrollOffset != newOffset) {
+            this.scrollOffset = newOffset;
             updateRecipeDisplay();
             markDirty();
         }
     }
 
+    private int getMaxPage() {
+        if (patternData == null) return 0;
+        return Math.max(0, (patternData.getRecipeCount() - 1) / 45);
+    }
+
+    // ---- 锁定与 MiniGUI ----
+
+    public int getLockedRecipeIndex() {
+        return lockedRecipeIndex;
+    }
+
+    public boolean isRecipeLocked(int sortedIndex) {
+        return lockedRecipeIndex == sortedIndex;
+    }
+
+    public void lockRecipe(int sortedIndex) {
+        if (patternData == null) return;
+        this.lockedRecipeIndex = sortedIndex;
+        updateMiniGuiFromRecipe();
+        markDirty();
+        syncToClient();
+    }
+
+    public void unlockRecipe() {
+        this.lockedRecipeIndex = -1;
+        clearMiniGuiInventory();
+        markDirty();
+        syncToClient();
+    }
+
+    public void modifyLockedRecipe(@Nonnull String action) {
+        if (lockedRecipeIndex < 0 || patternData == null) return;
+        int original = patternData.getDisplayIndex(lockedRecipeIndex);
+        if (original < 0) return;
+        patternData.modifyRecipe(lockedRecipeIndex, action);
+        updateMiniGuiFromRecipe();
+        updateRecipeDisplay();
+        markDirty();
+        syncToClient();
+    }
+
+    private void clearMiniGuiInventory() {
+        isUpdatingMiniGui = true;
+        try {
+            for (int i = 0; i < miniGuiInventory.getSlots(); i++) {
+                miniGuiInventory.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        } finally {
+            isUpdatingMiniGui = false;
+        }
+    }
+
+    private void updateMiniGuiFromRecipe() {
+        if (lockedRecipeIndex < 0 || patternData == null) {
+            clearMiniGuiInventory();
+            return;
+        }
+        int original = patternData.getDisplayIndex(lockedRecipeIndex);
+        if (original < 0) {
+            clearMiniGuiInventory();
+            return;
+        }
+        SmartRecipe recipe = patternData.getRecipes().get(original);
+        IAEItemStack[] inputs = recipe.getInputs();
+        IAEItemStack[] outputs = recipe.getOutputs();
+
+        isUpdatingMiniGui = true;
+        try {
+            for (int i = 0; i < 9; i++) {
+                if (i < inputs.length && inputs[i] != null) {
+                    miniGuiInventory.setStackInSlot(i, inputs[i].createItemStack());
+                } else {
+                    miniGuiInventory.setStackInSlot(i, ItemStack.EMPTY);
+                }
+            }
+            for (int i = 0; i < 9; i++) {
+                if (i < outputs.length && outputs[i] != null) {
+                    miniGuiInventory.setStackInSlot(i + 9, outputs[i].createItemStack());
+                } else {
+                    miniGuiInventory.setStackInSlot(i + 9, ItemStack.EMPTY);
+                }
+            }
+        } finally {
+            isUpdatingMiniGui = false;
+        }
+    }
+
+    private void syncMiniGuiSlotToRecipe(int slot) {
+        int original = patternData.getDisplayIndex(lockedRecipeIndex);
+        if (original < 0) return;
+        SmartRecipe recipe = patternData.getRecipes().get(original);
+        ItemStack stack = miniGuiInventory.getStackInSlot(slot);
+        IAEItemStack aeStack = stack.isEmpty() ? null : AEItemStack.fromItemStack(stack);
+        if (slot < 9) {
+            recipe.setInput(slot, aeStack);
+        } else {
+            recipe.setOutput(slot - 9, aeStack);
+        }
+        patternData.detectConflicts();
+        updateRecipeDisplay();
+        syncToClient();
+    }
+
+    public int getMiniGuiInputScroll() {
+        return miniGuiInputScroll;
+    }
+
+    public void setMiniGuiInputScroll(int scroll) {
+        this.miniGuiInputScroll = Math.max(0, scroll);
+        markDirty();
+    }
+
+    public int getMiniGuiOutputScroll() {
+        return miniGuiOutputScroll;
+    }
+
+    public void setMiniGuiOutputScroll(int scroll) {
+        this.miniGuiOutputScroll = Math.max(0, scroll);
+        markDirty();
+    }
+
+    // ---- 配方显示 ----
+
     /**
-     * 根据当前 scrollOffset 和 patternData 更新配方显示槽位。
+     * 根据当前 scrollOffset（页码）和 patternData 更新配方显示槽位。
      */
     public void updateRecipeDisplay() {
         if (patternData == null) {
@@ -211,8 +374,9 @@ public class TileSmartPatternInterface extends TileEntity {
             return;
         }
         int recipeCount = patternData.getRecipeCount();
+        int pageStart = this.scrollOffset * 45;
         for (int i = 0; i < recipeDisplayInventory.getSlots(); i++) {
-            int sortedIndex = this.scrollOffset * 9 + i;
+            int sortedIndex = pageStart + i;
             if (sortedIndex < recipeCount) {
                 SmartRecipe recipe = patternData.getRecipe(sortedIndex);
                 if (recipe != null) {
@@ -270,8 +434,14 @@ public class TileSmartPatternInterface extends TileEntity {
             inventory.deserializeNBT(compound.getCompoundTag("inventory"));
         }
         scrollOffset = compound.getInteger("scrollOffset");
+        lockedRecipeIndex = compound.getInteger("lockedRecipeIndex");
+        miniGuiInputScroll = compound.getInteger("miniGuiInputScroll");
+        miniGuiOutputScroll = compound.getInteger("miniGuiOutputScroll");
         if (compound.hasKey("recipeDisplay")) {
             recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
+        }
+        if (compound.hasKey("miniGuiInventory")) {
+            miniGuiInventory.deserializeNBT(compound.getCompoundTag("miniGuiInventory"));
         }
         // patternData 优先直接反序列化（支持客户端同步），回退到文件加载
         if (compound.hasKey("patternData")) {
@@ -293,7 +463,11 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setString(NBT_BOUND_BLOCK_ID, boundBlockId);
         compound.setTag("inventory", inventory.serializeNBT());
         compound.setInteger("scrollOffset", scrollOffset);
+        compound.setInteger("lockedRecipeIndex", lockedRecipeIndex);
+        compound.setInteger("miniGuiInputScroll", miniGuiInputScroll);
+        compound.setInteger("miniGuiOutputScroll", miniGuiOutputScroll);
         compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
+        compound.setTag("miniGuiInventory", miniGuiInventory.serializeNBT());
         if (patternData != null) {
             compound.setUniqueId(NBT_PATTERN_DATA_ID, patternData.getPatternDataId());
             compound.setTag("patternData", patternData.toNBT());

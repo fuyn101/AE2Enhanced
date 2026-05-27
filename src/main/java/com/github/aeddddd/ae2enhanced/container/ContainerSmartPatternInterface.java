@@ -13,25 +13,37 @@ import net.minecraftforge.items.SlotItemHandler;
 /**
  * 智能样板接口的 Container。
  *
- * 槽位布局（基于 UV 分析报告，已修正）：
- * - 0~44:  配方显示槽位 (9列 x 5行, SlotFake)
- *   行Y: 37, 55, 73, 91, 109
+ * 槽位布局（基于 v2 UV 分析报告）：
+ * - 0~44:   配方显示槽位 (9列 x 5行, SlotFake)
+ *   行Y: 36, 54, 72, 90, 108
  *   列X: 8, 26, 44, 62, 80, 98, 116, 134, 152
- * - 45:    空白样板输入槽 (116, 20) — 原 UV 报告的"左循环"位置
- * - 46:    编码样板输出槽 (152, 20) — 原 UV 报告的"右循环"位置
- * - 47~73: 玩家背包 (3行, Y=141/159/177)
- * - 74~82: 玩家快捷栏 (Y=199)
+ * - 45:     空白样板输入槽 (116, 20)
+ * - 46:     编码样板输出槽 (152, 20)
+ * - 47~73:  玩家背包 (3行, Y=141/159/177)
+ * - 74~82:  玩家快捷栏 (Y=199)
+ * - 83~91:  MiniGUI 输入槽 (3x3, SlotFake)
+ *   行Y: 19, 37, 55
+ *   列X: 178, 196, 214
+ * - 92~100: MiniGUI 输出槽 (3x3, SlotFake)
+ *   行Y: 104, 122, 140
+ *   列X: 178, 196, 214
  */
 public class ContainerSmartPatternInterface extends Container {
 
     private static final int[] RECIPE_COL_X = {8, 26, 44, 62, 80, 98, 116, 134, 152};
-    private static final int[] RECIPE_ROW_Y = {37, 55, 73, 91, 109};
+    private static final int[] RECIPE_ROW_Y = {36, 54, 72, 90, 108};
+
+    private static final int[] MINIGUI_COL_X = {178, 196, 214};
+    private static final int[] MINIGUI_INPUT_ROW_Y = {19, 37, 55};
+    private static final int[] MINIGUI_OUTPUT_ROW_Y = {104, 122, 140};
 
     public static final int SLOT_RECIPE_START = 0;
     public static final int SLOT_RECIPE_COUNT = 45;
     public static final int SLOT_BLANK_INPUT = 45;
     public static final int SLOT_ENCODED_OUTPUT = 46;
     public static final int SLOT_PLAYER_START = 47;
+    public static final int SLOT_MINIGUI_INPUT_START = 83;
+    public static final int SLOT_MINIGUI_OUTPUT_START = 92;
 
     private final TileSmartPatternInterface tile;
 
@@ -50,7 +62,7 @@ public class ContainerSmartPatternInterface extends Container {
             }
         }
 
-        // 空白样板输入槽 — 位于标题栏左侧 (原"左循环"位置)
+        // 空白样板输入槽
         this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 0, 116, 20) {
             @Override
             public boolean isItemValid(ItemStack stack) {
@@ -58,7 +70,7 @@ public class ContainerSmartPatternInterface extends Container {
             }
         });
 
-        // 编码样板输出槽 — 位于标题栏右侧 (原"右循环"位置)
+        // 编码样板输出槽
         this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 152, 20) {
             @Override
             public boolean isItemValid(ItemStack stack) {
@@ -76,6 +88,29 @@ public class ContainerSmartPatternInterface extends Container {
         // 玩家快捷栏
         for (int col = 0; col < 9; col++) {
             this.addSlotToContainer(new Slot(playerInv, col, 8 + col * 18, 199));
+        }
+
+        // MiniGUI 输入槽 (9个 SlotFake，绑定到 TileEntity 的 miniGuiInventory)
+        int mgSlot = 0;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                this.addSlotToContainer(new SlotFake(
+                    tile.getMiniGuiInventory(), mgSlot,
+                    MINIGUI_COL_X[col], MINIGUI_INPUT_ROW_Y[row]
+                ));
+                mgSlot++;
+            }
+        }
+
+        // MiniGUI 输出槽 (9个 SlotFake)
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                this.addSlotToContainer(new SlotFake(
+                    tile.getMiniGuiInventory(), mgSlot,
+                    MINIGUI_COL_X[col], MINIGUI_OUTPUT_ROW_Y[row]
+                ));
+                mgSlot++;
+            }
         }
     }
 

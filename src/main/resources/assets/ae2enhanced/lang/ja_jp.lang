@@ -182,5 +182,27 @@ key.ae2enhanced.openOmniTerminal=Open Omni Terminal
 key.ae2enhanced.toggleMagnet=Toggle Magnet Card
 
 message.ae2enhanced.magnet.off=§cMagnet: OFF
+
+tile.ae2enhanced.smart_pattern_interface.name=スマートパターンインターフェース
+item.ae2enhanced.smart_blank_pattern.name=スマートブランクパターン
+item.ae2enhanced.smart_pattern.name=スマートパターン
+
+gui.ae2enhanced.smart_pattern_interface.title=スマートパターンインターフェース
+gui.ae2enhanced.smart_pattern_interface.bound_to=バインド先: %s
+gui.ae2enhanced.smart_pattern_interface.no_target=§cバインド先なし
+gui.ae2enhanced.smart_pattern_interface.encode_tooltip=パターンをエンコード
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=エンコード不可: 競合が検出されました
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=エンコード不可: レシピが読み込まれていません
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=エンコード不可: スマートブランクパターンを挿入してください
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=エンコード不可: 出力スロットが満杯です
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7無効 (クリックで有効化)
+gui.ae2enhanced.smart_pattern_interface.conflict_marker=§c競合 — 他のレシピと出力が同じです
+gui.ae2enhanced.smart_pattern_interface.recipe_count=レシピ: %d / %d 有効
+gui.ae2enhanced.smart_pattern_interface.prev_page=前のページ
+gui.ae2enhanced.smart_pattern_interface.next_page=次のページ
+gui.ae2enhanced.smart_pattern_interface.keep_primary=主産物のみ保持
+gui.ae2enhanced.smart_pattern_interface.double_amounts=数量を倍増
+tooltip.ae2enhanced.smart_pattern.bound_to=§7バインド先: §f%s
+tooltip.ae2enhanced.smart_pattern.recipe_count=§7レシピ数: §f%d
 message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode

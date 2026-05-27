@@ -174,6 +174,25 @@ public class SmartPatternData {
     }
 
     /**
+     * 对指定排序索引的配方执行修改操作。
+     * 操作后会立刻重新检测冲突并刷新显示顺序。
+     */
+    public void modifyRecipe(int sortedIndex, @Nonnull String action) {
+        int original = getDisplayIndex(sortedIndex);
+        if (original < 0 || original >= recipes.size()) return;
+        SmartRecipe recipe = recipes.get(original);
+        switch (action) {
+            case "keepPrimary":
+                recipe.keepPrimary();
+                break;
+            case "doubleAmounts":
+                recipe.doubleAmounts();
+                break;
+        }
+        detectConflicts();
+    }
+
+    /**
      * 将 BitSet 序列化为 Base64 字符串（用于压缩 NBT）。
      */
     @Nonnull
