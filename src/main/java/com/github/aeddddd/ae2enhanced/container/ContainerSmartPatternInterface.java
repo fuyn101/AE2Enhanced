@@ -13,12 +13,12 @@ import net.minecraftforge.items.SlotItemHandler;
 /**
  * 智能样板接口的 Container。
  *
- * 槽位布局（基于 UV 分析报告）：
+ * 槽位布局（基于 UV 分析报告，已修正）：
  * - 0~44:  配方显示槽位 (9列 x 5行, SlotFake)
  *   行Y: 37, 55, 73, 91, 109
  *   列X: 8, 26, 44, 62, 80, 98, 116, 134, 152
- * - 45:    空白样板输入槽 (8, 127)
- * - 46:    编码样板输出槽 (26, 127)
+ * - 45:    空白样板输入槽 (116, 20) — 原 UV 报告的"左循环"位置
+ * - 46:    编码样板输出槽 (152, 20) — 原 UV 报告的"右循环"位置
  * - 47~73: 玩家背包 (3行, Y=141/159/177)
  * - 74~82: 玩家快捷栏 (Y=199)
  */
@@ -50,16 +50,16 @@ public class ContainerSmartPatternInterface extends Container {
             }
         }
 
-        // 空白样板输入槽
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 0, 8, 127) {
+        // 空白样板输入槽 — 位于标题栏左侧 (原"左循环"位置)
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 0, 116, 20) {
             @Override
             public boolean isItemValid(ItemStack stack) {
                 return stack.getItem() instanceof ItemSmartBlankPattern;
             }
         });
 
-        // 编码样板输出槽
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 26, 127) {
+        // 编码样板输出槽 — 位于标题栏右侧 (原"右循环"位置)
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 152, 20) {
             @Override
             public boolean isItemValid(ItemStack stack) {
                 return false;
