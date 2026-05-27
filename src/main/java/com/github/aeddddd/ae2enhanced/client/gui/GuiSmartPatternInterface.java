@@ -11,8 +11,6 @@ import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.client.audio.PositionedSoundRecord;
-import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Mouse;
@@ -63,6 +61,11 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private final TileSmartPatternInterface tile;
     private boolean isScrolling = false;
 
+    // 点击闪烁反馈
+    private int flashSlot = -1;
+    private int flashTicks = 0;
+    private static final int FLASH_DURATION = 8;
+
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
         super(new ContainerSmartPatternInterface(inventoryPlayer, tile));
         this.tile = tile;
@@ -86,10 +89,11 @@ public class GuiSmartPatternInterface extends GuiContainer {
         String title = I18n.format("gui.ae2enhanced.smart_pattern_interface.title");
         this.fontRenderer.drawString(title, 8, 6, 0x404040);
 
-        // 绑定状态
+        // 绑定状态（去掉 @meta 后缀用于显示）
         if (tile.isBound()) {
-            String boundText = I18n.format("gui.ae2enhanced.smart_pattern_interface.bound_to",
-                    tile.getBoundBlockId());
+            String rawId = tile.getBoundBlockId();
+            String displayId = rawId.contains("@") ? rawId.substring(0, rawId.indexOf('@')) : rawId;
+            String boundText = I18n.format("gui.ae2enhanced.smart_pattern_interface.bound_to", displayId);
             this.fontRenderer.drawString(boundText, 8, 21, 0x404040);
         } else {
             String noTarget = I18n.format("gui.ae2enhanced.smart_pattern_interface.no_target");
@@ -104,6 +108,24 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
         // 绘制冲突标记（红色背景覆盖）
         drawConflictMarkers();
+
+        // 绘制点击闪烁反馈
+        drawFlashEffect();
+    }
+
+    /**
+     * 绘制点击后的白色闪烁反馈。
+     */
+    private void drawFlashEffect() {
+        if (flashSlot < 0 || flashTicks <= 0) return;
+        int row = flashSlot / 9;
+        int col = flashSlot % 9;
+        if (row < ROW_Y.length && col < COL_X.length) {
+            int x = COL_X[col];
+            int y = ROW_Y[row];
+            int alpha = (int) (0x55 * flashTicks / FLASH_DURATION);
+            drawRect(x, y, x + 16, y + 15, (alpha << 24) | 0xFFFFFF);
+        }
     }
 
     /**
@@ -179,6 +201,8 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        if (flashTicks > 0) flashTicks--;
+        if (flashTicks <= 0) flashSlot = -1;
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
         this.renderHoveredToolTip(mouseX, mouseY);
@@ -294,7 +318,8 @@ public class GuiSmartPatternInterface extends GuiContainer {
             if (clickedSlot >= 0) {
                 int sortedIndex = tile.getScrollOffset() * 9 + clickedSlot;
                 AE2Enhanced.network.sendToServer(new PacketSmartPatternToggle(tile.getPos(), sortedIndex));
-                this.mc.getSoundHandler().playSound(PositionedSoundRecord.getMasterRecord(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                flashSlot = clickedSlot;
+                flashTicks = FLASH_DURATION;
                 return;
             }
         }

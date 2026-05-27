@@ -124,9 +124,18 @@ public class JEIRecipeHelper {
 
     @Nonnull
     private static ItemStack getItemStackFromBlockId(@Nonnull String blockId) {
-        net.minecraft.block.Block block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(blockId));
+        String[] parts = blockId.split("@", 2);
+        ResourceLocation rl = new ResourceLocation(parts[0]);
+        int meta = 0;
+        if (parts.length > 1) {
+            try {
+                meta = Integer.parseInt(parts[1]);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        net.minecraft.block.Block block = ForgeRegistries.BLOCKS.getValue(rl);
         if (block != null) {
-            return new ItemStack(block);
+            return new ItemStack(block, 1, meta);
         }
         return ItemStack.EMPTY;
     }

@@ -330,7 +330,10 @@ public class ItemUniversalMemoryCard extends Item {
             return;
         }
 
-        String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
+        net.minecraft.block.state.IBlockState targetState = world.getBlockState(entry.pos);
+        net.minecraft.block.Block targetBlock = targetState.getBlock();
+        int targetMeta = targetBlock.getMetaFromState(targetState);
+        String blockId = targetBlock.getRegistryName().toString() + "@" + targetMeta;
 
         // 黑名单检查
         if (com.github.aeddddd.ae2enhanced.integration.jei.JEIRecipeHelper.isBlacklisted(blockId)) {
