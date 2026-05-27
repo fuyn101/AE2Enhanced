@@ -11,14 +11,21 @@ import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
  * Thermal Expansion 机器的配置复制粘贴 Handler。
  * 通过 NBT 读写关键配置字段（Facing, SideCache, Level, Augments 等）。
  * Level 升级会消耗对应的 Upgrade Kit / Conversion Kit。
+ *
+ * 架构约定：
+ * 1. paste() 采用"先统一验证（含 ME 网络回退），再原子执行"的流程。
+ * 2. 任何消耗操作前必须确认所有物品（kit + augment）都已可用。
+ * 3. augment 的 slot 数量必须在 level 确定后再计算，因此 level kit 与 augment 一起验证。
  */
 public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
 
@@ -28,7 +35,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             "EnableAutoInput", "EnableAutoOutput", "Mode"
     ));
 
-    // Thermal Foundation 升级套件缓存
+    // Thermal Foundation 升级套件缓存（从静态字段直接引用，使用时必须 copy()）
     private static ItemStack[] UPGRADE_INCREMENTAL = null;
     private static ItemStack[] UPGRADE_FULL = null;
 
@@ -85,62 +92,86 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 0. 先验证 augment 是否可获得（避免 level 改变后 augment 不足导致状态不一致）
-            if (data.hasKey("Augments")) {
-                PasteResult augmentCheck = checkAugmentsAvailable(tile, data.getTagList("Augments", 10), player);
-                if (augmentCheck != PasteResult.SUCCESS) {
-                    return augmentCheck;
-                }
-            }
-
-            // 1. 先处理 Level 升级（消耗转换套件）
             int originalLevel = getCurrentLevel(tile);
-            if (data.hasKey("Level")) {
-                PasteResult levelResult = applyLevelUpgrade(tile, data.getByte("Level"), player);
-                if (levelResult != PasteResult.SUCCESS) {
-                    return levelResult;
+            int targetLevel = data.hasKey("Level") ? data.getByte("Level") : originalLevel;
+
+            // ===== 阶段 1：统一计算需要的所有物品 =====
+            List<ItemStack> allNeeded = new ArrayList<>();
+
+            // 1a. Level upgrade kit（如有）
+            List<ItemStack> levelKits = getLevelKits(originalLevel, targetLevel);
+            for (ItemStack kit : levelKits) {
+                if (kit.isEmpty()) {
+                    return PasteResult.MISSING_UPGRADES; // 某个 kit 类型不存在
+                }
+                allNeeded.add(kit);
+            }
+
+            // 1b. Augments（按目标 level 的 slot 数量截断）
+            List<ItemStack> neededAugments = new ArrayList<>();
+            if (data.hasKey("Augments")) {
+                neededAugments = parseAugmentList(data.getTagList("Augments", 10));
+                int augmentSlots = getNumAugmentSlots(tile, targetLevel);
+                if (augmentSlots > 0 && neededAugments.size() > augmentSlots) {
+                    neededAugments = neededAugments.subList(0, augmentSlots);
+                }
+                for (ItemStack aug : neededAugments) {
+                    if (!aug.isEmpty()) {
+                        allNeeded.add(aug.copy());
+                    }
                 }
             }
 
-            // Level 改变后 augment slot 数量可能变化，必须关闭已打开的 GUI，否则客户端容器 slot 数量不匹配会崩溃
-            if (getCurrentLevel(tile) != originalLevel) {
+            // ===== 阶段 2：统一验证（含 ME 网络回退） =====
+            if (!allNeeded.isEmpty() && !MemoryCardUpgradeHelper.ensureAvailable(player, allNeeded)) {
+                return PasteResult.MISSING_UPGRADES;
+            }
+
+            // ===== 阶段 3：执行 Level upgrade =====
+            if (!levelKits.isEmpty()) {
+                for (ItemStack kit : levelKits) {
+                    MemoryCardUpgradeHelper.consumeFromInventory(player, kit);
+                }
+                boolean ok = setLevel(tile, targetLevel);
+                if (!ok) {
+                    // 返还 kits（尽力而为）
+                    for (ItemStack kit : levelKits) {
+                        if (!player.addItemStackToInventory(kit.copy())) {
+                            player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, kit.copy()));
+                        }
+                    }
+                    return PasteResult.FAILED;
+                }
                 closeOpenGUIs(tile);
             }
 
-            // 2. 获取当前完整 NBT（level 已更新）
-            NBTTagCompound currentNbt = tile.writeToNBT(new NBTTagCompound());
+            // ===== 阶段 4：执行 Augment =====
+            if (!neededAugments.isEmpty()) {
+                PasteResult augResult = applyAugments(tile, neededAugments, player);
+                if (augResult != PasteResult.SUCCESS) {
+                    // 回滚 level（kit 不返还，因为已经消耗且难以精确回滚到原 slot）
+                    if (!levelKits.isEmpty()) {
+                        setLevel(tile, originalLevel);
+                        closeOpenGUIs(tile);
+                    }
+                    return augResult;
+                }
+            }
 
-            // 3. 覆盖配置键（不含 Level，已手动处理）
+            // ===== 阶段 5：readFromNBT 恢复其余配置 =====
+            NBTTagCompound currentNbt = tile.writeToNBT(new NBTTagCompound());
             for (String key : CONFIG_KEYS) {
                 if (!key.equals("Level") && data.hasKey(key)) {
                     currentNbt.setTag(key, data.getTag(key));
                 }
             }
-
-            // 4. 处理 augment（在 level 更新后，槽位数量正确）
             if (data.hasKey("Augments")) {
-                PasteResult augmentResult = applyAugments(tile, data.getTagList("Augments", 10), player);
-                if (augmentResult != PasteResult.SUCCESS) {
-                    // 回滚 level 改变，避免机器处于 level 升级但 augment 丢失的状态
-                    if (data.hasKey("Level") && getCurrentLevel(tile) != originalLevel) {
-                        setLevel(tile, originalLevel);
-                        AE2Enhanced.LOGGER.debug("[AE2E] Rolled back TE level from {} to {} due to augment failure", getCurrentLevel(tile), originalLevel);
-                    }
-                    return augmentResult;
-                }
                 currentNbt.setTag("Augments", data.getTag("Augments"));
             }
-
-            // 5. 调用 readFromNBT 恢复配置
             tile.readFromNBT(currentNbt);
 
             // 6. 更新 augment 状态
-            try {
-                Method updateAugmentStatus = tile.getClass().getMethod("updateAugmentStatus");
-                updateAugmentStatus.invoke(tile);
-            } catch (NoSuchMethodException e) {
-                // 某些设备无此方法
-            }
+            invokeIfExists(tile, "updateAugmentStatus");
 
             tile.markDirty();
             if (tile.getWorld() != null) {
@@ -155,70 +186,41 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * 处理 Level 升级：消耗 Upgrade Kit / Conversion Kit，然后设置 level。
+     * 根据当前 level 和目标 level，返回需要的 Conversion/Upgrade Kit 列表。
+     * 优先使用 Full Conversion Kit；否则返回所有 Incremental Upgrade Kit。
+     * 不执行任何消耗，仅做计算。
+     * @return kit 列表，无需升级时返回空列表；某个 kit 类型不存在时列表中包含 EMPTY
      */
-    private PasteResult applyLevelUpgrade(TileEntity tile, byte sourceLevel, EntityPlayer player) {
-        try {
-            int targetLevel = getCurrentLevel(tile);
-            AE2Enhanced.LOGGER.debug("[AE2E] TE level upgrade: targetLevel={}, sourceLevel={}", targetLevel, sourceLevel);
-            if (sourceLevel <= targetLevel) {
-                return PasteResult.SUCCESS; // 无需升级或降级
-            }
-
-            initUpgradeKits();
-
-            int levelsNeeded = sourceLevel - targetLevel;
-            AE2Enhanced.LOGGER.debug("[AE2E] TE levels needed: {}", levelsNeeded);
-
-            // 策略1：尝试使用 Full Conversion Kit 直接跳到目标 level
-            // 根据 Thermal Foundation ItemUpgrade 实现：upgradeFull[i] 的 getUpgradeLevel = meta+1 = i+1
-            // 即 upgradeFull[i] 对应目标 level = i+1，因此索引 = sourceLevel - 1
-            int fullKitIndex = sourceLevel - 1;
-            if (UPGRADE_FULL != null && fullKitIndex >= 0 && fullKitIndex < UPGRADE_FULL.length) {
-                ItemStack fullKit = UPGRADE_FULL[fullKitIndex];
-                AE2Enhanced.LOGGER.debug("[AE2E] TE Full Kit candidate [{}]: {}", fullKitIndex,
-                        fullKit != null && !fullKit.isEmpty() ? fullKit.getDisplayName() : "null/empty");
-                if (fullKit != null && !fullKit.isEmpty()
-                        && MemoryCardUpgradeHelper.countInInventory(player, fullKit) >= 1) {
-                    AE2Enhanced.LOGGER.debug("[AE2E] TE consuming Full Kit: {}", fullKit.getDisplayName());
-                    MemoryCardUpgradeHelper.consumeFromInventory(player, fullKit);
-                    boolean ok = setLevel(tile, sourceLevel);
-                    AE2Enhanced.LOGGER.debug("[AE2E] TE setLevel({}) returned: {}", sourceLevel, ok);
-                    return PasteResult.SUCCESS;
-                }
-            }
-
-            // 策略2：使用 Incremental Upgrade Kit 逐级升级
-            if (UPGRADE_INCREMENTAL != null) {
-                for (int i = targetLevel; i < sourceLevel; i++) {
-                    if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
-                    ItemStack incKit = UPGRADE_INCREMENTAL[i];
-                    AE2Enhanced.LOGGER.debug("[AE2E] TE Incremental Kit [{}]: {}", i,
-                            incKit != null && !incKit.isEmpty() ? incKit.getDisplayName() : "null/empty");
-                    if (incKit == null || incKit.isEmpty()) {
-                        return PasteResult.MISSING_UPGRADES;
-                    }
-                    if (MemoryCardUpgradeHelper.countInInventory(player, incKit) < 1) {
-                        return PasteResult.MISSING_UPGRADES;
-                    }
-                }
-                // 消耗
-                for (int i = targetLevel; i < sourceLevel; i++) {
-                    if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
-                    ItemStack incKit = UPGRADE_INCREMENTAL[i];
-                    MemoryCardUpgradeHelper.consumeFromInventory(player, incKit);
-                }
-                boolean ok = setLevel(tile, sourceLevel);
-                AE2Enhanced.LOGGER.debug("[AE2E] TE setLevel({}) via incremental returned: {}", sourceLevel, ok);
-                return PasteResult.SUCCESS;
-            }
-
-            AE2Enhanced.LOGGER.debug("[AE2E] TE level upgrade failed: no upgrade kits available");
-            return PasteResult.MISSING_UPGRADES;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to apply TE level upgrade", e);
-            return PasteResult.FAILED;
+    private List<ItemStack> getLevelKits(int currentLevel, int targetLevel) {
+        List<ItemStack> result = new ArrayList<>();
+        if (targetLevel <= currentLevel) {
+            return result;
         }
+        initUpgradeKits();
+
+        // 策略1：Full Conversion Kit（索引 = targetLevel - 1）
+        int fullKitIndex = targetLevel - 1;
+        if (UPGRADE_FULL != null && fullKitIndex >= 0 && fullKitIndex < UPGRADE_FULL.length) {
+            ItemStack fullKit = UPGRADE_FULL[fullKitIndex];
+            if (fullKit != null && !fullKit.isEmpty()) {
+                result.add(fullKit.copy());
+                return result;
+            }
+        }
+
+        // 策略2：Incremental Upgrade Kit（需要多个）
+        if (UPGRADE_INCREMENTAL != null) {
+            for (int i = currentLevel; i < targetLevel; i++) {
+                if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
+                ItemStack incKit = UPGRADE_INCREMENTAL[i];
+                if (incKit != null && !incKit.isEmpty()) {
+                    result.add(incKit.copy());
+                } else {
+                    result.add(ItemStack.EMPTY); // 标记为缺失
+                }
+            }
+        }
+        return result;
     }
 
     private void initUpgradeKits() {
@@ -243,7 +245,6 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         try {
             Field levelField = findFieldInHierarchy(tile.getClass(), "level");
             if (levelField != null) {
-                levelField.setAccessible(true);
                 return levelField.getInt(tile);
             }
         } catch (Exception e) {
@@ -256,7 +257,6 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         try {
             Method setLevel = findMethodInHierarchy(tile.getClass(), "setLevel", int.class);
             if (setLevel != null) {
-                setLevel.setAccessible(true);
                 Object result = setLevel.invoke(tile, level);
                 if (result instanceof Boolean) {
                     return (Boolean) result;
@@ -266,7 +266,6 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             // fallback: 直接写字段
             Field levelField = findFieldInHierarchy(tile.getClass(), "level");
             if (levelField != null) {
-                levelField.setAccessible(true);
                 levelField.setInt(tile, level);
                 return true;
             }
@@ -276,33 +275,8 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         return false;
     }
 
-    /**
-     * 预先验证 augment 是否可从玩家背包获得，不执行任何副作用。
-     */
-    private PasteResult checkAugmentsAvailable(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
-        try {
-            java.util.List<ItemStack> neededAugments = parseAugmentList(sourceAugments);
-            if (neededAugments.isEmpty()) {
-                return PasteResult.SUCCESS;
-            }
-            int targetSlots = getNumAugmentSlots(tile);
-            if (targetSlots > 0 && neededAugments.size() > targetSlots) {
-                neededAugments = neededAugments.subList(0, targetSlots);
-            }
-            for (ItemStack needed : neededAugments) {
-                if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
-                    return PasteResult.MISSING_UPGRADES;
-                }
-            }
-            return PasteResult.SUCCESS;
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] TE augment pre-check failed", e);
-            return PasteResult.FAILED;
-        }
-    }
-
-    private java.util.List<ItemStack> parseAugmentList(NBTTagList sourceAugments) {
-        java.util.List<ItemStack> list = new java.util.ArrayList<>();
+    private List<ItemStack> parseAugmentList(NBTTagList sourceAugments) {
+        List<ItemStack> list = new ArrayList<>();
         for (int i = 0; i < sourceAugments.tagCount(); i++) {
             NBTTagCompound tag = sourceAugments.getCompoundTagAt(i);
             ItemStack stack = new ItemStack(tag);
@@ -313,27 +287,13 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         return list;
     }
 
-    private PasteResult applyAugments(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
+    private PasteResult applyAugments(TileEntity tile, List<ItemStack> neededAugments, EntityPlayer player) {
         try {
-            java.util.List<ItemStack> neededAugments = parseAugmentList(sourceAugments);
-
             if (neededAugments.isEmpty()) {
                 return PasteResult.SUCCESS;
             }
 
-            int targetSlots = getNumAugmentSlots(tile);
-            if (targetSlots > 0 && neededAugments.size() > targetSlots) {
-                neededAugments = neededAugments.subList(0, targetSlots);
-            }
-
-            // 1. 先验证并消耗 augment（在弹出之前验证，避免状态不一致）
-            for (ItemStack needed : neededAugments) {
-                if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
-                    return PasteResult.MISSING_UPGRADES;
-                }
-            }
-
-            // 2. 弹出目标现有 augment
+            // 1. 弹出目标现有 augment
             ItemStack[] existingAugments = getAugmentsArray(tile);
             if (existingAugments != null) {
                 for (ItemStack aug : existingAugments) {
@@ -345,12 +305,12 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 3. 消耗 augment
+            // 2. 消耗 augment（ensureAvailable 已保证足够）
             for (ItemStack needed : neededAugments) {
                 MemoryCardUpgradeHelper.consumeFromInventory(player, needed);
             }
 
-            // 4. 设置 augment 数组
+            // 3. 设置 augment 数组
             if (existingAugments != null && existingAugments.length > 0) {
                 Arrays.fill(existingAugments, ItemStack.EMPTY);
                 for (int i = 0; i < neededAugments.size() && i < existingAugments.length; i++) {
@@ -387,7 +347,6 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             for (Field field : current.getDeclaredFields()) {
                 if (field.getName().equals("augments") && field.getType().isArray()
                         && field.getType().getComponentType() == ItemStack.class) {
-                    field.setAccessible(true);
                     try {
                         return (ItemStack[]) field.get(tile);
                     } catch (IllegalAccessException e) {
@@ -411,11 +370,13 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         }
     }
 
-    private int getNumAugmentSlots(TileEntity tile) {
+    /**
+     * 获取指定 level 下的 augment slot 数量。
+     */
+    private int getNumAugmentSlots(TileEntity tile, int level) {
         try {
             Method getNumAugmentSlots = findMethodInHierarchy(tile.getClass(), "getNumAugmentSlots", int.class);
             if (getNumAugmentSlots != null) {
-                int level = getCurrentLevel(tile);
                 return (int) getNumAugmentSlots.invoke(tile, level);
             }
         } catch (Exception e) {
@@ -459,21 +420,20 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
      */
     private void closeOpenGUIs(TileEntity tile) {
         if (tile.getWorld() == null) return;
-        for (EntityPlayer player : tile.getWorld().playerEntities) {
-            if (player.openContainer == null || player.openContainer == player.inventoryContainer) continue;
-            for (Object slotObj : player.openContainer.inventorySlots) {
+        for (EntityPlayer p : tile.getWorld().playerEntities) {
+            if (p.openContainer == null || p.openContainer == p.inventoryContainer) continue;
+            for (Object slotObj : p.openContainer.inventorySlots) {
                 if (slotObj instanceof net.minecraft.inventory.Slot) {
                     net.minecraft.inventory.Slot slot = (net.minecraft.inventory.Slot) slotObj;
                     if (slot.inventory == tile) {
-                        player.closeScreen();
+                        p.closeScreen();
                         break;
                     }
-                    // Forge IItemHandler slot（如 SlotItemHandler）
                     try {
                         java.lang.reflect.Method m = slot.getClass().getMethod("getItemHandler");
                         Object handler = m.invoke(slot);
                         if (handler == tile) {
-                            player.closeScreen();
+                            p.closeScreen();
                             break;
                         }
                     } catch (Exception ignored) {}

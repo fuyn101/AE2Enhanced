@@ -273,11 +273,9 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                         }
                     }
 
-                    // 检查玩家是否有足够的物品
-                    for (ItemStack needed : neededStacks) {
-                        if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
-                            return PasteResult.MISSING_UPGRADES;
-                        }
+                    // 统一验证（含 ME 网络回退）
+                    if (!neededStacks.isEmpty() && !MemoryCardUpgradeHelper.ensureAvailable(player, neededStacks)) {
+                        return PasteResult.MISSING_UPGRADES;
                     }
 
                     // 弹出现有升级
@@ -294,13 +292,14 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                     // 放入新升级
                     for (ItemStack needed : neededStacks) {
                         MemoryCardUpgradeHelper.consumeFromInventory(player, needed);
-                        for (int i = minUpgradeSlot; i <= maxUpgradeSlot && needed.getCount() > 0; i++) {
+                        int remaining = needed.getCount();
+                        for (int i = minUpgradeSlot; i <= maxUpgradeSlot && remaining > 0; i++) {
                             if (i >= 0 && i < inventory.length && inventory[i].isEmpty()) {
-                                int count = Math.min(needed.getCount(), needed.getMaxStackSize());
+                                int count = Math.min(remaining, needed.getMaxStackSize());
                                 ItemStack toInsert = needed.copy();
                                 toInsert.setCount(count);
                                 inventory[i] = toInsert;
-                                needed.shrink(count);
+                                remaining -= count;
                             }
                         }
                     }

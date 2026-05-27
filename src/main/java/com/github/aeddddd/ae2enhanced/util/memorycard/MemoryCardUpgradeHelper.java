@@ -289,6 +289,37 @@ public class MemoryCardUpgradeHelper {
         return count;
     }
 
+    /**
+     * 确保玩家背包（含 ME 网络回退）中有足够的物品。
+     * 如果网络拉取了物品，它们会被放入玩家背包。
+     * @return true 表示所有物品都已在背包中可用
+     */
+    public static boolean ensureAvailable(EntityPlayer player, List<ItemStack> needed) {
+        List<ItemStack> missing = new ArrayList<>();
+        for (ItemStack need : needed) {
+            if (need.isEmpty()) continue;
+            int available = countInInventory(player, need);
+            if (available < need.getCount()) {
+                ItemStack deficit = need.copy();
+                deficit.setCount(need.getCount() - available);
+                missing.add(deficit);
+            }
+        }
+        if (missing.isEmpty()) return true;
+
+        boolean pulled = tryPullFromNetwork(player, missing);
+        if (!pulled) return false;
+
+        // 网络回退后再次验证
+        for (ItemStack need : needed) {
+            if (need.isEmpty()) continue;
+            if (countInInventory(player, need) < need.getCount()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static void consumeFromInventory(EntityPlayer player, ItemStack stack) {
         int remaining = stack.getCount();
         for (int i = 0; i < player.inventory.mainInventory.size() && remaining > 0; i++) {
