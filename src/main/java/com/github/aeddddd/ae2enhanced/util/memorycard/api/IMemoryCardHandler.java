@@ -1,5 +1,6 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.api;
 
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -32,10 +33,4 @@ public interface IMemoryCardHandler {
      */
     String getDisplayName(Object target);
 
-    enum PasteResult {
-        SUCCESS,
-        INVALID_MACHINE,
-        MISSING_UPGRADES,
-        FAILED
-    }
 }

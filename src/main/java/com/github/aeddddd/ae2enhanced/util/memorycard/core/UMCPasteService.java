@@ -1,4 +1,6 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.core;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
@@ -54,8 +56,8 @@ public class UMCPasteService {
                 if (bulkTarget == null) continue;
                 IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(bulkTarget);
                 if (handler == null) continue;
-                IMemoryCardHandler.PasteResult result = handler.paste(bulkTarget, data, player);
-                if (result == IMemoryCardHandler.PasteResult.SUCCESS) success++;
+                PasteResult result = handler.paste(bulkTarget, data, player);
+                if (result == PasteResult.SUCCESS) success++;
                 else failed++;
             }
             player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bulk_success", success, failed));
@@ -65,7 +67,7 @@ public class UMCPasteService {
                 player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_unsupported"));
                 return;
             }
-            IMemoryCardHandler.PasteResult result = handler.paste(target, data, player);
+            PasteResult result = handler.paste(target, data, player);
             switch (result) {
                 case SUCCESS:
                     player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_success", handler.getDisplayName(target)));

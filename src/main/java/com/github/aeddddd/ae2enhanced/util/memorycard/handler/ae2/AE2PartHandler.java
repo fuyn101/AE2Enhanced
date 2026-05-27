@@ -1,4 +1,8 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.handler.ae2;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgradeAdapter;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
 import appeng.helpers.IPriorityHost;
 import appeng.api.parts.PartItemStack;

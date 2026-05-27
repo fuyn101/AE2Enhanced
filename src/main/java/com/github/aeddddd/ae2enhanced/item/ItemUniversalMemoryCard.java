@@ -2,9 +2,9 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
-import com.github.aeddddd.ae2enhanced.util.memorycard.UMCCopyService;
-import com.github.aeddddd.ae2enhanced.util.memorycard.UMCPasteService;
-import com.github.aeddddd.ae2enhanced.util.memorycard.UMCSelectionService;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCCopyService;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCPasteService;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCSelectionService;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;

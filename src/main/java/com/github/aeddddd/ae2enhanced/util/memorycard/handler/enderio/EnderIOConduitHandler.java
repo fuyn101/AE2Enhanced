@@ -1,4 +1,6 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.handler.enderio;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.player.EntityPlayer;

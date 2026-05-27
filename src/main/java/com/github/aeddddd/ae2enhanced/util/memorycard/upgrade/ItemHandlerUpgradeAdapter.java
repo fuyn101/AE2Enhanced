@@ -1,4 +1,4 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.upgrade;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;

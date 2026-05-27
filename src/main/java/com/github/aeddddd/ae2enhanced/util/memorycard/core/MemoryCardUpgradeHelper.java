@@ -1,4 +1,7 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.core;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgradeAdapter;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
@@ -86,15 +89,15 @@ public class MemoryCardUpgradeHelper {
      * 3. 消耗新升级
      * 4. 放入新升级
      */
-    public static IMemoryCardHandler.PasteResult applyUpgrades(IUpgradeProvider provider, List<ItemStack> needed, EntityPlayer player) {
+    public static PasteResult applyUpgrades(IUpgradeProvider provider, List<ItemStack> needed, EntityPlayer player) {
         if (needed.isEmpty()) {
             provider.clearSlots();
-            return IMemoryCardHandler.PasteResult.SUCCESS;
+            return PasteResult.SUCCESS;
         }
 
         // 1. 统一验证（含网络回退）
         if (!ensureAvailable(player, needed)) {
-            return IMemoryCardHandler.PasteResult.MISSING_UPGRADES;
+            return PasteResult.MISSING_UPGRADES;
         }
 
         // 2. 弹出旧升级
@@ -123,7 +126,7 @@ public class MemoryCardUpgradeHelper {
             provider.setStackInSlot(i, needed.get(i).copy());
         }
 
-        return IMemoryCardHandler.PasteResult.SUCCESS;
+        return PasteResult.SUCCESS;
     }
 
     // ================== IItemHandler 兼容层 ==================
@@ -132,7 +135,7 @@ public class MemoryCardUpgradeHelper {
         return serializeUpgrades(new ItemHandlerUpgradeAdapter(upgrades));
     }
 
-    public static IMemoryCardHandler.PasteResult applyUpgrades(IItemHandler upgrades, NBTTagList list, EntityPlayer player) {
+    public static PasteResult applyUpgrades(IItemHandler upgrades, NBTTagList list, EntityPlayer player) {
         return applyUpgrades(new ItemHandlerUpgradeAdapter(upgrades), deserializeUpgrades(list), player);
     }
 

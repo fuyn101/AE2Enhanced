@@ -1,4 +1,5 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.core;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;

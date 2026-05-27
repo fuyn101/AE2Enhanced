@@ -1,4 +1,9 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.handler.enderio;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemStackArrayUpgradeAdapter;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.util.ReflectionHelper;

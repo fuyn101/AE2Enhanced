@@ -1,4 +1,8 @@
-package com.github.aeddddd.ae2enhanced.util.memorycard;
+package com.github.aeddddd.ae2enhanced.util.memorycard.handler.mekanism;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.MekanismUpgradeProvider;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.item.EntityItem;
@@ -8,8 +12,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -18,232 +20,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.github.aeddddd.ae2enhanced.util.memorycard.handler.mekanism.MekanismReflectionHelper.*;
+
 /**
  * Mekanism 机器的配置复制粘贴 Handler。
  * 使用反射访问 Mekanism API，避免硬依赖。
  */
 public class MekanismMachineHandler implements IMemoryCardHandler {
-
-    private static final boolean AVAILABLE;
-    private static final Class<?> CONFIG_CARD_CAPABILITY_CLASS;
-    private static final Class<?> SPECIAL_CONFIG_DATA_CLASS;
-    private static Object CONFIG_CARD_CAPABILITY;
-    private static Object SPECIAL_CONFIG_DATA_CAPABILITY;
-
-    private static final Class<?> REDSTONE_CONTROL_CLASS;
-    private static final Method REDSTONE_GET_CONTROL_TYPE;
-    private static final Method REDSTONE_SET_CONTROL_TYPE;
-    private static final Object[] REDSTONE_CONTROL_VALUES;
-
-    private static final Class<?> SIDE_CONFIGURATION_CLASS;
-    private static final Method SIDE_CONFIG_GET_CONFIG;
-    private static final Method SIDE_CONFIG_GET_EJECTOR;
-    private static final Method SIDE_CONFIG_GET_ORIENTATION;
-
-    private static final Class<?> TILE_COMPONENT_CONFIG_CLASS;
-    private static final Method TILE_COMPONENT_CONFIG_WRITE;
-    private static final Method TILE_COMPONENT_CONFIG_READ;
-
-    private static final Class<?> TILE_COMPONENT_EJECTOR_CLASS;
-    private static final Method TILE_COMPONENT_EJECTOR_WRITE;
-    private static final Method TILE_COMPONENT_EJECTOR_READ;
-
-    private static final Class<?> UPGRADE_TILE_CLASS;
-    private static final Method UPGRADE_TILE_GET_COMPONENT;
-
-    private static final Class<?> TILE_COMPONENT_UPGRADE_CLASS;
-    private static final Method TILE_COMPONENT_UPGRADE_READ;
-    private static final Method TILE_COMPONENT_UPGRADE_WRITE;
-    private static final Method TILE_COMPONENT_UPGRADE_GET_UPGRADES;
-    private static final Method TILE_COMPONENT_UPGRADE_ADD_UPGRADE;
-    private static final Method TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE;
-    private static final Method TILE_COMPONENT_UPGRADE_GET_INSTALLED_TYPES;
-
-    private static final Class<?> UPGRADE_CLASS;
-    private static final Method UPGRADE_GET_STACK;
-    private static final Method UPGRADE_SAVE_MAP;
-    private static final Method UPGRADE_BUILD_MAP;
-
-    private static final Class<?> CAPABILITY_UTILS_CLASS;
-    private static final Method CAPABILITY_UTILS_HAS_CAPABILITY;
-    private static final Method CAPABILITY_UTILS_GET_CAPABILITY;
-
-    private static final Class<?> TILE_ENTITY_CONTAINER_BLOCK_CLASS;
-    private static final Field CONTAINER_BLOCK_FULL_NAME;
-
-    // Tier upgrade reflection
-    private static final Class<?> TIER_UPGRADEABLE_CLASS;
-    private static final Method TIER_UPGRADEABLE_UPGRADE;
-    private static final Class<?> BASE_TIER_CLASS;
-    private static final Object[] BASE_TIER_VALUES;
-    private static final ItemStack[] TIER_INSTALLER_CACHE = new ItemStack[4];
-
-    static {
-        boolean available = false;
-        Class<?> configCardCapabilityClass = null;
-        Class<?> specialConfigDataClass = null;
-        Object configCardCapability = null;
-        Object specialConfigDataCapability = null;
-
-        Class<?> redstoneControlClass = null;
-        Method redstoneGetControlType = null;
-        Method redstoneSetControlType = null;
-        Object[] redstoneControlValues = null;
-
-        Class<?> sideConfigurationClass = null;
-        Method sideConfigGetConfig = null;
-        Method sideConfigGetEjector = null;
-        Method sideConfigGetOrientation = null;
-
-        Class<?> tileComponentConfigClass = null;
-        Method tileComponentConfigWrite = null;
-        Method tileComponentConfigRead = null;
-
-        Class<?> tileComponentEjectorClass = null;
-        Method tileComponentEjectorWrite = null;
-        Method tileComponentEjectorRead = null;
-
-        Class<?> upgradeTileClass = null;
-        Method upgradeTileGetComponent = null;
-
-        Class<?> tileComponentUpgradeClass = null;
-        Method tileComponentUpgradeRead = null;
-        Method tileComponentUpgradeWrite = null;
-        Method tileComponentUpgradeGetUpgrades = null;
-        Method tileComponentUpgradeAddUpgrade = null;
-        Method tileComponentUpgradeRemoveUpgrade = null;
-        Method tileComponentUpgradeGetInstalledTypes = null;
-
-        Class<?> upgradeClass = null;
-        Method upgradeGetStack = null;
-        Method upgradeSaveMap = null;
-        Method upgradeBuildMap = null;
-
-        Class<?> capabilityUtilsClass = null;
-        Method capabilityUtilsHasCapability = null;
-        Method capabilityUtilsGetCapability = null;
-
-        Class<?> tileEntityContainerBlockClass = null;
-        Field containerBlockFullName = null;
-
-        Class<?> tierUpgradeableClass = null;
-        Method tierUpgradeableUpgrade = null;
-        Class<?> baseTierClass = null;
-        Object[] baseTierValues = null;
-
-        try {
-            if (Loader.isModLoaded("mekanism")) {
-                configCardCapabilityClass = Class.forName("mekanism.api.IConfigCardAccess");
-                specialConfigDataClass = Class.forName("mekanism.api.IConfigCardAccess$ISpecialConfigData");
-
-                Class<?> capabilitiesClass = Class.forName("mekanism.common.capabilities.Capabilities");
-                configCardCapability = capabilitiesClass.getField("CONFIG_CARD_CAPABILITY").get(null);
-                specialConfigDataCapability = capabilitiesClass.getField("SPECIAL_CONFIG_DATA_CAPABILITY").get(null);
-
-                redstoneControlClass = Class.forName("mekanism.common.base.IRedstoneControl");
-                redstoneGetControlType = redstoneControlClass.getMethod("getControlType");
-                redstoneSetControlType = redstoneControlClass.getMethod("setControlType", redstoneGetControlType.getReturnType());
-                redstoneControlValues = redstoneGetControlType.getReturnType().getEnumConstants();
-
-                sideConfigurationClass = Class.forName("mekanism.common.base.ISideConfiguration");
-                sideConfigGetConfig = sideConfigurationClass.getMethod("getConfig");
-                sideConfigGetEjector = sideConfigurationClass.getMethod("getEjector");
-                sideConfigGetOrientation = sideConfigurationClass.getMethod("getOrientation");
-
-                tileComponentConfigClass = sideConfigGetConfig.getReturnType();
-                tileComponentConfigWrite = tileComponentConfigClass.getMethod("write", NBTTagCompound.class);
-                tileComponentConfigRead = tileComponentConfigClass.getMethod("read", NBTTagCompound.class);
-
-                tileComponentEjectorClass = sideConfigGetEjector.getReturnType();
-                tileComponentEjectorWrite = tileComponentEjectorClass.getMethod("write", NBTTagCompound.class);
-                tileComponentEjectorRead = tileComponentEjectorClass.getMethod("read", NBTTagCompound.class);
-
-                upgradeTileClass = Class.forName("mekanism.common.base.IUpgradeTile");
-                upgradeTileGetComponent = upgradeTileClass.getMethod("getComponent");
-
-                tileComponentUpgradeClass = upgradeTileGetComponent.getReturnType();
-                tileComponentUpgradeRead = tileComponentUpgradeClass.getMethod("read", NBTTagCompound.class);
-                tileComponentUpgradeWrite = tileComponentUpgradeClass.getMethod("write", NBTTagCompound.class);
-                tileComponentUpgradeGetUpgrades = tileComponentUpgradeClass.getMethod("getUpgrades", Class.forName("mekanism.common.Upgrade"));
-                tileComponentUpgradeAddUpgrade = tileComponentUpgradeClass.getMethod("addUpgrade", Class.forName("mekanism.common.Upgrade"));
-                tileComponentUpgradeRemoveUpgrade = tileComponentUpgradeClass.getMethod("removeUpgrade", Class.forName("mekanism.common.Upgrade"));
-                tileComponentUpgradeGetInstalledTypes = tileComponentUpgradeClass.getMethod("getInstalledTypes");
-
-                upgradeClass = Class.forName("mekanism.common.Upgrade");
-                upgradeGetStack = upgradeClass.getMethod("getStack");
-                upgradeSaveMap = upgradeClass.getMethod("saveMap", Map.class, NBTTagCompound.class);
-                upgradeBuildMap = upgradeClass.getMethod("buildMap", NBTTagCompound.class);
-
-                capabilityUtilsClass = Class.forName("mekanism.common.util.CapabilityUtils");
-                capabilityUtilsHasCapability = capabilityUtilsClass.getMethod("hasCapability", ICapabilityProvider.class, net.minecraftforge.common.capabilities.Capability.class, EnumFacing.class);
-                capabilityUtilsGetCapability = capabilityUtilsClass.getMethod("getCapability", ICapabilityProvider.class, net.minecraftforge.common.capabilities.Capability.class, EnumFacing.class);
-
-                tileEntityContainerBlockClass = Class.forName("mekanism.common.tile.prefab.TileEntityContainerBlock");
-                containerBlockFullName = tileEntityContainerBlockClass.getField("fullName");
-
-                tierUpgradeableClass = Class.forName("mekanism.common.base.ITierUpgradeable");
-                tierUpgradeableUpgrade = tierUpgradeableClass.getMethod("upgrade", Class.forName("mekanism.common.tier.BaseTier"));
-                baseTierClass = Class.forName("mekanism.common.tier.BaseTier");
-                baseTierValues = baseTierClass.getEnumConstants();
-
-                available = true;
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to initialize Mekanism reflection for UMC", e);
-        }
-
-        AVAILABLE = available;
-        CONFIG_CARD_CAPABILITY_CLASS = configCardCapabilityClass;
-        SPECIAL_CONFIG_DATA_CLASS = specialConfigDataClass;
-        CONFIG_CARD_CAPABILITY = configCardCapability;
-        SPECIAL_CONFIG_DATA_CAPABILITY = specialConfigDataCapability;
-
-        REDSTONE_CONTROL_CLASS = redstoneControlClass;
-        REDSTONE_GET_CONTROL_TYPE = redstoneGetControlType;
-        REDSTONE_SET_CONTROL_TYPE = redstoneSetControlType;
-        REDSTONE_CONTROL_VALUES = redstoneControlValues;
-
-        SIDE_CONFIGURATION_CLASS = sideConfigurationClass;
-        SIDE_CONFIG_GET_CONFIG = sideConfigGetConfig;
-        SIDE_CONFIG_GET_EJECTOR = sideConfigGetEjector;
-        SIDE_CONFIG_GET_ORIENTATION = sideConfigGetOrientation;
-
-        TILE_COMPONENT_CONFIG_CLASS = tileComponentConfigClass;
-        TILE_COMPONENT_CONFIG_WRITE = tileComponentConfigWrite;
-        TILE_COMPONENT_CONFIG_READ = tileComponentConfigRead;
-
-        TILE_COMPONENT_EJECTOR_CLASS = tileComponentEjectorClass;
-        TILE_COMPONENT_EJECTOR_WRITE = tileComponentEjectorWrite;
-        TILE_COMPONENT_EJECTOR_READ = tileComponentEjectorRead;
-
-        UPGRADE_TILE_CLASS = upgradeTileClass;
-        UPGRADE_TILE_GET_COMPONENT = upgradeTileGetComponent;
-
-        TILE_COMPONENT_UPGRADE_CLASS = tileComponentUpgradeClass;
-        TILE_COMPONENT_UPGRADE_READ = tileComponentUpgradeRead;
-        TILE_COMPONENT_UPGRADE_WRITE = tileComponentUpgradeWrite;
-        TILE_COMPONENT_UPGRADE_GET_UPGRADES = tileComponentUpgradeGetUpgrades;
-        TILE_COMPONENT_UPGRADE_ADD_UPGRADE = tileComponentUpgradeAddUpgrade;
-        TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE = tileComponentUpgradeRemoveUpgrade;
-        TILE_COMPONENT_UPGRADE_GET_INSTALLED_TYPES = tileComponentUpgradeGetInstalledTypes;
-
-        UPGRADE_CLASS = upgradeClass;
-        UPGRADE_GET_STACK = upgradeGetStack;
-        UPGRADE_SAVE_MAP = upgradeSaveMap;
-        UPGRADE_BUILD_MAP = upgradeBuildMap;
-
-        CAPABILITY_UTILS_CLASS = capabilityUtilsClass;
-        CAPABILITY_UTILS_HAS_CAPABILITY = capabilityUtilsHasCapability;
-        CAPABILITY_UTILS_GET_CAPABILITY = capabilityUtilsGetCapability;
-
-        TILE_ENTITY_CONTAINER_BLOCK_CLASS = tileEntityContainerBlockClass;
-        CONTAINER_BLOCK_FULL_NAME = containerBlockFullName;
-
-        TIER_UPGRADEABLE_CLASS = tierUpgradeableClass;
-        TIER_UPGRADEABLE_UPGRADE = tierUpgradeableUpgrade;
-        BASE_TIER_CLASS = baseTierClass;
-        BASE_TIER_VALUES = baseTierValues;
-    }
 
     @Override
     public boolean canHandle(Object target) {
