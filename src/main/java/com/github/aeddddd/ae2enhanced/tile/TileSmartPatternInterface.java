@@ -14,8 +14,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.ItemStackHandler;
 
+import appeng.api.storage.data.IAEItemStack;
+import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.BitSet;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,6 +53,9 @@ public class TileSmartPatternInterface extends TileEntity {
     // 当前的 SmartPatternData（编码前/编码后都可能存在）
     @Nullable
     private SmartPatternData patternData;
+
+    // 配方显示滚动偏移（0 = 显示前45个配方）
+    private int scrollOffset = 0;
 
     // 配方显示槽位：45槽 (9列 x 5行)，用于GUI展示配方输出
     private final ItemStackHandler recipeDisplayInventory = new ItemStackHandler(45) {
@@ -181,6 +189,59 @@ public class TileSmartPatternInterface extends TileEntity {
         return inventory;
     }
 
+    public int getScrollOffset() {
+        return scrollOffset;
+    }
+
+    public void setScrollOffset(int scrollOffset) {
+        if (this.scrollOffset != scrollOffset) {
+            this.scrollOffset = Math.max(0, scrollOffset);
+            updateRecipeDisplay();
+            markDirty();
+        }
+    }
+
+    /**
+     * 根据当前 scrollOffset 和 patternData 更新配方显示槽位。
+     */
+    public void updateRecipeDisplay() {
+        if (patternData == null) {
+            for (int i = 0; i < recipeDisplayInventory.getSlots(); i++) {
+                recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);
+            }
+            return;
+        }
+        List<SmartRecipe> recipes = patternData.getRecipes();
+        for (int i = 0; i < recipeDisplayInventory.getSlots(); i++) {
+            int recipeIndex = this.scrollOffset * 9 + i;
+            if (recipeIndex < recipes.size()) {
+                SmartRecipe recipe = recipes.get(recipeIndex);
+                IAEItemStack primary = recipe.getPrimaryOutput();
+                if (primary != null) {
+                    recipeDisplayInventory.setStackInSlot(i, primary.createItemStack());
+                } else {
+                    recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);
+                }
+            } else {
+                recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
+    }
+
+    /**
+     * 切换指定配方索引的禁用/启用状态。
+     */
+    public void toggleRecipe(int recipeIndex) {
+        if (patternData == null || recipeIndex < 0 || recipeIndex >= patternData.getRecipeCount()) {
+            return;
+        }
+        BitSet disabledMask = patternData.getDisabledMask();
+        disabledMask.flip(recipeIndex);
+        updateRecipeDisplay();
+        markDirty();
+        syncToClient();
+    }
+
     /**
      * 破坏时掉落所有内容物。
      */
@@ -210,6 +271,7 @@ public class TileSmartPatternInterface extends TileEntity {
         if (compound.hasKey("inventory")) {
             inventory.deserializeNBT(compound.getCompoundTag("inventory"));
         }
+        scrollOffset = compound.getInteger("scrollOffset");
         if (compound.hasKey("recipeDisplay")) {
             recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
         }
@@ -230,6 +292,7 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setInteger(NBT_BOUND_DIM, boundDim);
         compound.setString(NBT_BOUND_BLOCK_ID, boundBlockId);
         compound.setTag("inventory", inventory.serializeNBT());
+        compound.setInteger("scrollOffset", scrollOffset);
         compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
         if (patternData != null) {
             compound.setUniqueId(NBT_PATTERN_DATA_ID, patternData.getPatternDataId());

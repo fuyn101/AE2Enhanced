@@ -112,6 +112,10 @@ public class AE2Enhanced {
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniTerminal.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniTerminal.class, 11, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet.class, 12, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction.class, 13, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternToggle.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternToggle.class, 14, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll.class, 15, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode.class, 16, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind.class, 17, Side.SERVER);
         com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardHandlerRegistry.init();
         com.github.aeddddd.ae2enhanced.centralinterface.HandlerRegistry.init();
         proxy.preInit(event);

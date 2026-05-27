@@ -214,9 +214,18 @@ public class ItemUniversalMemoryCard extends Item {
 
                     net.minecraft.tileentity.TileEntity te = event.getWorld().getTileEntity(event.getPos());
                     boolean isCentralInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
+                    boolean isSmartPatternInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 
                     boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
                             || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
+
+                    // 智能样板接口绑定：客户端查询 JEI 后直接发送 PacketSmartPatternBind
+                    if (isSmartPatternInterface && !isSneaking && !isCtrl && !isAlt) {
+                        handleSmartPatternBindClient(player, stack, event.getPos(), event.getWorld());
+                        event.setCanceled(true);
+                        event.setCancellationResult(EnumActionResult.FAIL);
+                        return;
+                    }
 
                     PacketUMCAction.ActionType type;
                     if (isCentralInterface && isAlt && !isSneaking && !isCtrl) {
@@ -296,6 +305,62 @@ public class ItemUniversalMemoryCard extends Item {
         }
 
         player.inventoryContainer.detectAndSendChanges();
+    }
+
+    // ============================================================
+    // Smart Pattern Interface Binding (Client-side)
+    // ============================================================
+
+    @SideOnly(Side.CLIENT)
+    private static void handleSmartPatternBindClient(EntityPlayer player, ItemStack stack, BlockPos interfacePos, World world) {
+        List<SelectionEntry> selections = getSelections(stack);
+        if (selections.isEmpty()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_selections"));
+            return;
+        }
+
+        SelectionEntry entry = null;
+        for (SelectionEntry e : selections) {
+            if (e.dim == world.provider.getDimension()) {
+                entry = e;
+                break;
+            }
+        }
+        if (entry == null) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.smart_pattern_interface.bind_wrong_dim"));
+            return;
+        }
+
+        String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
+
+        // 黑名单检查
+        if (com.github.aeddddd.ae2enhanced.integration.jei.JEIRecipeHelper.isBlacklisted(blockId)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.smart_pattern_interface.bind_blacklisted", blockId));
+            return;
+        }
+
+        // JEI 查询
+        if (!com.github.aeddddd.ae2enhanced.integration.jei.JEIRecipeHelper.isJeiAvailable()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.smart_pattern_interface.bind_no_jei"));
+            return;
+        }
+
+        java.util.List<com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe> recipes =
+                com.github.aeddddd.ae2enhanced.integration.jei.JEIRecipeHelper.getRecipesForBlock(blockId);
+        if (recipes.isEmpty()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.smart_pattern_interface.bind_no_recipes", blockId));
+            return;
+        }
+
+        com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData data =
+                new com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData(
+                        java.util.UUID.randomUUID(), blockId, recipes);
+        data.detectConflicts();
+
+        AE2Enhanced.network.sendToServer(
+                new com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind(interfacePos, data.toNBT()));
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.smart_pattern_interface.bind_success",
+                recipes.size(), blockId));
     }
 
     // ============================================================

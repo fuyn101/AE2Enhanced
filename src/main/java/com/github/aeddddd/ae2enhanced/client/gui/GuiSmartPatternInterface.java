@@ -1,7 +1,10 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternToggle;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
@@ -40,8 +43,13 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int MARK_W = 16;
     private static final int MARK_H = 15;
 
+    // 滚动条区域
+    private static final int SCROLL_X = 174;
+    private static final int SCROLL_Y = 37;
+    private static final int SCROLL_W = 10;
+    private static final int SCROLL_H = 88;
+
     private final TileSmartPatternInterface tile;
-    private int scrollOffset = 0;
 
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
         super(new ContainerSmartPatternInterface(inventoryPlayer, tile));
@@ -95,6 +103,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         SmartPatternData data = tile.getPatternData();
         if (data == null) return;
 
+        int scrollOffset = tile.getScrollOffset();
         this.mc.getTextureManager().bindTexture(TEXTURE);
         int slotIndex = 0;
         for (int row = 0; row < ROW_Y.length; row++) {
@@ -103,7 +112,6 @@ public class GuiSmartPatternInterface extends GuiContainer {
                 if (data.isDisabled(recipeIndex)) {
                     int x = COL_X[col];
                     int y = ROW_Y[row];
-                    // 绘制 X 标记覆盖
                     this.drawTexturedModalRect(x, y, MARK_X_U, MARK_Y_V, MARK_W, MARK_H);
                 }
                 slotIndex++;
@@ -125,13 +133,12 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws java.io.IOException {
-        super.mouseClicked(mouseX, mouseY, mouseButton);
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
         // 编码按钮点击
         if (isInEncodeButton(relX, relY) && mouseButton == 0) {
-            // TODO: Phase 5 发送编码请求网络包
+            AE2Enhanced.network.sendToServer(new PacketSmartPatternEncode(tile.getPos()));
             return;
         }
 
@@ -139,10 +146,28 @@ public class GuiSmartPatternInterface extends GuiContainer {
         if (mouseButton == 0) {
             int clickedSlot = getRecipeSlotAt(relX, relY);
             if (clickedSlot >= 0) {
-                int recipeIndex = scrollOffset * 9 + clickedSlot;
-                // TODO: Phase 5 发送禁用/启用切换网络包
+                int recipeIndex = tile.getScrollOffset() * 9 + clickedSlot;
+                AE2Enhanced.network.sendToServer(new PacketSmartPatternToggle(tile.getPos(), recipeIndex));
+                return;
             }
         }
+
+        // 滚动条点击（简单翻页）
+        if (mouseButton == 0 && isInScrollBar(relX, relY)) {
+            SmartPatternData data = tile.getPatternData();
+            if (data != null) {
+                int maxOffset = Math.max(0, (data.getRecipeCount() - 1) / 9);
+                int newOffset = tile.getScrollOffset() + 1;
+                if (newOffset > maxOffset) {
+                    newOffset = 0; // 循环回顶部
+                }
+                AE2Enhanced.network.sendToServer(
+                    new com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll(tile.getPos(), newOffset));
+            }
+            return;
+        }
+
+        super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     /**
@@ -161,5 +186,10 @@ public class GuiSmartPatternInterface extends GuiContainer {
             }
         }
         return -1;
+    }
+
+    private boolean isInScrollBar(int x, int y) {
+        return x >= SCROLL_X && x < SCROLL_X + SCROLL_W
+            && y >= SCROLL_Y && y < SCROLL_Y + SCROLL_H;
     }
 }
