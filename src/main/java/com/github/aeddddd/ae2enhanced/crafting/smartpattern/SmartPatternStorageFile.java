@@ -1,0 +1,111 @@
+package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
+
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import net.minecraft.nbt.CompressedStreamTools;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.world.World;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
+/**
+ * 智能样板配方数据的文件系统持久化层。
+ * 复用超维度仓储中枢的 ae2enhanced/storage/ 目录结构。
+ *
+ * 文件格式（压缩 NBT）：
+ * {
+ *   version: 1 (int)
+ *   patternDataId: UUID (long[])
+ *   targetBlockId: String
+ *   createdAt: long
+ *   recipes: NBTTagList { ... }
+ *   conflictMask: String (Base64)
+ *   disabledMask: String (Base64)
+ * }
+ */
+public class SmartPatternStorageFile {
+
+    public static final int CURRENT_VERSION = 1;
+    private static final String FILE_PREFIX = "smartpattern_";
+
+    /**
+     * 加载指定 UUID 的智能样板数据。
+     *
+     * @return 若文件不存在或损坏，返回 null
+     */
+    @Nullable
+    public static SmartPatternData load(@Nonnull World world, @Nonnull UUID patternDataId) {
+        File file = getFile(world, patternDataId);
+        if (!file.exists()) {
+            return null;
+        }
+        try {
+            NBTTagCompound root = CompressedStreamTools.read(file);
+            if (root == null) {
+                return null;
+            }
+            int version = root.getInteger("version");
+            if (version > CURRENT_VERSION) {
+                AE2Enhanced.LOGGER.error(
+                    "[AE2E] SmartPattern file version {} > current {}. Refusing to load to prevent data corruption.",
+                    version, CURRENT_VERSION);
+                return null;
+            }
+            return SmartPatternData.fromNBT(root);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error(
+                "[AE2E] Failed to read SmartPattern file: {}.", file.getAbsolutePath(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 保存智能样板数据到文件。
+     *
+     * @return 是否保存成功
+     */
+    public static boolean save(@Nonnull World world, @Nonnull SmartPatternData data) {
+        File file = getFile(world, data.getPatternDataId());
+        NBTTagCompound root = data.toNBT();
+        root.setInteger("version", CURRENT_VERSION);
+
+        File tmpFile = new File(file.getAbsolutePath() + ".tmp");
+        try {
+            CompressedStreamTools.write(root, tmpFile);
+            Files.move(tmpFile.toPath(), file.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+            return true;
+        } catch (IOException e) {
+            AE2Enhanced.LOGGER.error(
+                "[AE2E] Failed to save SmartPattern file: {}.", file.getAbsolutePath(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 删除指定 UUID 的智能样板文件。
+     */
+    public static boolean delete(@Nonnull World world, @Nonnull UUID patternDataId) {
+        File file = getFile(world, patternDataId);
+        if (file.exists()) {
+            return file.delete();
+        }
+        return true;
+    }
+
+    @Nonnull
+    private static File getFile(@Nonnull World world, @Nonnull UUID patternDataId) {
+        File worldDir = world.getSaveHandler().getWorldDirectory();
+        File storageDir = new File(worldDir, "ae2enhanced/storage");
+        if (!storageDir.exists() && !storageDir.mkdirs()) {
+            AE2Enhanced.LOGGER.warn("Failed to create storage directory: {}", storageDir.getAbsolutePath());
+        }
+        return new File(storageDir, FILE_PREFIX + patternDataId.toString() + ".dat");
+    }
+}
