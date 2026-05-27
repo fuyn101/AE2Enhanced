@@ -204,14 +204,10 @@ public class JEIRecipeHelper {
                 }
             }
 
-            // 构建 outputs
-            IAEItemStack[] outputs = new IAEItemStack[6]; // 最多6个输出
-            int outputIdx = 0;
-            for (List<ItemStack> slotOutputs : outputLists) {
-                if (!slotOutputs.isEmpty() && outputIdx < outputs.length) {
-                    outputs[outputIdx] = AEItemStack.fromItemStack(slotOutputs.get(0));
-                    outputIdx++;
-                }
+            // 构建 outputs：只取第一个输出槽位（主输出），移除概率产出/副产物
+            IAEItemStack[] outputs = new IAEItemStack[1];
+            if (!outputLists.isEmpty() && !outputLists.get(0).isEmpty()) {
+                outputs[0] = AEItemStack.fromItemStack(outputLists.get(0).get(0));
             }
 
             // 判断是否是 crafting 配方（简单启发式：UID 包含 "crafting"）

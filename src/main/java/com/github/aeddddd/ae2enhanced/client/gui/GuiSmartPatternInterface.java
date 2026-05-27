@@ -282,6 +282,33 @@ public class GuiSmartPatternInterface extends GuiContainer {
         int sortedIndex = tile.getScrollOffset() * 9 + slot;
         if (sortedIndex >= data.getRecipeCount()) return lines;
 
+        com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe recipe = data.getRecipe(sortedIndex);
+        if (recipe == null) return lines;
+
+        // 主输出（头部，模仿 AE2 编码样板 tooltip）
+        appeng.api.storage.data.IAEItemStack primary = recipe.getPrimaryOutput();
+        if (primary != null) {
+            net.minecraft.item.ItemStack stack = primary.createItemStack();
+            lines.add(stack.getDisplayName() + " §r§7×" + primary.getStackSize());
+        } else {
+            lines.add("§7未知配方");
+        }
+
+        // 输入列表
+        appeng.api.storage.data.IAEItemStack[] inputs = recipe.getInputs();
+        boolean hasInput = false;
+        for (appeng.api.storage.data.IAEItemStack input : inputs) {
+            if (input != null) {
+                if (!hasInput) {
+                    lines.add("§8────────────────");
+                    hasInput = true;
+                }
+                net.minecraft.item.ItemStack stack = input.createItemStack();
+                lines.add("§7输入: §f" + stack.getDisplayName() + " §7×" + input.getStackSize());
+            }
+        }
+
+        // 状态标记
         if (data.isConflict(sortedIndex)) {
             lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.conflict_marker"));
         }
