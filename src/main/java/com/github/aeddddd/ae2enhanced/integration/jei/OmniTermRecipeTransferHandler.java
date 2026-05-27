@@ -85,15 +85,13 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
         }
 
         // Crafting recipe: 检测并修正 key 偏移（某些 recipe category 的 output 占用了 key 0，inputs 从 1 开始）
-        if (isCrafting) {
-            int minKey = inputs.keySet().stream().min(Integer::compare).orElse(0);
-            if (minKey > 0) {
-                Map<Integer, ItemStack> shifted = new HashMap<>();
-                for (Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
-                    shifted.put(entry.getKey() - minKey, entry.getValue());
-                }
-                inputs = shifted;
+        // 只有当 output 明确占用了 key 0 时才偏移，避免将 "第一个 input slot 为空" 误判为偏移
+        if (isCrafting && outputs.containsKey(0)) {
+            Map<Integer, ItemStack> shifted = new HashMap<>();
+            for (Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+                shifted.put(entry.getKey() - 1, entry.getValue());
             }
+            inputs = shifted;
         }
 
         byte mode;

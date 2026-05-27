@@ -141,6 +141,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
     private PasteResult applyLevelUpgrade(TileEntity tile, byte sourceLevel, EntityPlayer player) {
         try {
             int targetLevel = getCurrentLevel(tile);
+            AE2Enhanced.LOGGER.debug("[AE2E] TE level upgrade: targetLevel={}, sourceLevel={}", targetLevel, sourceLevel);
             if (sourceLevel <= targetLevel) {
                 return PasteResult.SUCCESS; // 无需升级或降级
             }
@@ -148,16 +149,22 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             initUpgradeKits();
 
             int levelsNeeded = sourceLevel - targetLevel;
+            AE2Enhanced.LOGGER.debug("[AE2E] TE levels needed: {}", levelsNeeded);
 
             // 策略1：尝试使用 Full Conversion Kit 直接跳到目标 level
-            // UPGRADE_FULL[i] 对应目标 level = i+1（索引比 level 小 1）
+            // 根据 Thermal Foundation ItemUpgrade 实现：upgradeFull[i] 的 getUpgradeLevel = meta+1 = i+1
+            // 即 upgradeFull[i] 对应目标 level = i+1，因此索引 = sourceLevel - 1
             int fullKitIndex = sourceLevel - 1;
             if (UPGRADE_FULL != null && fullKitIndex >= 0 && fullKitIndex < UPGRADE_FULL.length) {
                 ItemStack fullKit = UPGRADE_FULL[fullKitIndex];
+                AE2Enhanced.LOGGER.debug("[AE2E] TE Full Kit candidate [{}]: {}", fullKitIndex,
+                        fullKit != null && !fullKit.isEmpty() ? fullKit.getDisplayName() : "null/empty");
                 if (fullKit != null && !fullKit.isEmpty()
                         && MemoryCardUpgradeHelper.countInInventory(player, fullKit) >= 1) {
+                    AE2Enhanced.LOGGER.debug("[AE2E] TE consuming Full Kit: {}", fullKit.getDisplayName());
                     MemoryCardUpgradeHelper.consumeFromInventory(player, fullKit);
-                    setLevel(tile, sourceLevel);
+                    boolean ok = setLevel(tile, sourceLevel);
+                    AE2Enhanced.LOGGER.debug("[AE2E] TE setLevel({}) returned: {}", sourceLevel, ok);
                     return PasteResult.SUCCESS;
                 }
             }
@@ -167,6 +174,8 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 for (int i = targetLevel; i < sourceLevel; i++) {
                     if (i < 0 || i >= UPGRADE_INCREMENTAL.length) continue;
                     ItemStack incKit = UPGRADE_INCREMENTAL[i];
+                    AE2Enhanced.LOGGER.debug("[AE2E] TE Incremental Kit [{}]: {}", i,
+                            incKit != null && !incKit.isEmpty() ? incKit.getDisplayName() : "null/empty");
                     if (incKit == null || incKit.isEmpty()) {
                         return PasteResult.MISSING_UPGRADES;
                     }
@@ -180,10 +189,12 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                     ItemStack incKit = UPGRADE_INCREMENTAL[i];
                     MemoryCardUpgradeHelper.consumeFromInventory(player, incKit);
                 }
-                setLevel(tile, sourceLevel);
+                boolean ok = setLevel(tile, sourceLevel);
+                AE2Enhanced.LOGGER.debug("[AE2E] TE setLevel({}) via incremental returned: {}", sourceLevel, ok);
                 return PasteResult.SUCCESS;
             }
 
+            AE2Enhanced.LOGGER.debug("[AE2E] TE level upgrade failed: no upgrade kits available");
             return PasteResult.MISSING_UPGRADES;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to apply TE level upgrade", e);
@@ -195,12 +206,17 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         if (UPGRADE_INCREMENTAL != null) return;
         try {
             Class<?> itemUpgradeClass = Class.forName("cofh.thermalfoundation.item.ItemUpgrade");
-            Field incField = itemUpgradeClass.getField("upgradeIncremental");
-            Field fullField = itemUpgradeClass.getField("upgradeFull");
+            Field incField = itemUpgradeClass.getDeclaredField("upgradeIncremental");
+            incField.setAccessible(true);
+            Field fullField = itemUpgradeClass.getDeclaredField("upgradeFull");
+            fullField.setAccessible(true);
             UPGRADE_INCREMENTAL = (ItemStack[]) incField.get(null);
             UPGRADE_FULL = (ItemStack[]) fullField.get(null);
+            AE2Enhanced.LOGGER.debug("[AE2E] Loaded TE upgrade kits: incremental={}, full={}",
+                    UPGRADE_INCREMENTAL != null ? UPGRADE_INCREMENTAL.length : "null",
+                    UPGRADE_FULL != null ? UPGRADE_FULL.length : "null");
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] Could not load Thermal Foundation upgrade kits", e);
+            AE2Enhanced.LOGGER.warn("[AE2E] Could not load Thermal Foundation upgrade kits", e);
         }
     }
 
@@ -217,23 +233,28 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         return 0;
     }
 
-    private void setLevel(TileEntity tile, int level) {
+    private boolean setLevel(TileEntity tile, int level) {
         try {
             Method setLevel = findMethodInHierarchy(tile.getClass(), "setLevel", int.class);
             if (setLevel != null) {
                 setLevel.setAccessible(true);
-                setLevel.invoke(tile, level);
-                return;
+                Object result = setLevel.invoke(tile, level);
+                if (result instanceof Boolean) {
+                    return (Boolean) result;
+                }
+                return true;
             }
             // fallback: 直接写字段
             Field levelField = findFieldInHierarchy(tile.getClass(), "level");
             if (levelField != null) {
                 levelField.setAccessible(true);
                 levelField.setInt(tile, level);
+                return true;
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Could not set TE level", e);
         }
+        return false;
     }
 
     private PasteResult applyAugments(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
