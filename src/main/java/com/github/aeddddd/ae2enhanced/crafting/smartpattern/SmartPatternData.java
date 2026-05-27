@@ -24,6 +24,7 @@ public class SmartPatternData {
     private final BitSet conflictMask;
     private BitSet disabledMask;
     private final long createdAt;
+    private int[] displayOrder; // 排序后的配方原始索引（冲突在前）
 
     public SmartPatternData(@Nonnull UUID patternDataId, @Nonnull String targetBlockId,
                             @Nonnull List<SmartRecipe> recipes) {
@@ -33,6 +34,7 @@ public class SmartPatternData {
         this.conflictMask = new BitSet(recipes.size());
         this.disabledMask = new BitSet(recipes.size());
         this.createdAt = System.currentTimeMillis();
+        rebuildDisplayOrder();
     }
 
     private SmartPatternData(@Nonnull UUID patternDataId, @Nonnull String targetBlockId,
@@ -44,6 +46,7 @@ public class SmartPatternData {
         this.conflictMask = conflictMask;
         this.disabledMask = disabledMask;
         this.createdAt = createdAt;
+        rebuildDisplayOrder();
     }
 
     @Nonnull
@@ -100,6 +103,35 @@ public class SmartPatternData {
                 }
             }
         }
+        rebuildDisplayOrder();
+    }
+
+    /**
+     * 重新生成 displayOrder：冲突配方排在最前面，其余保持原始顺序。
+     */
+    private void rebuildDisplayOrder() {
+        if (recipes.isEmpty()) {
+            this.displayOrder = new int[0];
+            return;
+        }
+        List<Integer> conflicts = new ArrayList<>();
+        List<Integer> normals = new ArrayList<>();
+        for (int i = 0; i < recipes.size(); i++) {
+            if (conflictMask.get(i)) conflicts.add(i);
+            else normals.add(i);
+        }
+        this.displayOrder = new int[recipes.size()];
+        int idx = 0;
+        for (int i : conflicts) this.displayOrder[idx++] = i;
+        for (int i : normals) this.displayOrder[idx++] = i;
+    }
+
+    /**
+     * 根据排序后的索引获取原始配方索引。
+     */
+    public int getDisplayIndex(int sortedIndex) {
+        if (displayOrder == null || sortedIndex < 0 || sortedIndex >= displayOrder.length) return -1;
+        return displayOrder[sortedIndex];
     }
 
     /**
@@ -110,10 +142,28 @@ public class SmartPatternData {
     }
 
     /**
-     * 获取指定索引的配方是否被禁用。
+     * 获取指定排序索引的配方是否被禁用。
      */
-    public boolean isDisabled(int index) {
-        return index >= 0 && index < recipes.size() && disabledMask.get(index);
+    public boolean isDisabled(int sortedIndex) {
+        int original = getDisplayIndex(sortedIndex);
+        return original >= 0 && original < recipes.size() && disabledMask.get(original);
+    }
+
+    /**
+     * 获取指定排序索引的配方是否存在冲突。
+     */
+    public boolean isConflict(int sortedIndex) {
+        int original = getDisplayIndex(sortedIndex);
+        return original >= 0 && original < recipes.size() && conflictMask.get(original);
+    }
+
+    /**
+     * 获取指定排序索引的配方。
+     */
+    @Nullable
+    public SmartRecipe getRecipe(int sortedIndex) {
+        int original = getDisplayIndex(sortedIndex);
+        return original >= 0 && original < recipes.size() ? recipes.get(original) : null;
     }
 
     /**

@@ -210,14 +210,14 @@ public class TileSmartPatternInterface extends TileEntity {
             }
             return;
         }
-        List<SmartRecipe> recipes = patternData.getRecipes();
+        int recipeCount = patternData.getRecipeCount();
         for (int i = 0; i < recipeDisplayInventory.getSlots(); i++) {
-            int recipeIndex = this.scrollOffset * 9 + i;
-            if (recipeIndex < recipes.size()) {
-                SmartRecipe recipe = recipes.get(recipeIndex);
-                IAEItemStack primary = recipe.getPrimaryOutput();
-                if (primary != null) {
-                    recipeDisplayInventory.setStackInSlot(i, primary.createItemStack());
+            int sortedIndex = this.scrollOffset * 9 + i;
+            if (sortedIndex < recipeCount) {
+                SmartRecipe recipe = patternData.getRecipe(sortedIndex);
+                if (recipe != null) {
+                    IAEItemStack primary = recipe.getPrimaryOutput();
+                    recipeDisplayInventory.setStackInSlot(i, primary != null ? primary.createItemStack() : ItemStack.EMPTY);
                 } else {
                     recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);
                 }
@@ -230,12 +230,11 @@ public class TileSmartPatternInterface extends TileEntity {
     /**
      * 切换指定配方索引的禁用/启用状态。
      */
-    public void toggleRecipe(int recipeIndex) {
-        if (patternData == null || recipeIndex < 0 || recipeIndex >= patternData.getRecipeCount()) {
-            return;
-        }
-        BitSet disabledMask = patternData.getDisabledMask();
-        disabledMask.flip(recipeIndex);
+    public void toggleRecipe(int sortedRecipeIndex) {
+        if (patternData == null) return;
+        int originalIndex = patternData.getDisplayIndex(sortedRecipeIndex);
+        if (originalIndex < 0 || originalIndex >= patternData.getRecipeCount()) return;
+        patternData.getDisabledMask().flip(originalIndex);
         updateRecipeDisplay();
         markDirty();
         syncToClient();
@@ -274,8 +273,10 @@ public class TileSmartPatternInterface extends TileEntity {
         if (compound.hasKey("recipeDisplay")) {
             recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
         }
-        // patternData 不直接存储在 NBT 中，而是通过 patternDataId 从文件加载
-        if (compound.hasKey(NBT_PATTERN_DATA_ID + "Most")) {
+        // patternData 优先直接反序列化（支持客户端同步），回退到文件加载
+        if (compound.hasKey("patternData")) {
+            patternData = SmartPatternData.fromNBT(compound.getCompoundTag("patternData"));
+        } else if (compound.hasKey(NBT_PATTERN_DATA_ID + "Most")) {
             UUID dataId = compound.getUniqueId(NBT_PATTERN_DATA_ID);
             patternData = SmartPatternStorageFile.load(world, dataId);
         }
@@ -295,6 +296,7 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
         if (patternData != null) {
             compound.setUniqueId(NBT_PATTERN_DATA_ID, patternData.getPatternDataId());
+            compound.setTag("patternData", patternData.toNBT());
         }
         return compound;
     }

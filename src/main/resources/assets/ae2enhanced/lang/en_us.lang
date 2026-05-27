@@ -242,15 +242,18 @@ item.ae2enhanced.smart_blank_pattern.name=Smart Blank Pattern
 item.ae2enhanced.smart_pattern.name=Smart Pattern
 
 gui.ae2enhanced.smart_pattern_interface.title=Smart Pattern Interface
+gui.ae2enhanced.smart_pattern_interface.bound_to=Bound to: %s
+gui.ae2enhanced.smart_pattern_interface.no_target=§cNo target bound
 gui.ae2enhanced.smart_pattern_interface.encode_tooltip=Encode Pattern
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=Cannot encode: conflicts detected
-gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=Cannot encode: no blank pattern
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=Cannot encode: no recipes loaded
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=Cannot encode: insert Smart Blank Pattern
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=Cannot encode: output slot occupied
-gui.ae2enhanced.smart_pattern_interface.disabled_marker=Disabled (click to enable)
-gui.ae2enhanced.smart_pattern_interface.conflict_marker=Conflict — identical output with another recipe
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7Disabled (click to enable)
+gui.ae2enhanced.smart_pattern_interface.conflict_marker=§cConflict — identical output with another recipe
 gui.ae2enhanced.smart_pattern_interface.recipe_count=Recipes: %d / %d enabled
-tooltip.ae2enhanced.smart_pattern.bound_to=Bound to: %s
-tooltip.ae2enhanced.smart_pattern.recipe_count=Recipes: %d
+tooltip.ae2enhanced.smart_pattern.bound_to=§7Bound to: §f%s
+tooltip.ae2enhanced.smart_pattern.recipe_count=§7Recipes: §f%d
 
 # Omni Terminal Upgrade Cards
 item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card

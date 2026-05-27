@@ -11,8 +11,11 @@ import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.client.audio.PositionedSoundRecord;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -135,8 +138,8 @@ public class GuiSmartPatternInterface extends GuiContainer {
         int slotIndex = 0;
         for (int row = 0; row < ROW_Y.length; row++) {
             for (int col = 0; col < COL_X.length; col++) {
-                int recipeIndex = scrollOffset * 9 + slotIndex;
-                if (data.isDisabled(recipeIndex)) {
+                int sortedIndex = scrollOffset * 9 + slotIndex;
+                if (data.isDisabled(sortedIndex)) {
                     int x = COL_X[col];
                     int y = ROW_Y[row];
                     this.drawTexturedModalRect(x, y, MARK_X_U, MARK_Y_V, MARK_W, MARK_H);
@@ -147,7 +150,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
     }
 
     /**
-     * 在冲突的配方槽位上绘制半透明红色覆盖。
+     * 在冲突的配方槽位上绘制高亮红色覆盖和边框。
      */
     private void drawConflictMarkers() {
         SmartPatternData data = tile.getPatternData();
@@ -157,11 +160,17 @@ public class GuiSmartPatternInterface extends GuiContainer {
         int slotIndex = 0;
         for (int row = 0; row < ROW_Y.length; row++) {
             for (int col = 0; col < COL_X.length; col++) {
-                int recipeIndex = scrollOffset * 9 + slotIndex;
-                if (recipeIndex < data.getRecipeCount() && data.getConflictMask().get(recipeIndex)) {
+                int sortedIndex = scrollOffset * 9 + slotIndex;
+                if (sortedIndex < data.getRecipeCount() && data.isConflict(sortedIndex)) {
                     int x = COL_X[col];
                     int y = ROW_Y[row];
-                    drawRect(x, y, x + 16, y + 15, 0x44FF0000);
+                    // 半透明红色填充
+                    drawRect(x, y, x + 16, y + 15, 0x66FF0000);
+                    // 红色边框
+                    drawRect(x, y, x + 16, y + 1, 0xFFFF0000);
+                    drawRect(x, y + 14, x + 16, y + 15, 0xFFFF0000);
+                    drawRect(x, y, x + 1, y + 15, 0xFFFF0000);
+                    drawRect(x + 15, y, x + 16, y + 15, 0xFFFF0000);
                 }
                 slotIndex++;
             }
@@ -217,7 +226,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         SmartPatternData data = tile.getPatternData();
 
         if (data == null) {
-            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank"));
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data"));
             return lines;
         }
 
@@ -246,13 +255,13 @@ public class GuiSmartPatternInterface extends GuiContainer {
         SmartPatternData data = tile.getPatternData();
         if (data == null) return lines;
 
-        int recipeIndex = tile.getScrollOffset() * 9 + slot;
-        if (recipeIndex >= data.getRecipeCount()) return lines;
+        int sortedIndex = tile.getScrollOffset() * 9 + slot;
+        if (sortedIndex >= data.getRecipeCount()) return lines;
 
-        if (data.getConflictMask().get(recipeIndex)) {
+        if (data.isConflict(sortedIndex)) {
             lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.conflict_marker"));
         }
-        if (data.isDisabled(recipeIndex)) {
+        if (data.isDisabled(sortedIndex)) {
             lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.disabled_marker"));
         }
         return lines;
@@ -283,8 +292,9 @@ public class GuiSmartPatternInterface extends GuiContainer {
         if (mouseButton == 0) {
             int clickedSlot = getRecipeSlotAt(relX, relY);
             if (clickedSlot >= 0) {
-                int recipeIndex = tile.getScrollOffset() * 9 + clickedSlot;
-                AE2Enhanced.network.sendToServer(new PacketSmartPatternToggle(tile.getPos(), recipeIndex));
+                int sortedIndex = tile.getScrollOffset() * 9 + clickedSlot;
+                AE2Enhanced.network.sendToServer(new PacketSmartPatternToggle(tile.getPos(), sortedIndex));
+                this.mc.getSoundHandler().playSound(PositionedSoundRecord.getMasterRecord(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                 return;
             }
         }
@@ -318,6 +328,23 @@ public class GuiSmartPatternInterface extends GuiContainer {
             this.isScrolling = false;
         }
         super.mouseReleased(mouseX, mouseY, state);
+    }
+
+    @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel != 0) {
+            SmartPatternData data = tile.getPatternData();
+            if (data != null && data.getRecipeCount() > 45) {
+                int maxOffset = Math.max(0, (data.getRecipeCount() - 1) / 9 - 4);
+                int newOffset = tile.getScrollOffset() + (wheel > 0 ? -1 : 1);
+                newOffset = Math.max(0, Math.min(maxOffset, newOffset));
+                if (newOffset != tile.getScrollOffset()) {
+                    AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newOffset));
+                }
+            }
+        }
     }
 
     /**
