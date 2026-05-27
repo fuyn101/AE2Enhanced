@@ -38,6 +38,10 @@ public class JEISearchKeyHandler {
         jeiRuntime = runtime;
     }
 
+    public static IJeiRuntime getJeiRuntime() {
+        return jeiRuntime;
+    }
+
     /**
      * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏。
      * 由 GuiOmniTerm.keyTyped() 调用，不再依赖全局 InputEvent。

@@ -64,6 +64,13 @@ public class AE2EnhancedConfig {
     })
     public static Terminal terminal = new Terminal();
 
+    @Config.Name("SmartPattern")
+    @Config.Comment({
+        "Smart Pattern Interface settings.",
+        "Controls recipe query limits, blacklist, and overload protection."
+    })
+    public static SmartPattern smartPattern = new SmartPattern();
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",
@@ -198,6 +205,27 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int extraUpgradeSlots = 2;
+    }
+
+    public static class SmartPattern {
+        @Config.Comment({
+            "Maximum number of recipes a Smart Pattern can hold.",
+            "If the target machine has more recipes than this limit,",
+            "only the first N recipes will be included (truncation).",
+            "Range: 1 ~ 4096, Default: 256"
+        })
+        @Config.RangeInt(min = 1, max = 4096)
+        public int maxRecipes = 256;
+
+        @Config.Comment({
+            "Blacklist of block registry names that cannot be bound to the Smart Pattern Interface.",
+            "Format: modid:blockname (e.g. minecraft:furnace)",
+            "Default: [minecraft:furnace, extendedcrafting:crafting_table_base]"
+        })
+        public String[] blacklist = {
+            "minecraft:furnace",
+            "extendedcrafting:crafting_table_base"
+        };
     }
 
     public static class Client {
