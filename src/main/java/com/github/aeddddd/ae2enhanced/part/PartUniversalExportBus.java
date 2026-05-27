@@ -19,9 +19,9 @@ import appeng.util.InventoryAdaptor;
 import com.google.common.collect.ImmutableList;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
-import com.github.aeddddd.ae2enhanced.util.FakeFluids;
-import com.github.aeddddd.ae2enhanced.util.FakeGases;
-import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.reflection.GasReflectionHelper;
 import com.github.aeddddd.ae2enhanced.util.ItemPushHelper;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -299,7 +299,7 @@ public class PartUniversalExportBus extends PartUniversalBusBase {
         }
 
         try {
-            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper");
             java.lang.reflect.Method method = helperClass.getMethod("exportEssentiaSlot",
                     appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                     IAEItemStack.class, appeng.api.networking.security.IActionSource.class);
@@ -321,7 +321,7 @@ public class PartUniversalExportBus extends PartUniversalBusBase {
         }
 
         try {
-            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper");
             java.lang.reflect.Method method = helperClass.getMethod("exportEssentias",
                     appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                     appeng.tile.inventory.AppEngInternalAEInventory.class, appeng.api.networking.security.IActionSource.class);

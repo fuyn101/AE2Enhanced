@@ -38,12 +38,12 @@ import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.util.EssentiaChannelAccessor;
-import com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks;
-import com.github.aeddddd.ae2enhanced.util.FakeFluids;
-import com.github.aeddddd.ae2enhanced.util.FakeGases;
-import com.github.aeddddd.ae2enhanced.util.GasFakeItemChecks;
-import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
+import com.github.aeddddd.ae2enhanced.util.essentia.EssentiaChannelAccessor;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.GasFakeItemChecks;
+import com.github.aeddddd.ae2enhanced.util.reflection.GasReflectionHelper;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -499,7 +499,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         
         FluidStack filterStack = fluidFilter.getFluidStack();
         if (filterStack == null) return 0;
-        filterStack = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(filterStack);
+        filterStack = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(filterStack);
         
         IAEFluidStack aeWanted = AEFluidStack.fromFluidStack(filterStack);
         if (aeWanted == null) return 0;
@@ -527,13 +527,13 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (toDrain == null) return 0;
         toDrain = toDrain.copy();
         toDrain.amount = (int) Math.min(amount, Integer.MAX_VALUE);
-        toDrain = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(toDrain);
+        toDrain = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(toDrain);
 
         FluidStack drained = fh.drain(toDrain, false);
         if (drained == null || drained.amount <= 0) {
             return 0;
         }
-        drained = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(drained);
+        drained = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(drained);
 
         IAEFluidStack aeDrained = AEFluidStack.fromFluidStack(drained);
         if (aeDrained == null) {
@@ -547,7 +547,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         toDrain.amount = (int) canInsert;
         FluidStack actualDrain = fh.drain(toDrain, true);
         if (actualDrain != null && actualDrain.amount > 0) {
-            actualDrain = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(actualDrain);
+            actualDrain = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(actualDrain);
             inv.injectItems(AEFluidStack.fromFluidStack(actualDrain), Actionable.MODULATE, this.source);
             return actualDrain.amount;
         }
@@ -684,7 +684,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         public long handle(TileEntity target, EnumFacing opposite, IAEItemStack filter,
                            long targetAmount, long maxWork) throws GridAccessException {
             try {
-                Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+                Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper");
                 java.lang.reflect.Method method = helperClass.getMethod("stockEssentias",
                         appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                         IAEItemStack.class, long.class, long.class, int.class, IActionSource.class);

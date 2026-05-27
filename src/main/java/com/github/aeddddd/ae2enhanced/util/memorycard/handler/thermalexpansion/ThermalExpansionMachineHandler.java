@@ -7,7 +7,7 @@ import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelp
 import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.util.ReflectionHelper;
+import com.github.aeddddd.ae2enhanced.util.reflection.ReflectionHelper;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

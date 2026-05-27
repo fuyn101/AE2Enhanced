@@ -2,7 +2,7 @@ package com.github.aeddddd.ae2enhanced.client.model;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
-import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import mekanism.api.gas.GasStack;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;

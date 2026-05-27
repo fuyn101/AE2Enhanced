@@ -6,9 +6,9 @@
   "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "MixinNetworkMonitorGas",
-    "MixinNetworkInventoryHandlerGas",
-    "MixinGridStorageCacheGas"
+    "gas.MixinGridStorageCacheGas",
+    "gas.MixinNetworkInventoryHandlerGas",
+    "gas.MixinNetworkMonitorGas"
   ],
   "client": [],
   "server": []

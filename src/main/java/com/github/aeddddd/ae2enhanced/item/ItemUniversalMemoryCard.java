@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCCopyService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCPasteService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCSelectionService;

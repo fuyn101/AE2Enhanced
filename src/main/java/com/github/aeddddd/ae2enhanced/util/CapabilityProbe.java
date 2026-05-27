@@ -1,4 +1,6 @@
 package com.github.aeddddd.ae2enhanced.util;
+import com.github.aeddddd.ae2enhanced.util.essentia.EssentiaChannelAccessor;
+import com.github.aeddddd.ae2enhanced.util.reflection.GasReflectionHelper;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;

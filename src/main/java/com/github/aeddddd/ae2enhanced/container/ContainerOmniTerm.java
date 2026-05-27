@@ -614,7 +614,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         ItemStack patternInSlot = this.patternSlotOUT.getStack();
         if (!patternInSlot.isEmpty() && this.getPlayerInv().player != null
                 && !this.getPlayerInv().player.world.isRemote) {
-            if (com.github.aeddddd.ae2enhanced.util.AssemblyAutoUploadHelper.tryUploadPattern(
+            if (com.github.aeddddd.ae2enhanced.util.compat.AssemblyAutoUploadHelper.tryUploadPattern(
                     this.getPlayerInv().player.world, this.getPlayerInv().player, patternInSlot)) {
                 this.patternSlotOUT.putStack(ItemStack.EMPTY);
             }
@@ -1357,7 +1357,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.activeCraftingCache = current;
             if (this.getPlayerInv().player instanceof net.minecraft.entity.player.EntityPlayerMP) {
                 com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
-                        new com.github.aeddddd.ae2enhanced.network.PacketOmniCraftingUpdate(current),
+                        new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniCraftingUpdate(current),
                         (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
             }
         }

@@ -1,4 +1,19 @@
 package com.github.aeddddd.ae2enhanced.gui;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiAssemblyFormed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiAssemblyPattern;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiAssemblyUnformed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiComputationFormed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiComputationUnformed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiHyperdimensionalNexus;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiHyperdimensionalUnformed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiStockingBus;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiStockingBusAmount;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiStructureUnformed;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalBus;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalExportBus;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalImportBus;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalMemoryCard;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
 
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
@@ -252,7 +267,7 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
-            return new com.github.aeddddd.ae2enhanced.gui.GuiUniversalMemoryCard(player);
+            return new GuiUniversalMemoryCard(player);
         }
         if (ID == GUI_CENTRAL_ME_INTERFACE) {
             if (te instanceof TileCentralMEInterface) {

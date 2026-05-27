@@ -6,7 +6,7 @@ import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.util.ReflectionHelper;
+import com.github.aeddddd.ae2enhanced.util.reflection.ReflectionHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;

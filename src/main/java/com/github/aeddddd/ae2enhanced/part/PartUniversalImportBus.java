@@ -18,9 +18,9 @@ import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
-import com.github.aeddddd.ae2enhanced.util.FakeFluids;
-import com.github.aeddddd.ae2enhanced.util.FakeGases;
-import com.github.aeddddd.ae2enhanced.util.GasReflectionHelper;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.reflection.GasReflectionHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -158,7 +158,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
 
         FluidStack drained = fh.drain(new FluidStack(wanted.getFluid(), 1000), false);
         if (drained == null || drained.amount <= 0) return false;
-        drained = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(drained);
+        drained = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(drained);
 
         IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(drained);
         if (aeFluid == null) return false;
@@ -169,7 +169,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
 
         FluidStack actual = fh.drain(new FluidStack(wanted.getFluid(), (int) canInsert), true);
         if (actual != null && actual.amount > 0) {
-            actual = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(actual);
+            actual = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(actual);
             IAEFluidStack toInsert = AEFluidStack.fromFluidStack(actual);
             inv.injectItems(toInsert, appeng.api.config.Actionable.MODULATE, this.source);
             return true;
@@ -187,7 +187,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
 
         FluidStack drained = fh.drain(1000, false);
         if (drained != null && drained.amount > 0) {
-            drained = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(drained);
+            drained = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(drained);
             IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(drained);
             if (aeFluid != null) {
                 IAEFluidStack notInserted = inv.injectItems(aeFluid, appeng.api.config.Actionable.SIMULATE, this.source);
@@ -195,7 +195,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
                 if (canInsert > 0) {
                     FluidStack actual = fh.drain((int) canInsert, true);
                     if (actual != null && actual.amount > 0) {
-                        actual = com.github.aeddddd.ae2enhanced.util.FakeFluids.canonicalizeFluidStack(actual);
+                        actual = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.canonicalizeFluidStack(actual);
                         inv.injectItems(AEFluidStack.fromFluidStack(actual), appeng.api.config.Actionable.MODULATE, this.source);
                         return true;
                     }
@@ -317,7 +317,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
         }
 
         try {
-            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper");
             java.lang.reflect.Method method = helperClass.getMethod("importEssentiaSlot",
                     appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                     IAEItemStack.class, appeng.api.networking.security.IActionSource.class);
@@ -339,7 +339,7 @@ public class PartUniversalImportBus extends PartUniversalBusBase {
         }
 
         try {
-            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.EssentiaBusHelper");
+            Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper");
             java.lang.reflect.Method method = helperClass.getMethod("importEssentias",
                     appeng.api.networking.IGrid.class, TileEntity.class, EnumFacing.class,
                     appeng.tile.inventory.AppEngInternalAEInventory.class, appeng.api.networking.security.IActionSource.class);

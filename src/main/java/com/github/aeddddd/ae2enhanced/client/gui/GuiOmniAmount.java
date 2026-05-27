@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.network.PacketSetSlotAmount;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSetSlotAmount;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;

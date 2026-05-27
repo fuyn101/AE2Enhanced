@@ -6,13 +6,12 @@
   "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "MixinNetworkMonitor",
-    "MixinNetworkInventoryHandler",
-    "MixinGridStorageCache"
+    "thaumic.MixinGridStorageCache",
+    "thaumic.MixinNetworkInventoryHandler",
+    "thaumic.MixinNetworkMonitor"
   ],
   "client": [
-    "MixinGuiArcaneTerminal"
+    "thaumic.MixinGuiArcaneTerminal"
   ],
-  "server": [
-  ]
+  "server": []
 }

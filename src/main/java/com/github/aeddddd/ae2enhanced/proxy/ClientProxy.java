@@ -20,7 +20,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
-import com.github.aeddddd.ae2enhanced.util.FakeItemRegister;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -154,10 +154,10 @@ public class ClientProxy extends CommonProxy {
     @SubscribeEvent
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
         if (OPEN_OMNI_TERMINAL_KEY.isPressed()) {
-            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.PacketOpenOmniTerminal());
+            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniTerminal());
         }
         if (TOGGLE_MAGNET_KEY.isPressed()) {
-            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.PacketToggleMagnet());
+            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet());
         }
     }
 

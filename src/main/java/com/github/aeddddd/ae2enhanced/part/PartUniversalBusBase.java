@@ -23,8 +23,8 @@ import appeng.util.SettingsFrom;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.CapabilityProbe;
-import com.github.aeddddd.ae2enhanced.util.FakeEssentias;
-import com.github.aeddddd.ae2enhanced.util.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -296,7 +296,7 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         if (isAe2fcFluidDrop(stack)) return true;
         if (FakeGases.isGasFakeItemSafe(stack)) return true;
         if (isAe2fcGasDrop(stack)) return true;
-        if (com.github.aeddddd.ae2enhanced.util.EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return true;
+        if (com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return true;
         if (isTheDummyAspect(stack)) return true;
         return false;
     }
