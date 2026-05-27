@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -383,6 +384,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 // 移除非配置键，避免误写入
                 configData.removeTag("dataType");
                 configData.removeTag("mekanism:upgrades");
+                configData.removeTag("ae2e:upgrades");
                 TILE_COMPONENT_CONFIG_READ.invoke(config, configData);
                 TILE_COMPONENT_EJECTOR_READ.invoke(ejector, configData);
             }
@@ -394,95 +396,39 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 NBTTagCompound specialData = data.copy();
                 specialData.removeTag("dataType");
                 specialData.removeTag("mekanism:upgrades");
+                specialData.removeTag("ae2e:upgrades");
                 specialData.removeTag("controlType");
                 setConfigurationData.invoke(special, specialData);
             }
 
-            // 4. 升级处理（支持网络回退）
+            // 4. 升级处理（通过 IUpgradeProvider 统一流程）
             if (data.hasKey("mekanism:upgrades") && UPGRADE_TILE_CLASS.isInstance(tile)) {
                 Object component = UPGRADE_TILE_GET_COMPONENT.invoke(tile);
-                NBTTagCompound upgradeNbt = data.getCompoundTag("mekanism:upgrades");
+                Object[] allTypes = UPGRADE_CLASS.getEnumConstants();
+                MekanismUpgradeProvider provider = new MekanismUpgradeProvider(
+                        component, allTypes,
+                        TILE_COMPONENT_UPGRADE_GET_UPGRADES,
+                        TILE_COMPONENT_UPGRADE_ADD_UPGRADE,
+                        TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE,
+                        UPGRADE_GET_STACK
+                );
 
-                // 读取源升级 map
+                NBTTagCompound upgradeNbt = data.getCompoundTag("mekanism:upgrades");
                 @SuppressWarnings("unchecked")
                 Map<Object, Integer> sourceUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, upgradeNbt);
 
-                // 读取目标当前升级 map
-                NBTTagCompound currentNbt = new NBTTagCompound();
-                TILE_COMPONENT_UPGRADE_WRITE.invoke(component, currentNbt);
-                @SuppressWarnings("unchecked")
-                Map<Object, Integer> targetUpgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, currentNbt);
-
-                // 4a. 先检查所有需要增加的升级是否可获得（含网络回退）
-                List<ItemStack> missingUpgrades = new ArrayList<>();
-                for (Map.Entry<Object, Integer> entry : sourceUpgrades.entrySet()) {
-                    Object upgradeType = entry.getKey();
-                    int sourceCount = entry.getValue();
-                    int targetCount = targetUpgrades.getOrDefault(upgradeType, 0);
-                    if (targetCount < sourceCount) {
-                        int needed = sourceCount - targetCount;
-                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
-                        stack.setCount(needed);
-                        if (MemoryCardUpgradeHelper.countInInventory(player, stack) < needed) {
-                            missingUpgrades.add(stack.copy());
-                        }
-                    }
-                }
-                if (!missingUpgrades.isEmpty()) {
-                    MemoryCardUpgradeHelper.NetworkPullResult result = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missingUpgrades);
-                    if (result == MemoryCardUpgradeHelper.NetworkPullResult.FAILED) {
-                        return PasteResult.MISSING_UPGRADES;
-                    }
-                    // 回退后再次验证（PULLED 和 CRAFTING_REQUESTED 都验证库存是否到账）
-                    for (ItemStack need : missingUpgrades) {
-                        if (MemoryCardUpgradeHelper.countInInventory(player, need) < need.getCount()) {
-                            return PasteResult.MISSING_UPGRADES;
-                        }
+                List<ItemStack> needed = new ArrayList<>();
+                for (Object type : allTypes) {
+                    int count = sourceUpgrades.getOrDefault(type, 0);
+                    if (count > 0) {
+                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(type)).copy();
+                        stack.setCount(count);
+                        needed.add(stack);
                     }
                 }
 
-                // 4b. 应用升级差异
-                for (Map.Entry<Object, Integer> entry : sourceUpgrades.entrySet()) {
-                    Object upgradeType = entry.getKey();
-                    int sourceCount = entry.getValue();
-                    int targetCount = targetUpgrades.getOrDefault(upgradeType, 0);
-
-                    if (targetCount < sourceCount) {
-                        int needed = sourceCount - targetCount;
-                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
-                        stack.setCount(needed);
-                        MemoryCardUpgradeHelper.consumeFromInventory(player, stack);
-                        for (int i = 0; i < needed; i++) {
-                            TILE_COMPONENT_UPGRADE_ADD_UPGRADE.invoke(component, upgradeType);
-                        }
-                    } else if (targetCount > sourceCount) {
-                        int remove = targetCount - sourceCount;
-                        for (int i = 0; i < remove; i++) {
-                            TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE.invoke(component, upgradeType);
-                        }
-                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
-                        stack.setCount(remove);
-                        if (!player.addItemStackToInventory(stack)) {
-                            player.world.spawnEntity(new net.minecraft.entity.item.EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
-                        }
-                    }
-                }
-
-                // 处理目标有但源没有的升级类型
-                for (Map.Entry<Object, Integer> entry : targetUpgrades.entrySet()) {
-                    Object upgradeType = entry.getKey();
-                    if (!sourceUpgrades.containsKey(upgradeType)) {
-                        int remove = entry.getValue();
-                        for (int i = 0; i < remove; i++) {
-                            TILE_COMPONENT_UPGRADE_REMOVE_UPGRADE.invoke(component, upgradeType);
-                        }
-                        ItemStack stack = ((ItemStack) UPGRADE_GET_STACK.invoke(upgradeType)).copy();
-                        stack.setCount(remove);
-                        if (!player.addItemStackToInventory(stack)) {
-                            player.world.spawnEntity(new net.minecraft.entity.item.EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
-                        }
-                    }
-                }
+                PasteResult result = MemoryCardUpgradeHelper.applyUpgrades(provider, needed, player);
+                if (result != PasteResult.SUCCESS) return result;
             }
 
             // 5. 显式处理 sorting 字段（双重保险）
@@ -522,31 +468,30 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
             String sourceDataType = data.getString("dataType");
             String targetDataType = getDataType(tile);
 
-            // 只处理工厂类型
-            if (!sourceDataType.contains("Factory") || !targetDataType.contains("Factory")) {
+            // 源不是工厂：不需要升级
+            if (!sourceDataType.contains("Factory")) {
                 return PasteResult.SUCCESS;
             }
 
-            // 提取 tier
+            // 提取 tier（普通机器 tier 视为 -1）
             Object sourceTier = extractBaseTier(sourceDataType);
-            Object targetTier = extractBaseTier(targetDataType);
-            if (sourceTier == null || targetTier == null) {
+            int sourceOrdinal = sourceTier != null ? ((Enum<?>) sourceTier).ordinal() : -1;
+            if (sourceOrdinal < 0) {
                 return PasteResult.SUCCESS;
             }
 
-            int sourceOrdinal = ((Enum<?>) sourceTier).ordinal();
-            int targetOrdinal = ((Enum<?>) targetTier).ordinal();
+            Object targetTier = extractBaseTier(targetDataType);
+            int targetOrdinal = targetTier != null ? ((Enum<?>) targetTier).ordinal() : -1;
 
             if (sourceOrdinal <= targetOrdinal) {
                 return PasteResult.SUCCESS; // 无需升级或降级
             }
 
-            // 需要升级：消耗 Tier Installer（meta = 目标 tier ordinal）
             if (!TIER_UPGRADEABLE_CLASS.isInstance(tile)) {
                 return PasteResult.INVALID_MACHINE;
             }
 
-            // 逐级升级（从当前 tier+1 到源 tier）
+            // 逐级升级（从 targetOrdinal+1 到 sourceOrdinal）
             for (int tierOrd = targetOrdinal + 1; tierOrd <= sourceOrdinal; tierOrd++) {
                 Object tier = BASE_TIER_VALUES[tierOrd];
                 ItemStack installer = getTierInstaller(tierOrd);
@@ -554,7 +499,6 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                     return PasteResult.FAILED;
                 }
                 if (MemoryCardUpgradeHelper.countInInventory(player, installer) < 1) {
-                    // 尝试从网络拉取
                     List<ItemStack> missing = new ArrayList<>();
                     missing.add(installer.copy());
                     MemoryCardUpgradeHelper.NetworkPullResult result = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missing);
@@ -564,9 +508,15 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                     }
                 }
                 MemoryCardUpgradeHelper.consumeFromInventory(player, installer);
-                TIER_UPGRADEABLE_UPGRADE.invoke(tile, tier);
+                Object upgradeResult = TIER_UPGRADEABLE_UPGRADE.invoke(tile, tier);
+                if (!(upgradeResult instanceof Boolean) || !(Boolean) upgradeResult) {
+                    // 升级失败，返还 installer
+                    if (!player.addItemStackToInventory(installer.copy())) {
+                        player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, installer.copy()));
+                    }
+                    return PasteResult.FAILED;
+                }
 
-                // 升级后重新获取 tile（block 被替换）
                 TileEntity newTile = player.world.getTileEntity(tile.getPos());
                 if (newTile == null || !TIER_UPGRADEABLE_CLASS.isInstance(newTile)) {
                     return PasteResult.FAILED;
@@ -655,31 +605,35 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     private boolean isCompatible(String sourceType, String targetType) {
         if (sourceType.equals(targetType)) return true;
 
-        // 工厂兼容：检查是否都是工厂且 recipe type 相同
-        // 典型的 dataType: "Basic Smelting Factory" / "Elite Smelting Factory"
-        // 或者: "SmeltingFactory" 在 fullName 中
+        // 都是工厂：比较 recipe type
         if (sourceType.contains("Factory") && targetType.contains("Factory")) {
-            // 提取 recipe type（假设 dataType 格式为 "Tier RecipeType Factory" 或包含 recipe type）
-            // 简化处理：如果两者都包含相同的 recipe type 关键词，则允许
-            String[] sourceParts = sourceType.split(" ");
-            String[] targetParts = targetType.split(" ");
-            if (sourceParts.length >= 2 && targetParts.length >= 2) {
-                // 比较中间部分（recipe type）
-                String sourceRecipe = sourceParts[sourceParts.length - 2];
-                String targetRecipe = targetParts[targetParts.length - 2];
-                if (sourceRecipe.equals(targetRecipe)) {
-                    return true;
-                }
-            }
-            //  fallback：如果都包含 Factory 且有共同的单词（除了 tier）
-            // 提取非 tier 单词
-            String sourceNormalized = sourceType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
-            String targetNormalized = targetType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
-            if (sourceNormalized.equalsIgnoreCase(targetNormalized)) {
+            return recipeTypesMatch(sourceType, targetType);
+        }
+
+        // 源或目标是工厂：允许跨类型粘贴（普通机器 ↔ 工厂）
+        // 升级由 applyTierUpgrade 处理，配置由 paste 处理
+        if (sourceType.contains("Factory") || targetType.contains("Factory")) {
+            return true;
+        }
+
+        // 都不是工厂
+        String sourceNormalized = sourceType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
+        String targetNormalized = targetType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
+        return sourceNormalized.equalsIgnoreCase(targetNormalized);
+    }
+
+    private boolean recipeTypesMatch(String sourceType, String targetType) {
+        String[] sourceParts = sourceType.split(" ");
+        String[] targetParts = targetType.split(" ");
+        if (sourceParts.length >= 2 && targetParts.length >= 2) {
+            String sourceRecipe = sourceParts[sourceParts.length - 2];
+            String targetRecipe = targetParts[targetParts.length - 2];
+            if (sourceRecipe.equals(targetRecipe)) {
                 return true;
             }
         }
-
-        return false;
+        String sourceNormalized = sourceType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
+        String targetNormalized = targetType.replaceAll("(?i)basic|advanced|elite|ultimate", "").trim();
+        return sourceNormalized.equalsIgnoreCase(targetNormalized);
     }
 }
