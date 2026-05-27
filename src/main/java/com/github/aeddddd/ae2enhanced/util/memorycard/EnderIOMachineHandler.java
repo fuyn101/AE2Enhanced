@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.util.ReflectionHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -11,10 +12,12 @@ import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Ender IO 机器的配置复制粘贴 Handler。
+ * 配置与升级分离：升级通过 IUpgradeProvider 处理，配置直接反射应用。
  */
 public class EnderIOMachineHandler implements IMemoryCardHandler {
 
@@ -148,15 +151,12 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
         NBTTagCompound output = new NBTTagCompound();
 
         try {
-            // 1. 红石控制模式
             Object redstoneMode = GET_REDSTONE_CONTROL_MODE.invoke(tile);
             output.setInteger("redstoneMode", ((Enum<?>) redstoneMode).ordinal());
 
-            // 2. 朝向
             Object facing = GET_FACING.invoke(tile);
             output.setInteger("facing", ((EnumFacing) facing).getIndex());
 
-            // 3. 面 IO 模式
             @SuppressWarnings("unchecked")
             Map<EnumFacing, ?> faceModes = (Map<EnumFacing, ?>) FACE_MODES_FIELD.get(tile);
             if (faceModes != null) {
@@ -167,7 +167,6 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                 output.setTag("faceModes", faceModesNbt);
             }
 
-            // 4. 电容升级（仅在 AbstractInventoryMachineEntity 中）
             if (ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(tile)) {
                 Object slotDefinition = GET_SLOT_DEFINITION.invoke(tile);
                 int minUpgradeSlot = (int) SLOT_DEFINITION_CLASS.getMethod("getMinUpgradeSlot").invoke(slotDefinition);
@@ -175,21 +174,14 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
 
                 if (minUpgradeSlot >= 0) {
                     ItemStack[] inventory = (ItemStack[]) INVENTORY_FIELD.get(tile);
-                    NBTTagList upgrades = new NBTTagList();
-                    for (int i = minUpgradeSlot; i <= maxUpgradeSlot; i++) {
-                        if (i >= 0 && i < inventory.length && !inventory[i].isEmpty()) {
-                            NBTTagCompound tag = new NBTTagCompound();
-                            tag.setInteger("Slot", i - minUpgradeSlot);
-                            inventory[i].writeToNBT(tag);
-                            upgrades.appendTag(tag);
-                        }
-                    }
+                    int count = maxUpgradeSlot - minUpgradeSlot + 1;
+                    NBTTagList upgrades = MemoryCardUpgradeHelper.serializeUpgrades(
+                            new ItemStackArrayUpgradeAdapter(inventory, minUpgradeSlot, count));
                     if (!upgrades.isEmpty()) {
                         output.setTag("eio:upgrades", upgrades);
                     }
                 }
 
-                // 保存 dataType 用于验证
                 String machineName = (String) GET_MACHINE_NAME.invoke(tile);
                 output.setString("dataType", machineName);
             }
@@ -205,7 +197,6 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
         TileEntity tile = (TileEntity) target;
 
         try {
-            // 验证机器类型
             if (data.hasKey("dataType")) {
                 String sourceName = data.getString("dataType");
                 String targetName = (String) GET_MACHINE_NAME.invoke(tile);
@@ -214,7 +205,24 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 1. 红石控制模式
+            // 1. 先处理升级
+            if (data.hasKey("eio:upgrades") && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(tile)) {
+                Object slotDefinition = GET_SLOT_DEFINITION.invoke(tile);
+                int minUpgradeSlot = (int) SLOT_DEFINITION_CLASS.getMethod("getMinUpgradeSlot").invoke(slotDefinition);
+                int maxUpgradeSlot = (int) SLOT_DEFINITION_CLASS.getMethod("getMaxUpgradeSlot").invoke(slotDefinition);
+
+                if (minUpgradeSlot >= 0) {
+                    ItemStack[] inventory = (ItemStack[]) INVENTORY_FIELD.get(tile);
+                    int count = maxUpgradeSlot - minUpgradeSlot + 1;
+                    NBTTagList upgrades = data.getTagList("eio:upgrades", 10);
+                    List<ItemStack> needed = MemoryCardUpgradeHelper.deserializeUpgrades(upgrades);
+                    IUpgradeProvider provider = new ItemStackArrayUpgradeAdapter(inventory, minUpgradeSlot, count);
+                    PasteResult result = MemoryCardUpgradeHelper.applyUpgrades(provider, needed, player);
+                    if (result != PasteResult.SUCCESS) return result;
+                }
+            }
+
+            // 2. 红石控制模式
             if (data.hasKey("redstoneMode")) {
                 int ordinal = data.getInteger("redstoneMode");
                 if (ordinal >= 0 && ordinal < REDSTONE_CONTROL_MODE_VALUES.length) {
@@ -222,7 +230,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 2. 朝向
+            // 3. 朝向
             if (data.hasKey("facing")) {
                 int facingIndex = data.getInteger("facing");
                 EnumFacing facing = EnumFacing.byIndex(facingIndex);
@@ -231,76 +239,17 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 3. 面 IO 模式
+            // 4. 面 IO 模式
             if (data.hasKey("faceModes")) {
                 NBTTagCompound faceModesNbt = data.getCompoundTag("faceModes");
-                // 先清除所有模式
                 Method clearAllIoModes = ABSTRACT_MACHINE_ENTITY_CLASS.getMethod("clearAllIoModes");
                 clearAllIoModes.invoke(tile);
-                // 设置新模式
                 for (String key : faceModesNbt.getKeySet()) {
                     EnumFacing face = EnumFacing.byName(key);
                     if (face != null) {
                         int ordinal = faceModesNbt.getInteger(key);
                         if (ordinal >= 0 && ordinal < IO_MODE_VALUES.length) {
                             SET_IO_MODE.invoke(tile, face, IO_MODE_VALUES[ordinal]);
-                        }
-                    }
-                }
-            }
-
-            // 4. 电容升级
-            if (data.hasKey("eio:upgrades") && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(tile)) {
-                Object slotDefinition = GET_SLOT_DEFINITION.invoke(tile);
-                int minUpgradeSlot = (int) SLOT_DEFINITION_CLASS.getMethod("getMinUpgradeSlot").invoke(slotDefinition);
-                int maxUpgradeSlot = (int) SLOT_DEFINITION_CLASS.getMethod("getMaxUpgradeSlot").invoke(slotDefinition);
-
-                if (minUpgradeSlot >= 0) {
-                    ItemStack[] inventory = (ItemStack[]) INVENTORY_FIELD.get(tile);
-                    NBTTagList upgrades = data.getTagList("eio:upgrades", 10);
-
-                    // 构建 IItemHandler 风格的列表供 MemoryCardUpgradeHelper 使用
-                    // 但 EIO 的 inventory 是数组，不是 IItemHandler
-                    // 所以我们手动处理
-
-                    // 先收集需要的物品
-                    java.util.List<ItemStack> neededStacks = new java.util.ArrayList<>();
-                    for (int i = 0; i < upgrades.tagCount(); i++) {
-                        NBTTagCompound tag = upgrades.getCompoundTagAt(i);
-                        ItemStack stack = new ItemStack(tag);
-                        if (!stack.isEmpty()) {
-                            neededStacks.add(stack);
-                        }
-                    }
-
-                    // 统一验证（含 ME 网络回退）
-                    if (!neededStacks.isEmpty() && !MemoryCardUpgradeHelper.ensureAvailable(player, neededStacks)) {
-                        return PasteResult.MISSING_UPGRADES;
-                    }
-
-                    // 弹出现有升级
-                    for (int i = minUpgradeSlot; i <= maxUpgradeSlot; i++) {
-                        if (i >= 0 && i < inventory.length && !inventory[i].isEmpty()) {
-                            ItemStack existing = inventory[i].copy();
-                            inventory[i] = ItemStack.EMPTY;
-                            if (!player.addItemStackToInventory(existing)) {
-                                player.world.spawnEntity(new net.minecraft.entity.item.EntityItem(player.world, player.posX, player.posY, player.posZ, existing));
-                            }
-                        }
-                    }
-
-                    // 放入新升级
-                    for (ItemStack needed : neededStacks) {
-                        MemoryCardUpgradeHelper.consumeFromInventory(player, needed);
-                        int remaining = needed.getCount();
-                        for (int i = minUpgradeSlot; i <= maxUpgradeSlot && remaining > 0; i++) {
-                            if (i >= 0 && i < inventory.length && inventory[i].isEmpty()) {
-                                int count = Math.min(remaining, needed.getMaxStackSize());
-                                ItemStack toInsert = needed.copy();
-                                toInsert.setCount(count);
-                                inventory[i] = toInsert;
-                                remaining -= count;
-                            }
                         }
                     }
                 }

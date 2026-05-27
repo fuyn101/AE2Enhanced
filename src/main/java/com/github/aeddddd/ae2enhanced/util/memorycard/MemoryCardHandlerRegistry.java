@@ -31,6 +31,5 @@ public class MemoryCardHandlerRegistry {
         register(new EnderIOMachineHandler());
         register(new EnderIOConduitHandler());
         register(new ThermalExpansionMachineHandler());
-        register(new AE2EnhancedHandler());
     }
 }

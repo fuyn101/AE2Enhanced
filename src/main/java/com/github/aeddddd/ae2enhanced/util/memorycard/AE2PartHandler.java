@@ -9,9 +9,12 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalBusBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.items.IItemHandler;
+
+import java.util.List;
 
 /**
  * 处理 AE2 Part 的配置复制粘贴。
@@ -63,7 +66,8 @@ public class AE2PartHandler implements IMemoryCardHandler {
         try {
             IItemHandler upgrades = part.getInventoryByName("upgrades");
             if (upgrades != null && upgrades.getSlots() > 0) {
-                NBTTagList upgradeList = MemoryCardUpgradeHelper.serializeUpgrades(upgrades);
+                NBTTagList upgradeList = MemoryCardUpgradeHelper.serializeUpgrades(
+                        new ItemHandlerUpgradeAdapter(upgrades));
                 if (!upgradeList.isEmpty()) {
                     output.setTag("ae2e:upgrades", upgradeList);
                 }
@@ -79,19 +83,22 @@ public class AE2PartHandler implements IMemoryCardHandler {
     public PasteResult paste(Object target, NBTTagCompound data, EntityPlayer player) {
         AEBasePart part = (AEBasePart) target;
 
-        // 1. 应用基础配置
-        NBTTagCompound settings = data.copy();
-        settings.removeTag("ae2e:upgrades");
-        part.uploadSettings(SettingsFrom.MEMORY_CARD, settings, player);
-
-        // 2. 处理升级槽
+        // 1. 先处理升级
         if (data.hasKey("ae2e:upgrades")) {
             NBTTagList upgradeList = data.getTagList("ae2e:upgrades", 10);
             IItemHandler upgrades = part.getInventoryByName("upgrades");
             if (upgrades != null) {
-                return MemoryCardUpgradeHelper.applyUpgrades(upgrades, upgradeList, player);
+                List<ItemStack> needed = MemoryCardUpgradeHelper.deserializeUpgrades(upgradeList);
+                PasteResult result = MemoryCardUpgradeHelper.applyUpgrades(
+                        new ItemHandlerUpgradeAdapter(upgrades), needed, player);
+                if (result != PasteResult.SUCCESS) return result;
             }
         }
+
+        // 2. 用不含升级的 NBT 应用配置
+        NBTTagCompound settings = data.copy();
+        settings.removeTag("ae2e:upgrades");
+        part.uploadSettings(SettingsFrom.MEMORY_CARD, settings, player);
 
         return PasteResult.SUCCESS;
     }

@@ -37,13 +37,26 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 通用内存卡升级槽序列化与粘贴的公共辅助方法。
+ *
+ * 架构约定：
+ * 1. 所有升级操作基于 IUpgradeProvider 抽象，不再直接依赖 IItemHandler。
+ * 2. IItemHandler 的兼容通过 ItemHandlerUpgradeAdapter 桥接。
+ * 3. tryPullFromNetwork 返回 NetworkPullResult 三元状态，区分直接提取 / 已请求合成 / 失败。
  */
 public class MemoryCardUpgradeHelper {
 
-    public static NBTTagList serializeUpgrades(IItemHandler upgrades) {
+    public enum NetworkPullResult {
+        PULLED,              // 所有物品已直接提取到账
+        CRAFTING_REQUESTED,  // 部分或全部物品已提交合成请求（尚未到账）
+        FAILED               // 无法获取（既无库存也无法合成）
+    }
+
+    // ================== IUpgradeProvider API ==================
+
+    public static NBTTagList serializeUpgrades(IUpgradeProvider provider) {
         NBTTagList list = new NBTTagList();
-        for (int i = 0; i < upgrades.getSlots(); i++) {
-            ItemStack stack = upgrades.getStackInSlot(i);
+        for (int i = 0; i < provider.getSlotCount(); i++) {
+            ItemStack stack = provider.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 NBTTagCompound tag = new NBTTagCompound();
                 tag.setInteger("Slot", i);
@@ -54,88 +67,98 @@ public class MemoryCardUpgradeHelper {
         return list;
     }
 
-    public static IMemoryCardHandler.PasteResult applyUpgrades(IItemHandler upgrades, NBTTagList list, EntityPlayer player) {
-        // 1. 计算缺失数量
-        List<ItemStack> missing = new ArrayList<>();
+    public static List<ItemStack> deserializeUpgrades(NBTTagList list) {
+        List<ItemStack> result = new ArrayList<>();
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound tag = list.getCompoundTagAt(i);
-            ItemStack needed = new ItemStack(tag);
-            if (needed.isEmpty()) continue;
+            ItemStack stack = new ItemStack(tag);
+            if (!stack.isEmpty()) {
+                result.add(stack);
+            }
+        }
+        return result;
+    }
 
-            int required = needed.getCount();
-            int available = countInInventory(player, needed);
-            if (available < required) {
-                ItemStack deficit = needed.copy();
-                deficit.setCount(required - available);
-                missing.add(deficit);
+    /**
+     * 基于 IUpgradeProvider 的统一升级应用流程。
+     * 1. 统一验证（含网络回退）
+     * 2. 弹出旧升级（返还玩家背包）
+     * 3. 消耗新升级
+     * 4. 放入新升级
+     */
+    public static IMemoryCardHandler.PasteResult applyUpgrades(IUpgradeProvider provider, List<ItemStack> needed, EntityPlayer player) {
+        if (needed.isEmpty()) {
+            provider.clearSlots();
+            return IMemoryCardHandler.PasteResult.SUCCESS;
+        }
+
+        // 1. 统一验证（含网络回退）
+        if (!ensureAvailable(player, needed)) {
+            return IMemoryCardHandler.PasteResult.MISSING_UPGRADES;
+        }
+
+        // 2. 弹出旧升级
+        List<ItemStack> removed = new ArrayList<>();
+        for (int i = 0; i < provider.getSlotCount(); i++) {
+            ItemStack old = provider.getStackInSlot(i);
+            if (!old.isEmpty()) {
+                removed.add(old.copy());
+            }
+        }
+        provider.clearSlots();
+
+        for (ItemStack old : removed) {
+            if (!player.addItemStackToInventory(old)) {
+                player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, old));
             }
         }
 
-        // 2. 有缺失时，尝试从绑定的 ME 网络补充
-        if (!missing.isEmpty()) {
-            boolean pulled = tryPullFromNetwork(player, missing);
-            if (!pulled) {
-                return IMemoryCardHandler.PasteResult.MISSING_UPGRADES;
-            }
-            // 补充后再验证一次
-            for (int i = 0; i < list.tagCount(); i++) {
-                NBTTagCompound tag = list.getCompoundTagAt(i);
-                ItemStack needed = new ItemStack(tag);
-                if (needed.isEmpty()) continue;
-                if (countInInventory(player, needed) < needed.getCount()) {
-                    return IMemoryCardHandler.PasteResult.MISSING_UPGRADES;
-                }
-            }
+        // 3. 消耗新升级
+        for (ItemStack need : needed) {
+            consumeFromInventory(player, need);
         }
 
-        // 3. 弹出目标现有升级卡
-        for (int i = 0; i < upgrades.getSlots(); i++) {
-            ItemStack existing = upgrades.extractItem(i, Integer.MAX_VALUE, false);
-            if (!existing.isEmpty()) {
-                if (!player.addItemStackToInventory(existing)) {
-                    player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, existing));
-                }
-            }
-        }
-
-        // 4. 从背包扣除并放入新升级卡
-        for (int i = 0; i < list.tagCount(); i++) {
-            NBTTagCompound tag = list.getCompoundTagAt(i);
-            int slot = tag.getInteger("Slot");
-            ItemStack needed = new ItemStack(tag);
-            if (needed.isEmpty()) continue;
-
-            consumeFromInventory(player, needed);
-
-            if (slot >= 0 && slot < upgrades.getSlots()) {
-                upgrades.insertItem(slot, needed, false);
-            }
+        // 4. 放入新升级
+        for (int i = 0; i < needed.size() && i < provider.getSlotCount(); i++) {
+            provider.setStackInSlot(i, needed.get(i).copy());
         }
 
         return IMemoryCardHandler.PasteResult.SUCCESS;
     }
 
-    public static boolean tryPullFromNetwork(EntityPlayer player, List<ItemStack> missing) {
+    // ================== IItemHandler 兼容层 ==================
+
+    public static NBTTagList serializeUpgrades(IItemHandler upgrades) {
+        return serializeUpgrades(new ItemHandlerUpgradeAdapter(upgrades));
+    }
+
+    public static IMemoryCardHandler.PasteResult applyUpgrades(IItemHandler upgrades, NBTTagList list, EntityPlayer player) {
+        return applyUpgrades(new ItemHandlerUpgradeAdapter(upgrades), deserializeUpgrades(list), player);
+    }
+
+    // ================== 网络回退 ==================
+
+    public static NetworkPullResult tryPullFromNetwork(EntityPlayer player, List<ItemStack> missing) {
         ItemStack handStack = player.getHeldItemMainhand();
-        if (!(handStack.getItem() instanceof ItemUniversalMemoryCard)) return false;
-        if (!ItemUniversalMemoryCard.hasBinding(handStack)) return false;
+        if (!(handStack.getItem() instanceof ItemUniversalMemoryCard)) return NetworkPullResult.FAILED;
+        if (!ItemUniversalMemoryCard.hasBinding(handStack)) return NetworkPullResult.FAILED;
 
         NBTTagCompound binding = ItemUniversalMemoryCard.getBinding(handStack);
         BlockPos pos = BlockPos.fromLong(binding.getLong("pos"));
         int dim = binding.getInteger("dim");
 
         World world = player.getEntityWorld();
-        if (world.provider.getDimension() != dim) return false;
-        if (!world.isBlockLoaded(pos)) return false;
+        if (world.provider.getDimension() != dim) return NetworkPullResult.FAILED;
+        if (!world.isBlockLoaded(pos)) return NetworkPullResult.FAILED;
 
         TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof TileWirelessChannelTransmitter)) return false;
+        if (!(te instanceof TileWirelessChannelTransmitter)) return NetworkPullResult.FAILED;
         TileWirelessChannelTransmitter transmitter = (TileWirelessChannelTransmitter) te;
 
         try {
             appeng.api.networking.IGrid grid = transmitter.getProxy().getGrid();
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
-            if (storageGrid == null) return false;
+            if (storageGrid == null) return NetworkPullResult.FAILED;
             IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             PlayerSource source = new PlayerSource(player, null);
@@ -145,19 +168,16 @@ public class MemoryCardUpgradeHelper {
             List<ItemStack> craftable = new ArrayList<>();
             List<ItemStack> directExtract = new ArrayList<>();
 
-            // 模拟提取，分类：可直接提取 vs 需要合成
             for (ItemStack deficit : missing) {
                 AEItemStack want = AEItemStack.fromItemStack(deficit);
                 IAEItemStack sim = inv.extractItems(want, Actionable.SIMULATE, source);
                 if (sim != null && sim.getStackSize() >= deficit.getCount()) {
-                    // 网络有足够库存，全部直接提取
                     directExtract.add(deficit.copy());
                     continue;
                 }
 
                 long available = sim != null ? sim.getStackSize() : 0;
                 if (available > 0) {
-                    // 部分可提取
                     ItemStack partial = deficit.copy();
                     partial.setCount((int) available);
                     directExtract.add(partial);
@@ -167,7 +187,6 @@ public class MemoryCardUpgradeHelper {
                     ItemStack need = deficit.copy();
                     need.setCount(needCount);
 
-                    // 检查是否能合成
                     if (craftingGrid != null && craftingGrid.canEmitFor(AEItemStack.fromItemStack(need))) {
                         craftable.add(need);
                     } else {
@@ -176,18 +195,15 @@ public class MemoryCardUpgradeHelper {
                 }
             }
 
-            // 如果有无法合成也无法提取的物品，直接失败
             if (!stillMissing.isEmpty()) {
-                return false;
+                return NetworkPullResult.FAILED;
             }
 
-            // 尝试为可合成的物品发起合成请求
             boolean craftingRequested = false;
             if (!craftable.isEmpty() && craftingGrid != null) {
                 craftingRequested = requestCrafting(player, world, grid, source, craftingGrid, craftable, transmitter);
             }
 
-            // 实际提取可直接获取的物品
             for (ItemStack toExtract : directExtract) {
                 AEItemStack want = AEItemStack.fromItemStack(toExtract);
                 IAEItemStack extracted = inv.extractItems(want, Actionable.MODULATE, source);
@@ -200,15 +216,14 @@ public class MemoryCardUpgradeHelper {
             }
 
             if (craftingRequested) {
-                // 发送消息提示玩家已请求合成
                 player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.crafting_requested"));
+                return NetworkPullResult.CRAFTING_REQUESTED;
             }
 
-            // 如果还有需要合成的物品，返回 false（物品未实际到账）
-            return !craftingRequested;
+            return NetworkPullResult.PULLED;
         } catch (GridAccessException e) {
             AE2Enhanced.LOGGER.debug("[AE2E] UMC bound transmitter grid not accessible at {}", pos);
-            return false;
+            return NetworkPullResult.FAILED;
         }
     }
 
@@ -244,7 +259,6 @@ public class MemoryCardUpgradeHelper {
                 Future<ICraftingJob> future = craftingGrid.beginCraftingJob(world, grid, source, want, new ICraftingCallback() {
                     @Override
                     public void calculationComplete(ICraftingJob job) {
-                        // 同步回调中提交合成
                         try {
                             craftingGrid.submitJob(job, requester, null, false, source);
                         } catch (Exception e) {
@@ -253,7 +267,6 @@ public class MemoryCardUpgradeHelper {
                     }
                 });
 
-                // 短暂等待计算完成
                 ICraftingJob job = future.get(200, TimeUnit.MILLISECONDS);
                 if (job != null) {
                     ICraftingLink link = craftingGrid.submitJob(job, requester, null, false, source);
@@ -262,7 +275,6 @@ public class MemoryCardUpgradeHelper {
                     }
                 }
             } catch (java.util.concurrent.TimeoutException e) {
-                // 计算超时，但异步回调可能仍会提交
                 anyRequested = true;
             } catch (Exception e) {
                 AE2Enhanced.LOGGER.debug("[AE2E] Crafting request failed for {}", stack.getDisplayName(), e);
@@ -271,6 +283,8 @@ public class MemoryCardUpgradeHelper {
 
         return anyRequested;
     }
+
+    // ================== 背包操作 ==================
 
     public static int countInInventory(EntityPlayer player, ItemStack stack) {
         int count = 0;
@@ -292,7 +306,7 @@ public class MemoryCardUpgradeHelper {
     /**
      * 确保玩家背包（含 ME 网络回退）中有足够的物品。
      * 如果网络拉取了物品，它们会被放入玩家背包。
-     * @return true 表示所有物品都已在背包中可用
+     * @return true 表示所有物品都已在背包中可用（CRAFTING_REQUESTED 也视为 true，因为合成已启动）
      */
     public static boolean ensureAvailable(EntityPlayer player, List<ItemStack> needed) {
         List<ItemStack> missing = new ArrayList<>();
@@ -307,10 +321,10 @@ public class MemoryCardUpgradeHelper {
         }
         if (missing.isEmpty()) return true;
 
-        boolean pulled = tryPullFromNetwork(player, missing);
-        if (!pulled) return false;
+        NetworkPullResult result = tryPullFromNetwork(player, missing);
+        if (result == NetworkPullResult.FAILED) return false;
 
-        // 网络回退后再次验证
+        // PULLED 或 CRAFTING_REQUESTED：再次验证库存
         for (ItemStack need : needed) {
             if (need.isEmpty()) continue;
             if (countInInventory(player, need) < need.getCount()) {

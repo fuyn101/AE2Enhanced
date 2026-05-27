@@ -1,21 +1,17 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
 import com.github.aeddddd.ae2enhanced.network.PacketUMCAction;
-import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
-import com.github.aeddddd.ae2enhanced.util.memorycard.IMemoryCardHandler;
-import com.github.aeddddd.ae2enhanced.util.memorycard.MemoryCardHandlerRegistry;
+import com.github.aeddddd.ae2enhanced.util.memorycard.UMCCopyService;
+import com.github.aeddddd.ae2enhanced.util.memorycard.UMCPasteService;
+import com.github.aeddddd.ae2enhanced.util.memorycard.UMCSelectionService;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
@@ -23,24 +19,23 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
-import java.util.Set;
 
 /**
  * 通用内存卡：复制/粘贴 AE2 设备配置（含升级卡），选取世界中的目标方块。
+ *
+ * 架构约定：
+ * 业务逻辑已拆分到 UMCCopyService / UMCPasteService / UMCSelectionService。
+ * 本类只保留：NBT 序列化、客户端事件分发、tooltip 渲染。
  */
 public class ItemUniversalMemoryCard extends Item {
 
@@ -64,7 +59,7 @@ public class ItemUniversalMemoryCard extends Item {
         public final BlockPos pos;
         public final int dim;
         public final String tileId;
-        public final int side; // AEPartLocation.ordinal(), -1 for TileEntity
+        public final int side;
 
         public SelectionEntry(BlockPos pos, int dim, String tileId, int side) {
             this.pos = pos;
@@ -121,8 +116,6 @@ public class ItemUniversalMemoryCard extends Item {
         }
     }
 
-    // --- Binding helpers ---
-
     public static boolean hasBinding(ItemStack stack) {
         return stack.hasTagCompound() && stack.getTagCompound().hasKey(NBT_BINDING);
     }
@@ -171,7 +164,6 @@ public class ItemUniversalMemoryCard extends Item {
         } else {
             selections = new NBTTagList();
         }
-        // 去重
         for (int i = 0; i < selections.tagCount(); i++) {
             NBTTagCompound tag = selections.getCompoundTagAt(i);
             if (BlockPos.fromLong(tag.getLong("pos")).equals(entry.pos) && tag.getInteger("dim") == entry.dim) {
@@ -200,7 +192,7 @@ public class ItemUniversalMemoryCard extends Item {
     }
 
     // ============================================================
-    // Client Event: send network packet on right-click block
+    // Client Events
     // ============================================================
 
     @SideOnly(Side.CLIENT)
@@ -220,8 +212,8 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isSneaking = player.isSneaking();
                     boolean isCtrl = net.minecraft.client.Minecraft.getMinecraft().gameSettings.keyBindSprint.isKeyDown();
 
-                    TileEntity te = event.getWorld().getTileEntity(event.getPos());
-                    boolean isCentralInterface = te instanceof TileCentralMEInterface;
+                    net.minecraft.tileentity.TileEntity te = event.getWorld().getTileEntity(event.getPos());
+                    boolean isCentralInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 
                     boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
                             || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
@@ -274,13 +266,13 @@ public class ItemUniversalMemoryCard extends Item {
 
         switch (message.getType()) {
             case COPY:
-                handleCopy(player, stack, message.getPos(), message.getFace());
+                UMCCopyService.handleCopy(player, stack, message.getPos(), message.getFace());
                 break;
             case PASTE:
-                handlePaste(player, stack, message.getPos(), message.getFace());
+                UMCPasteService.handlePaste(player, stack, message.getPos(), message.getFace());
                 break;
             case SELECT:
-                handleSelect(player, stack, message.getPos(), message.getFace());
+                UMCSelectionService.handleSelect(player, stack, message.getPos(), message.getFace());
                 break;
             case CLEAR_CONFIG:
                 clearConfig(stack);
@@ -296,285 +288,22 @@ public class ItemUniversalMemoryCard extends Item {
                         (int) player.posX, (int) player.posY, (int) player.posZ);
                 break;
             case BIND_SOURCE:
-                handleBindSource(player, stack, message.getPos(), message.getFace());
+                UMCSelectionService.handleBindSource(player, stack, message.getPos(), message.getFace());
                 break;
             case CLEAR_BINDINGS:
-                handleClearBindings(player, message.getPos());
+                UMCSelectionService.handleClearBindings(player, message.getPos());
                 break;
-            // BIND_TARGET removed: binding is now done via BIND_SOURCE reading selections
         }
 
-        // 强制同步玩家背包，使客户端 ItemStack NBT 更新
         player.inventoryContainer.detectAndSendChanges();
     }
 
-    private static void handleCopy(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        World world = player.world;
-        Object target = findTarget(world, pos, face);
-        if (target == null) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_invalid"));
-            return;
-        }
-
-        IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(target);
-        if (handler == null) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_unsupported"));
-            return;
-        }
-
-        NBTTagCompound data = handler.copy(target);
-        if (data == null || data.isEmpty()) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_empty", handler.getDisplayName(target)));
-            return;
-        }
-
-        String handlerId;
-        if (target instanceof appeng.parts.AEBasePart) handlerId = "ae2_part";
-        else if (target instanceof appeng.tile.AEBaseTile) handlerId = "ae2_tile";
-        else handlerId = "ae2e_custom";
-
-        setConfig(stack, handlerId, handler.getDisplayName(target), data);
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.copy_success", handler.getDisplayName(target)));
-    }
-
-    private static void handlePaste(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        if (!hasConfig(stack)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_config"));
-            return;
-        }
-
-        NBTTagCompound config = getConfig(stack);
-        NBTTagCompound data = config.getCompoundTag("data");
-
-        World world = player.world;
-        Object target = findTarget(world, pos, face);
-        if (target == null) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_invalid"));
-            return;
-        }
-
-        // 检查是否是批量粘贴
-        List<SelectionEntry> selections = getSelections(stack);
-        boolean isBulk = false;
-        for (SelectionEntry entry : selections) {
-            if (entry.dim == world.provider.getDimension() && entry.pos.equals(pos)) {
-                isBulk = true;
-                break;
-            }
-        }
-
-        if (isBulk) {
-            int success = 0;
-            int failed = 0;
-            for (SelectionEntry entry : selections) {
-                if (entry.dim != world.provider.getDimension()) continue;
-                Object bulkTarget = resolveTarget(world, entry);
-                if (bulkTarget == null) continue;
-                IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(bulkTarget);
-                if (handler == null) continue;
-                IMemoryCardHandler.PasteResult result = handler.paste(bulkTarget, data, player);
-                if (result == IMemoryCardHandler.PasteResult.SUCCESS) success++;
-                else failed++;
-            }
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bulk_success", success, failed));
-        } else {
-            IMemoryCardHandler handler = MemoryCardHandlerRegistry.findHandler(target);
-            if (handler == null) {
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_unsupported"));
-                return;
-            }
-            IMemoryCardHandler.PasteResult result = handler.paste(target, data, player);
-            switch (result) {
-                case SUCCESS:
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_success", handler.getDisplayName(target)));
-                    break;
-                case MISSING_UPGRADES:
-                    StringBuilder req = new StringBuilder();
-                    appendUpgradeNames(req, data, "ae2e:upgrades");
-                    appendUpgradeNames(req, data, "eio:upgrades");
-                    appendUpgradeNames(req, data, "Augments");
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.missing_upgrades", req.toString()));
-                    break;
-                case INVALID_MACHINE:
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.invalid_machine"));
-                    break;
-                case FAILED:
-                    player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.paste_failed"));
-                    break;
-            }
-        }
-    }
-
-    private static void handleSelect(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        World world = player.world;
-        TileEntity te = world.getTileEntity(pos);
-
-        // 检查是否已在选取列表中
-        List<SelectionEntry> selections = getSelections(stack);
-        for (int i = 0; i < selections.size(); i++) {
-            SelectionEntry entry = selections.get(i);
-            if (entry.dim == world.provider.getDimension() && entry.pos.equals(pos)) {
-                removeSelection(stack, i);
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.deselect"));
-                return;
-            }
-        }
-
-        if (te instanceof IPartHost) {
-            IPartHost host = (IPartHost) te;
-            IPart part = host.getPart(AEPartLocation.fromFacing(face));
-            if (part != null) {
-                String tileId = part.getClass().getName();
-                int side = AEPartLocation.fromFacing(face).ordinal();
-                addSelection(stack, new SelectionEntry(pos, world.provider.getDimension(), tileId, side));
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_part"));
-                return;
-            }
-        }
-
-        if (te != null) {
-            String tileId = te.getClass().getName();
-            // BFS 近邻同类方块
-            List<BlockPos> connected = findConnectedBlocks(world, pos, te.getClass(), 64);
-            for (BlockPos p : connected) {
-                addSelection(stack, new SelectionEntry(p, world.provider.getDimension(), tileId, -1));
-            }
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_tile", connected.size()));
-        } else {
-            // 非 TileEntity 方块
-            String blockId = world.getBlockState(pos).getBlock().getRegistryName().toString();
-            addSelection(stack, new SelectionEntry(pos, world.provider.getDimension(), blockId, -1));
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_block"));
-        }
-    }
-
-    private static void handleBindSource(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        World world = player.world;
-        TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof TileCentralMEInterface)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
-            return;
-        }
-
-        List<SelectionEntry> selections = getSelections(stack);
-        if (selections.isEmpty()) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_selections"));
-            return;
-        }
-
-        TileCentralMEInterface source = (TileCentralMEInterface) te;
-        int bound = 0;
-        for (SelectionEntry entry : selections) {
-            if (entry.dim != world.provider.getDimension()) continue;
-            if (!world.isBlockLoaded(entry.pos)) continue;
-            TileEntity targetTe = world.getTileEntity(entry.pos);
-            if (targetTe == null) continue;
-
-            String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
-            source.addBinding(new TargetBinding(entry.pos, entry.dim, blockId));
-            bound++;
-        }
-
-        clearSelections(stack);
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_success", bound));
-    }
-
-    private static void appendUpgradeNames(StringBuilder req, NBTTagCompound data, String key) {
-        if (!data.hasKey(key)) return;
-        NBTTagList upgList = data.getTagList(key, 10);
-        for (int i = 0; i < upgList.tagCount(); i++) {
-            NBTTagCompound tag = upgList.getCompoundTagAt(i);
-            ItemStack upg = new ItemStack(tag);
-            if (!upg.isEmpty()) {
-                if (req.length() > 0) req.append(", ");
-                req.append(upg.getDisplayName());
-                if (upg.getCount() > 1) req.append("×").append(upg.getCount());
-            }
-        }
-    }
-
-    private static void handleClearBindings(EntityPlayer player, BlockPos pos) {
-        World world = player.world;
-        TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof TileCentralMEInterface)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
-            return;
-        }
-        TileCentralMEInterface source = (TileCentralMEInterface) te;
-        int count = source.getInterfaceDuality().getBindings().size();
-        source.clearBindings();
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_bindings", count));
-    }
-
     // ============================================================
-    // Target Resolution
-    // ============================================================
-
-    @Nullable
-    private static Object findTarget(World world, BlockPos pos, EnumFacing face) {
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof IPartHost) {
-            IPartHost host = (IPartHost) te;
-            IPart part = host.getPart(AEPartLocation.fromFacing(face));
-            if (part != null) return part;
-        }
-        if (te != null) return te;
-        return null;
-    }
-
-    @Nullable
-    private static Object resolveTarget(World world, SelectionEntry entry) {
-        if (entry.dim != world.provider.getDimension()) return null;
-        if (!world.isBlockLoaded(entry.pos)) return null;
-        TileEntity te = world.getTileEntity(entry.pos);
-        if (te == null) return null;
-        if (entry.side >= 0 && te instanceof IPartHost) {
-            IPart part = ((IPartHost) te).getPart(AEPartLocation.fromOrdinal(entry.side));
-            if (part != null) return part;
-        }
-        return te;
-    }
-
-    // ============================================================
-    // BFS for connected same-class TileEntities
-    // ============================================================
-
-    private static List<BlockPos> findConnectedBlocks(World world, BlockPos start, Class<?> tileClass, int maxCount) {
-        List<BlockPos> result = new ArrayList<>();
-        Queue<BlockPos> queue = new LinkedList<>();
-        Set<BlockPos> visited = new HashSet<>();
-
-        queue.add(start);
-        visited.add(start);
-
-        while (!queue.isEmpty() && result.size() < maxCount) {
-            BlockPos pos = queue.poll();
-            if (!world.isBlockLoaded(pos)) continue;
-            TileEntity te = world.getTileEntity(pos);
-            if (te != null && te.getClass() == tileClass) {
-                result.add(pos);
-
-                for (EnumFacing facing : EnumFacing.values()) {
-                    BlockPos neighbor = pos.offset(facing);
-                    if (!visited.contains(neighbor)) {
-                        visited.add(neighbor);
-                        queue.add(neighbor);
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    // ============================================================
-    // GUI Open: only when right-clicking air (handled by ClientEvents.onRightClickEmpty)
+    // Server-side fallback
     // ============================================================
 
     @Override
     public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
-        // UMC 的交互完全通过 PacketUMCAction 处理
-        // 返回 FAIL 阻止默认的方块激活 / 物品使用，作为服务器端兜底
         ItemStack stack = player.getHeldItem(hand);
         if (stack.getItem() instanceof ItemUniversalMemoryCard) {
             return EnumActionResult.FAIL;
@@ -631,14 +360,13 @@ public class ItemUniversalMemoryCard extends Item {
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.alt"));
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.air"));
 
-        // 手持 UMC 看向 Central ME Interface 时显示绑定信息
         if (world != null && world.isRemote) {
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
             net.minecraft.util.math.RayTraceResult ray = mc.objectMouseOver;
             if (ray != null && ray.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
-                TileEntity te = world.getTileEntity(ray.getBlockPos());
-                if (te instanceof TileCentralMEInterface) {
-                    TileCentralMEInterface source = (TileCentralMEInterface) te;
+                net.minecraft.tileentity.TileEntity te = world.getTileEntity(ray.getBlockPos());
+                if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface) {
+                    com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface source = (com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface) te;
                     int boundCount = source.getInterfaceDuality().getBindings().size();
                     tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
                     tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.central_bindings", boundCount));

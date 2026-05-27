@@ -429,11 +429,11 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                     }
                 }
                 if (!missingUpgrades.isEmpty()) {
-                    boolean pulled = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missingUpgrades);
-                    if (!pulled) {
+                    MemoryCardUpgradeHelper.NetworkPullResult result = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missingUpgrades);
+                    if (result == MemoryCardUpgradeHelper.NetworkPullResult.FAILED) {
                         return PasteResult.MISSING_UPGRADES;
                     }
-                    // 回退后再次验证
+                    // 回退后再次验证（PULLED 和 CRAFTING_REQUESTED 都验证库存是否到账）
                     for (ItemStack need : missingUpgrades) {
                         if (MemoryCardUpgradeHelper.countInInventory(player, need) < need.getCount()) {
                             return PasteResult.MISSING_UPGRADES;
@@ -557,8 +557,9 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                     // 尝试从网络拉取
                     List<ItemStack> missing = new ArrayList<>();
                     missing.add(installer.copy());
-                    boolean pulled = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missing);
-                    if (!pulled || MemoryCardUpgradeHelper.countInInventory(player, installer) < 1) {
+                    MemoryCardUpgradeHelper.NetworkPullResult result = MemoryCardUpgradeHelper.tryPullFromNetwork(player, missing);
+                    if (result == MemoryCardUpgradeHelper.NetworkPullResult.FAILED
+                            || MemoryCardUpgradeHelper.countInInventory(player, installer) < 1) {
                         return PasteResult.MISSING_UPGRADES;
                     }
                 }
