@@ -235,6 +235,21 @@ item.ae2enhanced.omni_wireless_terminal.name=全能无线终端
 gui.ae2enhanced.omni_terminal.title=全能终端
 gui.ae2enhanced.omni_terminal.inventory=物品栏
 
+tile.ae2enhanced.smart_pattern_interface.name=智能样板接口
+item.ae2enhanced.smart_blank_pattern.name=智能空白样板
+item.ae2enhanced.smart_pattern.name=智能样板
+
+gui.ae2enhanced.smart_pattern_interface.title=智能样板接口
+gui.ae2enhanced.smart_pattern_interface.encode_tooltip=编码样板
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=无法编码：检测到冲突
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=无法编码：缺少空白样板
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=无法编码：输出槽已满
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=已禁用 (点击启用)
+gui.ae2enhanced.smart_pattern_interface.conflict_marker=冲突 — 与其他配方输出相同
+gui.ae2enhanced.smart_pattern_interface.recipe_count=配方: %d / %d 已启用
+tooltip.ae2enhanced.smart_pattern.bound_to=绑定目标: %s
+tooltip.ae2enhanced.smart_pattern.recipe_count=配方数量: %d
+
 # Omni 终端升级卡
 item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡
 item.ae2enhanced.omni_upgrade_card.magnet.tooltip=§b§l高级磁引卡 §r§8[类型: 磁引]

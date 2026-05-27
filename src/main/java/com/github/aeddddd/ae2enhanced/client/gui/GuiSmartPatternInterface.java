@@ -3,13 +3,20 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternToggle;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 智能样板接口的客户端 GUI。
@@ -48,8 +55,10 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int SCROLL_Y = 37;
     private static final int SCROLL_W = 10;
     private static final int SCROLL_H = 88;
+    private static final int THUMB_HEIGHT = 17;
 
     private final TileSmartPatternInterface tile;
+    private boolean isScrolling = false;
 
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
         super(new ContainerSmartPatternInterface(inventoryPlayer, tile));
@@ -63,6 +72,9 @@ public class GuiSmartPatternInterface extends GuiContainer {
         this.mc.getTextureManager().bindTexture(TEXTURE);
         // 主面板背景
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+
+        // 绘制滚动条滑块
+        drawScrollThumb();
     }
 
     @Override
@@ -87,13 +99,28 @@ public class GuiSmartPatternInterface extends GuiContainer {
         // 绘制禁用标记 X
         drawDisabledMarkers();
 
-        // 按钮 hover 提示
-        int relX = mouseX - this.guiLeft;
-        int relY = mouseY - this.guiTop;
-        if (isInEncodeButton(relX, relY)) {
-            this.drawHoveringText(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_tooltip"),
-                    relX, relY);
-        }
+        // 绘制冲突标记（红色背景覆盖）
+        drawConflictMarkers();
+    }
+
+    /**
+     * 绘制滚动条滑块。
+     */
+    private void drawScrollThumb() {
+        SmartPatternData data = tile.getPatternData();
+        if (data == null || data.getRecipeCount() <= 45) return;
+
+        int maxOffset = Math.max(0, (data.getRecipeCount() - 1) / 9 - 4);
+        if (maxOffset <= 0) return;
+
+        int scrollOffset = tile.getScrollOffset();
+        int trackHeight = SCROLL_H - THUMB_HEIGHT;
+        int thumbY = SCROLL_Y + (scrollOffset * trackHeight / maxOffset);
+
+        this.mc.getTextureManager().bindTexture(TEXTURE);
+        // 滑块纹理在 GUI 纹理中的位置，使用 (195, 0) 作为滑块 UV（需在纹理中预留）
+        // 若纹理中无此区域，则使用纯色填充
+        this.drawTexturedModalRect(guiLeft + SCROLL_X, guiTop + thumbY, 195, 0, SCROLL_W, THUMB_HEIGHT);
     }
 
     /**
@@ -119,11 +146,116 @@ public class GuiSmartPatternInterface extends GuiContainer {
         }
     }
 
+    /**
+     * 在冲突的配方槽位上绘制半透明红色覆盖。
+     */
+    private void drawConflictMarkers() {
+        SmartPatternData data = tile.getPatternData();
+        if (data == null) return;
+
+        int scrollOffset = tile.getScrollOffset();
+        int slotIndex = 0;
+        for (int row = 0; row < ROW_Y.length; row++) {
+            for (int col = 0; col < COL_X.length; col++) {
+                int recipeIndex = scrollOffset * 9 + slotIndex;
+                if (recipeIndex < data.getRecipeCount() && data.getConflictMask().get(recipeIndex)) {
+                    int x = COL_X[col];
+                    int y = ROW_Y[row];
+                    drawRect(x, y, x + 16, y + 15, 0x44FF0000);
+                }
+                slotIndex++;
+            }
+        }
+    }
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
         this.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    @Override
+    protected void renderHoveredToolTip(int mouseX, int mouseY) {
+        int relX = mouseX - this.guiLeft;
+        int relY = mouseY - this.guiTop;
+
+        // 编码按钮 tooltip
+        if (isInEncodeButton(relX, relY)) {
+            List<String> lines = getEncodeButtonTooltip();
+            this.drawHoveringText(lines, mouseX, mouseY);
+            return;
+        }
+
+        // 配方槽位 tooltip（禁用/冲突信息）
+        int slot = getRecipeSlotAt(relX, relY);
+        if (slot >= 0) {
+            List<String> lines = getRecipeSlotTooltip(slot);
+            if (!lines.isEmpty()) {
+                this.drawHoveringText(lines, mouseX, mouseY);
+                return;
+            }
+        }
+
+        // 滚动条 tooltip：显示配方数量
+        if (isInScrollBar(relX, relY)) {
+            SmartPatternData data = tile.getPatternData();
+            if (data != null) {
+                int enabled = data.getEnabledCount();
+                int total = data.getRecipeCount();
+                String text = I18n.format("gui.ae2enhanced.smart_pattern_interface.recipe_count", enabled, total);
+                this.drawHoveringText(java.util.Collections.singletonList(text), mouseX, mouseY);
+                return;
+            }
+        }
+
+        super.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    private List<String> getEncodeButtonTooltip() {
+        List<String> lines = new ArrayList<>();
+        SmartPatternData data = tile.getPatternData();
+
+        if (data == null) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank"));
+            return lines;
+        }
+
+        if (data.hasConflicts()) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict"));
+            return lines;
+        }
+
+        ItemStack input = tile.getInventory().getStackInSlot(0);
+        if (input.isEmpty() || !(input.getItem() instanceof ItemSmartBlankPattern)) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank"));
+            return lines;
+        }
+
+        if (!tile.getInventory().getStackInSlot(1).isEmpty()) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full"));
+            return lines;
+        }
+
+        lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_tooltip"));
+        return lines;
+    }
+
+    private List<String> getRecipeSlotTooltip(int slot) {
+        List<String> lines = new ArrayList<>();
+        SmartPatternData data = tile.getPatternData();
+        if (data == null) return lines;
+
+        int recipeIndex = tile.getScrollOffset() * 9 + slot;
+        if (recipeIndex >= data.getRecipeCount()) return lines;
+
+        if (data.getConflictMask().get(recipeIndex)) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.conflict_marker"));
+        }
+        if (data.isDisabled(recipeIndex)) {
+            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.disabled_marker"));
+        }
+        return lines;
     }
 
     private boolean isInEncodeButton(int x, int y) {
@@ -132,13 +264,18 @@ public class GuiSmartPatternInterface extends GuiContainer {
     }
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws java.io.IOException {
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
         // 编码按钮点击
         if (isInEncodeButton(relX, relY) && mouseButton == 0) {
-            AE2Enhanced.network.sendToServer(new PacketSmartPatternEncode(tile.getPos()));
+            SmartPatternData data = tile.getPatternData();
+            if (data != null && !data.hasConflicts()
+                    && !tile.getInventory().getStackInSlot(0).isEmpty()
+                    && tile.getInventory().getStackInSlot(1).isEmpty()) {
+                AE2Enhanced.network.sendToServer(new PacketSmartPatternEncode(tile.getPos()));
+            }
             return;
         }
 
@@ -152,22 +289,55 @@ public class GuiSmartPatternInterface extends GuiContainer {
             }
         }
 
-        // 滚动条点击（简单翻页）
+        // 滚动条点击/拖动开始
         if (mouseButton == 0 && isInScrollBar(relX, relY)) {
             SmartPatternData data = tile.getPatternData();
-            if (data != null) {
-                int maxOffset = Math.max(0, (data.getRecipeCount() - 1) / 9);
-                int newOffset = tile.getScrollOffset() + 1;
-                if (newOffset > maxOffset) {
-                    newOffset = 0; // 循环回顶部
-                }
-                AE2Enhanced.network.sendToServer(
-                    new com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll(tile.getPos(), newOffset));
+            if (data != null && data.getRecipeCount() > 45) {
+                this.isScrolling = true;
+                updateScrollFromMouse(relY);
             }
             return;
         }
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        if (this.isScrolling && clickedMouseButton == 0) {
+            int relY = mouseY - this.guiTop;
+            updateScrollFromMouse(relY);
+            return;
+        }
+        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+    }
+
+    @Override
+    protected void mouseReleased(int mouseX, int mouseY, int state) {
+        if (this.isScrolling) {
+            this.isScrolling = false;
+        }
+        super.mouseReleased(mouseX, mouseY, state);
+    }
+
+    /**
+     * 根据鼠标 Y 坐标更新滚动偏移。
+     */
+    private void updateScrollFromMouse(int relY) {
+        SmartPatternData data = tile.getPatternData();
+        if (data == null) return;
+
+        int maxOffset = Math.max(0, (data.getRecipeCount() - 1) / 9 - 4);
+        if (maxOffset <= 0) return;
+
+        int trackHeight = SCROLL_H - THUMB_HEIGHT;
+        int relativeY = relY - SCROLL_Y - THUMB_HEIGHT / 2;
+        int newOffset = relativeY * maxOffset / trackHeight;
+        newOffset = Math.max(0, Math.min(maxOffset, newOffset));
+
+        if (newOffset != tile.getScrollOffset()) {
+            AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newOffset));
+        }
     }
 
     /**
