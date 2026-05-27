@@ -399,7 +399,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
             Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
             java.lang.reflect.Method postAlteration = storageGrid.getClass().getMethod("postAlterationOfStoredItems",
-                appeng.api.storage.IStorageChannel.class, java.util.List.class, appeng.api.networking.security.IActionSource.class);
+                appeng.api.storage.IStorageChannel.class, java.lang.Iterable.class, appeng.api.networking.security.IActionSource.class);
             postAlteration.invoke(storageGrid, essentiaChannel, java.util.Collections.singletonList(change), src);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post essentia alteration", e);

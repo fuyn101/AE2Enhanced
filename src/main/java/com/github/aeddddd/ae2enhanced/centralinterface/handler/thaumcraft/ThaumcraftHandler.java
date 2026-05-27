@@ -204,6 +204,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
+        if (isCrafting(te)) return true;
 
         // 先尝试让矩阵自己走正常流程：craftingStart 内部会查找配方、检查研究、吸收源质
         // 注意：craftingStart 返回 void，不能读取 boolean 返回值
