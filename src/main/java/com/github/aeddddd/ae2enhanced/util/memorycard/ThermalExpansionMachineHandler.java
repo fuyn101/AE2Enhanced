@@ -85,7 +85,16 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
+            // 0. 先验证 augment 是否可获得（避免 level 改变后 augment 不足导致状态不一致）
+            if (data.hasKey("Augments")) {
+                PasteResult augmentCheck = checkAugmentsAvailable(tile, data.getTagList("Augments", 10), player);
+                if (augmentCheck != PasteResult.SUCCESS) {
+                    return augmentCheck;
+                }
+            }
+
             // 1. 先处理 Level 升级（消耗转换套件）
+            int originalLevel = getCurrentLevel(tile);
             if (data.hasKey("Level")) {
                 PasteResult levelResult = applyLevelUpgrade(tile, data.getByte("Level"), player);
                 if (levelResult != PasteResult.SUCCESS) {
@@ -107,6 +116,11 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             if (data.hasKey("Augments")) {
                 PasteResult augmentResult = applyAugments(tile, data.getTagList("Augments", 10), player);
                 if (augmentResult != PasteResult.SUCCESS) {
+                    // 回滚 level 改变，避免机器处于 level 升级但 augment 丢失的状态
+                    if (data.hasKey("Level") && getCurrentLevel(tile) != originalLevel) {
+                        setLevel(tile, originalLevel);
+                        AE2Enhanced.LOGGER.debug("[AE2E] Rolled back TE level from {} to {} due to augment failure", getCurrentLevel(tile), originalLevel);
+                    }
                     return augmentResult;
                 }
                 currentNbt.setTag("Augments", data.getTag("Augments"));
@@ -257,16 +271,46 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
         return false;
     }
 
-    private PasteResult applyAugments(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
+    /**
+     * 预先验证 augment 是否可从玩家背包获得，不执行任何副作用。
+     */
+    private PasteResult checkAugmentsAvailable(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
         try {
-            java.util.List<ItemStack> neededAugments = new java.util.ArrayList<>();
-            for (int i = 0; i < sourceAugments.tagCount(); i++) {
-                NBTTagCompound tag = sourceAugments.getCompoundTagAt(i);
-                ItemStack stack = new ItemStack(tag);
-                if (!stack.isEmpty()) {
-                    neededAugments.add(stack);
+            java.util.List<ItemStack> neededAugments = parseAugmentList(sourceAugments);
+            if (neededAugments.isEmpty()) {
+                return PasteResult.SUCCESS;
+            }
+            int targetSlots = getNumAugmentSlots(tile);
+            if (targetSlots > 0 && neededAugments.size() > targetSlots) {
+                neededAugments = neededAugments.subList(0, targetSlots);
+            }
+            for (ItemStack needed : neededAugments) {
+                if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
+                    return PasteResult.MISSING_UPGRADES;
                 }
             }
+            return PasteResult.SUCCESS;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] TE augment pre-check failed", e);
+            return PasteResult.FAILED;
+        }
+    }
+
+    private java.util.List<ItemStack> parseAugmentList(NBTTagList sourceAugments) {
+        java.util.List<ItemStack> list = new java.util.ArrayList<>();
+        for (int i = 0; i < sourceAugments.tagCount(); i++) {
+            NBTTagCompound tag = sourceAugments.getCompoundTagAt(i);
+            ItemStack stack = new ItemStack(tag);
+            if (!stack.isEmpty()) {
+                list.add(stack);
+            }
+        }
+        return list;
+    }
+
+    private PasteResult applyAugments(TileEntity tile, NBTTagList sourceAugments, EntityPlayer player) {
+        try {
+            java.util.List<ItemStack> neededAugments = parseAugmentList(sourceAugments);
 
             if (neededAugments.isEmpty()) {
                 return PasteResult.SUCCESS;
@@ -277,7 +321,14 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 neededAugments = neededAugments.subList(0, targetSlots);
             }
 
-            // 弹出目标现有 augment
+            // 1. 先验证并消耗 augment（在弹出之前验证，避免状态不一致）
+            for (ItemStack needed : neededAugments) {
+                if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
+                    return PasteResult.MISSING_UPGRADES;
+                }
+            }
+
+            // 2. 弹出目标现有 augment
             ItemStack[] existingAugments = getAugmentsArray(tile);
             if (existingAugments != null) {
                 for (ItemStack aug : existingAugments) {
@@ -289,17 +340,12 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 验证并消耗 augment
-            for (ItemStack needed : neededAugments) {
-                if (MemoryCardUpgradeHelper.countInInventory(player, needed) < needed.getCount()) {
-                    return PasteResult.MISSING_UPGRADES;
-                }
-            }
+            // 3. 消耗 augment
             for (ItemStack needed : neededAugments) {
                 MemoryCardUpgradeHelper.consumeFromInventory(player, needed);
             }
 
-            // 设置 augment 数组
+            // 4. 设置 augment 数组
             if (existingAugments != null && existingAugments.length > 0) {
                 Arrays.fill(existingAugments, ItemStack.EMPTY);
                 for (int i = 0; i < neededAugments.size() && i < existingAugments.length; i++) {
