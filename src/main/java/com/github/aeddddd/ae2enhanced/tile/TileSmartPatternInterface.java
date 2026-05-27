@@ -49,6 +49,19 @@ public class TileSmartPatternInterface extends TileEntity {
     @Nullable
     private SmartPatternData patternData;
 
+    // 配方显示槽位：45槽 (9列 x 5行)，用于GUI展示配方输出
+    private final ItemStackHandler recipeDisplayInventory = new ItemStackHandler(45) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            // 配方显示槽位变化不需要 markDirty（内容由patternData动态计算）
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+            return false; // 不允许手动放入
+        }
+    };
+
     // 物品槽位：0=空白样板输入, 1=编码样板输出
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
@@ -159,6 +172,11 @@ public class TileSmartPatternInterface extends TileEntity {
     // ---- 物品槽位 ----
 
     @Nonnull
+    public ItemStackHandler getRecipeDisplayInventory() {
+        return recipeDisplayInventory;
+    }
+
+    @Nonnull
     public ItemStackHandler getInventory() {
         return inventory;
     }
@@ -192,6 +210,9 @@ public class TileSmartPatternInterface extends TileEntity {
         if (compound.hasKey("inventory")) {
             inventory.deserializeNBT(compound.getCompoundTag("inventory"));
         }
+        if (compound.hasKey("recipeDisplay")) {
+            recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
+        }
         // patternData 不直接存储在 NBT 中，而是通过 patternDataId 从文件加载
         if (compound.hasKey(NBT_PATTERN_DATA_ID + "Most")) {
             UUID dataId = compound.getUniqueId(NBT_PATTERN_DATA_ID);
@@ -209,6 +230,7 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setInteger(NBT_BOUND_DIM, boundDim);
         compound.setString(NBT_BOUND_BLOCK_ID, boundBlockId);
         compound.setTag("inventory", inventory.serializeNBT());
+        compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
         if (patternData != null) {
             compound.setUniqueId(NBT_PATTERN_DATA_ID, patternData.getPatternDataId());
         }
@@ -259,7 +281,9 @@ public class TileSmartPatternInterface extends TileEntity {
     @Nullable
     public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable EnumFacing facing) {
         if (capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inventory);
+            if (facing == null) {
+                return net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inventory);
+            }
         }
         return super.getCapability(capability, facing);
     }

@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.container;
 
+import appeng.container.slot.SlotFake;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -11,38 +13,69 @@ import net.minecraftforge.items.SlotItemHandler;
 /**
  * 智能样板接口的 Container。
  *
- * 槽位布局（暂定，等待 UV 坐标确认后调整）：
- * - 0: 空白样板输入槽
- * - 1: 编码样板输出槽
- * - 2-38: 玩家背包
+ * 槽位布局（基于 UV 分析报告）：
+ * - 0~44:  配方显示槽位 (9列 x 5行, SlotFake)
+ *   行Y: 37, 55, 73, 91, 109
+ *   列X: 8, 26, 44, 62, 80, 98, 116, 134, 152
+ * - 45:    空白样板输入槽 (8, 127)
+ * - 46:    编码样板输出槽 (26, 127)
+ * - 47~73: 玩家背包 (3行, Y=141/159/177)
+ * - 74~82: 玩家快捷栏 (Y=199)
  */
 public class ContainerSmartPatternInterface extends Container {
+
+    private static final int[] RECIPE_COL_X = {8, 26, 44, 62, 80, 98, 116, 134, 152};
+    private static final int[] RECIPE_ROW_Y = {37, 55, 73, 91, 109};
+
+    public static final int SLOT_RECIPE_START = 0;
+    public static final int SLOT_RECIPE_COUNT = 45;
+    public static final int SLOT_BLANK_INPUT = 45;
+    public static final int SLOT_ENCODED_OUTPUT = 46;
+    public static final int SLOT_PLAYER_START = 47;
 
     private final TileSmartPatternInterface tile;
 
     public ContainerSmartPatternInterface(InventoryPlayer playerInv, TileSmartPatternInterface tile) {
         this.tile = tile;
 
-        // 空白样板输入槽 (暂定位: 80, 35)
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 0, 80, 35));
+        // 配方显示槽位 (45个 SlotFake)
+        int slotIndex = 0;
+        for (int row = 0; row < RECIPE_ROW_Y.length; row++) {
+            for (int col = 0; col < RECIPE_COL_X.length; col++) {
+                this.addSlotToContainer(new SlotFake(
+                    tile.getRecipeDisplayInventory(), slotIndex,
+                    RECIPE_COL_X[col], RECIPE_ROW_Y[row]
+                ));
+                slotIndex++;
+            }
+        }
 
-        // 编码样板输出槽 (暂定位: 80, 65)
-        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 80, 65) {
+        // 空白样板输入槽
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 0, 8, 127) {
             @Override
             public boolean isItemValid(ItemStack stack) {
-                return false; // 输出槽不允许放入
+                return stack.getItem() instanceof ItemSmartBlankPattern;
             }
         });
 
-        // 玩家背包 (标准布局)
+        // 编码样板输出槽
+        this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 26, 127) {
+            @Override
+            public boolean isItemValid(ItemStack stack) {
+                return false;
+            }
+        });
+
+        // 玩家背包 (3行)
         for (int row = 0; row < 3; row++) {
+            int y = 141 + row * 18;
             for (int col = 0; col < 9; col++) {
-                this.addSlotToContainer(new Slot(playerInv, col + row * 9 + 9, 8 + col * 18, 140 + row * 18));
+                this.addSlotToContainer(new Slot(playerInv, col + row * 9 + 9, 8 + col * 18, y));
             }
         }
         // 玩家快捷栏
         for (int col = 0; col < 9; col++) {
-            this.addSlotToContainer(new Slot(playerInv, col, 8 + col * 18, 198));
+            this.addSlotToContainer(new Slot(playerInv, col, 8 + col * 18, 199));
         }
     }
 
@@ -58,17 +91,19 @@ public class ContainerSmartPatternInterface extends Container {
         if (slot != null && slot.getHasStack()) {
             ItemStack stackInSlot = slot.getStack();
             itemstack = stackInSlot.copy();
-            if (index < 2) {
+
+            if (index == SLOT_BLANK_INPUT || index == SLOT_ENCODED_OUTPUT) {
                 // 从 TileEntity 槽位移到玩家背包
-                if (!this.mergeItemStack(stackInSlot, 2, 38, true)) {
+                if (!this.mergeItemStack(stackInSlot, SLOT_PLAYER_START, SLOT_PLAYER_START + 36, true)) {
                     return ItemStack.EMPTY;
                 }
-            } else {
-                // 从玩家背包移到 TileEntity 槽位
-                if (!this.mergeItemStack(stackInSlot, 0, 1, false)) {
+            } else if (index >= SLOT_PLAYER_START) {
+                // 从玩家背包移到空白样板输入槽
+                if (!this.mergeItemStack(stackInSlot, SLOT_BLANK_INPUT, SLOT_BLANK_INPUT + 1, false)) {
                     return ItemStack.EMPTY;
                 }
             }
+
             if (stackInSlot.isEmpty()) {
                 slot.putStack(ItemStack.EMPTY);
             } else {
