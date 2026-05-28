@@ -64,5 +64,10 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         // Omni Terminal 配方转移：使用 universal handler 支持所有 recipe category
         registry.getRecipeTransferRegistry().addUniversalRecipeTransferHandler(
                 new com.github.aeddddd.ae2enhanced.integration.jei.OmniTermRecipeTransferHandler());
+
+        // Smart Pattern Interface MiniGUI ghost ingredient drag support
+        registry.addGhostIngredientHandler(
+                com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface.class,
+                new com.github.aeddddd.ae2enhanced.integration.jei.SmartPatternInterfaceGhostHandler());
     }
 }

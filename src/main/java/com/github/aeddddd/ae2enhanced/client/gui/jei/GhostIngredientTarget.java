@@ -58,7 +58,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         }
     }
 
-    private static IAEItemStack resolveIngredient(Object ingredient) {
+    public static IAEItemStack resolveIngredient(Object ingredient) {
         if (ingredient instanceof ItemStack) {
             return resolveItemStack((ItemStack) ingredient);
         }

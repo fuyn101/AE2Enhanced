@@ -189,9 +189,10 @@ item.ae2enhanced.universal_memory_card.tooltip.upgrades_detail=§b▸ 升级: §
 item.ae2enhanced.universal_memory_card.tooltip.no_config=§8▸ 无配置
 item.ae2enhanced.universal_memory_card.tooltip.selections=§b▸ 已选取: §f%d 个目标
 item.ae2enhanced.universal_memory_card.tooltip.separator=§8────────────────
-item.ae2enhanced.universal_memory_card.tooltip.sneak=§7Sneak+右键 复制配置
+item.ae2enhanced.universal_memory_card.tooltip.sneak=§7Shift+右键 复制配置
 item.ae2enhanced.universal_memory_card.tooltip.use=§7右键 粘贴配置
 item.ae2enhanced.universal_memory_card.tooltip.ctrl=§7Ctrl+右键 选取/取消选取
+item.ae2enhanced.universal_memory_card.tooltip.alt=§7Alt+右键 清空绑定
 item.ae2enhanced.universal_memory_card.tooltip.air=§7对空气右键 打开管理界面
 
 gui.ae2enhanced.umc.title=通用内存卡
@@ -255,6 +256,11 @@ tooltip.ae2enhanced.smart_pattern.recipe_count=§7配方数量: §f%d
 
 gui.ae2enhanced.smart_pattern_interface.prev_page=上一页
 gui.ae2enhanced.smart_pattern_interface.next_page=下一页
+gui.ae2enhanced.smart_pattern_interface.bind_wrong_dim=§c▸ 选取目标位于其他维度
+gui.ae2enhanced.smart_pattern_interface.bind_blacklisted=§c▸ 方块 %s 已被列入黑名单
+gui.ae2enhanced.smart_pattern_interface.bind_no_jei=§c▸ JEI 不可用
+gui.ae2enhanced.smart_pattern_interface.bind_no_recipes=§c▸ 未找到 %s 的配方
+gui.ae2enhanced.smart_pattern_interface.bind_success=§a▸ 已加载 §e%d§a 条配方 (§f%s§a)
 gui.ae2enhanced.smart_pattern_interface.keep_primary=只保留主产物
 gui.ae2enhanced.smart_pattern_interface.double_amounts=翻倍数量
 gui.ae2enhanced.smart_pattern_interface.delete_disabled=删除已禁用配方 (%d)

@@ -134,6 +134,10 @@ public class GuiSmartPatternInterface extends GuiContainer {
         this.ySize = 224;
     }
 
+    public TileSmartPatternInterface getTile() {
+        return tile;
+    }
+
 
 
     @Override
@@ -164,9 +168,8 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
         // 绑定状态
         if (tile.isBound()) {
-            String rawId = tile.getBoundBlockId();
-            String displayId = rawId.contains("@") ? rawId.substring(0, rawId.indexOf('@')) : rawId;
-            String boundText = I18n.format("gui.ae2enhanced.smart_pattern_interface.bound_to", displayId);
+            String displayName = tile.getBoundBlockDisplayName();
+            String boundText = I18n.format("gui.ae2enhanced.smart_pattern_interface.bound_to", displayName);
             this.fontRenderer.drawString(boundText, 8, 21, 0x404040);
         } else {
             String noTarget = I18n.format("gui.ae2enhanced.smart_pattern_interface.no_target");

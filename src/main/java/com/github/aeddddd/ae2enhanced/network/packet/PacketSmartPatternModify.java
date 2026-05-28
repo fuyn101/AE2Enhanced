@@ -92,6 +92,10 @@ public class PacketSmartPatternModify implements IMessage {
                         case "deleteDisabled":
                             tile.deleteDisabledRecipes();
                             break;
+                        default:
+                            // 其他小按钮操作（multiply2, divide2, clearInputs 等）
+                            tile.modifyLockedRecipe(message.getAction());
+                            break;
                     }
                 }
             });

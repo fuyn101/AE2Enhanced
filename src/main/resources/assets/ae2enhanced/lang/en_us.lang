@@ -191,9 +191,10 @@ item.ae2enhanced.universal_memory_card.tooltip.upgrades_detail=§b▸ Upgrades: 
 item.ae2enhanced.universal_memory_card.tooltip.no_config=§8▸ No configuration stored
 item.ae2enhanced.universal_memory_card.tooltip.selections=§b▸ Selected: §f%d §7targets
 item.ae2enhanced.universal_memory_card.tooltip.separator=§8────────────────
-item.ae2enhanced.universal_memory_card.tooltip.sneak=§8▸ §7Sneak+Right-click: §bCopy
+item.ae2enhanced.universal_memory_card.tooltip.sneak=§8▸ §7Shift+Right-click: §bCopy
 item.ae2enhanced.universal_memory_card.tooltip.use=§8▸ §7Right-click: §bPaste
 item.ae2enhanced.universal_memory_card.tooltip.ctrl=§8▸ §7Ctrl+Right-click: §eSelect
+item.ae2enhanced.universal_memory_card.tooltip.alt=§8▸ §7Alt+Right-click: §cClear Bindings
 item.ae2enhanced.universal_memory_card.tooltip.air=§8▸ §7Right-click air: §dOpen GUI
 
 gui.ae2enhanced.umc.title=Universal Memory Card
@@ -257,6 +258,11 @@ tooltip.ae2enhanced.smart_pattern.recipe_count=§7Recipes: §f%d
 
 gui.ae2enhanced.smart_pattern_interface.prev_page=Previous Page
 gui.ae2enhanced.smart_pattern_interface.next_page=Next Page
+gui.ae2enhanced.smart_pattern_interface.bind_wrong_dim=§c▸ Selected target is in another dimension
+gui.ae2enhanced.smart_pattern_interface.bind_blacklisted=§c▸ Block %s is blacklisted
+gui.ae2enhanced.smart_pattern_interface.bind_no_jei=§c▸ JEI is not available
+gui.ae2enhanced.smart_pattern_interface.bind_no_recipes=§c▸ No recipes found for %s
+gui.ae2enhanced.smart_pattern_interface.bind_success=§a▸ Loaded §e%d§a recipes for §f%s
 gui.ae2enhanced.smart_pattern_interface.keep_primary=Keep Only Primary Output
 gui.ae2enhanced.smart_pattern_interface.double_amounts=Double All Amounts
 gui.ae2enhanced.smart_pattern_interface.delete_disabled=Delete Disabled Recipes (%d)

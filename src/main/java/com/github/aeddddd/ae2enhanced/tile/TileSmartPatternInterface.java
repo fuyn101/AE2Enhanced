@@ -152,6 +152,21 @@ public class TileSmartPatternInterface extends TileEntity {
         return boundBlockId;
     }
 
+    @Nonnull
+    public String getBoundBlockDisplayName() {
+        if (boundBlockId.isEmpty()) return "";
+        String id = boundBlockId.contains("@") ? boundBlockId.substring(0, boundBlockId.indexOf('@')) : boundBlockId;
+        try {
+            net.minecraft.block.Block block = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS.getValue(new net.minecraft.util.ResourceLocation(id));
+            if (block != null) {
+                return new net.minecraft.item.ItemStack(block).getDisplayName();
+            }
+        } catch (Exception e) {
+            // fallback to raw id
+        }
+        return id;
+    }
+
     public void setBinding(@Nullable BlockPos pos, int dim, @Nonnull String blockId) {
         this.boundPos = pos;
         this.boundDim = dim;
@@ -186,6 +201,7 @@ public class TileSmartPatternInterface extends TileEntity {
         this.lockedRecipeIndex = -1;
         clearMiniGuiInventory();
         markDirty();
+        syncToClient();
     }
 
     /**
@@ -376,6 +392,7 @@ public class TileSmartPatternInterface extends TileEntity {
         updateRecipeDisplay();
         markDirty();
         syncToClient();
+        SmartPatternStorageFile.save(world, patternData);
     }
 
     /**
@@ -392,6 +409,7 @@ public class TileSmartPatternInterface extends TileEntity {
         updateRecipeDisplay();
         markDirty();
         syncToClient();
+        SmartPatternStorageFile.save(world, patternData);
     }
 
     /**
@@ -409,6 +427,7 @@ public class TileSmartPatternInterface extends TileEntity {
         updateRecipeDisplay();
         markDirty();
         syncToClient();
+        SmartPatternStorageFile.save(world, patternData);
     }
 
     private void clearMiniGuiInventory() {
