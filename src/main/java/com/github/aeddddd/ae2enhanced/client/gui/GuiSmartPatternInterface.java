@@ -58,7 +58,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int BTN_PAGE_UV_Y = 126;
 
     // 删除已禁用配方按钮
-    private static final int BTN_DELETE_DISABLED_X = 92;
+    private static final int BTN_DELETE_DISABLED_X = 96;
     private static final int BTN_DELETE_DISABLED_Y = 126;
     private static final int BTN_DELETE_DISABLED_W = 16;
     private static final int BTN_DELETE_DISABLED_H = 12;
@@ -235,10 +235,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         SmartPatternData data = tile.getPatternData();
         boolean hasDisabled = data != null && data.getRecipeCount() > data.getEnabledCount();
         if (!hasDisabled) return;
-        int color = isInDeleteDisabledButton(relX, relY) ? 0xFF777777 : 0xFF555555;
-        drawRect(BTN_DELETE_DISABLED_X, BTN_DELETE_DISABLED_Y,
-                 BTN_DELETE_DISABLED_X + BTN_DELETE_DISABLED_W, BTN_DELETE_DISABLED_Y + BTN_DELETE_DISABLED_H, color);
-        this.fontRenderer.drawString("D", BTN_DELETE_DISABLED_X + 5, BTN_DELETE_DISABLED_Y + 2, 0xFFFFFF);
+        // 按钮图形已在 GUI 纹理中绘制，无需额外代码绘制
     }
 
     private void drawBottomArea(int relX, int relY) {

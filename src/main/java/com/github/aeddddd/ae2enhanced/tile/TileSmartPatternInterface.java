@@ -109,6 +109,12 @@ public class TileSmartPatternInterface extends TileEntity {
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
+            if (slot == 1 && world != null && !world.isRemote) {
+                ItemStack stack = getStackInSlot(1);
+                if (!stack.isEmpty() && stack.getItem() instanceof ItemSmartPattern) {
+                    reloadPatternFromStack(stack);
+                }
+            }
             markDirty();
         }
 
@@ -117,7 +123,10 @@ public class TileSmartPatternInterface extends TileEntity {
             if (slot == 0) {
                 return stack.getItem() instanceof ItemSmartBlankPattern;
             }
-            return false; // 输出槽不允许手动放入
+            if (slot == 1) {
+                return stack.getItem() instanceof ItemSmartPattern;
+            }
+            return false;
         }
     };
 
@@ -211,11 +220,32 @@ public class TileSmartPatternInterface extends TileEntity {
                 patternData.getTargetBlockId()
         );
 
-        // 消耗输入，输出编码样板
-        inventory.setStackInSlot(0, ItemStack.EMPTY);
+        // 消耗一个空白样板，输出编码样板
+        input.shrink(1);
+        if (input.isEmpty()) {
+            inventory.setStackInSlot(0, ItemStack.EMPTY);
+        }
         inventory.setStackInSlot(1, encoded);
         markDirty();
         return true;
+    }
+
+    /**
+     * 从已编码样板反向读取配方数据并加载。
+     */
+    private void reloadPatternFromStack(@Nonnull ItemStack stack) {
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null) return;
+        UUID dataId = tag.getUniqueId("patternDataId");
+        if (dataId == null) return;
+        SmartPatternData data = SmartPatternStorageFile.load(world, dataId);
+        if (data == null) return;
+        this.patternData = data;
+        this.lockedRecipeIndex = -1;
+        clearMiniGuiInventory();
+        updateRecipeDisplay();
+        markDirty();
+        syncToClient();
     }
 
     // ---- 物品槽位 ----

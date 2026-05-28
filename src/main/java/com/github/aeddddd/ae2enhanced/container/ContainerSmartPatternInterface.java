@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -125,6 +126,30 @@ public class ContainerSmartPatternInterface extends Container {
     @Override
     public boolean canInteractWith(EntityPlayer player) {
         return !tile.isInvalid() && player.getDistanceSq(tile.getPos()) <= 64.0;
+    }
+
+    @Override
+    public ItemStack slotClick(int slotId, int dragType, ClickType clickTypeIn, EntityPlayer player) {
+        if (slotId >= SLOT_MINIGUI_INPUT_START && slotId < SLOT_MINIGUI_INPUT_START + 18) {
+            // MiniGUI 槽位：未锁定时禁止编辑
+            if (tile.getLockedRecipeIndex() < 0) {
+                return player.inventory.getItemStack();
+            }
+            // 覆盖 SlotFake 的默认交互，确保能正常编辑
+            if (clickTypeIn == ClickType.PICKUP) {
+                Slot slot = this.inventorySlots.get(slotId);
+                ItemStack held = player.inventory.getItemStack();
+                if (held.isEmpty()) {
+                    slot.putStack(ItemStack.EMPTY);
+                } else {
+                    ItemStack copy = held.copy();
+                    // 对于 MiniGUI，保持物品原有数量
+                    slot.putStack(copy);
+                }
+                return player.inventory.getItemStack();
+            }
+        }
+        return super.slotClick(slotId, dragType, clickTypeIn, player);
     }
 
     @Override
