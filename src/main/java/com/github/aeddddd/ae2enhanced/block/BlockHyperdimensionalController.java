@@ -12,6 +12,8 @@ import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
@@ -19,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
+import java.util.UUID;
 
 public class BlockHyperdimensionalController extends Block {
 
@@ -74,6 +77,20 @@ public class BlockHyperdimensionalController extends Block {
             if (index != null) {
                 index.add(pos);
             }
+        }
+    }
+
+    @Override
+    public void onBlockPlacedBy(World world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack) {
+        super.onBlockPlacedBy(world, pos, state, placer, stack);
+        if (world.isRemote) return;
+        TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileHyperdimensionalController)) return;
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null || !tag.hasKey("nexusIdMost")) return;
+        UUID nexusId = tag.getUniqueId("nexusId");
+        if (nexusId != null) {
+            ((TileHyperdimensionalController) te).setNexusId(nexusId);
         }
     }
 

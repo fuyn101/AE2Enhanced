@@ -67,6 +67,12 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         return nexusId;
     }
 
+    public void setNexusId(UUID nexusId) {
+        this.nexusId = nexusId;
+        initStorage();
+        markDirty();
+    }
+
     public ItemStorageAdapter getItemAdapter() {
         return itemAdapter;
     }
