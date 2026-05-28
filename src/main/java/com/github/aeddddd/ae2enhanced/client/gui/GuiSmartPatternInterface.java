@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternReplace;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll;
@@ -88,6 +89,9 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
     private final TileSmartPatternInterface tile;
 
+    // MiniGUI 滚动条状态
+    private int miniGuiScrollOffset = 0;
+
     // 点击闪烁反馈
     private int flashSlot = -1;
     private int flashTicks = 0;
@@ -113,12 +117,24 @@ public class GuiSmartPatternInterface extends GuiContainer {
          "rotateOutputs", "clearOutputs", "stack"}
     };
 
+    // MiniGUI 滚动条常量
+    private static final int SCROLLBAR_X = 232;
+    private static final int SCROLLBAR_Y = 19;
+    private static final int SCROLLBAR_WIDTH = 12;
+    private static final int SCROLLBAR_HEIGHT = 54;
+    private static final int SCROLLBAR_THUMB_HEIGHT = 15;
+    private static final ResourceLocation SCROLLBAR_TEXTURE =
+        new ResourceLocation("minecraft", "textures/gui/container/creative_inventory/tabs.png");
+
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
         super(new ContainerSmartPatternInterface(inventoryPlayer, tile));
         this.tile = tile;
+        this.miniGuiScrollOffset = tile.getMiniGuiScrollOffset();
         this.xSize = 242;
         this.ySize = 224;
     }
+
+
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
@@ -132,6 +148,9 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
         // 大向下箭头 (196, 76, 16, 23)
         this.drawTexturedModalRect(this.guiLeft + 196, this.guiTop + 76, 196, 76, 16, 23);
+
+        // MiniGUI 滚动条
+        drawMiniGuiScrollBar();
     }
 
     @Override
@@ -347,6 +366,16 @@ public class GuiSmartPatternInterface extends GuiContainer {
                         AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newPage));
                     }
                 }
+            } else if (isInMiniGuiArea(relX, relY) && tile.getLockedRecipeIndex() >= 0) {
+                // MiniGUI 区域滚轮
+                int delta = wheel > 0 ? -1 : 1;
+                int newOffset = Math.max(0, Math.min(8, miniGuiScrollOffset + delta));
+                if (newOffset != miniGuiScrollOffset) {
+                    miniGuiScrollOffset = newOffset;
+                    tile.setMiniGuiScrollOffset(newOffset);
+                    ((ContainerSmartPatternInterface) this.inventorySlots).setScrollOffset(newOffset);
+                    AE2Enhanced.network.sendToServer(new PacketSmartPatternMiniGuiScroll(tile.getPos(), newOffset));
+                }
             }
         }
 
@@ -537,6 +566,17 @@ public class GuiSmartPatternInterface extends GuiContainer {
             return;
         }
 
+        // MiniGUI 滚动条点击
+        if (tile.getLockedRecipeIndex() >= 0) {
+            int newOffset = handleMiniGuiScrollClick(relX, relY);
+            if (newOffset != miniGuiScrollOffset) {
+                miniGuiScrollOffset = newOffset;
+                tile.setMiniGuiScrollOffset(newOffset);
+                ((ContainerSmartPatternInterface) this.inventorySlots).setScrollOffset(newOffset);
+                AE2Enhanced.network.sendToServer(new PacketSmartPatternMiniGuiScroll(tile.getPos(), newOffset));
+            }
+        }
+
         // 配方槽位点击
         if (mouseButton == 0) {
             int clickedSlot = getRecipeSlotAt(relX, relY);
@@ -614,6 +654,12 @@ public class GuiSmartPatternInterface extends GuiContainer {
             && y >= ROW_Y[0] && y < ROW_Y[4] + 15;
     }
 
+    private boolean isInMiniGuiArea(int x, int y) {
+        // 输入区 178-230, 19-71 + 滚动条 232-244
+        return (x >= 178 && x < 244 && y >= 19 && y < 71)
+            || (x >= 178 && x < 230 && y >= 104 && y < 156);
+    }
+
     private int getRecipeSlotAt(int x, int y) {
         int slotIndex = 0;
         for (int row = 0; row < ROW_Y.length; row++) {
@@ -627,5 +673,34 @@ public class GuiSmartPatternInterface extends GuiContainer {
             }
         }
         return -1;
+    }
+
+    // ---- MiniGUI 滚动条 ----
+
+    private void drawMiniGuiScrollBar() {
+        if (tile.getLockedRecipeIndex() < 0) return;
+        this.mc.getTextureManager().bindTexture(SCROLLBAR_TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        int range = 8; // max - min = 8 - 0
+        if (range == 0) {
+            this.drawTexturedModalRect(this.guiLeft + SCROLLBAR_X, this.guiTop + SCROLLBAR_Y,
+                232 + SCROLLBAR_WIDTH, 0, SCROLLBAR_WIDTH, SCROLLBAR_THUMB_HEIGHT);
+        } else {
+            int offset = miniGuiScrollOffset * (SCROLLBAR_HEIGHT - SCROLLBAR_THUMB_HEIGHT) / range;
+            this.drawTexturedModalRect(this.guiLeft + SCROLLBAR_X, this.guiTop + SCROLLBAR_Y + offset,
+                232, 0, SCROLLBAR_WIDTH, SCROLLBAR_THUMB_HEIGHT);
+        }
+    }
+
+    private int handleMiniGuiScrollClick(int x, int y) {
+        if (x > SCROLLBAR_X && x <= SCROLLBAR_X + SCROLLBAR_WIDTH
+                && y > SCROLLBAR_Y && y <= SCROLLBAR_Y + SCROLLBAR_HEIGHT) {
+            int range = 8;
+            int relativeY = y - SCROLLBAR_Y;
+            int newScroll = relativeY * 2 * range / SCROLLBAR_HEIGHT;
+            newScroll = (newScroll + 1) >> 1;
+            return Math.max(0, Math.min(8, newScroll));
+        }
+        return miniGuiScrollOffset;
     }
 }

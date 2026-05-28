@@ -118,6 +118,7 @@ public class AE2Enhanced {
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind.class, 17, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify.class, 18, Side.SERVER);
         network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternReplace.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternReplace.class, 19, Side.SERVER);
+        network.registerMessage(com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll.Handler.class, com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll.class, 20, Side.SERVER);
         com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardHandlerRegistry.init();
         com.github.aeddddd.ae2enhanced.centralinterface.HandlerRegistry.init();
         proxy.preInit(event);

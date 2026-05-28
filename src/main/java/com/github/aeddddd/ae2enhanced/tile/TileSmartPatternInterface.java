@@ -60,15 +60,14 @@ public class TileSmartPatternInterface extends TileEntity {
     // 锁定配方的排序索引（-1 = 未锁定）
     private int lockedRecipeIndex = -1;
 
-    // MiniGUI 滚动偏移
-    private int miniGuiInputScroll = 0;
-    private int miniGuiOutputScroll = 0;
+    // MiniGUI 滚动偏移 (0-8, 对应 9 组输入/输出)
+    private int miniGuiScrollOffset = 0;
 
     // 防止 onContentsChanged 递归
     private boolean isUpdatingMiniGui = false;
 
-    // MiniGUI 物品栏：前9=输入，后9=输出
-    private final ItemStackHandler miniGuiInventory = new ItemStackHandler(18) {
+    // MiniGUI 物品栏：前81=输入（9组 x 3x3），后27=输出（9组 x 3）
+    private final ItemStackHandler miniGuiInventory = new ItemStackHandler(108) {
         @Override
         protected void onContentsChanged(int slot) {
             if (!isUpdatingMiniGui && world != null && !world.isRemote
@@ -439,18 +438,18 @@ public class TileSmartPatternInterface extends TileEntity {
 
         isUpdatingMiniGui = true;
         try {
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 81; i++) {
                 if (i < inputs.length && inputs[i] != null) {
                     miniGuiInventory.setStackInSlot(i, inputs[i].createItemStack());
                 } else {
                     miniGuiInventory.setStackInSlot(i, ItemStack.EMPTY);
                 }
             }
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 27; i++) {
                 if (i < outputs.length && outputs[i] != null) {
-                    miniGuiInventory.setStackInSlot(i + 9, outputs[i].createItemStack());
+                    miniGuiInventory.setStackInSlot(i + 81, outputs[i].createItemStack());
                 } else {
-                    miniGuiInventory.setStackInSlot(i + 9, ItemStack.EMPTY);
+                    miniGuiInventory.setStackInSlot(i + 81, ItemStack.EMPTY);
                 }
             }
         } finally {
@@ -464,32 +463,27 @@ public class TileSmartPatternInterface extends TileEntity {
         SmartRecipe recipe = patternData.getRecipes().get(original);
         ItemStack stack = miniGuiInventory.getStackInSlot(slot);
         IAEItemStack aeStack = stack.isEmpty() ? null : AEItemStack.fromItemStack(stack);
-        if (slot < 9) {
+        if (slot < 81) {
             recipe.setInput(slot, aeStack);
         } else {
-            recipe.setOutput(slot - 9, aeStack);
+            recipe.setOutput(slot - 81, aeStack);
         }
         patternData.detectConflicts();
         updateRecipeDisplay();
         syncToClient();
     }
 
-    public int getMiniGuiInputScroll() {
-        return miniGuiInputScroll;
+    public int getMiniGuiScrollOffset() {
+        return miniGuiScrollOffset;
     }
 
-    public void setMiniGuiInputScroll(int scroll) {
-        this.miniGuiInputScroll = Math.max(0, scroll);
+    public void setMiniGuiScrollOffset(int scroll) {
+        this.miniGuiScrollOffset = Math.max(0, Math.min(8, scroll));
         markDirty();
     }
 
-    public int getMiniGuiOutputScroll() {
-        return miniGuiOutputScroll;
-    }
-
-    public void setMiniGuiOutputScroll(int scroll) {
-        this.miniGuiOutputScroll = Math.max(0, scroll);
-        markDirty();
+    public int getMaxScrollOffset() {
+        return 8;
     }
 
     // ---- 配方显示 ----
@@ -566,8 +560,7 @@ public class TileSmartPatternInterface extends TileEntity {
         }
         scrollOffset = compound.getInteger("scrollOffset");
         lockedRecipeIndex = compound.getInteger("lockedRecipeIndex");
-        miniGuiInputScroll = compound.getInteger("miniGuiInputScroll");
-        miniGuiOutputScroll = compound.getInteger("miniGuiOutputScroll");
+        miniGuiScrollOffset = compound.getInteger("miniGuiScrollOffset");
         if (compound.hasKey("recipeDisplay")) {
             recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
         }
@@ -598,8 +591,7 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setTag("inventory", inventory.serializeNBT());
         compound.setInteger("scrollOffset", scrollOffset);
         compound.setInteger("lockedRecipeIndex", lockedRecipeIndex);
-        compound.setInteger("miniGuiInputScroll", miniGuiInputScroll);
-        compound.setInteger("miniGuiOutputScroll", miniGuiOutputScroll);
+        compound.setInteger("miniGuiScrollOffset", miniGuiScrollOffset);
         compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
         compound.setTag("miniGuiInventory", miniGuiInventory.serializeNBT());
         compound.setTag("replaceInventory", replaceInventory.serializeNBT());

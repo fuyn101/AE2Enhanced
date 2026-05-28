@@ -18,13 +18,13 @@ import java.util.Map;
  */
 public class SmartRecipe {
 
-    private final IAEItemStack[] inputs;
-    private final IAEItemStack[] outputs;
+    private IAEItemStack[] inputs;
+    private IAEItemStack[] outputs;
     private final boolean isCrafting;
 
     public SmartRecipe(@Nonnull IAEItemStack[] inputs, @Nonnull IAEItemStack[] outputs, boolean isCrafting) {
-        this.inputs = inputs;
-        this.outputs = outputs;
+        this.inputs = inputs != null ? inputs.clone() : new IAEItemStack[0];
+        this.outputs = outputs != null ? outputs.clone() : new IAEItemStack[0];
         this.isCrafting = isCrafting;
     }
 
@@ -56,15 +56,19 @@ public class SmartRecipe {
     }
 
     public void setInput(int index, @Nullable IAEItemStack stack) {
-        if (index >= 0 && index < inputs.length) {
-            inputs[index] = stack;
+        if (index < 0) return;
+        if (index >= inputs.length) {
+            inputs = java.util.Arrays.copyOf(inputs, index + 1);
         }
+        inputs[index] = stack;
     }
 
     public void setOutput(int index, @Nullable IAEItemStack stack) {
-        if (index >= 0 && index < outputs.length) {
-            outputs[index] = stack;
+        if (index < 0) return;
+        if (index >= outputs.length) {
+            outputs = java.util.Arrays.copyOf(outputs, index + 1);
         }
+        outputs[index] = stack;
     }
 
     /**
