@@ -310,6 +310,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
                     int newPage = tile.getScrollOffset() + (wheel > 0 ? -1 : 1);
                     newPage = Math.max(0, Math.min(maxPage, newPage));
                     if (newPage != tile.getScrollOffset()) {
+                        tile.setScrollOffset(newPage); // 客户端预测更新
                         AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newPage));
                     }
                 }
@@ -440,6 +441,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
         // 删除已禁用配方按钮
         if (mouseButton == 0 && isInDeleteDisabledButton(relX, relY)) {
+            tile.deleteDisabledRecipes(); // 客户端预测更新
             AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "deleteDisabled"));
             return;
         }
@@ -449,6 +451,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
             if (isInPrevButton(relX, relY)) {
                 int newPage = tile.getScrollOffset() - 1;
                 if (newPage >= 0) {
+                    tile.setScrollOffset(newPage); // 客户端预测更新
                     AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newPage));
                 }
                 return;
@@ -459,6 +462,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
                     int maxPage = Math.max(0, (data.getRecipeCount() - 1) / 45);
                     int newPage = tile.getScrollOffset() + 1;
                     if (newPage <= maxPage) {
+                        tile.setScrollOffset(newPage); // 客户端预测更新
                         AE2Enhanced.network.sendToServer(new PacketSmartPatternScroll(tile.getPos(), newPage));
                     }
                 }
@@ -469,10 +473,12 @@ public class GuiSmartPatternInterface extends GuiContainer {
         // 操作按钮
         if (mouseButton == 0 && tile.getLockedRecipeIndex() >= 0) {
             if (isInKeepPrimaryButton(relX, relY)) {
+                tile.modifyLockedRecipe("keepPrimary"); // 客户端预测更新
                 AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "keepPrimary"));
                 return;
             }
             if (isInDoubleButton(relX, relY)) {
+                tile.modifyLockedRecipe("doubleAmounts"); // 客户端预测更新
                 AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "doubleAmounts"));
                 return;
             }
@@ -487,12 +493,15 @@ public class GuiSmartPatternInterface extends GuiContainer {
                 if (shift) {
                     // Shift+左键 = 锁定/解锁
                     if (tile.isRecipeLocked(sortedIndex)) {
+                        tile.unlockRecipe(); // 客户端预测更新
                         AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "unlock"));
                     } else {
+                        tile.lockRecipe(sortedIndex); // 客户端预测更新
                         AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "lock", sortedIndex));
                     }
                 } else {
                     // 左键 = 切换禁用
+                    tile.toggleRecipe(sortedIndex); // 客户端预测更新
                     AE2Enhanced.network.sendToServer(new PacketSmartPatternToggle(tile.getPos(), sortedIndex));
                 }
                 flashSlot = clickedSlot;
