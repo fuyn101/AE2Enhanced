@@ -13,7 +13,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
@@ -23,14 +22,14 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- * AE2Enhanced 主指令。
+ * AE2Enhanced main command.
  *
- * <p>子指令：</p>
+ * <p>Subcommands:</p>
  * <ul>
- *   <li>{@code /ae2e spgc} — 手动触发智能样板垃圾回收</li>
- *   <li>{@code /ae2e channels enable|disable|status} — 控制 AE2 频道检查</li>
- *   <li>{@code /ae2e recoverhd list} — 列出所有超维度仓储中枢 UUID</li>
- *   <li>{@code /ae2e recoverhd <uuid>} — 获取携带指定 UUID 的主方块</li>
+ *   <li>{@code /ae2e spgc} — Manual Smart Pattern garbage collection</li>
+ *   <li>{@code /ae2e channels enable|disable|status} — Toggle AE2 channel checking</li>
+ *   <li>{@code /ae2e recoverhd list} — List all hyperdimensional storage UUIDs</li>
+ *   <li>{@code /ae2e recoverhd <uuid>} — Get controller block with specified UUID</li>
  * </ul>
  */
 public class CommandAE2Enhanced extends CommandBase {
@@ -55,7 +54,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     public void execute(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "用法: " + getUsage(sender)));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: " + getUsage(sender)));
             return;
         }
         String sub = args[0].toLowerCase();
@@ -73,7 +72,7 @@ public class CommandAE2Enhanced extends CommandBase {
                 executeHelp(sender);
                 break;
             default:
-                sender.sendMessage(new TextComponentString(TextFormatting.RED + "未知子指令: " + sub));
+                sender.sendMessage(new TextComponentString(TextFormatting.RED + "Unknown subcommand: " + sub));
                 sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + getUsage(sender)));
         }
     }
@@ -81,33 +80,33 @@ public class CommandAE2Enhanced extends CommandBase {
     // ---- help ----
 
     private void executeHelp(@Nonnull ICommandSender sender) {
-        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "========== AE2Enhanced 指令帮助 =========="));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "========== AE2Enhanced Command Help =========="));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e spgc"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  手动触发智能样板垃圾回收。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Manually trigger Smart Pattern garbage collection."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e channels <enable|disable|status>"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  enable:  启用 AE2 频道检查（正常模式）"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  disable: 禁用 AE2 频道检查（无限频道）"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  status:  查看当前频道检查状态"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  enable:  Enable AE2 channel checking (normal mode)."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  disable: Disable AE2 channel checking (infinite channels)."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  status:  Show current channel checking status."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd list"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  列出所有超维度仓储中枢的 UUID（按修改时间排序）。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  List all hyperdimensional storage UUIDs (sorted by mtime)."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd <uuid>"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  给予玩家携带指定 UUID 的超维度仓储中枢主方块。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Give the player a Hyperdimensional Controller block carrying the specified UUID."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e help"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  显示此帮助信息。"));
-        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=========================================="));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Display this help message."));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=============================================="));
     }
 
     // ---- spgc ----
 
     private void executeSpgc(@Nonnull ICommandSender sender) {
-        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] 正在扫描 ME 接口并清理无效的智能样板文件..."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Scanning ME interfaces and cleaning orphaned Smart Pattern files..."));
         int deleted = SmartPatternGarbageCollector.runManualGC();
         if (deleted < 0) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] 清理过程中发生错误，请查看服务端日志。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] An error occurred during cleanup. Check the server log."));
         } else if (deleted == 0) {
-            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] 没有找到需要清理的无效文件。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] No orphaned files found."));
         } else {
-            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] 已清理 " + deleted + " 个无效的智能样板文件。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Cleaned up " + deleted + " orphaned Smart Pattern file(s)."));
         }
     }
 
@@ -115,7 +114,7 @@ public class CommandAE2Enhanced extends CommandBase {
 
     private void executeChannels(@Nonnull ICommandSender sender, @Nonnull String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "用法: /ae2e channels <enable|disable|status>"));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e channels <enable|disable|status>"));
             return;
         }
         String action = args[1].toLowerCase();
@@ -123,19 +122,19 @@ public class CommandAE2Enhanced extends CommandBase {
         switch (action) {
             case "enable":
                 setChannelsEnabled(true);
-                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 频道检查已启用。"));
+                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 channel checking enabled."));
                 break;
             case "disable":
                 setChannelsEnabled(false);
-                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 频道检查已禁用（无限频道）。"));
+                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 channel checking disabled (infinite channels)."));
                 break;
             case "status":
                 boolean enabled = config.isFeatureEnabled(AEFeature.CHANNELS);
-                String status = enabled ? TextFormatting.GREEN + "已启用" : TextFormatting.YELLOW + "已禁用（无限频道）";
-                sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] AE2 频道检查状态: " + status));
+                String status = enabled ? TextFormatting.GREEN + "Enabled" : TextFormatting.YELLOW + "Disabled (infinite channels)";
+                sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] AE2 channel checking status: " + status));
                 break;
             default:
-                sender.sendMessage(new TextComponentString(TextFormatting.RED + "用法: /ae2e channels <enable|disable|status>"));
+                sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e channels <enable|disable|status>"));
         }
     }
 
@@ -151,7 +150,6 @@ public class CommandAE2Enhanced extends CommandBase {
             } else {
                 flags.remove(AEFeature.CHANNELS);
             }
-            // 同步修改配置文件持久化
             net.minecraftforge.common.config.Property prop = config.get("Features.NetworkFeatures", "Channels", true);
             prop.set(enabled);
             config.save();
@@ -164,7 +162,7 @@ public class CommandAE2Enhanced extends CommandBase {
 
     private void executeRecoverHd(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "用法: /ae2e recoverhd list 或 /ae2e recoverhd <uuid>"));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e recoverhd list  or  /ae2e recoverhd <uuid>"));
             return;
         }
         String arg = args[1].toLowerCase();
@@ -178,21 +176,21 @@ public class CommandAE2Enhanced extends CommandBase {
     private void listHdUuids(@Nonnull ICommandSender sender) {
         WorldServer world = FMLCommonHandler.instance().getMinecraftServerInstance().getWorld(0);
         if (world == null) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] 无法获取主世界。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Cannot access the overworld."));
             return;
         }
         File worldDir = world.getSaveHandler().getWorldDirectory();
         File storageDir = new File(worldDir, "ae2enhanced/storage");
         if (!storageDir.exists()) {
-            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] 没有找到任何超维度仓储中枢数据。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] No hyperdimensional storage data found."));
             return;
         }
         File[] files = storageDir.listFiles((dir, name) -> name.endsWith(".dat") && !name.startsWith("smartpattern_"));
         if (files == null || files.length == 0) {
-            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] 没有找到任何超维度仓储中枢数据。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] No hyperdimensional storage data found."));
             return;
         }
-        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] 已找到 " + files.length + " 个超维度仓储中枢数据文件："));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Found " + files.length + " hyperdimensional storage data file(s):"));
         Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
         for (File file : files) {
             String name = file.getName();
@@ -207,11 +205,11 @@ public class CommandAE2Enhanced extends CommandBase {
         try {
             uuid = UUID.fromString(uuidStr);
         } catch (IllegalArgumentException e) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] 无效的 UUID: " + uuidStr));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Invalid UUID: " + uuidStr));
             return;
         }
         if (!(sender instanceof EntityPlayerMP)) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] 该指令只能由玩家执行。"));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command can only be executed by a player."));
             return;
         }
         EntityPlayerMP player = (EntityPlayerMP) sender;
@@ -223,6 +221,6 @@ public class CommandAE2Enhanced extends CommandBase {
         if (!added) {
             player.dropItem(stack, false);
         }
-        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] 已给予携带 UUID " + uuidStr + " 的超维度仓储中枢主方块。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Given Hyperdimensional Controller block carrying UUID " + uuidStr + "."));
     }
 }
