@@ -22,10 +22,10 @@ import net.minecraftforge.items.SlotItemHandler;
  * - 47~73:  玩家背包 (3行, Y=141/159/177)
  * - 74~82:  玩家快捷栏 (Y=199)
  * - 83~91:  MiniGUI 输入槽 (3x3, SlotFake)
- *   行Y: 20, 38, 56
+ *   行Y: 19, 37, 55
  *   列X: 178, 196, 214
  * - 92~100: MiniGUI 输出槽 (3x3, SlotFake)
- *   行Y: 105, 123, 141
+ *   行Y: 104, 122, 140
  *   列X: 178, 196, 214
  * - 101:    替换左侧槽位 (176, 162, SlotItemHandler)
  * - 102:    替换右侧槽位 (212, 162, SlotItemHandler)
@@ -36,8 +36,8 @@ public class ContainerSmartPatternInterface extends Container {
     private static final int[] RECIPE_ROW_Y = {36, 54, 72, 90, 108};
 
     private static final int[] MINIGUI_COL_X = {178, 196, 214};
-    private static final int[] MINIGUI_INPUT_ROW_Y = {20, 38, 56};
-    private static final int[] MINIGUI_OUTPUT_ROW_Y = {105, 123, 141};
+    private static final int[] MINIGUI_INPUT_ROW_Y = {19, 37, 55};
+    private static final int[] MINIGUI_OUTPUT_ROW_Y = {104, 122, 140};
 
     public static final int SLOT_RECIPE_START = 0;
     public static final int SLOT_RECIPE_COUNT = 45;

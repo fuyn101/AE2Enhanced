@@ -215,24 +215,33 @@ public class SmartPatternData {
 
     /**
      * 在所有配方的输入输出中替换物品类型（保持数量不变）。
+     * 如果 to 为 null，则清除所有匹配的输入输出。
      */
     public void replaceInAllRecipes(@Nonnull appeng.api.storage.data.IAEItemStack from,
-                                    @Nonnull appeng.api.storage.data.IAEItemStack to) {
+                                    @Nullable appeng.api.storage.data.IAEItemStack to) {
         for (SmartRecipe recipe : recipes) {
             appeng.api.storage.data.IAEItemStack[] inputs = recipe.getInputs();
             for (int i = 0; i < inputs.length; i++) {
                 if (inputs[i] != null && inputs[i].equals(from)) {
-                    appeng.api.storage.data.IAEItemStack copy = to.copy();
-                    copy.setStackSize(inputs[i].getStackSize());
-                    recipe.setInput(i, copy);
+                    if (to != null) {
+                        appeng.api.storage.data.IAEItemStack copy = to.copy();
+                        copy.setStackSize(inputs[i].getStackSize());
+                        recipe.setInput(i, copy);
+                    } else {
+                        recipe.setInput(i, null);
+                    }
                 }
             }
             appeng.api.storage.data.IAEItemStack[] outputs = recipe.getOutputs();
             for (int i = 0; i < outputs.length; i++) {
                 if (outputs[i] != null && outputs[i].equals(from)) {
-                    appeng.api.storage.data.IAEItemStack copy = to.copy();
-                    copy.setStackSize(outputs[i].getStackSize());
-                    recipe.setOutput(i, copy);
+                    if (to != null) {
+                        appeng.api.storage.data.IAEItemStack copy = to.copy();
+                        copy.setStackSize(outputs[i].getStackSize());
+                        recipe.setOutput(i, copy);
+                    } else {
+                        recipe.setOutput(i, null);
+                    }
                 }
             }
         }

@@ -366,13 +366,13 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 在所有配方中替换物品。
+     * 在所有配方中替换物品。如果 to 为空，则清除匹配的输入输出。
      */
     public void replaceInAllRecipes(@Nonnull ItemStack from, @Nonnull ItemStack to) {
-        if (patternData == null || from.isEmpty() || to.isEmpty()) return;
+        if (patternData == null || from.isEmpty()) return;
         IAEItemStack fromAE = AEItemStack.fromItemStack(from);
-        IAEItemStack toAE = AEItemStack.fromItemStack(to);
-        if (fromAE == null || toAE == null) return;
+        if (fromAE == null) return;
+        IAEItemStack toAE = to.isEmpty() ? null : AEItemStack.fromItemStack(to);
         patternData.replaceInAllRecipes(fromAE, toAE);
         if (lockedRecipeIndex >= 0) {
             updateMiniGuiFromRecipe();

@@ -526,7 +526,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         if (mouseButton == 0 && isInArrowButton(relX, relY)) {
             ItemStack from = tile.getReplaceInventory().getStackInSlot(0);
             ItemStack to = tile.getReplaceInventory().getStackInSlot(1);
-            if (!from.isEmpty() && !to.isEmpty()) {
+            if (!from.isEmpty()) {
                 tile.replaceInAllRecipes(from, to);
                 AE2Enhanced.network.sendToServer(new PacketSmartPatternReplace(tile.getPos(), from, to));
             }
