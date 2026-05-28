@@ -210,6 +210,7 @@ public class AE2Enhanced {
     @Mod.EventHandler
     public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
         event.registerServerCommand(new com.github.aeddddd.ae2enhanced.command.CommandAE2Enhanced());
+        event.registerServerCommand(new com.github.aeddddd.ae2enhanced.command.CommandAE2E());
     }
 
     @SubscribeEvent

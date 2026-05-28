@@ -22,7 +22,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     @Nonnull
     public String getName() {
-        return "ae2e";
+        return "ae2enhanced";
     }
 
     @Override
