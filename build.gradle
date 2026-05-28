@@ -45,6 +45,7 @@ repositories {
 
 dependencies {
     compile files('libs/ae2-uel-v0.56.7.jar')
+    compileOnly files('libs/ae2fc-2.7.10-unofficial.jar')
     compileOnly files('libs/Mekanism-1.12.2-9.8.3.390.jar')
     compileOnly files('libs/MekanismEnergistics-0.1.5.jar')
     compileOnly files('libs/Thaumcraft-1.12.2-6.1.BETA26.jar')

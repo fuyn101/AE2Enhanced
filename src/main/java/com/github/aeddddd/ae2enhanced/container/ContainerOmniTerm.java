@@ -552,6 +552,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             return;
         }
 
+        boolean hasFluid = false;
+        for (ItemStack i : in) {
+            if (isFluidDrop(i)) { hasFluid = true; break; }
+        }
+        if (!hasFluid) {
+            for (ItemStack i : out) {
+                if (isFluidDrop(i)) { hasFluid = true; break; }
+            }
+        }
+
         if (output.isEmpty()) {
             output = this.patternSlotIN.getStack();
             if (output.isEmpty() || !this.isPattern(output)) {
@@ -562,11 +572,26 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 this.patternSlotIN.putStack(ItemStack.EMPTY);
             }
 
-            Optional<ItemStack> maybePattern = AEApi.instance().definitions().items().encodedPattern().maybeStack(1);
-            if (maybePattern.isPresent()) {
-                output = maybePattern.get();
+            if (hasFluid && com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidHelper.isLoaded()) {
+                net.minecraft.item.Item fluidPattern = net.minecraftforge.fml.common.registry.ForgeRegistries.ITEMS.getValue(
+                        new net.minecraft.util.ResourceLocation("ae2fc", this.patternCraftMode ? "dense_craft_encoded_pattern" : "dense_encoded_pattern"));
+                if (fluidPattern != null) {
+                    output = new ItemStack(fluidPattern);
+                } else {
+                    Optional<ItemStack> maybePattern = AEApi.instance().definitions().items().encodedPattern().maybeStack(1);
+                    if (maybePattern.isPresent()) {
+                        output = maybePattern.get();
+                    } else {
+                        return;
+                    }
+                }
             } else {
-                return;
+                Optional<ItemStack> maybePattern = AEApi.instance().definitions().items().encodedPattern().maybeStack(1);
+                if (maybePattern.isPresent()) {
+                    output = maybePattern.get();
+                } else {
+                    return;
+                }
             }
         }
 
@@ -666,6 +691,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         return AEApi.instance().definitions().items().encodedPattern().isSameAs(output)
                 || AEApi.instance().definitions().materials().blankPattern().isSameAs(output);
+    }
+
+    private boolean isFluidDrop(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String registryName = stack.getItem().getRegistryName().toString();
+        return "ae2fc:fluid_drop".equals(registryName) || "ae2fc:fluid_packet".equals(registryName);
     }
 
     private NBTTagCompound createItemTag(ItemStack stack) {

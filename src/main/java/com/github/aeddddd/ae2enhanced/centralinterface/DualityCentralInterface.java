@@ -24,6 +24,8 @@ import appeng.util.Platform;
 import appeng.util.inv.InvOperation;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -485,10 +487,20 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             ICraftingPatternDetails details = i.next();
             boolean found = false;
             for (int x = 0; x < accountedFor.length; x++) {
-                if (details.getPattern() == this.patterns.getStackInSlot(x)) {
+                ItemStack stackInSlot = this.patterns.getStackInSlot(x);
+                if (details.getPattern() == stackInSlot) {
                     found = true;
                     accountedFor[x] = true;
                     break;
+                }
+                // SmartPatternSubDetails: match by parent ItemSmartPattern
+                if (details instanceof SmartPatternSubDetails) {
+                    ItemStack parent = ((SmartPatternSubDetails) details).getPattern();
+                    if (parent == stackInSlot) {
+                        found = true;
+                        accountedFor[x] = true;
+                        break;
+                    }
                 }
             }
             if (!found) {
@@ -515,6 +527,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     private void addToCraftingList(ItemStack stack) {
         if (stack.isEmpty()) return;
+        // 智能样板展开
+        if (stack.getItem() instanceof ItemSmartPattern) {
+            World world = this.host.getTileEntity().getWorld();
+            List<SmartPatternSubDetails> subs = ItemSmartPattern.expandPatterns(stack, world);
+            if (subs != null) {
+                this.craftingList.addAll(subs);
+            }
+            return;
+        }
         if (!(stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem)) return;
         appeng.api.implementations.ICraftingPatternItem patternItem =
                 (appeng.api.implementations.ICraftingPatternItem) stack.getItem();

@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidHelper;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.IRecipeRegistry;
 import mezz.jei.api.ingredients.VanillaTypes;
@@ -15,6 +16,7 @@ import mezz.jei.api.recipe.IFocus;
 import mezz.jei.ingredients.Ingredients;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -194,21 +196,48 @@ public class JEIRecipeHelper {
             List<List<ItemStack>> inputLists = ingredients.getInputs(VanillaTypes.ITEM);
             List<List<ItemStack>> outputLists = ingredients.getOutputs(VanillaTypes.ITEM);
 
-            // 构建 inputs（最多16个槽位，processing 配方）
-            IAEItemStack[] inputs = new IAEItemStack[16];
-            int inputIdx = 0;
+            // 收集所有输入（物品 + 流体）
+            List<IAEItemStack> inputList = new ArrayList<>();
             for (List<ItemStack> slotInputs : inputLists) {
-                if (!slotInputs.isEmpty() && inputIdx < inputs.length) {
-                    inputs[inputIdx] = AEItemStack.fromItemStack(slotInputs.get(0));
-                    inputIdx++;
+                if (!slotInputs.isEmpty()) {
+                    inputList.add(AEItemStack.fromItemStack(slotInputs.get(0)));
+                }
+            }
+            // ae2fc 流体输入
+            if (Ae2fcFluidHelper.isLoaded()) {
+                List<List<FluidStack>> fluidInputs = ingredients.getInputs(VanillaTypes.FLUID);
+                for (List<FluidStack> slotFluids : fluidInputs) {
+                    if (!slotFluids.isEmpty()) {
+                        IAEItemStack fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
+                        if (fluidDrop != null) {
+                            inputList.add(fluidDrop);
+                        }
+                    }
                 }
             }
 
-            // 构建 outputs：只取第一个输出槽位（主输出），移除概率产出/副产物
-            IAEItemStack[] outputs = new IAEItemStack[1];
-            if (!outputLists.isEmpty() && !outputLists.get(0).isEmpty()) {
-                outputs[0] = AEItemStack.fromItemStack(outputLists.get(0).get(0));
+            // 收集所有输出（物品 + 流体），支持多输出
+            List<IAEItemStack> outputList = new ArrayList<>();
+            for (List<ItemStack> slotOutputs : outputLists) {
+                if (!slotOutputs.isEmpty()) {
+                    outputList.add(AEItemStack.fromItemStack(slotOutputs.get(0)));
+                }
             }
+            // ae2fc 流体输出
+            if (Ae2fcFluidHelper.isLoaded()) {
+                List<List<FluidStack>> fluidOutputs = ingredients.getOutputs(VanillaTypes.FLUID);
+                for (List<FluidStack> slotFluids : fluidOutputs) {
+                    if (!slotFluids.isEmpty()) {
+                        IAEItemStack fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
+                        if (fluidDrop != null) {
+                            outputList.add(fluidDrop);
+                        }
+                    }
+                }
+            }
+
+            IAEItemStack[] inputs = inputList.toArray(new IAEItemStack[0]);
+            IAEItemStack[] outputs = outputList.toArray(new IAEItemStack[0]);
 
             // 判断是否是 crafting 配方（简单启发式：UID 包含 "crafting"）
             boolean isCrafting = category.getUid().toLowerCase().contains("crafting");

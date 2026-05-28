@@ -3,12 +3,14 @@ package com.github.aeddddd.ae2enhanced.integration.jei;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketLoadOmniRecipe;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidHelper;
 import mezz.jei.api.gui.IGuiIngredient;
 import mezz.jei.api.gui.IRecipeLayout;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
 import org.lwjgl.input.Keyboard;
 
 import java.util.ArrayList;
@@ -47,33 +49,16 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
             } catch (Exception ignored) {}
         }
 
-        // 收集 JEI ingredients，按 key 排序以保留顺序
-        List<Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>>> sortedIngredients = new ArrayList<>();
-        Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
-        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : ingredients.entrySet()) {
-            sortedIngredients.add(entry);
-        }
-        sortedIngredients.sort(Comparator.comparingInt(Map.Entry::getKey));
-
         // 使用 Map 保留 JEI slot index
         Map<Integer, ItemStack> inputs = new HashMap<>();
         Map<Integer, ItemStack> outputs = new HashMap<>();
 
-        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : sortedIngredients) {
-            int slotIndex = entry.getKey();
-            IGuiIngredient<ItemStack> ing = entry.getValue();
+        // 收集物品 ingredients
+        collectItemIngredients(recipeLayout, inputs, outputs);
 
-            // 优先取 displayed，fallback 到 allIngredients 的第一个非空物品
-            ItemStack toUse = getFirstNonEmpty(ing);
-            if (toUse == null || toUse.isEmpty()) {
-                continue;
-            }
-
-            if (ing.isInput()) {
-                inputs.put(slotIndex, toUse.copy());
-            } else {
-                outputs.put(slotIndex, toUse.copy());
-            }
+        // 收集流体 ingredients（ae2fc）
+        if (Ae2fcFluidHelper.isLoaded()) {
+            collectFluidIngredients(recipeLayout, inputs, outputs);
         }
 
         if (inputs.isEmpty()) {
@@ -110,6 +95,55 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
         AE2Enhanced.network.sendToServer(new PacketLoadOmniRecipe(mode, isCrafting, gridSize, inputs, outputs));
         return null;
+    }
+
+    private static void collectItemIngredients(IRecipeLayout recipeLayout, Map<Integer, ItemStack> inputs, Map<Integer, ItemStack> outputs) {
+        List<Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>>> sorted = new ArrayList<>();
+        Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
+        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : ingredients.entrySet()) {
+            sorted.add(entry);
+        }
+        sorted.sort(Comparator.comparingInt(Map.Entry::getKey));
+
+        for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> entry : sorted) {
+            int slotIndex = entry.getKey();
+            IGuiIngredient<ItemStack> ing = entry.getValue();
+            ItemStack toUse = getFirstNonEmpty(ing);
+            if (toUse.isEmpty()) continue;
+            if (ing.isInput()) {
+                inputs.put(slotIndex, toUse.copy());
+            } else {
+                outputs.put(slotIndex, toUse.copy());
+            }
+        }
+    }
+
+    private static void collectFluidIngredients(IRecipeLayout recipeLayout, Map<Integer, ItemStack> inputs, Map<Integer, ItemStack> outputs) {
+        Map<Integer, ? extends IGuiIngredient<FluidStack>> fluidIngredients = recipeLayout.getFluidStacks().getGuiIngredients();
+        for (Map.Entry<Integer, ? extends IGuiIngredient<FluidStack>> entry : fluidIngredients.entrySet()) {
+            int slotIndex = entry.getKey();
+            IGuiIngredient<FluidStack> ing = entry.getValue();
+            FluidStack fluid = ing.getDisplayedIngredient();
+            if (fluid == null || fluid.amount <= 0) {
+                List<FluidStack> all = ing.getAllIngredients();
+                if (all != null) {
+                    for (FluidStack f : all) {
+                        if (f != null && f.amount > 0) {
+                            fluid = f;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (fluid == null || fluid.amount <= 0) continue;
+            ItemStack drop = Ae2fcFluidHelper.packFluid2Drops(fluid);
+            if (drop == null || drop.isEmpty()) continue;
+            if (ing.isInput()) {
+                inputs.put(slotIndex, drop);
+            } else {
+                outputs.put(slotIndex, drop);
+            }
+        }
     }
 
     /**
