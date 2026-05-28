@@ -260,6 +260,13 @@ gui.ae2enhanced.smart_pattern_interface.next_page=Next Page
 gui.ae2enhanced.smart_pattern_interface.keep_primary=Keep Only Primary Output
 gui.ae2enhanced.smart_pattern_interface.double_amounts=Double All Amounts
 gui.ae2enhanced.smart_pattern_interface.delete_disabled=Delete Disabled Recipes (%d)
+gui.ae2enhanced.smart_pattern_interface.rotate_inputs=Rotate Inputs
+gui.ae2enhanced.smart_pattern_interface.clear_inputs=Clear Inputs
+gui.ae2enhanced.smart_pattern_interface.rotate_outputs=Rotate Outputs
+gui.ae2enhanced.smart_pattern_interface.clear_outputs=Clear Outputs
+gui.ae2enhanced.smart_pattern_interface.unstack=Unstack Items
+gui.ae2enhanced.smart_pattern_interface.stack=Stack Items
+gui.ae2enhanced.smart_pattern_interface.replace_all=Replace in All Recipes
 
 # Omni Terminal Upgrade Cards
 item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card

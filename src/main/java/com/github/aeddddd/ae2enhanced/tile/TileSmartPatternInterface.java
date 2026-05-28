@@ -31,6 +31,7 @@ import java.util.UUID;
  *   <li>提供样板输入槽和输出槽（通过 ItemStackHandler）</li>
  *   <li>处理编码逻辑（空白样板 → 编码后样板）</li>
  *   <li>MiniGUI 编辑：锁定配方后可修改输入输出</li>
+ *   <li>批量替换：底部槽位在所有配方中替换物品</li>
  * </ul>
  *
  * <p>注意：不接入 ME 网络，纯手动配置终端。</p>
@@ -80,6 +81,14 @@ public class TileSmartPatternInterface extends TileEntity {
         @Override
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
             return lockedRecipeIndex >= 0;
+        }
+    };
+
+    // 底部替换槽位：0=当前物品(左侧), 1=替换目标(右侧)
+    private final ItemStackHandler replaceInventory = new ItemStackHandler(2) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            markDirty();
         }
     };
 
@@ -226,6 +235,11 @@ public class TileSmartPatternInterface extends TileEntity {
         return miniGuiInventory;
     }
 
+    @Nonnull
+    public ItemStackHandler getReplaceInventory() {
+        return replaceInventory;
+    }
+
     public int getScrollOffset() {
         return scrollOffset;
     }
@@ -274,7 +288,61 @@ public class TileSmartPatternInterface extends TileEntity {
         if (lockedRecipeIndex < 0 || patternData == null) return;
         int original = patternData.getDisplayIndex(lockedRecipeIndex);
         if (original < 0) return;
-        patternData.modifyRecipe(lockedRecipeIndex, action);
+        SmartRecipe recipe = patternData.getRecipes().get(original);
+        switch (action) {
+            case "keepPrimary":
+                recipe.keepPrimary();
+                break;
+            case "multiply2":
+                recipe.multiplyAmounts(2);
+                break;
+            case "multiply3":
+                recipe.multiplyAmounts(3);
+                break;
+            case "multiply4":
+                recipe.multiplyAmounts(4);
+                break;
+            case "multiply5":
+                recipe.multiplyAmounts(5);
+                break;
+            case "divide2":
+                recipe.divideAmounts(2);
+                break;
+            case "divide3":
+                recipe.divideAmounts(3);
+                break;
+            case "divide4":
+                recipe.divideAmounts(4);
+                break;
+            case "divide5":
+                recipe.divideAmounts(5);
+                break;
+            case "add1":
+                recipe.addToAmounts(1);
+                break;
+            case "add-1":
+                recipe.addToAmounts(-1);
+                break;
+            case "rotateInputs":
+                recipe.rotateInputs();
+                break;
+            case "rotateOutputs":
+                recipe.rotateOutputs();
+                break;
+            case "clearInputs":
+                recipe.clearInputs();
+                break;
+            case "clearOutputs":
+                recipe.clearOutputs();
+                break;
+            case "stack":
+                recipe.stackInputs();
+                break;
+            case "unstack":
+                recipe.unstackInputs();
+                break;
+        }
+        patternData.detectConflicts();
         updateMiniGuiFromRecipe();
         updateRecipeDisplay();
         markDirty();
@@ -292,6 +360,23 @@ public class TileSmartPatternInterface extends TileEntity {
             clearMiniGuiInventory();
         }
         setScrollOffset(scrollOffset); // 重新限制页码
+        updateRecipeDisplay();
+        markDirty();
+        syncToClient();
+    }
+
+    /**
+     * 在所有配方中替换物品。
+     */
+    public void replaceInAllRecipes(@Nonnull ItemStack from, @Nonnull ItemStack to) {
+        if (patternData == null || from.isEmpty() || to.isEmpty()) return;
+        IAEItemStack fromAE = AEItemStack.fromItemStack(from);
+        IAEItemStack toAE = AEItemStack.fromItemStack(to);
+        if (fromAE == null || toAE == null) return;
+        patternData.replaceInAllRecipes(fromAE, toAE);
+        if (lockedRecipeIndex >= 0) {
+            updateMiniGuiFromRecipe();
+        }
         updateRecipeDisplay();
         markDirty();
         syncToClient();
@@ -459,6 +544,9 @@ public class TileSmartPatternInterface extends TileEntity {
         if (compound.hasKey("miniGuiInventory")) {
             miniGuiInventory.deserializeNBT(compound.getCompoundTag("miniGuiInventory"));
         }
+        if (compound.hasKey("replaceInventory")) {
+            replaceInventory.deserializeNBT(compound.getCompoundTag("replaceInventory"));
+        }
         // patternData 优先直接反序列化（支持客户端同步），回退到文件加载
         if (compound.hasKey("patternData")) {
             patternData = SmartPatternData.fromNBT(compound.getCompoundTag("patternData"));
@@ -484,6 +572,7 @@ public class TileSmartPatternInterface extends TileEntity {
         compound.setInteger("miniGuiOutputScroll", miniGuiOutputScroll);
         compound.setTag("recipeDisplay", recipeDisplayInventory.serializeNBT());
         compound.setTag("miniGuiInventory", miniGuiInventory.serializeNBT());
+        compound.setTag("replaceInventory", replaceInventory.serializeNBT());
         if (patternData != null) {
             compound.setUniqueId(NBT_PATTERN_DATA_ID, patternData.getPatternDataId());
             compound.setTag("patternData", patternData.toNBT());

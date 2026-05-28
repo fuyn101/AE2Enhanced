@@ -258,6 +258,13 @@ gui.ae2enhanced.smart_pattern_interface.next_page=下一页
 gui.ae2enhanced.smart_pattern_interface.keep_primary=只保留主产物
 gui.ae2enhanced.smart_pattern_interface.double_amounts=翻倍数量
 gui.ae2enhanced.smart_pattern_interface.delete_disabled=删除已禁用配方 (%d)
+gui.ae2enhanced.smart_pattern_interface.rotate_inputs=轮换输入槽位
+gui.ae2enhanced.smart_pattern_interface.clear_inputs=清除输入槽位
+gui.ae2enhanced.smart_pattern_interface.rotate_outputs=轮换输出槽位
+gui.ae2enhanced.smart_pattern_interface.clear_outputs=清除输出槽位
+gui.ae2enhanced.smart_pattern_interface.unstack=展开同类物品堆叠
+gui.ae2enhanced.smart_pattern_interface.stack=堆叠同类物品
+gui.ae2enhanced.smart_pattern_interface.replace_all=在所有配方中替换
 
 # Omni 终端升级卡
 item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡

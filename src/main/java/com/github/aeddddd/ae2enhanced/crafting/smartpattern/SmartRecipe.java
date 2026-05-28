@@ -7,6 +7,10 @@ import net.minecraft.nbt.NBTTagList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 单个配方的数据结构，可被序列化为 NBT。
@@ -95,9 +99,149 @@ public class SmartRecipe {
         }
     }
 
+    // ---- 数量操作 ----
+
+    public void multiplyAmounts(int multiplier) {
+        for (int i = 0; i < inputs.length; i++) {
+            if (inputs[i] != null) {
+                long newSize = inputs[i].getStackSize() * (long) multiplier;
+                inputs[i].setStackSize(Math.min(newSize, Integer.MAX_VALUE));
+            }
+        }
+        for (int i = 0; i < outputs.length; i++) {
+            if (outputs[i] != null) {
+                long newSize = outputs[i].getStackSize() * (long) multiplier;
+                outputs[i].setStackSize(Math.min(newSize, Integer.MAX_VALUE));
+            }
+        }
+    }
+
+    public void divideAmounts(int divisor) {
+        if (divisor <= 0) return;
+        for (int i = 0; i < inputs.length; i++) {
+            if (inputs[i] != null) {
+                long newSize = Math.max(1, inputs[i].getStackSize() / divisor);
+                inputs[i].setStackSize(newSize);
+            }
+        }
+        for (int i = 0; i < outputs.length; i++) {
+            if (outputs[i] != null) {
+                long newSize = Math.max(1, outputs[i].getStackSize() / divisor);
+                outputs[i].setStackSize(newSize);
+            }
+        }
+    }
+
+    public void addToAmounts(int delta) {
+        for (int i = 0; i < inputs.length; i++) {
+            if (inputs[i] != null) {
+                long newSize = inputs[i].getStackSize() + delta;
+                inputs[i].setStackSize(Math.max(1, Math.min(newSize, Integer.MAX_VALUE)));
+            }
+        }
+        for (int i = 0; i < outputs.length; i++) {
+            if (outputs[i] != null) {
+                long newSize = outputs[i].getStackSize() + delta;
+                outputs[i].setStackSize(Math.max(1, Math.min(newSize, Integer.MAX_VALUE)));
+            }
+        }
+    }
+
+    // ---- 轮换 ----
+
+    public void rotateInputs() {
+        if (inputs.length <= 1) return;
+        IAEItemStack first = inputs[0];
+        System.arraycopy(inputs, 1, inputs, 0, inputs.length - 1);
+        inputs[inputs.length - 1] = first;
+    }
+
+    public void rotateOutputs() {
+        if (outputs.length <= 1) return;
+        IAEItemStack first = outputs[0];
+        System.arraycopy(outputs, 1, outputs, 0, outputs.length - 1);
+        outputs[outputs.length - 1] = first;
+    }
+
+    // ---- 清除 ----
+
+    public void clearInputs() {
+        for (int i = 0; i < inputs.length; i++) {
+            inputs[i] = null;
+        }
+    }
+
+    public void clearOutputs() {
+        for (int i = 0; i < outputs.length; i++) {
+            outputs[i] = null;
+        }
+    }
+
+    // ---- 堆叠 / 展开 ----
+
     /**
-     * 序列化为 NBT。
+     * 将多个槽位中的同类输入合并到前面的槽位。
      */
+    public void stackInputs() {
+        Map<IAEItemStack, Long> merged = new HashMap<>();
+        for (IAEItemStack input : inputs) {
+            if (input != null) {
+                IAEItemStack key = input.copy();
+                key.setStackSize(0);
+                merged.merge(key, input.getStackSize(), Long::sum);
+            }
+        }
+        int slot = 0;
+        for (Map.Entry<IAEItemStack, Long> entry : merged.entrySet()) {
+            if (slot < inputs.length) {
+                IAEItemStack stack = entry.getKey().copy();
+                stack.setStackSize(Math.min(entry.getValue(), Integer.MAX_VALUE));
+                inputs[slot++] = stack;
+            }
+        }
+        for (int i = slot; i < inputs.length; i++) {
+            inputs[i] = null;
+        }
+    }
+
+    /**
+     * 将大堆叠的输入拆分到空槽位中（尽可能平均分配）。
+     */
+    public void unstackInputs() {
+        List<Integer> nonEmpty = new ArrayList<>();
+        List<Integer> empty = new ArrayList<>();
+        for (int i = 0; i < inputs.length; i++) {
+            if (inputs[i] != null) nonEmpty.add(i);
+            else empty.add(i);
+        }
+        if (nonEmpty.isEmpty() || empty.isEmpty()) return;
+
+        // 对每个非空槽位，如果有空槽位，将数量平均分配
+        for (int srcIdx : nonEmpty) {
+            if (empty.isEmpty()) break;
+            IAEItemStack src = inputs[srcIdx];
+            if (src == null || src.getStackSize() <= 1) continue;
+
+            long perSlot = src.getStackSize() / (empty.size() + 1);
+            if (perSlot < 1) continue;
+
+            long remainder = src.getStackSize() % (empty.size() + 1);
+            src.setStackSize(perSlot + (remainder > 0 ? 1 : 0));
+            if (remainder > 0) remainder--;
+
+            for (int j = 0; j < empty.size() && j < empty.size(); ) {
+                int destIdx = empty.get(j);
+                IAEItemStack copy = src.copy();
+                copy.setStackSize(perSlot + (remainder > 0 ? 1 : 0));
+                inputs[destIdx] = copy;
+                if (remainder > 0) remainder--;
+                empty.remove(j);
+            }
+        }
+    }
+
+    // ---- NBT ----
+
     public NBTTagCompound toNBT() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setTag("inputs", writeStackArray(inputs));
@@ -106,9 +250,6 @@ public class SmartRecipe {
         return tag;
     }
 
-    /**
-     * 从 NBT 反序列化。
-     */
     public static SmartRecipe fromNBT(NBTTagCompound tag) {
         IAEItemStack[] inputs = readStackArray(tag.getTagList("inputs", 10));
         IAEItemStack[] outputs = readStackArray(tag.getTagList("outputs", 10));

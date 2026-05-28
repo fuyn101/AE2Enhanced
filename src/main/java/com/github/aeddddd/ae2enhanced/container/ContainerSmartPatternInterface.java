@@ -13,7 +13,7 @@ import net.minecraftforge.items.SlotItemHandler;
 /**
  * 智能样板接口的 Container。
  *
- * 槽位布局（基于 v2 UV 分析报告）：
+ * 槽位布局（基于 v3 UV 分析报告）：
  * - 0~44:   配方显示槽位 (9列 x 5行, SlotFake)
  *   行Y: 36, 54, 72, 90, 108
  *   列X: 8, 26, 44, 62, 80, 98, 116, 134, 152
@@ -22,11 +22,13 @@ import net.minecraftforge.items.SlotItemHandler;
  * - 47~73:  玩家背包 (3行, Y=141/159/177)
  * - 74~82:  玩家快捷栏 (Y=199)
  * - 83~91:  MiniGUI 输入槽 (3x3, SlotFake)
- *   行Y: 19, 37, 55
+ *   行Y: 20, 38, 56
  *   列X: 178, 196, 214
  * - 92~100: MiniGUI 输出槽 (3x3, SlotFake)
- *   行Y: 104, 122, 140
+ *   行Y: 105, 123, 141
  *   列X: 178, 196, 214
+ * - 101:    替换左侧槽位 (176, 162, SlotItemHandler)
+ * - 102:    替换右侧槽位 (212, 162, SlotItemHandler)
  */
 public class ContainerSmartPatternInterface extends Container {
 
@@ -34,8 +36,8 @@ public class ContainerSmartPatternInterface extends Container {
     private static final int[] RECIPE_ROW_Y = {36, 54, 72, 90, 108};
 
     private static final int[] MINIGUI_COL_X = {178, 196, 214};
-    private static final int[] MINIGUI_INPUT_ROW_Y = {19, 37, 55};
-    private static final int[] MINIGUI_OUTPUT_ROW_Y = {104, 122, 140};
+    private static final int[] MINIGUI_INPUT_ROW_Y = {20, 38, 56};
+    private static final int[] MINIGUI_OUTPUT_ROW_Y = {105, 123, 141};
 
     public static final int SLOT_RECIPE_START = 0;
     public static final int SLOT_RECIPE_COUNT = 45;
@@ -44,6 +46,8 @@ public class ContainerSmartPatternInterface extends Container {
     public static final int SLOT_PLAYER_START = 47;
     public static final int SLOT_MINIGUI_INPUT_START = 83;
     public static final int SLOT_MINIGUI_OUTPUT_START = 92;
+    public static final int SLOT_REPLACE_LEFT = 101;
+    public static final int SLOT_REPLACE_RIGHT = 102;
 
     private final TileSmartPatternInterface tile;
 
@@ -90,7 +94,7 @@ public class ContainerSmartPatternInterface extends Container {
             this.addSlotToContainer(new Slot(playerInv, col, 8 + col * 18, 199));
         }
 
-        // MiniGUI 输入槽 (9个 SlotFake，绑定到 TileEntity 的 miniGuiInventory)
+        // MiniGUI 输入槽 (9个 SlotFake)
         int mgSlot = 0;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
@@ -112,6 +116,10 @@ public class ContainerSmartPatternInterface extends Container {
                 mgSlot++;
             }
         }
+
+        // 底部替换槽位 (2个 SlotItemHandler)
+        this.addSlotToContainer(new SlotItemHandler(tile.getReplaceInventory(), 0, 176, 162));
+        this.addSlotToContainer(new SlotItemHandler(tile.getReplaceInventory(), 1, 212, 162));
     }
 
     @Override
@@ -127,7 +135,8 @@ public class ContainerSmartPatternInterface extends Container {
             ItemStack stackInSlot = slot.getStack();
             itemstack = stackInSlot.copy();
 
-            if (index == SLOT_BLANK_INPUT || index == SLOT_ENCODED_OUTPUT) {
+            if (index == SLOT_BLANK_INPUT || index == SLOT_ENCODED_OUTPUT
+                    || index == SLOT_REPLACE_LEFT || index == SLOT_REPLACE_RIGHT) {
                 // 从 TileEntity 槽位移到玩家背包
                 if (!this.mergeItemStack(stackInSlot, SLOT_PLAYER_START, SLOT_PLAYER_START + 36, true)) {
                     return ItemStack.EMPTY;
