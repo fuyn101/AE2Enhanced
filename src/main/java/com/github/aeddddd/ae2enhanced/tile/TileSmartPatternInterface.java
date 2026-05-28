@@ -66,8 +66,8 @@ public class TileSmartPatternInterface extends TileEntity {
     // 防止 onContentsChanged 递归
     private boolean isUpdatingMiniGui = false;
 
-    // MiniGUI 物品栏：前81=输入（9组 x 3x3），后27=输出（9组 x 3）
-    private final ItemStackHandler miniGuiInventory = new ItemStackHandler(108) {
+    // MiniGUI 物品栏：前81=输入（9组 x 3x3），后9=输出（1组 x 3x3）
+    private final ItemStackHandler miniGuiInventory = new ItemStackHandler(90) {
         @Override
         protected void onContentsChanged(int slot) {
             if (!isUpdatingMiniGui && world != null && !world.isRemote
@@ -445,7 +445,7 @@ public class TileSmartPatternInterface extends TileEntity {
                     miniGuiInventory.setStackInSlot(i, ItemStack.EMPTY);
                 }
             }
-            for (int i = 0; i < 27; i++) {
+            for (int i = 0; i < 9; i++) {
                 if (i < outputs.length && outputs[i] != null) {
                     miniGuiInventory.setStackInSlot(i + 81, outputs[i].createItemStack());
                 } else {
