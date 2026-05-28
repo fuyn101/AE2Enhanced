@@ -207,6 +207,11 @@ public class AE2Enhanced {
         proxy.postInit(event);
     }
 
+    @Mod.EventHandler
+    public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
+        event.registerServerCommand(new com.github.aeddddd.ae2enhanced.command.CommandAE2Enhanced());
+    }
+
     @SubscribeEvent
     public void onLivingHurt(LivingHurtEvent event) {
         if (!"matter_cannon".equals(event.getSource().getDamageType())) return;

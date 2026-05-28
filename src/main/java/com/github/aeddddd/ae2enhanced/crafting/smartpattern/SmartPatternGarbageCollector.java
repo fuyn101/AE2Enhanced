@@ -87,14 +87,23 @@ public class SmartPatternGarbageCollector {
     }
 
     private void runGC() {
+        runManualGC();
+    }
+
+    /**
+     * 手动触发一次垃圾回收，返回删除的文件数量。
+     */
+    public static int runManualGC() {
         try {
             Set<UUID> whitelist = collectReferencedIds();
             int deleted = deleteOrphanedFiles(whitelist);
             if (deleted > 0) {
                 AE2Enhanced.LOGGER.info("[AE2E] SmartPattern GC completed: {} orphaned file(s) deleted.", deleted);
             }
+            return deleted;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] SmartPattern GC failed.", e);
+            return -1;
         }
     }
 
@@ -102,7 +111,7 @@ public class SmartPatternGarbageCollector {
      * 遍历所有已加载维度的 TileEntity，收集 ME 接口中存放的智能样板 UUID。
      */
     @Nonnull
-    private Set<UUID> collectReferencedIds() {
+    private static Set<UUID> collectReferencedIds() {
         Set<UUID> ids = new HashSet<>();
         for (WorldServer world : FMLCommonHandler.instance().getMinecraftServerInstance().worlds) {
             for (TileEntity te : world.loadedTileEntityList) {
@@ -133,7 +142,7 @@ public class SmartPatternGarbageCollector {
         return ids;
     }
 
-    private void scanCableBus(@Nonnull Set<UUID> ids, @Nonnull TileCableBus cableBus) {
+    private static void scanCableBus(@Nonnull Set<UUID> ids, @Nonnull TileCableBus cableBus) {
         for (AEPartLocation side : AEPartLocation.values()) {
             IPart part = cableBus.getPart(side);
             if (part == null) {
@@ -151,7 +160,7 @@ public class SmartPatternGarbageCollector {
         }
     }
 
-    private void scanHandler(@Nonnull Set<UUID> ids, @Nonnull IItemHandler handler) {
+    private static void scanHandler(@Nonnull Set<UUID> ids, @Nonnull IItemHandler handler) {
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
             if (stack.isEmpty() || !(stack.getItem() instanceof ItemSmartPattern)) {
@@ -166,7 +175,7 @@ public class SmartPatternGarbageCollector {
 
     // ---- ae2fc 反射辅助 ----
 
-    private static synchronized void initAe2fcReflection() {
+    private static void initAe2fcReflection() {
         if (ae2fcReflected) {
             return;
         }
@@ -183,21 +192,21 @@ public class SmartPatternGarbageCollector {
         ae2fcReflected = true;
     }
 
-    private boolean isAe2fcTileInterface(@Nonnull TileEntity te) {
+    private static boolean isAe2fcTileInterface(@Nonnull TileEntity te) {
         initAe2fcReflection();
         Class<?> c = te.getClass();
         return (ae2fcDualTileClass != null && ae2fcDualTileClass.isAssignableFrom(c))
                 || (ae2fcTrioTileClass != null && ae2fcTrioTileClass.isAssignableFrom(c));
     }
 
-    private boolean isAe2fcPartInterface(@Nonnull IPart part) {
+    private static boolean isAe2fcPartInterface(@Nonnull IPart part) {
         initAe2fcReflection();
         Class<?> c = part.getClass();
         return (ae2fcDualPartClass != null && ae2fcDualPartClass.isAssignableFrom(c))
                 || (ae2fcTrioPartClass != null && ae2fcTrioPartClass.isAssignableFrom(c));
     }
 
-    private void scanAe2fcInterface(@Nonnull Set<UUID> ids, @Nonnull TileEntity te) {
+    private static void scanAe2fcInterface(@Nonnull Set<UUID> ids, @Nonnull TileEntity te) {
         if (ae2fcGetDualityMethod == null || ae2fcGetPatternsMethod == null) {
             return;
         }
@@ -213,7 +222,7 @@ public class SmartPatternGarbageCollector {
         }
     }
 
-    private void scanAe2fcPart(@Nonnull Set<UUID> ids, @Nonnull IPart part) {
+    private static void scanAe2fcPart(@Nonnull Set<UUID> ids, @Nonnull IPart part) {
         if (ae2fcGetDualityMethod == null || ae2fcGetPatternsMethod == null) {
             return;
         }
@@ -231,7 +240,7 @@ public class SmartPatternGarbageCollector {
 
     // ---- 文件删除 ----
 
-    private int deleteOrphanedFiles(@Nonnull Set<UUID> whitelist) {
+    private static int deleteOrphanedFiles(@Nonnull Set<UUID> whitelist) {
         File storageDir = SmartPatternStorageFile.getStorageDir();
         if (storageDir == null || !storageDir.exists()) {
             return 0;
@@ -240,16 +249,26 @@ public class SmartPatternGarbageCollector {
         if (files == null || files.length == 0) {
             return 0;
         }
+        // 相对过期：以最新 dat 文件的 mtime 为基准
+        long latestMtime = 0;
+        for (File file : files) {
+            long mtime = file.lastModified();
+            if (mtime > latestMtime) {
+                latestMtime = mtime;
+            }
+        }
+        if (latestMtime <= 0) {
+            return 0;
+        }
         long maxAgeMs = TimeUnit.DAYS.toMillis(AE2EnhancedConfig.smartPattern.gcMaxAgeDays);
-        long now = System.currentTimeMillis();
         int deleted = 0;
         for (File file : files) {
             UUID uuid = parseUuidFromFileName(file.getName());
             if (uuid == null) continue;
             // 白名单保护
             if (whitelist.contains(uuid)) continue;
-            // 过期检查
-            if (now - file.lastModified() < maxAgeMs) continue;
+            // 相对过期检查：文件是否比最新的 dat 文件老 maxAgeDays 以上
+            if (latestMtime - file.lastModified() < maxAgeMs) continue;
             if (file.delete()) {
                 deleted++;
                 AE2Enhanced.LOGGER.debug("[AE2E] Deleted orphaned SmartPattern file: {}", file.getName());
@@ -259,7 +278,7 @@ public class SmartPatternGarbageCollector {
     }
 
     @Nullable
-    private UUID parseUuidFromFileName(@Nonnull String name) {
+    private static UUID parseUuidFromFileName(@Nonnull String name) {
         String prefix = SmartPatternStorageFile.FILE_PREFIX;
         if (!name.startsWith(prefix) || !name.endsWith(".dat")) {
             return null;

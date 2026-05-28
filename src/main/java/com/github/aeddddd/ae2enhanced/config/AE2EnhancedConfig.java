@@ -230,12 +230,12 @@ public class AE2EnhancedConfig {
         @Config.Comment({
             "Garbage collection interval for orphaned Smart Pattern files (minutes).",
             "The collector scans ME interfaces for referenced patterns and deletes",
-            "files that are both unreferenced and older than gcMaxAgeDays.",
-            "Set to 0 to disable garbage collection entirely.",
-            "Range: 0 ~ 10080, Default: 60 (1 hour)"
+            "files that are both unreferenced and older than the newest file by gcMaxAgeDays.",
+            "Set to 0 to disable automatic garbage collection entirely.",
+            "Range: 0 ~ 10080, Default: 1440 (24 hours)"
         })
         @Config.RangeInt(min = 0, max = 10080)
-        public int gcIntervalMinutes = 60;
+        public int gcIntervalMinutes = 1440;
 
         @Config.Comment({
             "Maximum age of an unreferenced Smart Pattern file before deletion (days).",
