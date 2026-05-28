@@ -232,6 +232,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         boolean started = handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
         if (!started) {
+            // 回退已推送的材料
+            List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+            if (!reverted.isEmpty()) {
+                injectItemsToNetwork(proxy, world, reverted);
+            }
             return false;
         }
 
@@ -284,6 +289,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         } catch (appeng.me.GridAccessException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject items to network", e);
             return false;
+        }
+    }
+
+    /**
+     * 将物品暂存到 storage slots，溢出则掉落。
+     */
+    private void stashItemsToStorage(World world, List<ItemStack> items) {
+        for (ItemStack item : items) {
+            if (item.isEmpty()) continue;
+            ItemStack leftover = item.copy();
+            for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
+                leftover = this.storage.insertItem(s, leftover, false);
+            }
+            if (!leftover.isEmpty()) {
+                BlockPos pos = this.host.getTileEntity().getPos();
+                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
+                world.spawnEntity(entityItem);
+            }
         }
     }
 
@@ -344,6 +367,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     entry.setValue(TargetState.IDLE);
                     this.pendingOutputs.remove(target);
                     didWork = true;
+                } else {
+                    // 注入失败（网络断开等），产物暂存到 storage slots，避免丢失
+                    stashItemsToStorage(world, products);
+                    entry.setValue(TargetState.IDLE);
+                    this.pendingOutputs.remove(target);
                 }
             } else {
                 // 设备已 idle 但没有产物，重置状态允许重试
@@ -358,6 +386,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             this.pendingVirtualProducts.clear();
             if (injectItemsToNetwork(proxy, this.host.getTileEntity().getWorld(), toInject)) {
                 didWork = true;
+            } else {
+                // 注入失败，暂存到 storage slots
+                stashItemsToStorage(this.host.getTileEntity().getWorld(), toInject);
             }
         }
 

@@ -258,6 +258,47 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         return result;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_CORE.isInstance(te)) return result;
+
+        IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (coreInv != null) {
+            for (int i = 0; i < coreInv.getSlots(); i++) {
+                ItemStack stack = coreInv.extractItem(i, 64, false);
+                if (!stack.isEmpty()) result.add(stack);
+            }
+        } else {
+            try {
+                for (int slot : new int[]{0, 1}) {
+                    ItemStack stack = (ItemStack) te.getClass().getMethod("func_70301_a", int.class).invoke(te, slot);
+                    if (!stack.isEmpty()) {
+                        result.add(stack.copy());
+                        te.getClass().getMethod("func_70299_a", int.class, ItemStack.class).invoke(te, slot, ItemStack.EMPTY);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        try {
+            METHOD_UPDATE_INJECTORS.invoke(te);
+        } catch (Exception ignored) {}
+        List<Object> injectors = getConnectedInjectors(te);
+        for (Object injector : injectors) {
+            try {
+                ItemStack stack = (ItemStack) METHOD_GET_STACK_IN_PEDESTAL.invoke(injector);
+                if (!stack.isEmpty()) {
+                    METHOD_SET_STACK_IN_PEDESTAL.invoke(injector, ItemStack.EMPTY);
+                    result.add(stack);
+                }
+            } catch (Exception ignored) {}
+        }
+        return result;
+    }
+
     private static boolean isCrafting(TileEntity core) {
         try {
             Object managedBool = FIELD_IS_CRAFTING.get(core);

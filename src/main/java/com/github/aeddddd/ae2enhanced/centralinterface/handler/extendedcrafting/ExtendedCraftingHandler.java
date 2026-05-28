@@ -186,6 +186,35 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
         return result;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_CORE.isInstance(te)) return result;
+
+        IItemHandler coreInv = getCoreInventory(te);
+        if (coreInv != null) {
+            for (int i = 0; i < coreInv.getSlots(); i++) {
+                ItemStack stack = coreInv.extractItem(i, 64, false);
+                if (!stack.isEmpty()) result.add(stack);
+            }
+        }
+
+        List<BlockPos> pedestalPositions = getPedestalPositions(te);
+        for (BlockPos pPos : pedestalPositions) {
+            TileEntity pTe = world.getTileEntity(pPos);
+            if (CLASS_PEDESTAL.isInstance(pTe)) {
+                IItemHandler pInv = getPedestalInventory(pTe);
+                if (pInv != null) {
+                    ItemStack stack = pInv.extractItem(0, 64, false);
+                    if (!stack.isEmpty()) result.add(stack);
+                }
+            }
+        }
+        return result;
+    }
+
     private static int getProgress(TileEntity core) {
         try {
             return (int) FIELD_PROGRESS.get(core);

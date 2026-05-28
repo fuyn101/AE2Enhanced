@@ -88,6 +88,29 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) {
+            return Collections.emptyList();
+        }
+        List<ItemStack> reverted = new ArrayList<>();
+        for (EnumFacing face : EnumFacing.values()) {
+            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
+            if (handler == null) continue;
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack inSlot = handler.getStackInSlot(slot);
+                if (!inSlot.isEmpty()) {
+                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
+                    if (!extracted.isEmpty()) {
+                        reverted.add(extracted);
+                    }
+                }
+            }
+        }
+        return reverted;
+    }
+
+    @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
@@ -154,7 +177,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 if (inSlot.isEmpty()) {
                     continue;
                 }
-                if (!ItemStack.areItemsEqual(inSlot, expected)) {
+                if (!ItemStack.areItemsEqual(inSlot, expected) || !ItemStack.areItemStackTagsEqual(inSlot, expected)) {
                     continue;
                 }
                 int toExtract = Math.min(remainingAmount, inSlot.getCount());

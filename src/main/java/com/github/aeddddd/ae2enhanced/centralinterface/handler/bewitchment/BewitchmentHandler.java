@@ -349,6 +349,46 @@ public class BewitchmentHandler implements IRemoteHandler {
         return true;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (CLASS_SPINNING_WHEEL.isInstance(te)) {
+            IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+            if (up != null) {
+                for (int i = 0; i < up.getSlots(); i++) {
+                    ItemStack stack = up.extractItem(i, Integer.MAX_VALUE, false);
+                    if (!stack.isEmpty()) result.add(stack);
+                }
+            }
+        } else if (CLASS_DISTILLERY.isInstance(te)) {
+            IItemHandler up = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.UP);
+            if (up != null) {
+                for (int i = 0; i < up.getSlots(); i++) {
+                    ItemStack stack = up.extractItem(i, Integer.MAX_VALUE, false);
+                    if (!stack.isEmpty()) result.add(stack);
+                }
+            }
+        } else if (CLASS_CAULDRON.isInstance(te)) {
+            try {
+                ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
+                if (inv != null) {
+                    for (int i = 0; i < inv.getSlots(); i++) {
+                        ItemStack stack = inv.getStackInSlot(i);
+                        if (!stack.isEmpty()) {
+                            result.add(stack.copy());
+                            inv.setStackInSlot(i, ItemStack.EMPTY);
+                        }
+                    }
+                }
+                String key = world.provider.getDimension() + ":" + pos.toLong();
+                CAULDRON_PUSH_TIME.remove(key);
+            } catch (Exception ignored) {}
+        }
+        return result;
+    }
+
     // ===================== isIdle =====================
 
     @Override

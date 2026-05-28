@@ -308,4 +308,51 @@ public class BloodMagicHandler implements IRemoteHandler {
         }
         return collected;
     }
+
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileAlchemyTable) {
+            return revertMaterialsAlchemyTable((TileAlchemyTable) te);
+        } else if (te instanceof TileSoulForge) {
+            return revertMaterialsSoulForge((TileSoulForge) te);
+        } else if (te instanceof TileAltar) {
+            return revertMaterialsAltar((TileAltar) te);
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    private List<ItemStack> revertMaterialsAlchemyTable(TileAlchemyTable table) {
+        List<ItemStack> reverted = new ArrayList<>();
+        IItemHandler handler = table.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (handler != null) {
+            for (int i = 0; i < handler.getSlots(); i++) {
+                ItemStack stack = handler.extractItem(i, 64, false);
+                if (!stack.isEmpty()) reverted.add(stack);
+            }
+        }
+        return reverted;
+    }
+
+    private List<ItemStack> revertMaterialsSoulForge(TileSoulForge forge) {
+        List<ItemStack> reverted = new ArrayList<>();
+        IItemHandler handler = forge.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (handler != null) {
+            for (int i = 0; i < handler.getSlots(); i++) {
+                ItemStack stack = handler.extractItem(i, 64, false);
+                if (!stack.isEmpty()) reverted.add(stack);
+            }
+        }
+        return reverted;
+    }
+
+    private List<ItemStack> revertMaterialsAltar(TileAltar altar) {
+        List<ItemStack> reverted = new ArrayList<>();
+        IItemHandler handler = altar.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (handler != null) {
+            ItemStack stack = handler.extractItem(0, 64, false);
+            if (!stack.isEmpty()) reverted.add(stack);
+        }
+        return reverted;
+    }
 }

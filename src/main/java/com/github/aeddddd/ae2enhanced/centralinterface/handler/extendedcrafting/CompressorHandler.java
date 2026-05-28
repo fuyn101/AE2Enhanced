@@ -193,6 +193,28 @@ public class CompressorHandler implements IRemoteHandler {
         return result;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return result;
+
+        // 提取 slot 0 和 slot 1 的所有物品
+        for (int slot : new int[]{0, 1}) {
+            ItemStack stack = extractSlot(te, slot, 64);
+            if (!stack.isEmpty()) result.add(stack);
+        }
+
+        // 重置 material
+        try {
+            FIELD_MATERIAL_STACK.set(te, ItemStack.EMPTY);
+            FIELD_MATERIAL_COUNT.setInt(te, 0);
+        } catch (Exception ignored) {}
+
+        return result;
+    }
+
     // ---- 反射辅助 ----
 
     private static int getProgress(TileEntity te) {

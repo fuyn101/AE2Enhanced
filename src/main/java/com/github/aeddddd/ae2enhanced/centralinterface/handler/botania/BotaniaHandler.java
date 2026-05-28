@@ -27,6 +27,7 @@ import vazkii.botania.common.block.tile.TileRuneAltar;
 import vazkii.botania.common.block.tile.TileTerraPlate;
 import vazkii.botania.common.block.tile.mana.TilePool;
 import vazkii.botania.common.item.ModItems;
+import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
@@ -122,6 +123,33 @@ public class BotaniaHandler implements IRemoteHandler {
             return collectMatchingEntityItems(world, pos, expectedOutputs);
         }
         return collectMatchingEntityItems(world, pos, expectedOutputs);
+    }
+
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileRuneAltar) {
+            List<ItemStack> result = new ArrayList<>();
+            IItemHandler handler = ((TileRuneAltar) te).getItemHandler();
+            if (handler != null) {
+                for (int i = 0; i < handler.getSlots(); i++) {
+                    ItemStack stack = handler.extractItem(i, 64, false);
+                    if (!stack.isEmpty()) result.add(stack);
+                }
+            }
+            return result;
+        } else if (te instanceof TileAltar) {
+            List<ItemStack> result = new ArrayList<>();
+            IItemHandler handler = ((TileAltar) te).getItemHandler();
+            if (handler != null) {
+                for (int i = 0; i < handler.getSlots(); i++) {
+                    ItemStack stack = handler.extractItem(i, 64, false);
+                    if (!stack.isEmpty()) result.add(stack);
+                }
+            }
+            return result;
+        }
+        return java.util.Collections.emptyList();
     }
 
     @Override

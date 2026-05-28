@@ -106,4 +106,19 @@ public interface IRemoteHandler {
      * @return true 表示目标已完成处理，可以收集产物
      */
     boolean isIdle(World world, BlockPos pos);
+
+    /**
+     * 当 {@code pushMaterials} 成功但 {@code startProcess} 失败时，
+     * 调用此方法将已推送的材料从目标取回。
+     *
+     * <p>默认实现返回空列表，表示不回退。需要回退能力的 handler 应覆盖此方法。</p>
+     *
+     * @param world  世界实例
+     * @param pos    方块位置
+     * @param source AE 动作源
+     * @return 回退收集到的物品列表；无物品则返回空列表
+     */
+    default List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        return java.util.Collections.emptyList();
+    }
 }

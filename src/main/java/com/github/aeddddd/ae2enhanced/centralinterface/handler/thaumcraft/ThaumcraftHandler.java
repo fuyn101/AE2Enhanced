@@ -374,6 +374,49 @@ public class ThaumcraftHandler implements IRemoteHandler {
         return result;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return result;
+
+        // 收集主材基座
+        BlockPos mainPos = pos.down(2);
+        TileEntity mainTe = world.getTileEntity(mainPos);
+        if (CLASS_TILE_PEDESTAL.isInstance(mainTe)) {
+            try {
+                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(mainTe, 0);
+                if (!stack.isEmpty()) {
+                    result.add(stack.copy());
+                    METHOD_PEDESTAL_SET_STACK.invoke(mainTe, 0, ItemStack.EMPTY);
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        // 收集辅材基座
+        try {
+            METHOD_GET_SURROUNDINGS.invoke(te);
+            @SuppressWarnings("unchecked")
+            List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
+            for (BlockPos pPos : pedestals) {
+                TileEntity pTe = world.getTileEntity(pPos);
+                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
+                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0);
+                if (!stack.isEmpty()) {
+                    result.add(stack.copy());
+                    METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, ItemStack.EMPTY);
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
+        return result;
+    }
+
     // ---- 配方查找（仅在 startProcess 回退路径中使用） ----
 
     /**

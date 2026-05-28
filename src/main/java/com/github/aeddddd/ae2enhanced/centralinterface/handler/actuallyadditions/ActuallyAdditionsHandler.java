@@ -178,6 +178,35 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
         return result;
     }
 
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_EMPOWERER.isInstance(te)) return result;
+
+        IItemHandler inv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (inv != null) {
+            for (int i = 0; i < inv.getSlots(); i++) {
+                ItemStack stack = inv.extractItem(i, 64, false);
+                if (!stack.isEmpty()) result.add(stack);
+            }
+        }
+
+        Object[] stands = getNearbyStands(te);
+        if (stands != null) {
+            for (Object stand : stands) {
+                if (stand == null) continue;
+                TileEntity standTe = (TileEntity) stand;
+                IItemHandler standInv = standTe.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+                if (standInv == null) continue;
+                ItemStack stack = standInv.extractItem(0, 64, false);
+                if (!stack.isEmpty()) result.add(stack);
+            }
+        }
+        return result;
+    }
+
     private Object[] getNearbyStands(TileEntity empowerer) {
         try {
             Object result = METHOD_GET_NEARBY_STANDS.invoke(empowerer);

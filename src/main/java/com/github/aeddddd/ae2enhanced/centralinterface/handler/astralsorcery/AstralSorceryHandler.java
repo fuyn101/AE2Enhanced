@@ -316,16 +316,19 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 无论是否收集到产物，清空祭坛所有 slot，防止残留物品阻塞下一次推送
+        // 清空祭坛所有 slot，防止残留物品阻塞下一次推送
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_TILE_ALTAR.isInstance(te)) {
-            IItemHandler handler = getInventoryHandler(te);
-            if (handler != null) {
-                for (int i = 0; i < handler.getSlots(); i++) {
-                    ItemStack current = handler.getStackInSlot(i);
-                    if (!current.isEmpty()) {
-                        result.add(current.copy());
-                        handler.extractItem(i, current.getCount(), false);
+            // 双重校验：确保确实不在合成中，避免过早清空未完成的材料
+            if (getActiveCraftingTask(te) == null) {
+                IItemHandler handler = getInventoryHandler(te);
+                if (handler != null) {
+                    for (int i = 0; i < handler.getSlots(); i++) {
+                        ItemStack current = handler.getStackInSlot(i);
+                        if (!current.isEmpty()) {
+                            result.add(current.copy());
+                            handler.extractItem(i, current.getCount(), false);
+                        }
                     }
                 }
             }
