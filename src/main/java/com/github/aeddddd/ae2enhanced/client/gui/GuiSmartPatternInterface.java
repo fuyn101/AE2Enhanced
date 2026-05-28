@@ -10,6 +10,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternScroll;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternToggle;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
@@ -49,17 +50,25 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int BTN_ENCODE_Y = 20;
     private static final int BTN_SIZE = 16;
 
-    // 翻页按钮
+    // 翻页按钮（纹理中已有图标，高度12）
     private static final int BTN_PREV_X = 116;
     private static final int BTN_PREV_Y = 126;
     private static final int BTN_NEXT_X = 152;
     private static final int BTN_NEXT_Y = 126;
+    private static final int BTN_PAGE_H = 12;
+    private static final int BTN_PAGE_UV_Y = 126;
 
-    // 操作按钮（右侧面板底部）
+    // 删除已禁用配方按钮（翻页按钮左侧）
+    private static final int BTN_DELETE_DISABLED_X = 92;
+    private static final int BTN_DELETE_DISABLED_Y = 126;
+    private static final int BTN_DELETE_DISABLED_W = 16;
+    private static final int BTN_DELETE_DISABLED_H = 12;
+
+    // 操作按钮（右侧面板底部，往下移）
     private static final int BTN_KEEP_PRIMARY_X = 178;
-    private static final int BTN_KEEP_PRIMARY_Y = 146;
+    private static final int BTN_KEEP_PRIMARY_Y = 154;
     private static final int BTN_DOUBLE_X = 214;
-    private static final int BTN_DOUBLE_Y = 146;
+    private static final int BTN_DOUBLE_Y = 154;
 
     // X 标记纹理坐标
     private static final int MARK_X_U = 8;
@@ -75,7 +84,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int FLASH_DURATION = 8;
 
     // 按钮悬停高亮
-    private int hoverButton = 0; // 0=none, 1=prev, 2=next, 3=encode, 4=keepPrimary, 5=double
+    private int hoverButton = 0; // 0=none, 1=prev, 2=next, 3=encode, 4=keepPrimary, 5=double, 6=deleteDisabled
 
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
         super(new ContainerSmartPatternInterface(inventoryPlayer, tile));
@@ -151,31 +160,43 @@ public class GuiSmartPatternInterface extends GuiContainer {
         int maxPage = Math.max(0, (data.getRecipeCount() - 1) / 45);
         String pageText = (currentPage + 1) + " / " + (maxPage + 1);
         int textWidth = this.fontRenderer.getStringWidth(pageText);
-        this.fontRenderer.drawString(pageText, BTN_PREV_X + (BTN_NEXT_X + BTN_SIZE - BTN_PREV_X - textWidth) / 2, BTN_PREV_Y + 5, 0x404040);
+        this.fontRenderer.drawString(pageText, BTN_PREV_X + (BTN_NEXT_X + BTN_SIZE - BTN_PREV_X - textWidth) / 2, BTN_PREV_Y + 3, 0x404040);
     }
 
     /**
      * 绘制按钮背景和高亮。
      */
     private void drawButtons(int relX, int relY) {
-        // 上一页按钮
-        int color = isInPrevButton(relX, relY) ? 0xFF777777 : 0xFF555555;
-        drawRect(BTN_PREV_X, BTN_PREV_Y, BTN_PREV_X + BTN_SIZE, BTN_PREV_Y + BTN_SIZE, color);
-        this.fontRenderer.drawString("<", BTN_PREV_X + 5, BTN_PREV_Y + 4, 0xFFFFFF);
+        this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 下一页按钮
-        color = isInNextButton(relX, relY) ? 0xFF777777 : 0xFF555555;
-        drawRect(BTN_NEXT_X, BTN_NEXT_Y, BTN_NEXT_X + BTN_SIZE, BTN_NEXT_Y + BTN_SIZE, color);
-        this.fontRenderer.drawString(">", BTN_NEXT_X + 5, BTN_NEXT_Y + 4, 0xFFFFFF);
+        // 上一页按钮 — 直接从纹理绘制
+        int prevColor = isInPrevButton(relX, relY) ? 0xFFCCCCCC : 0xFFFFFFFF;
+        GlStateManager.color((prevColor >> 16 & 255) / 255.0F, (prevColor >> 8 & 255) / 255.0F, (prevColor & 255) / 255.0F);
+        this.drawTexturedModalRect(BTN_PREV_X, BTN_PREV_Y, BTN_PREV_X, BTN_PAGE_UV_Y, BTN_SIZE, BTN_PAGE_H);
+        GlStateManager.color(1.0F, 1.0F, 1.0F);
 
-        // 操作按钮（仅当锁定配方时显示）
+        // 下一页按钮 — 直接从纹理绘制
+        int nextColor = isInNextButton(relX, relY) ? 0xFFCCCCCC : 0xFFFFFFFF;
+        GlStateManager.color((nextColor >> 16 & 255) / 255.0F, (nextColor >> 8 & 255) / 255.0F, (nextColor & 255) / 255.0F);
+        this.drawTexturedModalRect(BTN_NEXT_X, BTN_NEXT_Y, BTN_NEXT_X, BTN_PAGE_UV_Y, BTN_SIZE, BTN_PAGE_H);
+        GlStateManager.color(1.0F, 1.0F, 1.0F);
+
+        // 删除已禁用配方按钮（暂用纯色背景+文本，后续替换纹理）
+        SmartPatternData data = tile.getPatternData();
+        boolean hasDisabled = data != null && data.getRecipeCount() > data.getEnabledCount();
+        if (hasDisabled) {
+            int delColor = isInDeleteDisabledButton(relX, relY) ? 0xFF777777 : 0xFF555555;
+            drawRect(BTN_DELETE_DISABLED_X, BTN_DELETE_DISABLED_Y,
+                     BTN_DELETE_DISABLED_X + BTN_DELETE_DISABLED_W, BTN_DELETE_DISABLED_Y + BTN_DELETE_DISABLED_H, delColor);
+            this.fontRenderer.drawString("D", BTN_DELETE_DISABLED_X + 5, BTN_DELETE_DISABLED_Y + 2, 0xFFFFFF);
+        }
+
+        // 操作按钮（仅当锁定配方时显示，暂用纯色背景+文本，后续替换纹理）
         if (tile.getLockedRecipeIndex() >= 0) {
-            // 只保留主产物
-            color = isInKeepPrimaryButton(relX, relY) ? 0xFF777777 : 0xFF555555;
+            int color = isInKeepPrimaryButton(relX, relY) ? 0xFF777777 : 0xFF555555;
             drawRect(BTN_KEEP_PRIMARY_X, BTN_KEEP_PRIMARY_Y, BTN_KEEP_PRIMARY_X + BTN_SIZE, BTN_KEEP_PRIMARY_Y + BTN_SIZE, color);
             this.fontRenderer.drawString("P", BTN_KEEP_PRIMARY_X + 5, BTN_KEEP_PRIMARY_Y + 4, 0xFFFFFF);
 
-            // 翻倍
             color = isInDoubleButton(relX, relY) ? 0xFF777777 : 0xFF555555;
             drawRect(BTN_DOUBLE_X, BTN_DOUBLE_Y, BTN_DOUBLE_X + BTN_SIZE, BTN_DOUBLE_Y + BTN_SIZE, color);
             this.fontRenderer.drawString("×2", BTN_DOUBLE_X + 2, BTN_DOUBLE_Y + 4, 0xFFFFFF);
@@ -312,6 +333,15 @@ public class GuiSmartPatternInterface extends GuiContainer {
             return;
         }
 
+        // 删除已禁用配方按钮 tooltip
+        if (isInDeleteDisabledButton(relX, relY)) {
+            SmartPatternData data = tile.getPatternData();
+            int disabledCount = data != null ? (data.getRecipeCount() - data.getEnabledCount()) : 0;
+            String tooltip = I18n.format("gui.ae2enhanced.smart_pattern_interface.delete_disabled", disabledCount);
+            this.drawHoveringText(Collections.singletonList(tooltip), mouseX, mouseY);
+            return;
+        }
+
         // 翻页按钮 tooltip
         if (isInPrevButton(relX, relY)) {
             this.drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.smart_pattern_interface.prev_page")), mouseX, mouseY);
@@ -408,6 +438,12 @@ public class GuiSmartPatternInterface extends GuiContainer {
             return;
         }
 
+        // 删除已禁用配方按钮
+        if (mouseButton == 0 && isInDeleteDisabledButton(relX, relY)) {
+            AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), "deleteDisabled"));
+            return;
+        }
+
         // 翻页按钮
         if (mouseButton == 0) {
             if (isInPrevButton(relX, relY)) {
@@ -477,12 +513,17 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
     private boolean isInPrevButton(int x, int y) {
         return x >= BTN_PREV_X && x < BTN_PREV_X + BTN_SIZE
-            && y >= BTN_PREV_Y && y < BTN_PREV_Y + BTN_SIZE;
+            && y >= BTN_PREV_Y && y < BTN_PREV_Y + BTN_PAGE_H;
     }
 
     private boolean isInNextButton(int x, int y) {
         return x >= BTN_NEXT_X && x < BTN_NEXT_X + BTN_SIZE
-            && y >= BTN_NEXT_Y && y < BTN_NEXT_Y + BTN_SIZE;
+            && y >= BTN_NEXT_Y && y < BTN_NEXT_Y + BTN_PAGE_H;
+    }
+
+    private boolean isInDeleteDisabledButton(int x, int y) {
+        return x >= BTN_DELETE_DISABLED_X && x < BTN_DELETE_DISABLED_X + BTN_DELETE_DISABLED_W
+            && y >= BTN_DELETE_DISABLED_Y && y < BTN_DELETE_DISABLED_Y + BTN_DELETE_DISABLED_H;
     }
 
     private boolean isInKeepPrimaryButton(int x, int y) {

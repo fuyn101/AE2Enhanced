@@ -259,6 +259,7 @@ gui.ae2enhanced.smart_pattern_interface.prev_page=Previous Page
 gui.ae2enhanced.smart_pattern_interface.next_page=Next Page
 gui.ae2enhanced.smart_pattern_interface.keep_primary=Keep Only Primary Output
 gui.ae2enhanced.smart_pattern_interface.double_amounts=Double All Amounts
+gui.ae2enhanced.smart_pattern_interface.delete_disabled=Delete Disabled Recipes (%d)
 
 # Omni Terminal Upgrade Cards
 item.ae2enhanced.omni_upgrade_card.magnet.name=Advanced Magnet Card

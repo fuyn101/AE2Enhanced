@@ -202,6 +202,7 @@ gui.ae2enhanced.smart_pattern_interface.prev_page=前のページ
 gui.ae2enhanced.smart_pattern_interface.next_page=次のページ
 gui.ae2enhanced.smart_pattern_interface.keep_primary=主産物のみ保持
 gui.ae2enhanced.smart_pattern_interface.double_amounts=数量を倍増
+gui.ae2enhanced.smart_pattern_interface.delete_disabled=無効レシピを削除 (%d)
 tooltip.ae2enhanced.smart_pattern.bound_to=§7バインド先: §f%s
 tooltip.ae2enhanced.smart_pattern.recipe_count=§7レシピ数: §f%d
 message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode

@@ -89,6 +89,9 @@ public class PacketSmartPatternModify implements IMessage {
                         case "doubleAmounts":
                             tile.modifyLockedRecipe("doubleAmounts");
                             break;
+                        case "deleteDisabled":
+                            tile.deleteDisabledRecipes();
+                            break;
                     }
                 }
             });

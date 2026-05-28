@@ -193,6 +193,27 @@ public class SmartPatternData {
     }
 
     /**
+     * 删除所有已禁用的配方。
+     * 返回被删除的配方数量。
+     */
+    public int deleteDisabledRecipes() {
+        List<SmartRecipe> newRecipes = new ArrayList<>();
+        for (int i = 0; i < recipes.size(); i++) {
+            if (!disabledMask.get(i)) {
+                newRecipes.add(recipes.get(i));
+            }
+        }
+        int removed = recipes.size() - newRecipes.size();
+        if (removed > 0) {
+            recipes.clear();
+            recipes.addAll(newRecipes);
+            disabledMask = new BitSet(recipes.size());
+            detectConflicts();
+        }
+        return removed;
+    }
+
+    /**
      * 将 BitSet 序列化为 Base64 字符串（用于压缩 NBT）。
      */
     @Nonnull

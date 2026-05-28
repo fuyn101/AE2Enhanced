@@ -281,6 +281,22 @@ public class TileSmartPatternInterface extends TileEntity {
         syncToClient();
     }
 
+    /**
+     * 删除所有已禁用的配方。
+     */
+    public void deleteDisabledRecipes() {
+        if (patternData == null) return;
+        patternData.deleteDisabledRecipes();
+        if (lockedRecipeIndex >= 0) {
+            lockedRecipeIndex = -1;
+            clearMiniGuiInventory();
+        }
+        setScrollOffset(scrollOffset); // 重新限制页码
+        updateRecipeDisplay();
+        markDirty();
+        syncToClient();
+    }
+
     private void clearMiniGuiInventory() {
         isUpdatingMiniGui = true;
         try {

@@ -257,6 +257,7 @@ gui.ae2enhanced.smart_pattern_interface.prev_page=上一页
 gui.ae2enhanced.smart_pattern_interface.next_page=下一页
 gui.ae2enhanced.smart_pattern_interface.keep_primary=只保留主产物
 gui.ae2enhanced.smart_pattern_interface.double_amounts=翻倍数量
+gui.ae2enhanced.smart_pattern_interface.delete_disabled=删除已禁用配方 (%d)
 
 # Omni 终端升级卡
 item.ae2enhanced.omni_upgrade_card.magnet.name=高级磁引卡
