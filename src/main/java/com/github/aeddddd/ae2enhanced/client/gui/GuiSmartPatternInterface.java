@@ -95,21 +95,22 @@ public class GuiSmartPatternInterface extends GuiContainer {
 
     // 小按钮 tooltip 名称
     private static final String[][] SMALL_BTN_TOOLTIPS = {
-        {"×2", "×4", "×3", "×5", "/2", "/4", "/3", "/5"},
-        {"+1", "-1", "gui.ae2enhanced.smart_pattern_interface.rotate_inputs",
+        {"×2", "×4", "×3", "×5", "+1",
+         "gui.ae2enhanced.smart_pattern_interface.rotate_inputs",
          "gui.ae2enhanced.smart_pattern_interface.clear_inputs",
+         "gui.ae2enhanced.smart_pattern_interface.unstack"},
+        {"/2", "/4", "/3", "/5", "-1",
          "gui.ae2enhanced.smart_pattern_interface.rotate_outputs",
          "gui.ae2enhanced.smart_pattern_interface.clear_outputs",
-         "gui.ae2enhanced.smart_pattern_interface.unstack",
          "gui.ae2enhanced.smart_pattern_interface.stack"}
     };
 
     // 小按钮 action 名称
     private static final String[][] SMALL_BTN_ACTIONS = {
-        {"multiply2", "multiply4", "multiply3", "multiply5",
-         "divide2", "divide4", "divide3", "divide5"},
-        {"add1", "add-1", "rotateInputs", "clearInputs",
-         "rotateOutputs", "clearOutputs", "unstack", "stack"}
+        {"multiply2", "multiply4", "multiply3", "multiply5", "add1",
+         "rotateInputs", "clearInputs", "unstack"},
+        {"divide2", "divide4", "divide3", "divide5", "add-1",
+         "rotateOutputs", "clearOutputs", "stack"}
     };
 
     public GuiSmartPatternInterface(InventoryPlayer inventoryPlayer, TileSmartPatternInterface tile) {
@@ -206,8 +207,8 @@ public class GuiSmartPatternInterface extends GuiContainer {
                 boolean hover = relX >= x && relX < x + SMALL_BTN_SIZE
                              && relY >= y && relY < y + SMALL_BTN_SIZE;
                 int color = hover ? 0xFFCCCCCC : 0xFFFFFFFF;
-                if (!locked && row == 1 && col >= 2) {
-                    // 轮换/清除/堆叠类按钮需要锁定才能用，变暗
+                if (!locked) {
+                    // 所有小按钮都需要锁定配方才能使用
                     color = 0xFF777777;
                 }
                 GlStateManager.color((color >> 16 & 255) / 255.0F, (color >> 8 & 255) / 255.0F, (color & 255) / 255.0F);
@@ -483,14 +484,9 @@ public class GuiSmartPatternInterface extends GuiContainer {
             int row = smallBtn / 8;
             int col = smallBtn % 8;
             boolean locked = tile.getLockedRecipeIndex() >= 0;
-            // 下排的非乘除按钮需要锁定
-            if (row == 1 && col >= 2 && !locked) {
-                return;
-            }
+            if (!locked) return;
             String action = SMALL_BTN_ACTIONS[row][col];
-            if (locked) {
-                tile.modifyLockedRecipe(action);
-            }
+            tile.modifyLockedRecipe(action);
             AE2Enhanced.network.sendToServer(new PacketSmartPatternModify(tile.getPos(), action));
             return;
         }
