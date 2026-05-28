@@ -44,7 +44,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     @Nonnull
     public String getUsage(@Nonnull ICommandSender sender) {
-        return "/ae2e <spgc|channels|recoverhd>";
+        return "/ae2e <spgc|channels|recoverhd|help>";
     }
 
     @Override
@@ -69,10 +69,32 @@ public class CommandAE2Enhanced extends CommandBase {
             case "recoverhd":
                 executeRecoverHd(server, sender, args);
                 break;
+            case "help":
+                executeHelp(sender);
+                break;
             default:
                 sender.sendMessage(new TextComponentString(TextFormatting.RED + "未知子指令: " + sub));
                 sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + getUsage(sender)));
         }
+    }
+
+    // ---- help ----
+
+    private void executeHelp(@Nonnull ICommandSender sender) {
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "========== AE2Enhanced 指令帮助 =========="));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e spgc"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  手动触发智能样板垃圾回收。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e channels <enable|disable|status>"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  enable:  启用 AE2 频道检查（正常模式）"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  disable: 禁用 AE2 频道检查（无限频道）"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  status:  查看当前频道检查状态"));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd list"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  列出所有超维度仓储中枢的 UUID（按修改时间排序）。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd <uuid>"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  给予玩家携带指定 UUID 的超维度仓储中枢主方块。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e help"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  显示此帮助信息。"));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=========================================="));
     }
 
     // ---- spgc ----
