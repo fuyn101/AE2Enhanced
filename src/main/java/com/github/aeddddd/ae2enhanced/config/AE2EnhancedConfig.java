@@ -226,6 +226,24 @@ public class AE2EnhancedConfig {
             "minecraft:furnace",
             "extendedcrafting:crafting_table_base"
         };
+
+        @Config.Comment({
+            "Garbage collection interval for orphaned Smart Pattern files (minutes).",
+            "The collector scans ME interfaces for referenced patterns and deletes",
+            "files that are both unreferenced and older than gcMaxAgeDays.",
+            "Set to 0 to disable garbage collection entirely.",
+            "Range: 0 ~ 10080, Default: 60 (1 hour)"
+        })
+        @Config.RangeInt(min = 0, max = 10080)
+        public int gcIntervalMinutes = 60;
+
+        @Config.Comment({
+            "Maximum age of an unreferenced Smart Pattern file before deletion (days).",
+            "Files referenced by any loaded ME interface are exempt from age checks.",
+            "Range: 1 ~ 365, Default: 7"
+        })
+        @Config.RangeInt(min = 1, max = 365)
+        public int gcMaxAgeDays = 7;
     }
 
     public static class Client {

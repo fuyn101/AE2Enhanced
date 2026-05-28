@@ -4,8 +4,11 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +34,7 @@ import java.util.UUID;
 public class SmartPatternStorageFile {
 
     public static final int CURRENT_VERSION = 1;
-    private static final String FILE_PREFIX = "smartpattern_";
+    static final String FILE_PREFIX = "smartpattern_";
 
     /**
      * 加载指定 UUID 的智能样板数据。
@@ -55,6 +58,11 @@ public class SmartPatternStorageFile {
                     "[AE2E] SmartPattern file version {} > current {}. Refusing to load to prevent data corruption.",
                     version, CURRENT_VERSION);
                 return null;
+            }
+            // 更新访问时间，用于垃圾回收判断
+            try {
+                file.setLastModified(System.currentTimeMillis());
+            } catch (Exception ignored) {
             }
             return SmartPatternData.fromNBT(root);
         } catch (Exception e) {
@@ -101,11 +109,29 @@ public class SmartPatternStorageFile {
 
     @Nonnull
     private static File getFile(@Nonnull World world, @Nonnull UUID patternDataId) {
+        File storageDir = getStorageDir(world);
+        return new File(storageDir, FILE_PREFIX + patternDataId.toString() + ".dat");
+    }
+
+    @Nonnull
+    static File getStorageDir(@Nonnull World world) {
         File worldDir = world.getSaveHandler().getWorldDirectory();
         File storageDir = new File(worldDir, "ae2enhanced/storage");
         if (!storageDir.exists() && !storageDir.mkdirs()) {
             AE2Enhanced.LOGGER.warn("Failed to create storage directory: {}", storageDir.getAbsolutePath());
         }
-        return new File(storageDir, FILE_PREFIX + patternDataId.toString() + ".dat");
+        return storageDir;
+    }
+
+    @Nullable
+    static File getStorageDir() {
+        if (FMLCommonHandler.instance().getMinecraftServerInstance() == null) {
+            return null;
+        }
+        WorldServer overworld = FMLCommonHandler.instance().getMinecraftServerInstance().getWorld(0);
+        if (overworld == null) {
+            return null;
+        }
+        return getStorageDir(overworld);
     }
 }

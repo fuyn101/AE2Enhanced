@@ -197,6 +197,8 @@ public class AE2Enhanced {
         // 注册共形不变荷为物质炮弹药（weight 1E8 → 伤害 5,000,000）
         appeng.api.AEApi.instance().registries().matterCannon().registerAmmo(
                 new ItemStack(ModItems.CONFORMAL_CHARGE), 100_000_000.0);
+        // 注册智能样板垃圾回收器（扫描 ME 接口 + 过期文件删除）
+        com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector.init();
         MinecraftForge.EVENT_BUS.register(this);
     }
 
