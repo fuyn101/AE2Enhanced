@@ -8,6 +8,8 @@ import com.github.aeddddd.ae2enhanced.registry.ModContent;
 import com.github.aeddddd.ae2enhanced.registry.ModNetwork;
 import com.github.aeddddd.ae2enhanced.registry.ModRecipes;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.ConfigManager;
@@ -68,6 +70,12 @@ public class AE2Enhanced {
         proxy.init(event);
 
         checkMixinEnvironment();
+
+        // 注册 RF 能量存储通道
+        appeng.api.AEApi.instance().storage().registerStorageChannel(
+                IEnergyStorageChannel.class,
+                new EnergyStorageChannel()
+        );
 
         ModContent.init();
         ModRecipes.init();

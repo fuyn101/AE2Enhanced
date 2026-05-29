@@ -23,4 +23,7 @@ public final class ItemRegistry {
     public static ItemOmniUpgradeCard OMNI_UPGRADE_CARD;
     public static ItemSmartBlankPattern SMART_BLANK_PATTERN;
     public static ItemSmartPattern SMART_PATTERN;
+
+    // 先进中枢平台 — RF 假物品
+    public static ItemEnergyDrop ENERGY_DROP;
 }

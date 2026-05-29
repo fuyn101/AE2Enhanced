@@ -71,6 +71,13 @@ public class AE2EnhancedConfig {
     })
     public static SmartPattern smartPattern = new SmartPattern();
 
+    @Config.Name("AdvancedPlatform")
+    @Config.Comment({
+        "Advanced Central Platform settings.",
+        "Controls RF energy storage, platform generation, and chunk loading."
+    })
+    public static AdvancedPlatform advancedPlatform = new AdvancedPlatform();
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",
@@ -264,6 +271,95 @@ public class AE2EnhancedConfig {
         public DamageMode getDamageMode() {
             return parseDamageMode(damageMode);
         }
+    }
+
+    public static class AdvancedPlatform {
+        @Config.Comment({
+            "Platform surface block registry name.",
+            "Default: minecraft:concrete"
+        })
+        public String platformSurfaceBlock = "minecraft:concrete";
+
+        @Config.Comment({
+            "Platform surface block metadata (color).",
+            "Default: 0 (white)"
+        })
+        @Config.RangeInt(min = 0, max = 15)
+        public int platformSurfaceMeta = 0;
+
+        @Config.Comment({
+            "Platform edge block registry name.",
+            "Default: minecraft:concrete"
+        })
+        public String platformEdgeBlock = "minecraft:concrete";
+
+        @Config.Comment({
+            "Platform edge block metadata (color).",
+            "Default: 15 (black)"
+        })
+        @Config.RangeInt(min = 0, max = 15)
+        public int platformEdgeMeta = 15;
+
+        @Config.Comment({
+            "Platform center block registry name.",
+            "Default: minecraft:concrete"
+        })
+        public String platformCenterBlock = "minecraft:concrete";
+
+        @Config.Comment({
+            "Platform center block metadata (color).",
+            "Default: 0 (white)"
+        })
+        @Config.RangeInt(min = 0, max = 15)
+        public int platformCenterMeta = 0;
+
+        @Config.Comment({
+            "Vertical range above platform surface for facility scanning.",
+            "Range: 0 ~ 256, Default: 32"
+        })
+        @Config.RangeInt(min = 0, max = 256)
+        public int facilityScanVerticalRange = 32;
+
+        @Config.Comment({
+            "Enable forced chunk loading for platform chunks.",
+            "Default: true"
+        })
+        public boolean platformChunkLoading = true;
+
+        @Config.Comment({
+            "Controller internal RF buffer capacity.",
+            "Range: 100000 ~ 2147483647, Default: 10000000"
+        })
+        @Config.RangeInt(min = 100000, max = 2147483647)
+        public int controllerRfBufferCapacity = 10000000;
+
+        @Config.Comment({
+            "Controller RF extraction limit per tick from ME network.",
+            "Range: 1 ~ 1000000, Default: 10000"
+        })
+        @Config.RangeInt(min = 1, max = 1000000)
+        public int controllerRfExtractPerTick = 10000;
+
+        @Config.Comment({
+            "RF access node internal capacity.",
+            "Range: 100000 ~ 2147483647, Default: 5000000"
+        })
+        @Config.RangeInt(min = 100000, max = 2147483647)
+        public int rfNodeCapacity = 5000000;
+
+        @Config.Comment({
+            "Blocks placed per tick during platform generation.",
+            "Range: 1 ~ 1000, Default: 100"
+        })
+        @Config.RangeInt(min = 1, max = 1000)
+        public int placementBlocksPerTick = 100;
+
+        @Config.Comment({
+            "Blocks scanned per tick during conflict detection.",
+            "Range: 50 ~ 1000, Default: 400"
+        })
+        @Config.RangeInt(min = 50, max = 1000)
+        public int scanBlocksPerTick = 400;
     }
 
     @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)

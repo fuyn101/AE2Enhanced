@@ -38,4 +38,7 @@ public final class BlockRegistry {
 
     // 智能样板接口
     public static BlockSmartPatternInterface SMART_PATTERN_INTERFACE;
+
+    // 先进中枢平台 — RF 访问节点
+    public static BlockPlatformRFNode PLATFORM_RF_NODE;
 }

@@ -55,6 +55,7 @@ public final class GameRegistryManager {
         ItemRegistry.OMNI_UPGRADE_CARD = new ItemOmniUpgradeCard();
         ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
+        ItemRegistry.ENERGY_DROP = new ItemEnergyDrop();
     }
 
     @SubscribeEvent
@@ -77,7 +78,8 @@ public final class GameRegistryManager {
             BlockRegistry.SUPER_CRAFTING_INTERFACE = new BlockSuperCraftingInterface(),
             BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter(),
             BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
-            BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface()
+            BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
+            BlockRegistry.PLATFORM_RF_NODE = new BlockPlatformRFNode()
         );
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
@@ -90,6 +92,7 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
         GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
+        GameRegistry.registerTileEntity(TilePlatformRFNode.class, AE2Enhanced.MOD_ID + ":platform_rf_node");
     }
 
     @SubscribeEvent
@@ -113,7 +116,8 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.SUPER_CRAFTING_INTERFACE).setRegistryName(BlockRegistry.SUPER_CRAFTING_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+            new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.PLATFORM_RF_NODE).setRegistryName(BlockRegistry.PLATFORM_RF_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
 
         // Items
@@ -137,5 +141,6 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.OMNI_UPGRADE_CARD);
         event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
+        event.getRegistry().register(ItemRegistry.ENERGY_DROP);
     }
 }
