@@ -21,6 +21,7 @@ public class MixinInventoryPlayer {
     private static final String FLUID_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemFluidDrop";
     private static final String GAS_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
     private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
+    private static final String ENERGY_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop";
 
     @Inject(method = "func_70441_a", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onAddItemStack(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
@@ -29,7 +30,8 @@ public class MixinInventoryPlayer {
         String className = stack.getItem().getClass().getName();
         if (FLUID_DROP_CLASS.equals(className)
                 || GAS_DROP_CLASS.equals(className)
-                || ESSENTIA_DROP_CLASS.equals(className)) {
+                || ESSENTIA_DROP_CLASS.equals(className)
+                || ENERGY_DROP_CLASS.equals(className)) {
             cir.setReturnValue(false);
         }
     }
