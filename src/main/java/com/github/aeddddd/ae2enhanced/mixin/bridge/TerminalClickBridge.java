@@ -72,13 +72,18 @@ public final class TerminalClickBridge {
             if (ItemRegistry.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
                 return true;
             }
+
+            if (ItemRegistry.ENERGY_DROP != null && mouseItem.getItem() == ItemRegistry.ENERGY_DROP) {
+                return true;
+            }
         }
 
         // 空手持假物品点击
         if (s.getAEStack() != null
                 && (s.getAEStack().getItem() == ItemRegistry.FLUID_DROP
                     || (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP)
-                    || (ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP))
+                    || (ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP)
+                    || (ItemRegistry.ENERGY_DROP != null && s.getAEStack().getItem() == ItemRegistry.ENERGY_DROP))
                 && mouseButton != 2
                 && (!s.getAEStack().isCraftable()
                     || mouseButton != 0
