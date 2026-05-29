@@ -29,17 +29,14 @@ import java.util.Set;
  * <p>核心修复（回收增强）：</p>
  * <ul>
  *   <li>{@code pushMaterials}：记录推料时间与输入材料快照</li>
- *   <li>{@code isIdle}：推料后给予机器最小处理时间（20 ticks），然后检查是否存在
- *       <b>非输入材料</b>的可抽取物品（即产物/副产物）。若无产物但已超时（600 ticks），
- *       也视为 idle 以清理状态。</li>
+ *   <li>{@code isIdle}：推送后立刻检查是否存在<b>非输入材料</b>的可抽取物品（即产物/副产物）。
+ *       若无产物但已超时（600 ticks），视为 idle 以清理状态。</li>
  *   <li>{@code collectProducts}：优先收集匹配预期产物的物品（NBT 放宽），再收集所有
  *       其他非输入材料的可抽取物品（副产物、容器残余等）。</li>
  * </ul>
  */
 public class DefaultSingleBatchHandler implements IRemoteHandler {
 
-    /** 推料后至少等待的 tick 数，避免在机器尚未开始处理时就尝试收集 */
-    private static final int MIN_PROCESSING_TICKS = 20;
     /** 最大等待 tick 数，防止状态无限卡住 */
     private static final int MAX_WAIT_TICKS = 600;
     /** 推料状态过期时间，避免内存泄漏 */
@@ -204,9 +201,6 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         }
 
         long elapsed = now - state.pushTick;
-        if (elapsed < MIN_PROCESSING_TICKS) {
-            return false; // 刚推料，机器尚未开始处理
-        }
 
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
