@@ -227,19 +227,21 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        // 推送流体输入（如果配方包含流体）
-        IAEItemStack[] patternInputs = patternDetails.getInputs();
-        if (patternInputs != null && !pushFluidInputs(proxy, world, target.pos, patternInputs)) {
+        // 推送流体输入（如果配方包含流体），并从 table 中移除已推送的流体假物品
+        List<FluidStack> pushedFluids = new ArrayList<>();
+        if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
             return false;
         }
 
         // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
+            revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
 
         boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
+            revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
 
@@ -250,6 +252,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (!reverted.isEmpty()) {
                 injectItemsToNetwork(proxy, world, reverted);
             }
+            // 回退已推送的流体
+            revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
 
@@ -448,50 +452,32 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // ---- 流体支持 ----
 
     /**
-     * 将配方中的流体输入推送到目标的 IFluidHandler。
-     * 先 simulate 确保可完全填充，再从网络提取并实际推送。
+     * 将 table 中的流体假物品推送到目标的 IFluidHandler。
+     * CPU 已事先将物品提取到 table 中，此处只做转换与推送，不再从网络提取。
+     * 推送成功后，将对应槽位从 table 中清空，防止后续 handler.pushMaterials 再次处理。
      */
-    private boolean pushFluidInputs(AENetworkProxy proxy, World world, BlockPos pos, IAEItemStack[] inputs) {
+    private boolean pushFluidInputs(World world, BlockPos pos, InventoryCrafting table, List<FluidStack> pushedFluids) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return true;
 
-        for (IAEItemStack input : inputs) {
-            if (input == null || input.getStackSize() <= 0) continue;
-            ItemStack stack = input.createItemStack();
-            if (!ItemFluidDrop.isFluidDrop(stack)) continue;
+        for (int i = 0; i < table.getSizeInventory(); i++) {
+            ItemStack stack = table.getStackInSlot(i);
+            if (stack.isEmpty() || !ItemFluidDrop.isFluidDrop(stack)) continue;
 
             FluidStack fluid = ItemFluidDrop.getFluidStack(stack);
             if (fluid == null) continue;
 
-            // 从 AE 网络提取流体（以 ItemFluidDrop 形式）
-            IAEItemStack toExtract = input.copy();
-            toExtract.setStackSize(fluid.amount);
-            IAEItemStack extracted = null;
-            try {
-                IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-                extracted = Platform.poweredExtraction(proxy.getEnergy(), proxy.getStorage().getInventory(channel), toExtract, new appeng.me.helpers.MachineSource(this.host));
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.warn("[AE2E] Failed to extract fluid from network for CentralInterface", e);
-                return false;
-            }
-
-            if (extracted == null || extracted.getStackSize() <= 0) {
-                return false;
-            }
-
-            FluidStack toPush = fluid.copy();
-            toPush.amount = (int) extracted.getStackSize();
-
-            // 尝试推送到目标的 IFluidHandler（先 simulate）
+            // 尝试推送到目标的 IFluidHandler（先 simulate 再实际填充）
             boolean pushed = false;
             for (EnumFacing face : EnumFacing.values()) {
                 if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
                     IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
                     if (fh != null) {
-                        int filled = fh.fill(toPush, false);
-                        if (filled >= toPush.amount) {
-                            fh.fill(toPush, true);
+                        int filled = fh.fill(fluid, false);
+                        if (filled >= fluid.amount) {
+                            fh.fill(fluid, true);
                             pushed = true;
+                            pushedFluids.add(fluid.copy());
                             break;
                         }
                     }
@@ -499,17 +485,33 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
 
             if (!pushed) {
-                // 回退：将提取的流体注回网络
-                try {
-                    IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-                    Platform.poweredInsert(proxy.getEnergy(), proxy.getStorage().getInventory(channel), extracted, new appeng.me.helpers.MachineSource(this.host));
-                } catch (Exception e) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to return fluid to network", e);
-                }
                 return false;
             }
+
+            // 从 table 中移除已推送的流体，避免 handler.pushMaterials 再次尝试插入 ItemFluidDrop
+            table.setInventorySlotContents(i, ItemStack.EMPTY);
         }
         return true;
+    }
+
+    /**
+     * 回退已推送到目标 IFluidHandler 的流体。
+     */
+    private void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
+        if (fluids.isEmpty()) return;
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) return;
+        for (FluidStack fluid : fluids) {
+            for (EnumFacing face : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
+                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+                    if (fh != null) {
+                        fh.drain(fluid, true);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /**
