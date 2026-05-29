@@ -17,7 +17,7 @@ public abstract class AbstractNbtDrop extends Item {
     protected AbstractNbtDrop(String name) {
         setRegistryName(AE2Enhanced.MOD_ID, name);
         setTranslationKey(AE2Enhanced.MOD_ID + "." + name);
-        setCreativeTab(AE2Enhanced.CREATIVE_TAB);
+        setCreativeTab(null);
     }
 
     /**
@@ -33,8 +33,6 @@ public abstract class AbstractNbtDrop extends Item {
 
     @Override
     public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (this.isInCreativeTab(tab)) {
-            items.add(new ItemStack(this));
-        }
+        // 默认不返回任何子类型，避免创造模式物品栏 / JEI 索引
     }
 }
