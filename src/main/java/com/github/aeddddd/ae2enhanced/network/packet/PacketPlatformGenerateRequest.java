@@ -62,7 +62,7 @@ public class PacketPlatformGenerateRequest implements IMessage {
                 }
 
                 player.getHeldItemMainhand().shrink(1);
-                PlatformAsyncPlacer.startGeneration(player, controllerPos, target.getY());
+                PlatformAsyncPlacer.startGeneration(player, controllerPos, target.getY(), 5);
             });
             return null;
         }

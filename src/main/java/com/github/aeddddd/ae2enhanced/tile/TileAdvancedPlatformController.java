@@ -48,10 +48,9 @@ import java.util.List;
 public class TileAdvancedPlatformController extends TileAENetworkBase
         implements IGridTickable, ITickable, ICellContainer, IActionHost {
 
-    // ===== 平台边界 =====
-    private BlockPos platformMin = BlockPos.ORIGIN;
-    private BlockPos platformMax = BlockPos.ORIGIN;
-    private int platformSurfaceY = 0;
+    // ===== 平台边界（相对控制器坐标系） =====
+    private int platformSizeInChunks = 5;
+    private int relativeSurfaceY = 0;
     private boolean isPlatformActive = false;
 
     // ===== RF 本地缓冲 =====
@@ -298,11 +297,14 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         energyProviders.clear();
         if (!isPlatformActive) return;
 
+        BlockPos min = getPlatformMin();
+        BlockPos max = getPlatformMax();
+        int surfaceY = getPlatformSurfaceY();
         BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         int scanRange = AE2EnhancedConfig.advancedPlatform.facilityScanVerticalRange;
-        for (int x = platformMin.getX(); x <= platformMax.getX(); x++) {
-            for (int z = platformMin.getZ(); z <= platformMax.getZ(); z++) {
-                for (int y = platformSurfaceY; y <= platformSurfaceY + scanRange; y++) {
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int z = min.getZ(); z <= max.getZ(); z++) {
+                for (int y = surfaceY; y <= surfaceY + scanRange; y++) {
                     mutable.setPos(x, y, z);
                     TileEntity te = world.getTileEntity(mutable);
                     if (te != null && te.hasCapability(CapabilityEnergy.ENERGY, EnumFacing.UP)) {
@@ -328,8 +330,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             chunkTicket.getModData().setInteger("controllerX", pos.getX());
             chunkTicket.getModData().setInteger("controllerY", pos.getY());
             chunkTicket.getModData().setInteger("controllerZ", pos.getZ());
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dz = -2; dz <= 2; dz++) {
+            int radius = (platformSizeInChunks - 1) / 2;
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
                     net.minecraft.util.math.ChunkPos cp =
                             new net.minecraft.util.math.ChunkPos((pos.getX() >> 4) + dx, (pos.getZ() >> 4) + dz);
                     ForgeChunkManager.forceChunk(chunkTicket, cp);
@@ -351,10 +354,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // === 平台激活/停用 ===
 
-    public void activatePlatform(BlockPos min, BlockPos max, int surfaceY) {
-        this.platformMin = min;
-        this.platformMax = max;
-        this.platformSurfaceY = surfaceY;
+    public void activatePlatform(int sizeInChunks, int relativeSurfaceY) {
+        this.platformSizeInChunks = sizeInChunks;
+        this.relativeSurfaceY = relativeSurfaceY;
         this.isPlatformActive = true;
         updateConfigValues();
         loadPlatformChunks();
@@ -375,9 +377,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     @Override
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
-        this.platformMin = BlockPos.fromLong(compound.getLong("PlatformMin"));
-        this.platformMax = BlockPos.fromLong(compound.getLong("PlatformMax"));
-        this.platformSurfaceY = compound.getInteger("PlatformSurfaceY");
+        this.platformSizeInChunks = compound.getInteger("PlatformSize");
+        if (this.platformSizeInChunks <= 0) this.platformSizeInChunks = 5;
+        this.relativeSurfaceY = compound.getInteger("RelativeSurfaceY");
         this.isPlatformActive = compound.getBoolean("PlatformActive");
         this.rfBuffer = compound.getLong("RFBuffer");
         this.rfBufferCapacity = compound.getLong("RFBufferCapacity");
@@ -390,9 +392,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
-        compound.setLong("PlatformMin", this.platformMin.toLong());
-        compound.setLong("PlatformMax", this.platformMax.toLong());
-        compound.setInteger("PlatformSurfaceY", this.platformSurfaceY);
+        compound.setInteger("PlatformSize", this.platformSizeInChunks);
+        compound.setInteger("RelativeSurfaceY", this.relativeSurfaceY);
         compound.setBoolean("PlatformActive", this.isPlatformActive);
         compound.setLong("RFBuffer", this.rfBuffer);
         compound.setLong("RFBufferCapacity", this.rfBufferCapacity);
@@ -409,11 +410,28 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     }
 
     public BlockPos getPlatformMin() {
-        return platformMin;
+        int halfChunks = (platformSizeInChunks - 1) / 2;
+        int offset = 7 + halfChunks * 16;
+        int surfaceY = pos.getY() + relativeSurfaceY;
+        return new BlockPos(pos.getX() - offset, surfaceY, pos.getZ() - offset);
     }
 
     public BlockPos getPlatformMax() {
-        return platformMax;
+        int halfChunks = (platformSizeInChunks - 1) / 2;
+        int offset = 7 + halfChunks * 16;
+        int surfaceY = pos.getY() + relativeSurfaceY;
+        return new BlockPos(
+                pos.getX() - offset + platformSizeInChunks * 16 - 1,
+                surfaceY,
+                pos.getZ() - offset + platformSizeInChunks * 16 - 1);
+    }
+
+    public int getPlatformSurfaceY() {
+        return pos.getY() + relativeSurfaceY;
+    }
+
+    public int getPlatformSizeInChunks() {
+        return platformSizeInChunks;
     }
 
     public long getRfBuffer() {
