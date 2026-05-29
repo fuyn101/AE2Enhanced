@@ -81,6 +81,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     // 搜索框缓存（避免 keyTyped 中重复反射）
     private MEGuiTextField omniSearchField;
 
+    // View Cell 缓存
+    private final net.minecraft.item.ItemStack[] omniViewCells = new net.minecraft.item.ItemStack[5];
+
 
 
     public GuiOmniTerm(InventoryPlayer inventoryPlayer, ITerminalHost host) {
@@ -414,6 +417,30 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         // 手动绘制搜索框（因为 super.drawBG 被覆盖）
         if (this.omniSearchField != null) {
             this.omniSearchField.drawTextBox();
+        }
+
+        // View Cell 变化检测与过滤同步
+        try {
+            java.lang.reflect.Field viewCellField = GuiMEMonitorable.class.getDeclaredField("viewCell");
+            viewCellField.setAccessible(true);
+            boolean hasViewCell = viewCellField.getBoolean(this);
+            if (hasViewCell) {
+                java.lang.reflect.Field containerField = GuiMEMonitorable.class.getDeclaredField("monitorableContainer");
+                containerField.setAccessible(true);
+                appeng.container.implementations.ContainerMEMonitorable monitorable =
+                        (appeng.container.implementations.ContainerMEMonitorable) containerField.get(this);
+                boolean update = false;
+                for (int i = 0; i < 5; ++i) {
+                    net.minecraft.item.ItemStack current = monitorable.getCellViewSlot(i).func_75211_c();
+                    if (this.omniViewCells[i] == current) continue;
+                    update = true;
+                    this.omniViewCells[i] = current;
+                }
+                if (update) {
+                    this.repo.setViewCell(this.omniViewCells);
+                }
+            }
+        } catch (Exception ignored) {
         }
     }
 
