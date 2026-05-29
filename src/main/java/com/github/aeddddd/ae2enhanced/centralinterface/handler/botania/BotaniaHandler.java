@@ -49,8 +49,6 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 public class BotaniaHandler implements IRemoteHandler {
 
     private static final String TAG_PORTAL_FLAG = "_elvenPortal";
-    /** 推料后最小等待 tick 数，防止 isIdle 在产物尚未生成时过早返回 true */
-    private static final int MIN_PROCESSING_TICKS = 20;
     /** 推料状态过期时间 */
     private static final int STATE_EXPIRY_TICKS = 1200;
 
@@ -197,13 +195,6 @@ public class BotaniaHandler implements IRemoteHandler {
     @Override
     public boolean isIdle(World world, BlockPos pos) {
         cleanupExpiredStates(world.getTotalWorldTime());
-        PushState state = pushStates.get(key(world, pos));
-        if (state != null) {
-            long elapsed = world.getTotalWorldTime() - state.pushTick;
-            if (elapsed < MIN_PROCESSING_TICKS) {
-                return false; // 刚推料，给机器至少 1 秒处理时间
-            }
-        }
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {
             return isIdlePool(world, pos);
