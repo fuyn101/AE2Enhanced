@@ -40,6 +40,9 @@ import org.lwjgl.input.Mouse;
 
 import java.lang.reflect.Field;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.awt.Rectangle;
 
 /**
  * 全能无线终端 GUI —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
@@ -419,6 +422,16 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             this.omniSearchField.drawTextBox();
         }
 
+        // View Cell 侧栏背景（AE2 标准终端纹理）
+        try {
+            java.lang.reflect.Field viewCellField = GuiMEMonitorable.class.getDeclaredField("viewCell");
+            viewCellField.setAccessible(true);
+            if (viewCellField.getBoolean(this)) {
+                this.mc.getTextureManager().bindTexture(new ResourceLocation("appliedenergistics2", "textures/guis/terminal.png"));
+                this.drawTexturedModalRect(offsetX + 357, offsetY + 8, 197, 0, 46, 128);
+            }
+        } catch (Exception ignored) {}
+
         // View Cell 变化检测与过滤同步
         try {
             java.lang.reflect.Field viewCellField = GuiMEMonitorable.class.getDeclaredField("viewCell");
@@ -442,6 +455,31 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             }
         } catch (Exception ignored) {
         }
+    }
+
+    @Override
+    public List<Rectangle> getJEIExclusionArea() {
+        ArrayList<Rectangle> exclusionArea = new ArrayList<>();
+        // 左侧设置按钮（SortDir/ViewMode/TerminalStyle 等）
+        int yOffset = this.guiTop + 8;
+        int visibleButtons = 0;
+        for (GuiButton btn : this.buttonList) {
+            if (btn instanceof GuiImgButton && btn.enabled && btn.x < this.guiLeft) {
+                visibleButtons++;
+            }
+        }
+        if (visibleButtons > 0) {
+            exclusionArea.add(new Rectangle(this.guiLeft - 18, yOffset, 20, visibleButtons * 20 + visibleButtons - 2));
+        }
+        // viewCell 侧栏区域（GUI 右侧外部）
+        try {
+            java.lang.reflect.Field viewCellField = GuiMEMonitorable.class.getDeclaredField("viewCell");
+            viewCellField.setAccessible(true);
+            if (viewCellField.getBoolean(this)) {
+                exclusionArea.add(new Rectangle(this.guiLeft + 357, this.guiTop + 8, 46, 19 * 5));
+            }
+        } catch (Exception ignored) {}
+        return exclusionArea;
     }
 
     @Override

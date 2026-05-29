@@ -175,10 +175,10 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
-        // 重新定位 view cell 槽位到 GUI 最右侧（垂直排列）
+        // 重新定位 view cell 槽位到 GUI 右侧外部（模仿标准终端侧栏）
         for (int i = 0; i < this.cellView.length; i++) {
             if (this.cellView[i] != null) {
-                this.cellView[i].xPos = 339; // 357 - 18
+                this.cellView[i].xPos = 366; // 357 + 9，位于侧栏面板内部
                 this.cellView[i].yPos = 18 + i * 18;
             }
         }
