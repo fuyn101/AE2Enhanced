@@ -1,17 +1,27 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import net.minecraft.item.ItemStack;
 
 /**
  * RF 能量假物品。
- * 用于在标准 AE2 物品终端中显示 RF 能量存储量（P1 阶段接入终端显示）。
- * P0 阶段仅注册物品和材质。
+ * 用于在标准 AE2 物品终端中显示 RF 能量存储量。
+ *
+ * 设计：RF 能量无子类型，ItemStack 的 count 固定为 1（作为模板），
+ * 实际数量通过 IAEItemStack.stackSize 表示。
  */
 public class ItemEnergyDrop extends AbstractNbtDrop {
 
     public ItemEnergyDrop() {
         super("energy_drop");
+    }
+
+    /**
+     * 创建 RF 假物品模板（count = 1）。
+     * 实际数量通过 AEItemStack.setStackSize() 设置。
+     */
+    public static ItemStack createStack() {
+        return new ItemStack(ItemRegistry.ENERGY_DROP, 1);
     }
 
     /**

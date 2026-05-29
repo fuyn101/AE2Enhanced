@@ -24,6 +24,9 @@
     "fluid.MixinGridStorageCacheFluid",
     "fluid.MixinNetworkInventoryHandlerFluid",
     "fluid.MixinNetworkMonitorFluid",
+    "energy.MixinGridStorageCacheEnergy",
+    "energy.MixinNetworkInventoryHandlerEnergy",
+    "energy.MixinNetworkMonitorEnergy",
     "upgrade.MixinUpgradeInvFilter",
     "upgrade.MixinUpgradeInventory",
     "upgrade.MixinUpgradeSlots"

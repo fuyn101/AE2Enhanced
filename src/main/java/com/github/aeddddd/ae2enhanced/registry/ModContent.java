@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEnergies;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
@@ -20,6 +21,7 @@ public final class ModContent {
 
     public static void preInit() {
         FakeFluids.init();
+        FakeEnergies.init();
 
         if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
             FakeGases.init();
