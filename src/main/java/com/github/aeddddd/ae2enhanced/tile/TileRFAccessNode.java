@@ -19,6 +19,7 @@ import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.ITickable;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -32,7 +33,7 @@ import java.util.List;
  * 不绑定任何平台系统，可放置于任意位置。
  */
 public class TileRFAccessNode extends TileAENetworkBase
-        implements IGridTickable, ICellContainer, IActionHost, IEnergyStorage {
+        implements IGridTickable, ICellContainer, IActionHost, IEnergyStorage, ITickable {
 
     private EnergyStorageAdapter energyStorage;
     private MachineSource machineSource;
@@ -82,6 +83,16 @@ public class TileRFAccessNode extends TileAENetworkBase
     @Override
     public IGridNode getActionableNode() {
         return this.getProxy().getNode();
+    }
+
+    // === ITickable (原版 tick，用于初始化 AE 网络代理) ===
+
+    @Override
+    public void update() {
+        if (!this.world.isRemote && this.needsReady()) {
+            this.clearNeedsReady();
+            this.getProxy().onReady();
+        }
     }
 
     // === IGridTickable ===

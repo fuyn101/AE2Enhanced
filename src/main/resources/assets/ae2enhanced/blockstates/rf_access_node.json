@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "normal": {
+      "model": "ae2enhanced:rf_access_node"
+    },
+    "inventory": {
+      "model": "ae2enhanced:rf_access_node"
+    }
+  }
+}
