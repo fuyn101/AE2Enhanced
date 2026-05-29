@@ -22,7 +22,7 @@ import appeng.util.SettingsFrom;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.CapabilityProbe;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -248,7 +248,7 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         if (stack.isEmpty()) return null;
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
         if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
-        if (FakeEssentias.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
+        if (FakeEssentiaSafe.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
     }
 

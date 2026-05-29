@@ -11,7 +11,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.me.cache.GridStorageCache;
 import appeng.me.cache.NetworkMonitor;
 import com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -93,7 +93,7 @@ public class MixinNetworkMonitor {
 
         IAEItemStack itemStack = (IAEItemStack) request;
         ItemStack mcStack = itemStack.createItemStack();
-        if (!FakeEssentias.isEssentiaFakeItem(mcStack)) return;
+        if (!FakeEssentiaSafe.isEssentiaFakeItem(mcStack)) return;
 
         IMEMonitor<IAEEssentiaStack> essentiaMonitor = ae2enhanced$getEssentiaMonitor();
         if (essentiaMonitor == null) {
@@ -131,7 +131,7 @@ public class MixinNetworkMonitor {
         if (!(input instanceof IAEItemStack)) return;
 
         IAEItemStack itemStack = (IAEItemStack) input;
-        if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
+        if (!FakeEssentiaSafe.isEssentiaFakeItem(itemStack.createItemStack())) return;
 
         IMEMonitor<IAEEssentiaStack> essentiaMonitor = ae2enhanced$getEssentiaMonitor();
         if (essentiaMonitor == null) {

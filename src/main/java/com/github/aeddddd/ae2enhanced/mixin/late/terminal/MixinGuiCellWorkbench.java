@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.mixin.late.terminal;
 import appeng.client.gui.implementations.GuiCellWorkbench;
 import appeng.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
@@ -42,8 +42,8 @@ public class MixinGuiCellWorkbench {
             if (gasName != null) {
                 tooltip = gasName;
             }
-        } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
-            String aspectTag = FakeEssentias.tryGetAspectTag(stack);
+        } else if (FakeEssentiaSafe.isEssentiaFakeItem(stack)) {
+            String aspectTag = FakeEssentiaSafe.tryGetAspectTag(stack);
             if (aspectTag != null) {
                 tooltip = "Essentia: " + aspectTag;
             }

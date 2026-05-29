@@ -38,6 +38,9 @@ import java.util.Map;
 @Mixin(value = CraftingCPUCluster.class, remap = false, priority = 1000)
 public class MixinCraftingCPUCluster {
 
+    private static final boolean CRAZYAE_LOADED =
+        net.minecraftforge.fml.common.Loader.isModLoaded("crazyae");
+
     // ==================== Computation Core Support ====================
 
     @Unique
@@ -257,14 +260,20 @@ public class MixinCraftingCPUCluster {
     )
     private boolean redirectIsActive(TileCraftingTile instance) {
         if (ae2enhanced$computationCore != null) {
-            IGridNode node = ae2enhanced$computationCore.getActionableNode();
-            return node != null && node.isActive();
+            // CrazyAE 兼容：保留默认行为，避免干扰其修改后的 isActive 逻辑。
+            if (!CRAZYAE_LOADED) {
+                IGridNode node = ae2enhanced$computationCore.getActionableNode();
+                return node != null && node.isActive();
+            }
         }
         return instance.isActive();
     }
 
     @Inject(method = "updateCraftingLogic", at = @At("HEAD"))
     private void onUpdateCraftingLogicHead(IGrid grid, IEnergyGrid eg, CraftingGridCache cache, CallbackInfo ci) {
+        // CrazyAE 通过 ASM 大幅修改了 CraftingCPUCluster，虚拟集群的字段初始化
+        // 与其状态机不兼容；跳过我们的 HEAD 注入以避免干扰 CrazyAE 逻辑。
+        if (ae2enhanced$computationCore != null && CRAZYAE_LOADED) return;
         if (reflectionFailed) return;
         try {
             tryInitReflection();
@@ -304,6 +313,8 @@ public class MixinCraftingCPUCluster {
 
     @Inject(method = "executeCrafting", at = @At("HEAD"))
     private void batchProcessVirtualTasks(IEnergyGrid energy, CraftingGridCache cache, CallbackInfo ci) {
+        // CrazyAE 兼容：跳过批量合成注入，避免与其修改后的 executeCrafting 冲突。
+        if (ae2enhanced$computationCore != null && CRAZYAE_LOADED) return;
         if (reflectionFailed) return;
 
         CraftingCPUCluster cpu;

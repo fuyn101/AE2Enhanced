@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.mixin.late.thaumic;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
@@ -49,8 +49,8 @@ public class MixinGuiArcaneTerminal {
             String name = gasName != null ? gasName : "Unknown Gas";
             tooltip.add("\u00A7b" + "Gas: " + name);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());
-        } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
-            String aspectTag = FakeEssentias.tryGetAspectTag(stack);
+        } else if (FakeEssentiaSafe.isEssentiaFakeItem(stack)) {
+            String aspectTag = FakeEssentiaSafe.tryGetAspectTag(stack);
             String aspectName = aspectTag != null ? aspectTag : "Unknown";
             tooltip.add("\u00A7b" + "Essentia: " + aspectName);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());

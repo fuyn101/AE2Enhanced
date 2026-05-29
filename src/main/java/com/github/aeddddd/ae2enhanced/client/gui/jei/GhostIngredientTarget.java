@@ -6,7 +6,7 @@ import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.PacketInventoryAction;
 import appeng.helpers.InventoryAction;
 import appeng.util.item.AEItemStack;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 import net.minecraft.inventory.Slot;
@@ -88,7 +88,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         if (gasStack != null) return gasStack;
 
         // 源质容器（反射调用 FakeEssentias）
-        ItemStack essentiaFake = FakeEssentias.tryConvertContainerToFake(is);
+        ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(is);
         if (essentiaFake != null && !essentiaFake.isEmpty()) {
             return AEItemStack.fromItemStack(essentiaFake);
         }

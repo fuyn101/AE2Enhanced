@@ -15,7 +15,7 @@ import appeng.helpers.InventoryAction;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalBusBase;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
@@ -135,7 +135,7 @@ public abstract class AbstractUniversalBusContainer extends ContainerUpgradeable
         ItemStack gasFake = tryConvertGasToFake(held);
         if (gasFake != null) return gasFake;
 
-        ItemStack essentiaFake = FakeEssentias.tryConvertContainerToFake(held);
+        ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(held);
         if (essentiaFake != null) return essentiaFake;
 
         return null;

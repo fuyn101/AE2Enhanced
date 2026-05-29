@@ -12,7 +12,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.me.cache.SecurityCache;
 import appeng.me.storage.NetworkInventoryHandler;
 import com.github.aeddddd.ae2enhanced.util.reflection.EssentiaBusHelper;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -54,7 +54,7 @@ public class MixinNetworkInventoryHandler {
         if (!(request instanceof IAEItemStack)) return;
 
         IAEItemStack itemStack = (IAEItemStack) request;
-        if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
+        if (!FakeEssentiaSafe.isEssentiaFakeItem(itemStack.createItemStack())) return;
 
         IAEEssentiaStack essentiaRequest = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaRequest == null) {
@@ -79,7 +79,7 @@ public class MixinNetworkInventoryHandler {
         if (!(input instanceof IAEItemStack)) return;
 
         IAEItemStack itemStack = (IAEItemStack) input;
-        if (!FakeEssentias.isEssentiaFakeItem(itemStack.createItemStack())) return;
+        if (!FakeEssentiaSafe.isEssentiaFakeItem(itemStack.createItemStack())) return;
 
         IAEEssentiaStack essentiaInput = EssentiaBusHelper.unpackEssentia(itemStack);
         if (essentiaInput == null) {

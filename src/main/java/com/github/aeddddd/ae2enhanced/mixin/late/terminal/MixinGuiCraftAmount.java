@@ -5,7 +5,7 @@ import appeng.client.gui.implementations.GuiCraftAmount;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketCraftRequestLong;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiTextField;
@@ -56,8 +56,8 @@ public class MixinGuiCraftAmount {
             if (gasName != null) {
                 tooltip = gasName;
             }
-        } else if (FakeEssentias.isEssentiaFakeItem(stack)) {
-            String aspectTag = FakeEssentias.tryGetAspectTag(stack);
+        } else if (FakeEssentiaSafe.isEssentiaFakeItem(stack)) {
+            String aspectTag = FakeEssentiaSafe.tryGetAspectTag(stack);
             if (aspectTag != null) {
                 tooltip = "Essentia: " + aspectTag;
             }
