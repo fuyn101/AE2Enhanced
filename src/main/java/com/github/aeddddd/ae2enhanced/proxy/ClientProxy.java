@@ -73,12 +73,20 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding RTS_TOGGLE_KEY = new KeyBinding(
+            "key.ae2enhanced.rtsToggle",
+            KeyConflictContext.IN_GAME,
+            Keyboard.KEY_I,
+            "key.categories.ae2enhanced"
+    );
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
         ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
+        ClientRegistry.registerKeyBinding(RTS_TOGGLE_KEY);
     }
 
     @Override
@@ -87,6 +95,7 @@ public class ClientProxy extends CommonProxy {
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());
+
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());

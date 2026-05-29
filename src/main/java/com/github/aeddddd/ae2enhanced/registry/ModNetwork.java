@@ -66,7 +66,8 @@ public final class ModNetwork {
         nw.registerMessage(PacketPlatformGenerateRequest.Handler.class, PacketPlatformGenerateRequest.class, 21, Side.SERVER);
         nw.registerMessage(PacketPlatformGenerateResult.Handler.class, PacketPlatformGenerateResult.class, 22, Side.CLIENT);
         nw.registerMessage(PacketPlatformEnergySync.Handler.class, PacketPlatformEnergySync.class, 23, Side.CLIENT);
-        nw.registerMessage(PacketRTSStateChange.Handler.class, PacketRTSStateChange.class, 24, Side.CLIENT);
+        nw.registerMessage(PacketRTSStateChange.C2SHandler.class, PacketRTSStateChange.class, 24, Side.SERVER);
         nw.registerMessage(PacketSelectionUpdate.Handler.class, PacketSelectionUpdate.class, 25, Side.CLIENT);
+        nw.registerMessage(PacketRTSStateChange.S2CHandler.class, PacketRTSStateChange.class, 26, Side.CLIENT);
     }
 }

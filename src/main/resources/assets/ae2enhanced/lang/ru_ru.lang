@@ -212,3 +212,5 @@ tooltip.ae2enhanced.smart_pattern.bound_to=§7Привязан к: §f%s
 tooltip.ae2enhanced.smart_pattern.recipe_count=§7Количество рецептов: §f%d
 message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode
+
+key.ae2enhanced.rtsToggle=Режим RTS

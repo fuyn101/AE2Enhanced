@@ -1,12 +1,18 @@
 package com.github.aeddddd.ae2enhanced.event;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange;
+import com.github.aeddddd.ae2enhanced.platform.selection.SelectionManager;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
@@ -110,5 +116,25 @@ public final class ModEventHandler {
 
         // ⑤ 燃烧
         entity.setFire(10);
+    }
+
+    // ==================== RTS 强制退出事件 ====================
+
+    @SubscribeEvent
+    public void onPlayerLoggedOut(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
+        EntityPlayer player = event.player;
+        if (player instanceof EntityPlayerMP && SelectionManager.isInRTS(player.getUniqueID())) {
+            SelectionManager.forceExit(player.getUniqueID());
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerDeath(LivingDeathEvent event) {
+        if (event.getEntityLiving() instanceof EntityPlayerMP) {
+            EntityPlayerMP player = (EntityPlayerMP) event.getEntityLiving();
+            if (SelectionManager.isInRTS(player.getUniqueID())) {
+                SelectionManager.exitRTS(player);
+            }
+        }
     }
 }

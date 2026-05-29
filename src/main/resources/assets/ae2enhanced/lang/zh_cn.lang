@@ -295,3 +295,5 @@ item.ae2enhanced.energy_drop.name=RF能量滴
 tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器
 item.ae2enhanced.platform_development_license.name=平台开发许可
 message.ae2enhanced.platform.conflict=§c平台生成失败：检测到 %d 处冲突。
+
+key.ae2enhanced.rtsToggle=进入/退出 RTS 模式
