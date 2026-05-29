@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.crafting;
 
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -88,6 +88,6 @@ public class SingularityRecipe {
             }
         }
         // 生成微型奇点方块
-        world.setBlockState(center, ModBlocks.MICRO_SINGULARITY.getDefaultState());
+        world.setBlockState(center, BlockRegistry.MICRO_SINGULARITY.getDefaultState());
     }
 }

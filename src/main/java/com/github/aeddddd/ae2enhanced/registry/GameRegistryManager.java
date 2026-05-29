@@ -1,0 +1,141 @@
+package com.github.aeddddd.ae2enhanced.registry;
+
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.block.*;
+import com.github.aeddddd.ae2enhanced.item.*;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
+import com.github.aeddddd.ae2enhanced.tile.*;
+import net.minecraft.block.Block;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemBlock;
+import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.registry.GameRegistry;
+
+/**
+ * 游戏注册管理器 —— 统一处理 Block、Item、TileEntity 的注册。
+ */
+@Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
+public final class GameRegistryManager {
+
+    private GameRegistryManager() {}
+
+    /**
+     * 在 preInit 阶段实例化所有 Item（必须在 FakeFluids.init() 等之前调用）。
+     */
+    public static void initItems() {
+        ItemRegistry.UPGRADE_CARD = new ItemUpgradeCard();
+        ItemRegistry.CONFORMAL_CHARGE = new ItemConformalCharge();
+        ItemRegistry.DIFFERENTIAL_FORM_STABILIZER = new ItemDifferentialFormStabilizer();
+        ItemRegistry.STABLE_SPACETIME_MANIFOLD = new ItemStableSpacetimeManifold();
+        try {
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
+                ItemRegistry.ESSENTIA_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop").newInstance();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemEssentiaDrop", e);
+        }
+        ItemRegistry.FLUID_DROP = new ItemFluidDrop();
+        try {
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
+                ItemRegistry.GAS_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop").newInstance();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemGasDrop", e);
+        }
+        PartRegistry.PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
+        PartRegistry.PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();
+        PartRegistry.PART_STOCKING_BUS = new ItemPartStockingBus();
+        ItemRegistry.CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
+        ItemRegistry.UNIVERSAL_MEMORY_CARD = new ItemUniversalMemoryCard();
+        ItemRegistry.OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
+        ItemRegistry.OMNI_UPGRADE_CARD = new ItemOmniUpgradeCard();
+        ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
+        ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
+    }
+
+    @SubscribeEvent
+    public static void registerBlocks(RegistryEvent.Register<Block> event) {
+        event.getRegistry().registerAll(
+            BlockRegistry.ASSEMBLY_CONTROLLER = new BlockAssemblyController(),
+            BlockRegistry.ASSEMBLY_ME_INTERFACE = new BlockAssemblyMeInterface(),
+            BlockRegistry.ASSEMBLY_CASING = new BlockAssemblyCasing(),
+            BlockRegistry.ASSEMBLY_INNER_WALL = new BlockAssemblyInnerWall(),
+            BlockRegistry.ASSEMBLY_STABILIZER = new BlockAssemblyStabilizer(),
+            BlockRegistry.MICRO_SINGULARITY = new BlockMicroSingularity(),
+            BlockRegistry.HYPERDIMENSIONAL_CONTROLLER = new BlockHyperdimensionalController(),
+            BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE = new BlockHyperdimensionalMeInterface(),
+            BlockRegistry.HYPERDIMENSIONAL_CASING = new BlockHyperdimensionalCasing(),
+            BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE = new BlockHyperdimensionalSingularityCore(),
+            BlockRegistry.COMPUTATION_CORE = new BlockComputationCore(),
+            BlockRegistry.CONSTANT_TENSOR_FIELD_CASING = new BlockConstantTensorFieldCasing(),
+            BlockRegistry.CONSTANT_SPINOR_FIELD_CASING = new BlockConstantSpinorFieldCasing(),
+            BlockRegistry.CAUSAL_ANCHOR_CORE = new BlockCausalAnchorCore(),
+            BlockRegistry.SUPER_CRAFTING_INTERFACE = new BlockSuperCraftingInterface(),
+            BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter(),
+            BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
+            BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface()
+        );
+
+        GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
+        GameRegistry.registerTileEntity(TileAssemblyMeInterface.class, AE2Enhanced.MOD_ID + ":assembly_me_interface");
+        GameRegistry.registerTileEntity(TileMicroSingularity.class, AE2Enhanced.MOD_ID + ":micro_singularity");
+        GameRegistry.registerTileEntity(TileHyperdimensionalController.class, AE2Enhanced.MOD_ID + ":hyperdimensional_controller");
+        GameRegistry.registerTileEntity(TileHyperdimensionalMeInterface.class, AE2Enhanced.MOD_ID + ":hyperdimensional_me_interface");
+        GameRegistry.registerTileEntity(TileComputationCore.class, AE2Enhanced.MOD_ID + ":computation_core");
+        GameRegistry.registerTileEntity(TileSuperCraftingInterface.class, AE2Enhanced.MOD_ID + ":super_crafting_interface");
+        GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
+        GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
+        GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
+    }
+
+    @SubscribeEvent
+    public static void registerItems(RegistryEvent.Register<Item> event) {
+        // Block items
+        event.getRegistry().registerAll(
+            new ItemBlock(BlockRegistry.ASSEMBLY_CONTROLLER).setRegistryName(BlockRegistry.ASSEMBLY_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.ASSEMBLY_ME_INTERFACE).setRegistryName(BlockRegistry.ASSEMBLY_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.ASSEMBLY_CASING).setRegistryName(BlockRegistry.ASSEMBLY_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.ASSEMBLY_INNER_WALL).setRegistryName(BlockRegistry.ASSEMBLY_INNER_WALL.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.ASSEMBLY_STABILIZER).setRegistryName(BlockRegistry.ASSEMBLY_STABILIZER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlockMicroSingularity(BlockRegistry.MICRO_SINGULARITY).setRegistryName(BlockRegistry.MICRO_SINGULARITY.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_CASING).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.COMPUTATION_CORE).setRegistryName(BlockRegistry.COMPUTATION_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING).setRegistryName(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING).setRegistryName(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.CAUSAL_ANCHOR_CORE).setRegistryName(BlockRegistry.CAUSAL_ANCHOR_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.SUPER_CRAFTING_INTERFACE).setRegistryName(BlockRegistry.SUPER_CRAFTING_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+        );
+
+        // Items
+        event.getRegistry().register(ItemRegistry.UPGRADE_CARD);
+        event.getRegistry().register(ItemRegistry.CONFORMAL_CHARGE);
+        event.getRegistry().register(ItemRegistry.DIFFERENTIAL_FORM_STABILIZER);
+        event.getRegistry().register(ItemRegistry.STABLE_SPACETIME_MANIFOLD);
+        if (ItemRegistry.ESSENTIA_DROP != null) {
+            event.getRegistry().register(ItemRegistry.ESSENTIA_DROP);
+        }
+        event.getRegistry().register(ItemRegistry.FLUID_DROP);
+        if (ItemRegistry.GAS_DROP != null) {
+            event.getRegistry().register(ItemRegistry.GAS_DROP);
+        }
+        event.getRegistry().register(PartRegistry.PART_UNIVERSAL_IMPORT_BUS);
+        event.getRegistry().register(PartRegistry.PART_UNIVERSAL_EXPORT_BUS);
+        event.getRegistry().register(PartRegistry.PART_STOCKING_BUS);
+        event.getRegistry().register(ItemRegistry.CHANNEL_RECEIVER_CARD);
+        event.getRegistry().register(ItemRegistry.UNIVERSAL_MEMORY_CARD);
+        event.getRegistry().register(ItemRegistry.OMNI_WIRELESS_TERMINAL);
+        event.getRegistry().register(ItemRegistry.OMNI_UPGRADE_CARD);
+        event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
+        event.getRegistry().register(ItemRegistry.SMART_PATTERN);
+    }
+}

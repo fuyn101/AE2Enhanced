@@ -1,7 +1,8 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaItemRenderer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -37,7 +38,7 @@ public class ItemEssentiaDrop extends Item {
      * 创建指定源质类型的假物品堆叠。
      */
     public static ItemStack createStack(String aspectTag, int amount) {
-        ItemStack stack = new ItemStack(ModItems.ESSENTIA_DROP, amount);
+        ItemStack stack = new ItemStack(ItemRegistry.ESSENTIA_DROP, amount);
         if (aspectTag != null && !aspectTag.isEmpty()) {
             NBTTagCompound tag = new NBTTagCompound();
             tag.setString(NBT_ASPECT_TAG, aspectTag);

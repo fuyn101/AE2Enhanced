@@ -5,7 +5,8 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.fluids.util.AEFluidStack;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -80,15 +81,15 @@ public final class FakeFluids {
     }
 
     public static ItemStack packFluid2Drops(FluidStack stack) {
-        return FakeItemRegister.packStack(stack, ModItems.FLUID_DROP);
+        return FakeItemRegister.packStack(stack, ItemRegistry.FLUID_DROP);
     }
 
     public static IAEItemStack packFluid2AEDrops(FluidStack stack) {
-        return FakeItemRegister.packAEStack(stack, ModItems.FLUID_DROP);
+        return FakeItemRegister.packAEStack(stack, ItemRegistry.FLUID_DROP);
     }
 
     public static IAEItemStack packFluid2AEDrops(IAEFluidStack stack) {
-        return FakeItemRegister.packAEStackLong(stack, ModItems.FLUID_DROP);
+        return FakeItemRegister.packAEStackLong(stack, ItemRegistry.FLUID_DROP);
     }
 
     // 兼容方法：供 MixinNetworkMonitorFluid / MixinNetworkInventoryHandlerFluid 调用

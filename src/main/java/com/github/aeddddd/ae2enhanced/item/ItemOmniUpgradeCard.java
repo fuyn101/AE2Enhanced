@@ -1,7 +1,8 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
@@ -66,14 +67,14 @@ public class ItemOmniUpgradeCard extends Item {
     private static final String NBT_MAGNET_MODE = "ae2e_magnet_mode";
 
     public static int getMagnetMode(ItemStack stack) {
-        if (stack.isEmpty() || stack.getItem() != ModItems.OMNI_UPGRADE_CARD || stack.getMetadata() != META_MAGNET) {
+        if (stack.isEmpty() || stack.getItem() != ItemRegistry.OMNI_UPGRADE_CARD || stack.getMetadata() != META_MAGNET) {
             return 0;
         }
         return stack.getOrCreateSubCompound("ae2e").getInteger(NBT_MAGNET_MODE);
     }
 
     public static void setMagnetMode(ItemStack stack, int mode) {
-        if (stack.isEmpty() || stack.getItem() != ModItems.OMNI_UPGRADE_CARD || stack.getMetadata() != META_MAGNET) {
+        if (stack.isEmpty() || stack.getItem() != ItemRegistry.OMNI_UPGRADE_CARD || stack.getMetadata() != META_MAGNET) {
             return;
         }
         stack.getOrCreateSubCompound("ae2e").setInteger(NBT_MAGNET_MODE, mode);

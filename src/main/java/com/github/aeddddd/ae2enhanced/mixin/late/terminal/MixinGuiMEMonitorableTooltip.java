@@ -4,7 +4,8 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.client.gui.implementations.GuiMEMonitorable;
 import appeng.client.me.SlotME;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
@@ -56,19 +57,19 @@ public abstract class MixinGuiMEMonitorableTooltip {
             } else {
                 IAEItemStack aeStack = ((SlotME) slot).getAEStack();
                 if (aeStack != null) {
-                    if (aeStack.getItem() == ModItems.FLUID_DROP) {
+                    if (aeStack.getItem() == ItemRegistry.FLUID_DROP) {
                         if (rendererFluid(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
                         }
                     }
-                    if (ModItems.GAS_DROP != null && aeStack.getItem() == ModItems.GAS_DROP) {
+                    if (ItemRegistry.GAS_DROP != null && aeStack.getItem() == ItemRegistry.GAS_DROP) {
                         if (rendererGas(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
                         }
                     }
-                    if (ModItems.ESSENTIA_DROP != null && aeStack.getItem() == ModItems.ESSENTIA_DROP) {
+                    if (ItemRegistry.ESSENTIA_DROP != null && aeStack.getItem() == ItemRegistry.ESSENTIA_DROP) {
                         if (rendererEssentia(screen, aeStack, mouseX, mouseY)) {
                             ci.cancel();
                             return;
@@ -83,7 +84,7 @@ public abstract class MixinGuiMEMonitorableTooltip {
     /*  流体 Tooltip Renderer                                           */
     /* ================================================================ */
     private static boolean rendererFluid(GuiContainer gui, IAEItemStack aeStack, int mouseX, int mouseY) {
-        if (aeStack == null || aeStack.getItem() != ModItems.FLUID_DROP) return false;
+        if (aeStack == null || aeStack.getItem() != ItemRegistry.FLUID_DROP) return false;
 
         IAEFluidStack fluidStack = FakeItemRegister.getAEStack(aeStack.copy().setStackSize(1));
         if (fluidStack == null) return false;
@@ -117,7 +118,7 @@ public abstract class MixinGuiMEMonitorableTooltip {
     /*  气体 Tooltip Renderer                                           */
     /* ================================================================ */
     private static boolean rendererGas(GuiContainer gui, IAEItemStack aeStack, int mouseX, int mouseY) {
-        if (aeStack == null || aeStack.getItem() != ModItems.GAS_DROP) return false;
+        if (aeStack == null || aeStack.getItem() != ItemRegistry.GAS_DROP) return false;
 
         try {
             Object gasStack = FakeItemRegister.getAEStack(aeStack.copy().setStackSize(1));
@@ -159,7 +160,7 @@ public abstract class MixinGuiMEMonitorableTooltip {
     /*  源质 Tooltip Renderer                                           */
     /* ================================================================ */
     private static boolean rendererEssentia(GuiContainer gui, IAEItemStack aeStack, int mouseX, int mouseY) {
-        if (aeStack == null || ModItems.ESSENTIA_DROP == null || aeStack.getItem() != ModItems.ESSENTIA_DROP) {
+        if (aeStack == null || ItemRegistry.ESSENTIA_DROP == null || aeStack.getItem() != ItemRegistry.ESSENTIA_DROP) {
             return false;
         }
         String aspectTag = EssentiaFakeItemChecks.tryGetAspectTag(aeStack.createItemStack());

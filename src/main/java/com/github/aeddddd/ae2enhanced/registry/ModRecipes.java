@@ -1,7 +1,8 @@
 package com.github.aeddddd.ae2enhanced.registry;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
@@ -64,7 +65,7 @@ public final class ModRecipes {
             manifoldInputs.put("appliedenergistics2:material:47", 64);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "stable_spacetime_manifold", manifoldInputs,
-                    new ItemStack(ModItems.STABLE_SPACETIME_MANIFOLD, 1)));
+                    new ItemStack(ItemRegistry.STABLE_SPACETIME_MANIFOLD, 1)));
 
             // 微分形式稳定单元：128 奇点 + 16 下界之星
             Map<String, Integer> stabilizerInputs = new HashMap<>();
@@ -72,16 +73,16 @@ public final class ModRecipes {
             stabilizerInputs.put(BlackHoleRecipe.keyOf(new ItemStack(Items.NETHER_STAR)), 16);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "differential_form_stabilizer", stabilizerInputs,
-                    new ItemStack(ModItems.DIFFERENTIAL_FORM_STABILIZER, 1)));
+                    new ItemStack(ItemRegistry.DIFFERENTIAL_FORM_STABILIZER, 1)));
         }
 
         // 共形不变荷：16 稳态时空流形 + 16 微分形式稳定单元
         Map<String, Integer> chargeInputs = new HashMap<>();
-        chargeInputs.put(BlackHoleRecipe.keyOf(new ItemStack(ModItems.STABLE_SPACETIME_MANIFOLD)), 16);
-        chargeInputs.put(BlackHoleRecipe.keyOf(new ItemStack(ModItems.DIFFERENTIAL_FORM_STABILIZER)), 16);
+        chargeInputs.put(BlackHoleRecipe.keyOf(new ItemStack(ItemRegistry.STABLE_SPACETIME_MANIFOLD)), 16);
+        chargeInputs.put(BlackHoleRecipe.keyOf(new ItemStack(ItemRegistry.DIFFERENTIAL_FORM_STABILIZER)), 16);
         BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                 "conformal_invariant_charge", chargeInputs,
-                new ItemStack(ModItems.CONFORMAL_CHARGE, 1)));
+                new ItemStack(ItemRegistry.CONFORMAL_CHARGE, 1)));
 
         // 智能空白样板：64 空白样板
         if (ae2Material != null) {
@@ -89,7 +90,7 @@ public final class ModRecipes {
             smartPatternInputs.put("appliedenergistics2:material:52", 64);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "smart_blank_pattern", smartPatternInputs,
-                    new ItemStack(ModItems.SMART_BLANK_PATTERN, 1)));
+                    new ItemStack(ItemRegistry.SMART_BLANK_PATTERN, 1)));
         }
     }
 }

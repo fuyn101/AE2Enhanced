@@ -1,8 +1,9 @@
 package com.github.aeddddd.ae2enhanced.registry;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
@@ -18,7 +19,6 @@ public final class ModContent {
     private ModContent() {}
 
     public static void preInit() {
-        ModItems.init();
         FakeFluids.init();
 
         if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
@@ -34,8 +34,8 @@ public final class ModContent {
 
     public static void init() {
         // E1a：通用输入总线升级卡
-        if (ModItems.PART_UNIVERSAL_IMPORT_BUS != null) {
-            ItemStack busStack = new ItemStack(ModItems.PART_UNIVERSAL_IMPORT_BUS);
+        if (PartRegistry.PART_UNIVERSAL_IMPORT_BUS != null) {
+            ItemStack busStack = new ItemStack(PartRegistry.PART_UNIVERSAL_IMPORT_BUS);
             Upgrades.SPEED.registerItem(busStack, 4);
             Upgrades.CAPACITY.registerItem(busStack, 5);
             Upgrades.REDSTONE.registerItem(busStack, 1);
@@ -44,8 +44,8 @@ public final class ModContent {
         }
 
         // E1b：通用输出总线升级卡
-        if (ModItems.PART_UNIVERSAL_EXPORT_BUS != null) {
-            ItemStack busStack = new ItemStack(ModItems.PART_UNIVERSAL_EXPORT_BUS);
+        if (PartRegistry.PART_UNIVERSAL_EXPORT_BUS != null) {
+            ItemStack busStack = new ItemStack(PartRegistry.PART_UNIVERSAL_EXPORT_BUS);
             Upgrades.SPEED.registerItem(busStack, 4);
             Upgrades.CAPACITY.registerItem(busStack, 5);
             Upgrades.REDSTONE.registerItem(busStack, 1);
@@ -54,8 +54,8 @@ public final class ModContent {
         }
 
         // Stocking 总线升级卡
-        if (ModItems.PART_STOCKING_BUS != null) {
-            ItemStack busStack = new ItemStack(ModItems.PART_STOCKING_BUS);
+        if (PartRegistry.PART_STOCKING_BUS != null) {
+            ItemStack busStack = new ItemStack(PartRegistry.PART_STOCKING_BUS);
             Upgrades.SPEED.registerItem(busStack, 4);
             Upgrades.CAPACITY.registerItem(busStack, 4);
             Upgrades.REDSTONE.registerItem(busStack, 1);
@@ -64,14 +64,14 @@ public final class ModContent {
         }
 
         // 中枢 ME 接口升级卡
-        if (ModBlocks.CENTRAL_ME_INTERFACE != null) {
-            ItemStack centralInterface = new ItemStack(ModBlocks.CENTRAL_ME_INTERFACE);
+        if (BlockRegistry.CENTRAL_ME_INTERFACE != null) {
+            ItemStack centralInterface = new ItemStack(BlockRegistry.CENTRAL_ME_INTERFACE);
             Upgrades.PATTERN_EXPANSION.registerItem(centralInterface, 3);
         }
 
         // 物质炮弹药：共形不变荷（weight 1E8 → 伤害 5,000,000）
         appeng.api.AEApi.instance().registries().matterCannon().registerAmmo(
-                new ItemStack(ModItems.CONFORMAL_CHARGE), 100_000_000.0);
+                new ItemStack(ItemRegistry.CONFORMAL_CHARGE), 100_000_000.0);
 
         // 智能样板垃圾回收器
         com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector.init();

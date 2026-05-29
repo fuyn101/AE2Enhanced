@@ -12,7 +12,7 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.parts.automation.StackUpgradeInventory;
 import appeng.util.IConfigManagerHost;
 import appeng.util.inv.IAEAppEngInventory;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.centralinterface.ICentralInterfaceHost;
 import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
@@ -81,7 +81,7 @@ public class TileCentralMEInterface extends TileAENetworkBase
 
     @Override
     protected ItemStack getProxyRepresentation() {
-        return new ItemStack(ModBlocks.CENTRAL_ME_INTERFACE);
+        return new ItemStack(BlockRegistry.CENTRAL_ME_INTERFACE);
     }
 
     /**

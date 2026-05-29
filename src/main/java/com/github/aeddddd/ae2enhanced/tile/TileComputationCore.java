@@ -17,7 +17,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.parts.CableBusContainer;
 import appeng.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockSuperCraftingInterface;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
@@ -385,7 +385,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
     @Override
     protected ItemStack getProxyRepresentation() {
-        return new ItemStack(ModBlocks.COMPUTATION_CORE);
+        return new ItemStack(BlockRegistry.COMPUTATION_CORE);
     }
 
     @Nonnull

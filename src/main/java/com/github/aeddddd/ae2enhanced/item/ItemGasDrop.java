@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import mekanism.api.gas.Gas;
 import mekanism.api.gas.GasRegistry;
 import mekanism.api.gas.GasStack;
@@ -29,7 +30,7 @@ public class ItemGasDrop extends AbstractNbtDrop {
         if (gas == null || gas.getGas() == null || gas.amount <= 0) {
             return ItemStack.EMPTY;
         }
-        ItemStack stack = new ItemStack(ModItems.GAS_DROP, gas.amount);
+        ItemStack stack = new ItemStack(ItemRegistry.GAS_DROP, gas.amount);
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString(GAS_TAG, gas.getGas().getName());
         stack.setTagCompound(tag);

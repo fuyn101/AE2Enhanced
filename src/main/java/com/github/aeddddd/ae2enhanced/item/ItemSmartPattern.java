@@ -3,7 +3,8 @@ package com.github.aeddddd.ae2enhanced.item;
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternStorageFile;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
@@ -58,7 +59,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
                                            @Nonnull BitSet disabledMask,
                                            int recipeCount,
                                            @Nonnull String targetBlockId) {
-        ItemStack stack = new ItemStack(ModItems.SMART_PATTERN);
+        ItemStack stack = new ItemStack(ItemRegistry.SMART_PATTERN);
         NBTTagCompound tag = new NBTTagCompound();
         tag.setUniqueId(NBT_PATTERN_DATA_ID, patternDataId);
         tag.setString(NBT_DISABLED_MASK, SmartPatternData.bitSetToBase64(disabledMask));

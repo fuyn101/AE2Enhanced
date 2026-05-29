@@ -3,7 +3,8 @@ package com.github.aeddddd.ae2enhanced.mixin.late.terminal;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction;
@@ -63,7 +64,7 @@ public class MixinGuiMEMonitorableClick {
 
         // ========== 手持物品左键点击 ==========
         if (!mouseItem.isEmpty() && mouseButton == 0) {
-            boolean isFluid = s.getAEStack() != null && s.getAEStack().getItem() == ModItems.FLUID_DROP;
+            boolean isFluid = s.getAEStack() != null && s.getAEStack().getItem() == ItemRegistry.FLUID_DROP;
             boolean hasFluidCap = mouseItem.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
             boolean hasFluidInHand = hasFluidCap && getFluidFromItem(mouseItem) != null;
 
@@ -75,12 +76,12 @@ public class MixinGuiMEMonitorableClick {
                 return;
             }
 
-            if (ModItems.GAS_DROP != null && mek$handleMouseClick(s, mouseItem)) {
+            if (ItemRegistry.GAS_DROP != null && mek$handleMouseClick(s, mouseItem)) {
                 ci.cancel();
                 return;
             }
 
-            if (ModItems.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
+            if (ItemRegistry.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
                 ci.cancel();
                 return;
             }
@@ -89,23 +90,23 @@ public class MixinGuiMEMonitorableClick {
         // ========== 空手持假物品点击 ==========
         // ae2fc 精确条件：mouseButton != 2 && (!craftable || mouseButton != 0 || stackSize != 0 && !ctrlDown)
         if (s.getAEStack() != null
-                && (s.getAEStack().getItem() == ModItems.FLUID_DROP
-                    || (ModItems.GAS_DROP != null && s.getAEStack().getItem() == ModItems.GAS_DROP)
-                    || (ModItems.ESSENTIA_DROP != null && s.getAEStack().getItem() == ModItems.ESSENTIA_DROP))
+                && (s.getAEStack().getItem() == ItemRegistry.FLUID_DROP
+                    || (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP)
+                    || (ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP))
                 && mouseButton != 2
                 && (!s.getAEStack().isCraftable()
                     || mouseButton != 0
                     || (s.getAEStack().getStackSize() != 0L && !GuiScreen.isCtrlKeyDown()))) {
 
-            if (s.getAEStack().getItem() == ModItems.FLUID_DROP) {
+            if (s.getAEStack().getItem() == ItemRegistry.FLUID_DROP) {
                 NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
                 nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
                 AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.FLUID_OPERATE, nbt));
-            } else if (ModItems.GAS_DROP != null && s.getAEStack().getItem() == ModItems.GAS_DROP) {
+            } else if (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP) {
                 NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
                 nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
                 AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_OPERATE, nbt));
-            } else if (ModItems.ESSENTIA_DROP != null && s.getAEStack().getItem() == ModItems.ESSENTIA_DROP) {
+            } else if (ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP) {
                 // 源质暂不支持空手持提取，直接取消点击防止客户端执行默认逻辑
                 // 服务器端由 MixinAEBaseContainer 兜底拦截
             }
@@ -118,7 +119,7 @@ public class MixinGuiMEMonitorableClick {
      * 气体点击处理（对应 ae2fc 的 mek$handleMouseClick）。
      */
     private boolean mek$handleMouseClick(SlotME s, ItemStack mouseItem) {
-        boolean isGas = s.getAEStack() != null && s.getAEStack().getItem() == ModItems.GAS_DROP;
+        boolean isGas = s.getAEStack() != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP;
         if (isGas || getGasFromItem(mouseItem) != null) {
             Object gas = isGas ? FakeItemRegister.getStack(s.getAEStack()) : null;
             NBTTagCompound nbt = new NBTTagCompound();

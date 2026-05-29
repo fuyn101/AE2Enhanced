@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.structure;
 
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalMeInterface;
@@ -78,16 +78,16 @@ public class HyperdimensionalStructure {
 
     public static boolean validate(World world, BlockPos controllerPos) {
         EnumFacing facing = getControllerFacing(world, controllerPos);
-        if (!checkBlock(world, controllerPos, CONTROLLER_SET, ModBlocks.HYPERDIMENSIONAL_CONTROLLER, facing)) {
+        if (!checkBlock(world, controllerPos, CONTROLLER_SET, BlockRegistry.HYPERDIMENSIONAL_CONTROLLER, facing)) {
             return false;
         }
-        if (!checkBlock(world, controllerPos, ME_INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE, facing)) {
+        if (!checkBlock(world, controllerPos, ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, facing)) {
             return false;
         }
-        if (!checkBlock(world, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE, facing)) {
+        if (!checkBlock(world, controllerPos, CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, facing)) {
             return false;
         }
-        if (!checkBlock(world, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING, facing)) {
+        if (!checkBlock(world, controllerPos, CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, facing)) {
             return false;
         }
         return true;
@@ -109,9 +109,9 @@ public class HyperdimensionalStructure {
     public static Map<Block, Integer> getMissingMap(World world, BlockPos controllerPos) {
         EnumFacing facing = getControllerFacing(world, controllerPos);
         Map<Block, Integer> missing = new LinkedHashMap<>();
-        countMissing(world, controllerPos, ME_INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE, missing, facing);
-        countMissing(world, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE, missing, facing);
-        countMissing(world, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING, missing, facing);
+        countMissing(world, controllerPos, ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, missing, facing);
+        countMissing(world, controllerPos, CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, missing, facing);
+        countMissing(world, controllerPos, CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, missing, facing);
         return missing;
     }
 
@@ -148,11 +148,11 @@ public class HyperdimensionalStructure {
     }
 
     private static void updateMeInterfaceState(World world, BlockPos controllerPos, boolean formed, EnumFacing facing) {
-        IBlockState state = ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.getDefaultState()
+        IBlockState state = BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE.getDefaultState()
             .withProperty(com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalMeInterface.FORMED, formed);
         for (BlockPos rel : ME_INTERFACE_SET) {
             BlockPos pos = controllerPos.add(rotate(rel, facing));
-            if (world.getBlockState(pos).getBlock() == ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE) {
+            if (world.getBlockState(pos).getBlock() == BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE) {
                 world.setBlockState(pos, state);
                 net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
                 if (te instanceof TileHyperdimensionalMeInterface) {
@@ -182,9 +182,9 @@ public class HyperdimensionalStructure {
         if (world.isRemote) return;
         EnumFacing facing = getControllerFacing(world, controllerPos);
 
-        placeBlocks(world, controllerPos, ME_INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE, facing);
-        placeBlocks(world, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE, facing);
-        placeBlocks(world, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING, facing);
+        placeBlocks(world, controllerPos, ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, facing);
+        placeBlocks(world, controllerPos, CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, facing);
+        placeBlocks(world, controllerPos, CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, facing);
 
         // 立即触发组装（跳过 20 tick 等待）
         assemble(world, controllerPos);
@@ -208,9 +208,9 @@ public class HyperdimensionalStructure {
         EnumFacing facing = getControllerFacing(world, controllerPos);
 
         Map<Block, Integer> missing = new LinkedHashMap<>();
-        countMissing(world, controllerPos, ME_INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE, missing, facing);
-        countMissing(world, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE, missing, facing);
-        countMissing(world, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING, missing, facing);
+        countMissing(world, controllerPos, ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, missing, facing);
+        countMissing(world, controllerPos, CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, missing, facing);
+        countMissing(world, controllerPos, CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, missing, facing);
 
         if (missing.isEmpty()) {
             assemble(world, controllerPos);

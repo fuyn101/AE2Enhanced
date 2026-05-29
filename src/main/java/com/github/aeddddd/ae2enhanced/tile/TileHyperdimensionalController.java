@@ -7,7 +7,7 @@ import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.me.helpers.AENetworkProxy;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.storage.FluidStorageAdapter;
@@ -92,7 +92,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
 
     @Override
     protected ItemStack getProxyRepresentation() {
-        return new ItemStack(ModBlocks.HYPERDIMENSIONAL_CONTROLLER);
+        return new ItemStack(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER);
     }
 
     @Nonnull

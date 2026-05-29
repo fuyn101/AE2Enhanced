@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.command;
 import appeng.core.AEConfig;
 import appeng.core.features.AEFeature;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
@@ -213,7 +213,7 @@ public class CommandAE2Enhanced extends CommandBase {
             return;
         }
         EntityPlayerMP player = (EntityPlayerMP) sender;
-        ItemStack stack = new ItemStack(ModBlocks.HYPERDIMENSIONAL_CONTROLLER);
+        ItemStack stack = new ItemStack(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER);
         NBTTagCompound tag = new NBTTagCompound();
         tag.setUniqueId("nexusId", uuid);
         stack.setTagCompound(tag);

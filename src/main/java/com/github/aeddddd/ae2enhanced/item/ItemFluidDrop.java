@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.Fluid;
@@ -29,7 +30,7 @@ public class ItemFluidDrop extends AbstractNbtDrop {
         if (fluid == null || fluid.getFluid() == null || fluid.amount <= 0) {
             return ItemStack.EMPTY;
         }
-        ItemStack stack = new ItemStack(ModItems.FLUID_DROP, fluid.amount);
+        ItemStack stack = new ItemStack(ItemRegistry.FLUID_DROP, fluid.amount);
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString(FLUID_TAG, fluid.getFluid().getName());
         if (fluid.tag != null) {

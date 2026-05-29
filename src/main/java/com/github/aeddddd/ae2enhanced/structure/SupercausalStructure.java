@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.structure;
 
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import net.minecraft.block.Block;
 import net.minecraft.tileentity.TileEntity;
@@ -934,9 +934,9 @@ public class SupercausalStructure {
         for (BlockPos rel : TENSOR_CASING_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_TENSOR_FIELD_CASING) {
+            if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_TENSOR_FIELD_CASING) {
                 if (actual.equals(controllerPos)) continue; // 控制器位置由核心方块占用，跳过
-                missing.put(ModBlocks.CONSTANT_TENSOR_FIELD_CASING, missing.getOrDefault(ModBlocks.CONSTANT_TENSOR_FIELD_CASING, 0) + 1);
+                missing.put(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, missing.getOrDefault(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, 0) + 1);
             }
         }
 
@@ -944,10 +944,10 @@ public class SupercausalStructure {
         for (BlockPos rel : CAUSAL_ANCHOR_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() == ModBlocks.CAUSAL_ANCHOR_CORE) {
+            if (world.getBlockState(actual).getBlock() == BlockRegistry.CAUSAL_ANCHOR_CORE) {
                 causalCount++;
             } else {
-                missing.put(ModBlocks.CAUSAL_ANCHOR_CORE, missing.getOrDefault(ModBlocks.CAUSAL_ANCHOR_CORE, 0) + 1);
+                missing.put(BlockRegistry.CAUSAL_ANCHOR_CORE, missing.getOrDefault(BlockRegistry.CAUSAL_ANCHOR_CORE, 0) + 1);
             }
         }
 
@@ -955,8 +955,8 @@ public class SupercausalStructure {
         for (BlockPos rel : SPINOR_CASING_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_SPINOR_FIELD_CASING) {
-                missing.put(ModBlocks.CONSTANT_SPINOR_FIELD_CASING, missing.getOrDefault(ModBlocks.CONSTANT_SPINOR_FIELD_CASING, 0) + 1);
+            if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_SPINOR_FIELD_CASING) {
+                missing.put(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, missing.getOrDefault(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, 0) + 1);
             }
         }
 
@@ -964,10 +964,10 @@ public class SupercausalStructure {
         BlockPos meInterfacePos = controllerPos.add(rotate(ME_INTERFACE_REL, facing));
         boolean meInterfaceValid = false;
         if (world.isBlockLoaded(meInterfacePos)) {
-            meInterfaceValid = world.getBlockState(meInterfacePos).getBlock() == ModBlocks.SUPER_CRAFTING_INTERFACE;
+            meInterfaceValid = world.getBlockState(meInterfacePos).getBlock() == BlockRegistry.SUPER_CRAFTING_INTERFACE;
         }
         if (!meInterfaceValid) {
-            missing.put(ModBlocks.SUPER_CRAFTING_INTERFACE, missing.getOrDefault(ModBlocks.SUPER_CRAFTING_INTERFACE, 0) + 1);
+            missing.put(BlockRegistry.SUPER_CRAFTING_INTERFACE, missing.getOrDefault(BlockRegistry.SUPER_CRAFTING_INTERFACE, 0) + 1);
         }
 
         boolean passed = missing.isEmpty();
@@ -1013,13 +1013,13 @@ public class SupercausalStructure {
         if (world.isRemote) return;
         EnumFacing facing = getControllerFacing(world, controllerPos);
 
-        placeBlocks(world, controllerPos, TENSOR_CASING_SET, ModBlocks.CONSTANT_TENSOR_FIELD_CASING, facing, player);
-        placeBlocks(world, controllerPos, CAUSAL_ANCHOR_SET, ModBlocks.CAUSAL_ANCHOR_CORE, facing, player);
-        placeBlocks(world, controllerPos, SPINOR_CASING_SET, ModBlocks.CONSTANT_SPINOR_FIELD_CASING, facing, player);
+        placeBlocks(world, controllerPos, TENSOR_CASING_SET, BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, facing, player);
+        placeBlocks(world, controllerPos, CAUSAL_ANCHOR_SET, BlockRegistry.CAUSAL_ANCHOR_CORE, facing, player);
+        placeBlocks(world, controllerPos, SPINOR_CASING_SET, BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, facing, player);
 
         BlockPos meInterfacePos = controllerPos.add(rotate(ME_INTERFACE_REL, facing));
-        if (world.getBlockState(meInterfacePos).getBlock() != ModBlocks.SUPER_CRAFTING_INTERFACE) {
-            world.setBlockState(meInterfacePos, ModBlocks.SUPER_CRAFTING_INTERFACE.getDefaultState());
+        if (world.getBlockState(meInterfacePos).getBlock() != BlockRegistry.SUPER_CRAFTING_INTERFACE) {
+            world.setBlockState(meInterfacePos, BlockRegistry.SUPER_CRAFTING_INTERFACE.getDefaultState());
         }
 
         assemble(world, controllerPos);
@@ -1062,27 +1062,27 @@ public class SupercausalStructure {
         for (BlockPos rel : TENSOR_CASING_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_TENSOR_FIELD_CASING) {
-                missing.put(ModBlocks.CONSTANT_TENSOR_FIELD_CASING, missing.getOrDefault(ModBlocks.CONSTANT_TENSOR_FIELD_CASING, 0) + 1);
+            if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_TENSOR_FIELD_CASING) {
+                missing.put(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, missing.getOrDefault(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, 0) + 1);
             }
         }
         for (BlockPos rel : CAUSAL_ANCHOR_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() != ModBlocks.CAUSAL_ANCHOR_CORE) {
-                missing.put(ModBlocks.CAUSAL_ANCHOR_CORE, missing.getOrDefault(ModBlocks.CAUSAL_ANCHOR_CORE, 0) + 1);
+            if (world.getBlockState(actual).getBlock() != BlockRegistry.CAUSAL_ANCHOR_CORE) {
+                missing.put(BlockRegistry.CAUSAL_ANCHOR_CORE, missing.getOrDefault(BlockRegistry.CAUSAL_ANCHOR_CORE, 0) + 1);
             }
         }
         for (BlockPos rel : SPINOR_CASING_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
-            if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_SPINOR_FIELD_CASING) {
-                missing.put(ModBlocks.CONSTANT_SPINOR_FIELD_CASING, missing.getOrDefault(ModBlocks.CONSTANT_SPINOR_FIELD_CASING, 0) + 1);
+            if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_SPINOR_FIELD_CASING) {
+                missing.put(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, missing.getOrDefault(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, 0) + 1);
             }
         }
         BlockPos meInterfacePos = controllerPos.add(rotate(ME_INTERFACE_REL, facing));
-        if (world.isBlockLoaded(meInterfacePos) && world.getBlockState(meInterfacePos).getBlock() != ModBlocks.SUPER_CRAFTING_INTERFACE) {
-            missing.put(ModBlocks.SUPER_CRAFTING_INTERFACE, missing.getOrDefault(ModBlocks.SUPER_CRAFTING_INTERFACE, 0) + 1);
+        if (world.isBlockLoaded(meInterfacePos) && world.getBlockState(meInterfacePos).getBlock() != BlockRegistry.SUPER_CRAFTING_INTERFACE) {
+            missing.put(BlockRegistry.SUPER_CRAFTING_INTERFACE, missing.getOrDefault(BlockRegistry.SUPER_CRAFTING_INTERFACE, 0) + 1);
         }
 
         if (missing.isEmpty()) {

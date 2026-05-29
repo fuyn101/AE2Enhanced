@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client.render;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
@@ -177,40 +177,40 @@ public class StructurePlacementPreview {
     private static void collectAssemblyGhosts(net.minecraft.world.World world, BlockPos controllerPos, EnumFacing facing,
                                                List<GhostBlock> out, BlockRendererDispatcher dispatcher) {
         BlockPos origin = controllerPos.add(rotate(new BlockPos(0, 0, 7), facing));
-        collectGhostSet(world, origin, facing, AssemblyStructure.CORE_SET, ModBlocks.ASSEMBLY_CONTROLLER, out, dispatcher);
-        collectGhostSet(world, origin, facing, AssemblyStructure.PART1_SET, ModBlocks.ASSEMBLY_ME_INTERFACE, out, dispatcher);
-        collectGhostSet(world, origin, facing, AssemblyStructure.PART2_SET, ModBlocks.ASSEMBLY_CASING, out, dispatcher);
-        collectGhostSet(world, origin, facing, AssemblyStructure.PART3_SET, ModBlocks.ASSEMBLY_INNER_WALL, out, dispatcher);
-        collectGhostSet(world, origin, facing, AssemblyStructure.PART4_SET, ModBlocks.ASSEMBLY_STABILIZER, out, dispatcher);
+        collectGhostSet(world, origin, facing, AssemblyStructure.CORE_SET, BlockRegistry.ASSEMBLY_CONTROLLER, out, dispatcher);
+        collectGhostSet(world, origin, facing, AssemblyStructure.PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, out, dispatcher);
+        collectGhostSet(world, origin, facing, AssemblyStructure.PART2_SET, BlockRegistry.ASSEMBLY_CASING, out, dispatcher);
+        collectGhostSet(world, origin, facing, AssemblyStructure.PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, out, dispatcher);
+        collectGhostSet(world, origin, facing, AssemblyStructure.PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, out, dispatcher);
     }
 
     private static void collectHyperdimensionalGhosts(net.minecraft.world.World world, BlockPos controllerPos, EnumFacing facing,
                                                        List<GhostBlock> out, BlockRendererDispatcher dispatcher) {
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CONTROLLER_SET, ModBlocks.HYPERDIMENSIONAL_CONTROLLER, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.ME_INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING, out, dispatcher);
+        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CONTROLLER_SET, BlockRegistry.HYPERDIMENSIONAL_CONTROLLER, out, dispatcher);
+        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, out, dispatcher);
+        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, out, dispatcher);
+        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, out, dispatcher);
     }
 
     private static void collectSupercausalGhosts(net.minecraft.world.World world, BlockPos controllerPos, EnumFacing facing,
                                                   List<GhostBlock> out, BlockRendererDispatcher dispatcher) {
         BlockPos meActual = controllerPos.add(rotate(SupercausalStructure.ME_INTERFACE_REL, facing));
-        collectGhostBlock(world, meActual, ModBlocks.SUPER_CRAFTING_INTERFACE, out, dispatcher);
+        collectGhostBlock(world, meActual, BlockRegistry.SUPER_CRAFTING_INTERFACE, out, dispatcher);
 
         for (BlockPos rel : SupercausalStructure.TENSOR_CASING_SET) {
             if (rel.equals(SupercausalStructure.CONTROLLER_REL)) continue;
             BlockPos actual = controllerPos.add(rotate(rel, facing));
-            collectGhostBlock(world, actual, ModBlocks.CONSTANT_TENSOR_FIELD_CASING, out, dispatcher);
+            collectGhostBlock(world, actual, BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, out, dispatcher);
         }
 
         for (BlockPos rel : SupercausalStructure.CAUSAL_ANCHOR_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
-            collectGhostBlock(world, actual, ModBlocks.CAUSAL_ANCHOR_CORE, out, dispatcher);
+            collectGhostBlock(world, actual, BlockRegistry.CAUSAL_ANCHOR_CORE, out, dispatcher);
         }
 
         for (BlockPos rel : SupercausalStructure.SPINOR_CASING_SET) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
-            collectGhostBlock(world, actual, ModBlocks.CONSTANT_SPINOR_FIELD_CASING, out, dispatcher);
+            collectGhostBlock(world, actual, BlockRegistry.CONSTANT_SPINOR_FIELD_CASING, out, dispatcher);
         }
     }
 

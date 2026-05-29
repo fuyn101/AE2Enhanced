@@ -2,7 +2,8 @@ package com.github.aeddddd.ae2enhanced.util.fakeitem;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemGasDrop;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
@@ -105,15 +106,15 @@ public final class FakeGases {
     }
 
     public static ItemStack packGas2Drops(GasStack stack) {
-        return FakeItemRegister.packStack(stack, ModItems.GAS_DROP);
+        return FakeItemRegister.packStack(stack, ItemRegistry.GAS_DROP);
     }
 
     public static IAEItemStack packGas2AEDrops(GasStack stack) {
-        return FakeItemRegister.packAEStack(stack, ModItems.GAS_DROP);
+        return FakeItemRegister.packAEStack(stack, ItemRegistry.GAS_DROP);
     }
 
     public static IAEItemStack packGas2AEDrops(IAEGasStack stack) {
-        return FakeItemRegister.packAEStackLong(stack, ModItems.GAS_DROP);
+        return FakeItemRegister.packAEStackLong(stack, ItemRegistry.GAS_DROP);
     }
 
     // 兼容方法：供 MixinNetworkMonitorGas / MixinNetworkInventoryHandlerGas 调用

@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.structure;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
@@ -48,11 +48,11 @@ public class StructureEventHandler {
         BlockPos pos = event.getPos();
         // 如果是控制器本身被破坏，立即解散（不用等 tick）
         Block brokenBlock = world.getBlockState(pos).getBlock();
-        if (brokenBlock == ModBlocks.ASSEMBLY_CONTROLLER) {
+        if (brokenBlock == BlockRegistry.ASSEMBLY_CONTROLLER) {
             AssemblyStructure.disassemble(world, pos);
-        } else if (brokenBlock == ModBlocks.HYPERDIMENSIONAL_CONTROLLER) {
+        } else if (brokenBlock == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER) {
             HyperdimensionalStructure.disassemble(world, pos);
-        } else if (brokenBlock == ModBlocks.COMPUTATION_CORE) {
+        } else if (brokenBlock == BlockRegistry.COMPUTATION_CORE) {
             SupercausalStructure.disassemble(world, pos);
         }
         checkSurroundingControllers(world, pos);
@@ -202,7 +202,7 @@ public class StructureEventHandler {
         }
 
         Block controllerBlock = world.getBlockState(controllerPos).getBlock();
-        if (controllerBlock == ModBlocks.ASSEMBLY_CONTROLLER) {
+        if (controllerBlock == BlockRegistry.ASSEMBLY_CONTROLLER) {
             boolean valid = AssemblyStructure.validate(world, controllerPos);
             TileEntity te = world.getTileEntity(controllerPos);
             if (te instanceof TileAssemblyController) {
@@ -213,7 +213,7 @@ public class StructureEventHandler {
                     AssemblyStructure.disassemble(world, controllerPos);
                 }
             }
-        } else if (controllerBlock == ModBlocks.HYPERDIMENSIONAL_CONTROLLER) {
+        } else if (controllerBlock == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER) {
             boolean valid = HyperdimensionalStructure.validate(world, controllerPos);
             TileEntity te = world.getTileEntity(controllerPos);
             if (te instanceof TileHyperdimensionalController) {
@@ -224,7 +224,7 @@ public class StructureEventHandler {
                     HyperdimensionalStructure.disassemble(world, controllerPos);
                 }
             }
-        } else if (controllerBlock == ModBlocks.COMPUTATION_CORE) {
+        } else if (controllerBlock == BlockRegistry.COMPUTATION_CORE) {
             SupercausalStructure.ValidationResult result = SupercausalStructure.validate(world, controllerPos);
             TileEntity te = world.getTileEntity(controllerPos);
             if (te instanceof TileComputationCore) {

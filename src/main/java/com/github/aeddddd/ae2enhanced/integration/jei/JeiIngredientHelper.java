@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import mekanism.api.gas.GasStack;
@@ -29,7 +30,7 @@ public class JeiIngredientHelper {
         }
 
         // 流体假物品 -> FluidStack
-        if (stack.getItem() == ModItems.FLUID_DROP) {
+        if (stack.getItem() == ItemRegistry.FLUID_DROP) {
             FluidStack fluid = FakeItemRegister.getStack(stack);
             if (fluid != null) {
                 return fluid;
@@ -37,7 +38,7 @@ public class JeiIngredientHelper {
         }
 
         // 气体假物品 -> GasStack
-        if (ModItems.GAS_DROP != null && stack.getItem() == ModItems.GAS_DROP) {
+        if (ItemRegistry.GAS_DROP != null && stack.getItem() == ItemRegistry.GAS_DROP) {
             GasStack gas = FakeItemRegister.getStack(stack);
             if (gas != null) {
                 return gas;
@@ -45,7 +46,7 @@ public class JeiIngredientHelper {
         }
 
         // 源质假物品 -> Thaumcraft crystal essence ItemStack
-        if (ModItems.ESSENTIA_DROP != null && stack.getItem() == ModItems.ESSENTIA_DROP) {
+        if (ItemRegistry.ESSENTIA_DROP != null && stack.getItem() == ItemRegistry.ESSENTIA_DROP) {
             String aspectTag = ItemEssentiaDrop.getAspectTag(stack);
             if (aspectTag != null) {
                 Aspect aspect = Aspect.getAspect(aspectTag);

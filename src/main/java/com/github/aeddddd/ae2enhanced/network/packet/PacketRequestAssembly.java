@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
@@ -51,7 +51,7 @@ public class PacketRequestAssembly implements IMessage {
                 TileEntity te = world.getTileEntity(pos);
                 boolean success = false;
 
-                if (world.getBlockState(pos).getBlock() == ModBlocks.ASSEMBLY_CONTROLLER
+                if (world.getBlockState(pos).getBlock() == BlockRegistry.ASSEMBLY_CONTROLLER
                         && te instanceof TileAssemblyController) {
                     TileAssemblyController tile = (TileAssemblyController) te;
                     if (tile.isFormed()) return;
@@ -61,7 +61,7 @@ public class PacketRequestAssembly implements IMessage {
                     } else {
                         success = AssemblyStructure.tryConsumeAndPlace(world, pos, player);
                     }
-                } else if (world.getBlockState(pos).getBlock() == ModBlocks.HYPERDIMENSIONAL_CONTROLLER
+                } else if (world.getBlockState(pos).getBlock() == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER
                         && te instanceof TileHyperdimensionalController) {
                     TileHyperdimensionalController tile = (TileHyperdimensionalController) te;
                     if (tile.isFormed()) return;
@@ -71,7 +71,7 @@ public class PacketRequestAssembly implements IMessage {
                     } else {
                         success = HyperdimensionalStructure.tryConsumeAndPlace(world, pos, player);
                     }
-                } else if (world.getBlockState(pos).getBlock() == ModBlocks.COMPUTATION_CORE
+                } else if (world.getBlockState(pos).getBlock() == BlockRegistry.COMPUTATION_CORE
                         && te instanceof TileComputationCore) {
                     TileComputationCore tile = (TileComputationCore) te;
                     if (tile.isFormed()) return;

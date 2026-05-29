@@ -8,7 +8,8 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.tile.inventory.AppEngInternalAEInventory;
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import net.minecraft.tileentity.TileEntity;
@@ -27,7 +28,7 @@ public class EssentiaBusHelper {
     // region FakeEssentias 功能（供 Mixin / Helper 自身使用）
 
     public static IAEItemStack packEssentia(IAEEssentiaStack essentiaStack) {
-        return FakeItemRegister.packAEStack(essentiaStack, ModItems.ESSENTIA_DROP);
+        return FakeItemRegister.packAEStack(essentiaStack, ItemRegistry.ESSENTIA_DROP);
     }
 
     public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {

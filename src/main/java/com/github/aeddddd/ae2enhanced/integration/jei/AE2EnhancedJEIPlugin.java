@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
-import com.github.aeddddd.ae2enhanced.ModItems;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
@@ -39,18 +40,18 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         IIngredientBlacklist blacklist = registry.getJeiHelpers().getIngredientBlacklist();
 
         // E2a：将假物品加入 JEI 黑名单，避免在物品列表中显示
-        if (ModItems.ESSENTIA_DROP != null) {
+        if (ItemRegistry.ESSENTIA_DROP != null) {
             for (ItemStack stack : ItemEssentiaDrop.getAllAspectStacks()) {
                 blacklist.addIngredientToBlacklist(stack);
             }
         }
-        if (ModItems.FLUID_DROP != null) {
+        if (ItemRegistry.FLUID_DROP != null) {
             // 隐藏基础流体假物品（getSubItems 已返回空，黑名单确保基础物品也不显示）
-            blacklist.addIngredientToBlacklist(new ItemStack(ModItems.FLUID_DROP));
+            blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.FLUID_DROP));
 
         }
-        if (ModItems.GAS_DROP != null) {
-            blacklist.addIngredientToBlacklist(new ItemStack(ModItems.GAS_DROP));
+        if (ItemRegistry.GAS_DROP != null) {
+            blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.GAS_DROP));
 
         }
 

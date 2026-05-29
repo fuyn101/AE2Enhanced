@@ -3,9 +3,11 @@ package com.github.aeddddd.ae2enhanced;
 import com.github.aeddddd.ae2enhanced.event.ModEventHandler;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
+import com.github.aeddddd.ae2enhanced.registry.GameRegistryManager;
 import com.github.aeddddd.ae2enhanced.registry.ModContent;
 import com.github.aeddddd.ae2enhanced.registry.ModNetwork;
 import com.github.aeddddd.ae2enhanced.registry.ModRecipes;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.ConfigManager;
@@ -47,13 +49,14 @@ public class AE2Enhanced {
     public static final CreativeTabs CREATIVE_TAB = new CreativeTabs(MOD_ID) {
         @Override
         public ItemStack createIcon() {
-            return new ItemStack(ModItems.CONFORMAL_CHARGE);
+            return new ItemStack(ItemRegistry.CONFORMAL_CHARGE);
         }
     };
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         ConfigManager.sync(MOD_ID, net.minecraftforge.common.config.Config.Type.INSTANCE);
+        GameRegistryManager.initItems();
         ModContent.preInit();
         ModNetwork.init();
         proxy.preInit(event);

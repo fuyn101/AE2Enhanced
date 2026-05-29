@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.structure;
 
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.block.Block;
@@ -429,22 +429,22 @@ public class AssemblyStructure {
         BlockPos origin = getOriginFromController(controllerPos, facing);
 
         // 优先检查 core
-        if (!checkBlock(world, origin, CORE_SET, ModBlocks.ASSEMBLY_CONTROLLER, facing)) {
+        if (!checkBlock(world, origin, CORE_SET, BlockRegistry.ASSEMBLY_CONTROLLER, facing)) {
             return false;
         }
 
         // 优先检查 part1（ME 接口，结构完整性关键）
-        if (!checkBlock(world, origin, PART1_SET, ModBlocks.ASSEMBLY_ME_INTERFACE, facing)) {
+        if (!checkBlock(world, origin, PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, facing)) {
             return false;
         }
 
-        if (!checkBlock(world, origin, PART2_SET, ModBlocks.ASSEMBLY_CASING, facing)) {
+        if (!checkBlock(world, origin, PART2_SET, BlockRegistry.ASSEMBLY_CASING, facing)) {
             return false;
         }
-        if (!checkBlock(world, origin, PART3_SET, ModBlocks.ASSEMBLY_INNER_WALL, facing)) {
+        if (!checkBlock(world, origin, PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, facing)) {
             return false;
         }
-        if (!checkBlock(world, origin, PART4_SET, ModBlocks.ASSEMBLY_STABILIZER, facing)) {
+        if (!checkBlock(world, origin, PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, facing)) {
             return false;
         }
 
@@ -472,10 +472,10 @@ public class AssemblyStructure {
         BlockPos origin = getOriginFromController(controllerPos, facing);
         Map<Block, Integer> missing = new LinkedHashMap<>();
 
-        countMissing(world, origin, PART1_SET, ModBlocks.ASSEMBLY_ME_INTERFACE, missing, facing);
-        countMissing(world, origin, PART2_SET, ModBlocks.ASSEMBLY_CASING, missing, facing);
-        countMissing(world, origin, PART3_SET, ModBlocks.ASSEMBLY_INNER_WALL, missing, facing);
-        countMissing(world, origin, PART4_SET, ModBlocks.ASSEMBLY_STABILIZER, missing, facing);
+        countMissing(world, origin, PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, missing, facing);
+        countMissing(world, origin, PART2_SET, BlockRegistry.ASSEMBLY_CASING, missing, facing);
+        countMissing(world, origin, PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, missing, facing);
+        countMissing(world, origin, PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, missing, facing);
 
         return missing;
     }
@@ -521,11 +521,11 @@ public class AssemblyStructure {
     }
 
     private static void updateMeInterfaceState(World world, BlockPos origin, boolean formed, BlockPos controllerPos, EnumFacing facing) {
-        IBlockState state = ModBlocks.ASSEMBLY_ME_INTERFACE.getDefaultState()
+        IBlockState state = BlockRegistry.ASSEMBLY_ME_INTERFACE.getDefaultState()
             .withProperty(com.github.aeddddd.ae2enhanced.block.BlockAssemblyMeInterface.FORMED, formed);
         for (BlockPos rel : PART1_SET) {
             BlockPos pos = origin.add(rotate(rel, facing));
-            if (world.getBlockState(pos).getBlock() == ModBlocks.ASSEMBLY_ME_INTERFACE) {
+            if (world.getBlockState(pos).getBlock() == BlockRegistry.ASSEMBLY_ME_INTERFACE) {
                 world.setBlockState(pos, state);
                 net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
                 if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileAssemblyMeInterface) {
@@ -550,10 +550,10 @@ public class AssemblyStructure {
         EnumFacing facing = getControllerFacing(world, controllerPos);
         BlockPos origin = getOriginFromController(controllerPos, facing);
 
-        placeBlocks(world, origin, PART1_SET, ModBlocks.ASSEMBLY_ME_INTERFACE, facing);
-        placeBlocks(world, origin, PART2_SET, ModBlocks.ASSEMBLY_CASING, facing);
-        placeBlocks(world, origin, PART3_SET, ModBlocks.ASSEMBLY_INNER_WALL, facing);
-        placeBlocks(world, origin, PART4_SET, ModBlocks.ASSEMBLY_STABILIZER, facing);
+        placeBlocks(world, origin, PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, facing);
+        placeBlocks(world, origin, PART2_SET, BlockRegistry.ASSEMBLY_CASING, facing);
+        placeBlocks(world, origin, PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, facing);
+        placeBlocks(world, origin, PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, facing);
 
         // 立即触发组装（跳过 20 tick 等待）
         assemble(world, controllerPos);
@@ -578,10 +578,10 @@ public class AssemblyStructure {
         BlockPos origin = getOriginFromController(controllerPos, facing);
 
         Map<Block, Integer> missing = new LinkedHashMap<>();
-        countMissing(world, origin, PART1_SET, ModBlocks.ASSEMBLY_ME_INTERFACE, missing, facing);
-        countMissing(world, origin, PART2_SET, ModBlocks.ASSEMBLY_CASING, missing, facing);
-        countMissing(world, origin, PART3_SET, ModBlocks.ASSEMBLY_INNER_WALL, missing, facing);
-        countMissing(world, origin, PART4_SET, ModBlocks.ASSEMBLY_STABILIZER, missing, facing);
+        countMissing(world, origin, PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, missing, facing);
+        countMissing(world, origin, PART2_SET, BlockRegistry.ASSEMBLY_CASING, missing, facing);
+        countMissing(world, origin, PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, missing, facing);
+        countMissing(world, origin, PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, missing, facing);
 
         if (missing.isEmpty()) {
             assemble(world, controllerPos);

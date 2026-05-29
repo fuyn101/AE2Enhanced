@@ -9,7 +9,7 @@ import appeng.api.util.AEPartLocation;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.util.Platform;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
@@ -86,7 +86,7 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
     @Override
     protected ItemStack getProxyRepresentation() {
-        return new ItemStack(ModBlocks.WIRELESS_CHANNEL_TRANSMITTER);
+        return new ItemStack(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
     }
 
     @Override
