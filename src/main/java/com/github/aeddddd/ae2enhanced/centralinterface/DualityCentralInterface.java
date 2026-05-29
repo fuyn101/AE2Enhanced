@@ -25,14 +25,19 @@ import appeng.util.inv.InvOperation;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
+import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
@@ -222,6 +227,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
+        // 推送流体输入（如果配方包含流体）
+        IAEItemStack[] patternInputs = patternDetails.getInputs();
+        if (patternInputs != null && !pushFluidInputs(proxy, world, target.pos, patternInputs)) {
+            return false;
+        }
+
         // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
             return false;
@@ -364,6 +375,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             IAEItemStack[] expected = this.pendingOutputs.get(target);
             List<ItemStack> products = handler.collectProducts(world, target.pos, expected, new appeng.me.helpers.MachineSource(this.host));
 
+            // 收集流体产物
+            List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, expected);
+            if (!fluidProducts.isEmpty()) {
+                products.addAll(fluidProducts);
+            }
+
             if (!products.isEmpty()) {
                 if (injectItemsToNetwork(proxy, world, products)) {
                     entry.setValue(TargetState.IDLE);
@@ -426,6 +443,106 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         } catch (appeng.me.GridAccessException e) {
             // 网络未连接，保持 storage 中
         }
+    }
+
+    // ---- 流体支持 ----
+
+    /**
+     * 将配方中的流体输入推送到目标的 IFluidHandler。
+     * 先 simulate 确保可完全填充，再从网络提取并实际推送。
+     */
+    private boolean pushFluidInputs(AENetworkProxy proxy, World world, BlockPos pos, IAEItemStack[] inputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) return true;
+
+        for (IAEItemStack input : inputs) {
+            if (input == null || input.getStackSize() <= 0) continue;
+            ItemStack stack = input.createItemStack();
+            if (!ItemFluidDrop.isFluidDrop(stack)) continue;
+
+            FluidStack fluid = ItemFluidDrop.getFluidStack(stack);
+            if (fluid == null) continue;
+
+            // 从 AE 网络提取流体（以 ItemFluidDrop 形式）
+            IAEItemStack toExtract = input.copy();
+            toExtract.setStackSize(fluid.amount);
+            IAEItemStack extracted = null;
+            try {
+                IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                extracted = Platform.poweredExtraction(proxy.getEnergy(), proxy.getStorage().getInventory(channel), toExtract, new appeng.me.helpers.MachineSource(this.host));
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to extract fluid from network for CentralInterface", e);
+                return false;
+            }
+
+            if (extracted == null || extracted.getStackSize() <= 0) {
+                return false;
+            }
+
+            FluidStack toPush = fluid.copy();
+            toPush.amount = (int) extracted.getStackSize();
+
+            // 尝试推送到目标的 IFluidHandler（先 simulate）
+            boolean pushed = false;
+            for (EnumFacing face : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
+                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+                    if (fh != null) {
+                        int filled = fh.fill(toPush, false);
+                        if (filled >= toPush.amount) {
+                            fh.fill(toPush, true);
+                            pushed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!pushed) {
+                // 回退：将提取的流体注回网络
+                try {
+                    IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                    Platform.poweredInsert(proxy.getEnergy(), proxy.getStorage().getInventory(channel), extracted, new appeng.me.helpers.MachineSource(this.host));
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to return fluid to network", e);
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 从目标的 IFluidHandler 收集流体产物。
+     */
+    private List<ItemStack> collectFluidProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
+        List<ItemStack> fluids = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null || expectedOutputs == null) return fluids;
+
+        for (IAEItemStack expected : expectedOutputs) {
+            if (expected == null || expected.getStackSize() <= 0) continue;
+            ItemStack stack = expected.createItemStack();
+            if (!ItemFluidDrop.isFluidDrop(stack)) continue;
+
+            FluidStack expectedFluid = ItemFluidDrop.getFluidStack(stack);
+            if (expectedFluid == null) continue;
+
+            for (EnumFacing face : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
+                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+                    if (fh != null) {
+                        FluidStack drained = fh.drain(expectedFluid, false);
+                        if (drained != null && drained.amount >= expectedFluid.amount) {
+                            fh.drain(expectedFluid, true);
+                            fluids.add(ItemFluidDrop.createStack(expectedFluid));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return fluids;
     }
 
     private boolean hasWorkToDo() {
