@@ -221,24 +221,27 @@ public class EnderCrafterHandler implements IRemoteHandler {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public boolean isIdle(World world, BlockPos pos) {
         initBaseReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
 
         try {
-            int progress = (int) METHOD_GET_PROGRESS.invoke(te);
-            int progressReq = (int) METHOD_GET_PROGRESS_REQUIRED.invoke(te);
-
-            // 合成完成
-            if (progressReq > 0 && progress >= progressReq) {
+            // 有产物可收集：无论 progress 状态如何，只要 result 非空就视为完成
+            ItemStack result = (ItemStack) METHOD_GET_RESULT.invoke(te);
+            if (!result.isEmpty()) {
                 return true;
             }
 
-            // 空闲且无产物
+            int progress = (int) METHOD_GET_PROGRESS.invoke(te);
             if (progress == 0) {
-                ItemStack result = (ItemStack) METHOD_GET_RESULT.invoke(te);
-                return result.isEmpty();
+                // 无产物且无进度：检查 matrix 是否也空，避免刚 push 材料后误判为 idle
+                List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
+                for (ItemStack stack : matrix) {
+                    if (!stack.isEmpty()) return false;
+                }
+                return true;
             }
         } catch (Exception e) {
             return false;
