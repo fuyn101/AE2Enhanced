@@ -69,16 +69,7 @@ xml/
 zone/
 *.txt
 AGENTS.md
-AGENTS_*.md
 
-### Project Assets (source files) ###
-AssemblyTexture/
-Texture/
-Supercausal Assembly Hub.json
-Hyperdimensional Storage Nexus.json
-Supercausal_Computation_Core.json
-bus_upgrade_area.png
-storage_upgrade_area.png
 
 ### Bytecode / Decompiled classes ###
 *.class
@@ -91,17 +82,10 @@ inspection_reports/
 
 
 ### Runtime generated (Mixin refmaps / decompiled classes) ###
-/appeng/
-/com/
-/mekanism/
-/thaumcraft/
-/mixins.ae2enhanced.json
-/mixins.ae2fc.json
+
 log/
 
 
-Center.md
-
-
+docs/
+research/
 CHANGELOG*.md
-temp*/
