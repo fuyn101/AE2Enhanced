@@ -13,6 +13,7 @@ import appeng.client.gui.widgets.GuiScrollbar;
 import appeng.client.gui.widgets.GuiTabButton;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.client.me.InternalSlotME;
+import appeng.container.interfaces.IJEIGhostIngredients;
 import appeng.container.slot.AppEngSlot;
 import appeng.client.me.SlotME;
 import appeng.client.ActionKey;
@@ -20,6 +21,7 @@ import appeng.core.AEConfig;
 import appeng.core.AppEng;
 import appeng.core.localization.GuiText;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
@@ -42,7 +44,7 @@ import java.io.IOException;
 /**
  * 全能无线终端 GUI —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
  */
-public class GuiOmniTerm extends GuiMEMonitorable {
+public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredients {
 
     private static final ResourceLocation OMNI_BG = new ResourceLocation("ae2enhanced", "textures/gui/omnigui.png");
     private static final ResourceLocation PATTERN_MODES = new ResourceLocation("ae2enhanced", "textures/gui/pattern_modes.png");
@@ -633,5 +635,49 @@ public class GuiOmniTerm extends GuiMEMonitorable {
         return null;
     }
 
+    // ---- JEI Ghost Ingredient Handler ----
 
+    private final java.util.Map<mezz.jei.api.gui.IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new java.util.HashMap<>();
+
+    @Override
+    public java.util.List<mezz.jei.api.gui.IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
+        this.mapTargetSlot.clear();
+
+        boolean isItem = ingredient instanceof ItemStack;
+        boolean isFluid = ingredient instanceof net.minecraftforge.fluids.FluidStack;
+        boolean isGas = false;
+        if (!isItem && !isFluid) {
+            try {
+                isGas = ingredient.getClass().getName().equals("mekanism.api.gas.GasStack");
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (!isItem && !isFluid && !isGas) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.ArrayList<mezz.jei.api.gui.IGhostIngredientHandler.Target<?>> targets = new java.util.ArrayList<>();
+        for (Slot slot : this.inventorySlots.inventorySlots) {
+            if (slot instanceof RCSlotFakeCraftingMatrix) {
+                if (((RCSlotFakeCraftingMatrix) slot).visible) {
+                    GhostIngredientTarget target = new GhostIngredientTarget(this.getGuiLeft(), this.getGuiTop(), slot);
+                    targets.add(target);
+                    this.mapTargetSlot.putIfAbsent(target, slot);
+                }
+            } else if (slot instanceof RCSlotPatternOutputs) {
+                if (((RCSlotPatternOutputs) slot).visible) {
+                    GhostIngredientTarget target = new GhostIngredientTarget(this.getGuiLeft(), this.getGuiTop(), slot);
+                    targets.add(target);
+                    this.mapTargetSlot.putIfAbsent(target, slot);
+                }
+            }
+        }
+        return targets;
+    }
+
+    @Override
+    public java.util.Map<mezz.jei.api.gui.IGhostIngredientHandler.Target<?>, Object> getFakeSlotTargetMap() {
+        return this.mapTargetSlot;
+    }
 }
