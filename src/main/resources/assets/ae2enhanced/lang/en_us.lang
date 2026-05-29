@@ -290,6 +290,6 @@ message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 
 # Advanced Platform
-tile.ae2enhanced.platform_rf_node.name=Platform RF Access Node
+tile.ae2enhanced.rf_access_node.name=Platform RF Access Node
 item.ae2enhanced.energy_drop.name=RF Energy Drop
 

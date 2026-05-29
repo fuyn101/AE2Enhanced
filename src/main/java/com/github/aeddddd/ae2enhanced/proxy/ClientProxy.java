@@ -199,6 +199,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
         registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
         registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
+        registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
 
         // 注册升级卡的所有模型 variant
         ModelLoader.registerItemVariants(ItemRegistry.UPGRADE_CARD,
@@ -260,6 +261,7 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.OMNI_WIRELESS_TERMINAL);
         registerItemModel(ItemRegistry.SMART_BLANK_PATTERN);
         registerItemModel(ItemRegistry.SMART_PATTERN);
+        registerItemModel(ItemRegistry.ENERGY_DROP);
 
         // Omni 专用升级卡模型（根据 metadata 动态选择）
         ModelLoader.registerItemVariants(ItemRegistry.OMNI_UPGRADE_CARD,

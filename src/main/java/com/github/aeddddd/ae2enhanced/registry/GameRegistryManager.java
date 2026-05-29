@@ -79,7 +79,7 @@ public final class GameRegistryManager {
             BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter(),
             BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
             BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
-            BlockRegistry.PLATFORM_RF_NODE = new BlockPlatformRFNode()
+            BlockRegistry.RF_ACCESS_NODE = new BlockRFAccessNode()
         );
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
@@ -92,7 +92,7 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
         GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
-        GameRegistry.registerTileEntity(TilePlatformRFNode.class, AE2Enhanced.MOD_ID + ":platform_rf_node");
+        GameRegistry.registerTileEntity(TileRFAccessNode.class, AE2Enhanced.MOD_ID + ":rf_access_node");
     }
 
     @SubscribeEvent
@@ -117,7 +117,7 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.PLATFORM_RF_NODE).setRegistryName(BlockRegistry.PLATFORM_RF_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+            new ItemBlock(BlockRegistry.RF_ACCESS_NODE).setRegistryName(BlockRegistry.RF_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
 
         // Items

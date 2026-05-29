@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
@@ -13,7 +12,6 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.me.helpers.MachineSource;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageAdapter;
@@ -30,15 +28,16 @@ import java.util.List;
 
 /**
  * RF 访问节点 TileEntity。
- * 将外部 RF 网络（Forge Energy）桥接到 AE2 ME 网络的 RF 存储通道。
+ * 通用独立的 ME-RF 桥接器，将外部 RF 能量网络接入 AE2 ME 网络的 RF 存储通道。
+ * 不绑定任何平台系统，可放置于任意位置。
  */
-public class TilePlatformRFNode extends TileAENetworkBase
+public class TileRFAccessNode extends TileAENetworkBase
         implements IGridTickable, ICellContainer, IActionHost, IEnergyStorage {
 
     private EnergyStorageAdapter energyStorage;
     private MachineSource machineSource;
 
-    public TilePlatformRFNode() {
+    public TileRFAccessNode() {
         updateCapacityFromConfig();
     }
 
@@ -55,12 +54,12 @@ public class TilePlatformRFNode extends TileAENetworkBase
 
     @Override
     protected String getProxyName() {
-        return "platform_rf_node";
+        return "rf_access_node";
     }
 
     @Override
     protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.PLATFORM_RF_NODE);
+        return new ItemStack(BlockRegistry.RF_ACCESS_NODE);
     }
 
     @Override
@@ -69,18 +68,20 @@ public class TilePlatformRFNode extends TileAENetworkBase
     }
 
     @Override
+    public void disassemble() {
+        // RF 节点不参与多方块结构，无需解体逻辑
+    }
+
+    @Override
     public void securityBreak() {
         this.world.destroyBlock(this.pos, true);
     }
 
+    // === IActionHost ===
+
     @Override
     public IGridNode getActionableNode() {
         return this.getProxy().getNode();
-    }
-
-    @Override
-    public void disassemble() {
-        // RF 节点不参与多方块结构，无需解体逻辑
     }
 
     // === IGridTickable ===
