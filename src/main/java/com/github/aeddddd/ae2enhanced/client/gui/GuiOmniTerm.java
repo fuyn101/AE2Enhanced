@@ -210,7 +210,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         GuiScrollbar itemScrollBar = this.getScrollBar();
         if (itemScrollBar != null) {
             itemScrollBar.setLeft(337).setTop(18).setHeight(this.omniRows * 18);
-            itemScrollBar.setRange(0, Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows), 1);
+            this.updateItemScrollRange();
         }
 
         // 7. 添加合成计划按钮（先移除 super.initGui() 在 viewCell=true 时创建的中间位置旧按钮）
@@ -645,7 +645,11 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     }
 
     private void updateItemScrollRange() {
-        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - this.omniRows);
+        int effectiveRows = this.omniRows;
+        if (!this.container.getClientActiveCrafting().isEmpty()) {
+            effectiveRows--; // 第一行被合成置顶占用
+        }
+        int maxScroll = Math.max(0, (this.repo.size() + 17) / 18 - effectiveRows);
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
             bar.setRange(0, maxScroll, 1);
