@@ -8,7 +8,7 @@
 - **项目目录整理**：新建 `docs/` 与 `research/` 目录；清理 17 个临时/反编译目录
 - **配方 JSON 化**：将工作台合成配方迁移至 JSON 格式
 - **性能优化**：为 `DualityCentralInterface` 新增 `processingTargets` 快速路径 `HashSet`，实现 O(1) 的 PROCESSING 目标访问
-- **创造模式标签页清理**：将假物品（`ItemFluidDrop`、`ItemGasDrop`、`ItemEssentiaDrop`）从创造模式标签页中移除
+- **创造模式标签页清理**：整理标签页
 
 ### 中枢 ME 接口（Central ME Interface）
 - **增强通用单方块机器的产物回收能力**：`DefaultSingleBatchHandler` 现在记录已推送的输入材料，仅收集非输入物品
@@ -22,25 +22,35 @@
 
 ### 全能终端（Omni Terminal）
 - 新增 **Alt+JEI 处理配方传输**至右侧样板存储区
-- 新增**显示单元（View Cell）**支持
-- 新增** JEI 幽灵拖拽**支持，用于样板编码器
+- 新增显示元件(View Cell)支持
+- 新增 JEI 拖拽支持，用于样板编码器
 - 重构 `GuiOmniTerm`：消除每帧反射，缓存 `ResourceLocation`，抽象槽位定位逻辑
-- 修复 Alt-pull 模式：改为传输输入材料而非输出产物
 - 修复 viewCell 槽位在 `jeiOffset` 与 `extraHeight` 下的定位问题
 
 ### 智能样板接口（Smart Pattern Interface）
 - 完成智能样板接口，包含 81 槽 **MiniGUI 滚动编辑器**
+- 智能样板接口允许绑定一个方块实体,生成该方块实体所能进行的所有配方
+- 提供了非常多配置项
+- 优秀的兼容性:支持存在JEI页面的所有机器
+- 支持AE2fcru
+- 采用uuid存储,避免NBT过大导致的相关问题,提供了相应的GC机制回收弃用的智能样板
 - 支持分页、锁定/解锁、保留主输出/双倍模式按钮
-- 新增**智能样板垃圾回收器**，带 ME 接口白名单与手动 `/ae2e` 命令
 - 为所有 GUI 操作添加客户端预测
 - 修复滚轮、本地化、冲突排序与编码问题
 
-### 通用记忆卡（UMC / Universal Memory Card）
+### 通用内存卡（UMC / Universal Memory Card）
 - 新增**跨模组升级处理器**：Mekanism、Ender IO、Thermal Expansion
 - 集成自定义 UMC GUI 纹理
 - 重构升级处理：统一的 `ensureAvailable` + ME 网络回退，原子化粘贴流程
 - 修复绑定/清除后渲染不更新的问题
 - 修复各类跨模组处理器崩溃与 bug（TE 转换套件索引、MEK 层级安装器、增强验证等）
+
+### 指令支持
+- 允许使用`/ae2e`或`/ae2enhanced`来执行模组注册的指令
+- channel 允许实时调整频道设置,开关频道限制
+- 允许通过指令找回丢失的超维度仓储中枢主方块(包含uuid)
+- 允许手动启用智能样板GC
+
 
 ### Bug 修复
 - 修复 **CrazyAE + SCC** 兼容性崩溃
