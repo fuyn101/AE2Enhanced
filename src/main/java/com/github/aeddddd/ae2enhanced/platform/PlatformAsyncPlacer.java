@@ -203,10 +203,13 @@ public class PlatformAsyncPlacer {
         }
 
         private IBlockState determineState(BlockPos pos) {
-            int minX = (centerPos.getX() >> 4 << 4) - 32;
-            int minZ = (centerPos.getZ() >> 4 << 4) - 32;
-            boolean isEdge = pos.getX() >= minX + 15 || pos.getZ() >= minZ + 15;
-            return isEdge ? edgeState : surfaceState;
+            // 每个 16×16 区块独立判断：西北角 15×15 为白色，其余为黑色
+            int chunkStartX = (pos.getX() >> 4) << 4;
+            int chunkStartZ = (pos.getZ() >> 4) << 4;
+            int localX = pos.getX() - chunkStartX;
+            int localZ = pos.getZ() - chunkStartZ;
+            boolean isWhite = localX < 15 && localZ < 15;
+            return isWhite ? surfaceState : edgeState;
         }
 
         private static IBlockState parseBlockState(String registryName, int meta) {
