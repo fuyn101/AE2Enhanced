@@ -67,6 +67,8 @@ public class PlatformAsyncPlacer {
         private final int surfaceY;
         private final IBlockState surfaceState;
         private final IBlockState edgeState;
+        private final int platformMinX;
+        private final int platformMinZ;
 
         private Phase phase = Phase.SCANNING;
         private int scanIndex = 0;
@@ -83,6 +85,10 @@ public class PlatformAsyncPlacer {
                     AE2EnhancedConfig.advancedPlatform.platformSurfaceMeta);
             this.edgeState = parseBlockState(AE2EnhancedConfig.advancedPlatform.platformEdgeBlock,
                     AE2EnhancedConfig.advancedPlatform.platformEdgeMeta);
+            int centerChunkStartX = (centerPos.getX() >> 4) << 4;
+            int centerChunkStartZ = (centerPos.getZ() >> 4) << 4;
+            this.platformMinX = centerChunkStartX - 32;
+            this.platformMinZ = centerChunkStartZ - 32;
         }
 
         public boolean tick() {
@@ -103,16 +109,14 @@ public class PlatformAsyncPlacer {
         }
 
         private boolean tickScanning() {
-            int minX = (centerPos.getX() >> 4 << 4) - 32;
-            int minZ = (centerPos.getZ() >> 4 << 4) - 32;
             int total = 80 * 80 * 3;
             int scanPerTick = AE2EnhancedConfig.advancedPlatform.scanBlocksPerTick;
 
             int done = 0;
             while (scanIndex < total && done < scanPerTick) {
                 int localIdx = scanIndex++;
-                int x = minX + (localIdx % 80);
-                int z = minZ + ((localIdx / 80) % 80);
+                int x = platformMinX + (localIdx % 80);
+                int z = platformMinZ + ((localIdx / 80) % 80);
                 int y = surfaceY - 1 + (localIdx / 6400);
                 done++;
 
@@ -141,11 +145,8 @@ public class PlatformAsyncPlacer {
         }
 
         private void buildPlaceQueue() {
-            int minX = (centerPos.getX() >> 4 << 4) - 32;
-            int minZ = (centerPos.getZ() >> 4 << 4) - 32;
-
-            for (int x = minX; x <= minX + 79; x++) {
-                for (int z = minZ; z <= minZ + 79; z++) {
+            for (int x = platformMinX; x <= platformMinX + 79; x++) {
+                for (int z = platformMinZ; z <= platformMinZ + 79; z++) {
                     if (x == centerPos.getX() && z == centerPos.getZ()) continue;
                     placeQueue.add(new BlockPos(x, surfaceY, z));
                 }
@@ -172,11 +173,9 @@ public class PlatformAsyncPlacer {
             world.setBlockState(centerPos, BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getDefaultState(), 2);
             TileEntity te = world.getTileEntity(centerPos);
             if (te instanceof TileAdvancedPlatformController) {
-                int minX = (centerPos.getX() >> 4 << 4) - 32;
-                int minZ = (centerPos.getZ() >> 4 << 4) - 32;
                 ((TileAdvancedPlatformController) te).activatePlatform(
-                        new BlockPos(minX, surfaceY, minZ),
-                        new BlockPos(minX + 79, surfaceY, minZ + 79),
+                        new BlockPos(platformMinX, surfaceY, platformMinZ),
+                        new BlockPos(platformMinX + 79, surfaceY, platformMinZ + 79),
                         surfaceY);
             }
             PlatformOverlapManager.get(world).registerPlatform(centerPos, 5);
@@ -208,6 +207,10 @@ public class PlatformAsyncPlacer {
             int chunkStartZ = (pos.getZ() >> 4) << 4;
             int localX = pos.getX() - chunkStartX;
             int localZ = pos.getZ() - chunkStartZ;
+            // 每个区块的 15×15 中心放黑色标记，最中心区块的中心是控制器（已在 placeQueue 中排除）
+            if (localX == 7 && localZ == 7) {
+                return edgeState;
+            }
             boolean isWhite = localX < 15 && localZ < 15;
             return isWhite ? surfaceState : edgeState;
         }

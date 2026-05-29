@@ -54,7 +54,7 @@ public class PacketPlatformGenerateRequest implements IMessage {
 
                 int chunkX = target.getX() >> 4;
                 int chunkZ = target.getZ() >> 4;
-                BlockPos controllerPos = new BlockPos(chunkX * 16 + 8, target.getY(), chunkZ * 16 + 8);
+                BlockPos controllerPos = new BlockPos(chunkX * 16 + 7, target.getY(), chunkZ * 16 + 7);
 
                 if (!PlatformOverlapManager.get(world).canClaim(controllerPos, 5)) {
                     player.sendMessage(new TextComponentString("§c该区域已存在平台，无法重叠生成。"));
