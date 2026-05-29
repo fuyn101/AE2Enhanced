@@ -462,9 +462,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         for (int i = 0; i < table.getSizeInventory(); i++) {
             ItemStack stack = table.getStackInSlot(i);
-            if (stack.isEmpty() || !ItemFluidDrop.isFluidDrop(stack)) continue;
+            if (stack.isEmpty()) continue;
 
-            FluidStack fluid = ItemFluidDrop.getFluidStack(stack);
+            FluidStack fluid = null;
+            if (ItemFluidDrop.isFluidDrop(stack)) {
+                fluid = ItemFluidDrop.getFluidStack(stack);
+            } else {
+                // 兼容 ae2fc 的 ItemFluidDrop / ItemFluidPacket
+                String itemClass = stack.getItem().getClass().getName();
+                if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
+                        || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+                    fluid = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
+                }
+            }
             if (fluid == null) continue;
 
             // 尝试推送到目标的 IFluidHandler（先 simulate 再实际填充）
@@ -525,9 +535,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         for (IAEItemStack expected : expectedOutputs) {
             if (expected == null || expected.getStackSize() <= 0) continue;
             ItemStack stack = expected.createItemStack();
-            if (!ItemFluidDrop.isFluidDrop(stack)) continue;
-
-            FluidStack expectedFluid = ItemFluidDrop.getFluidStack(stack);
+            FluidStack expectedFluid = null;
+            if (ItemFluidDrop.isFluidDrop(stack)) {
+                expectedFluid = ItemFluidDrop.getFluidStack(stack);
+            } else {
+                String itemClass = stack.getItem().getClass().getName();
+                if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
+                        || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+                    expectedFluid = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
+                }
+            }
             if (expectedFluid == null) continue;
 
             for (EnumFacing face : EnumFacing.values()) {
