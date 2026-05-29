@@ -192,6 +192,9 @@ public class AE2Enhanced {
         // 中枢 ME 接口合成配方：4 ME 接口围绕稳态时空流形，产出 4 个
         registerCentralInterfaceRecipe();
 
+        // 智能样板接口合成配方：8 ME 接口 + 1 下界之星
+        registerSmartPatternInterfaceRecipe();
+
         registerSingularityRecipes();
         // 执行 CraftTweaker 延迟移除（CT 脚本可能在 init() 之前执行）
         BlackHoleRecipeRegistry.applyPendingRemovals();
@@ -316,6 +319,30 @@ public class AE2Enhanced {
         }
     }
 
+    private void registerSmartPatternInterfaceRecipe() {
+        ItemStack smartPatternInterface = new ItemStack(ModBlocks.SMART_PATTERN_INTERFACE, 1);
+
+        // 获取 AE2 ME 接口方块物品
+        ItemStack ae2Interface = appeng.api.AEApi.instance().definitions().blocks().iface()
+                .maybeStack(1).orElse(ItemStack.EMPTY);
+        ItemStack netherStar = new ItemStack(Items.NETHER_STAR);
+
+        if (!ae2Interface.isEmpty() && !netherStar.isEmpty()) {
+            net.minecraft.item.crafting.Ingredient ingInterface = net.minecraft.item.crafting.Ingredient.fromStacks(ae2Interface);
+            net.minecraft.item.crafting.Ingredient ingStar = net.minecraft.item.crafting.Ingredient.fromStacks(netherStar);
+            net.minecraftforge.fml.common.registry.GameRegistry.addShapelessRecipe(
+                    new net.minecraft.util.ResourceLocation(MOD_ID, "smart_pattern_interface"),
+                    null,
+                    smartPatternInterface,
+                    ingInterface, ingInterface, ingInterface, ingInterface,
+                    ingInterface, ingInterface, ingInterface, ingInterface,
+                    ingStar
+            );
+        } else {
+            LOGGER.warn("[AE2E] 无法注册智能样板接口合成配方：AE2 ME 接口或下界之星不可用");
+        }
+    }
+
     private void registerSingularityRecipes() {
         // 系统 A：黑洞生成仪式 —— 64 AE2 奇点 + 4 下界之星 + 1 ME 控制器方块
         // 手持下界之星右键 ME 控制器触发，生成微型奇点
@@ -380,6 +407,16 @@ public class AE2Enhanced {
                 new ItemStack(ModItems.CONFORMAL_CHARGE, 1)
         ));
 
+        // 智能空白样板：64 空白样板通过黑洞合成
+        if (ae2Material != null) {
+            java.util.Map<String, Integer> smartPatternInputs = new java.util.HashMap<>();
+            smartPatternInputs.put("appliedenergistics2:material:52", 64);
+            BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
+                    "smart_blank_pattern",
+                    smartPatternInputs,
+                    new ItemStack(ModItems.SMART_BLANK_PATTERN, 1)
+            ));
+        }
 
     }
 
