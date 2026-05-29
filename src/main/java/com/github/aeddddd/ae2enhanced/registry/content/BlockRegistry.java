@@ -41,4 +41,7 @@ public final class BlockRegistry {
 
     // RF 访问节点（通用 ME-RF 桥接器，独立于平台系统）
     public static BlockRFAccessNode RF_ACCESS_NODE;
+
+    // 先进中枢平台
+    public static BlockAdvancedPlatformController ADVANCED_PLATFORM_CONTROLLER;
 }

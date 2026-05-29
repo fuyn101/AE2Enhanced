@@ -21,6 +21,11 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternReplace;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformEnergySync;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformGenerateRequest;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformGenerateResult;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketSelectionUpdate;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
@@ -57,5 +62,11 @@ public final class ModNetwork {
         nw.registerMessage(PacketSmartPatternModify.Handler.class, PacketSmartPatternModify.class, 18, Side.SERVER);
         nw.registerMessage(PacketSmartPatternReplace.Handler.class, PacketSmartPatternReplace.class, 19, Side.SERVER);
         nw.registerMessage(PacketSmartPatternMiniGuiScroll.Handler.class, PacketSmartPatternMiniGuiScroll.class, 20, Side.SERVER);
+
+        nw.registerMessage(PacketPlatformGenerateRequest.Handler.class, PacketPlatformGenerateRequest.class, 21, Side.SERVER);
+        nw.registerMessage(PacketPlatformGenerateResult.Handler.class, PacketPlatformGenerateResult.class, 22, Side.CLIENT);
+        nw.registerMessage(PacketPlatformEnergySync.Handler.class, PacketPlatformEnergySync.class, 23, Side.CLIENT);
+        nw.registerMessage(PacketRTSStateChange.Handler.class, PacketRTSStateChange.class, 24, Side.CLIENT);
+        nw.registerMessage(PacketSelectionUpdate.Handler.class, PacketSelectionUpdate.class, 25, Side.CLIENT);
     }
 }

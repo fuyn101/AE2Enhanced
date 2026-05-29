@@ -293,3 +293,7 @@ message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 tile.ae2enhanced.rf_access_node.name=RF Access Node
 item.ae2enhanced.energy_drop.name=RF Energy Drop
 
+
+tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
+item.ae2enhanced.platform_development_license.name=Platform Development License
+message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.

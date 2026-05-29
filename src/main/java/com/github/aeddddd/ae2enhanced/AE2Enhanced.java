@@ -63,6 +63,8 @@ public class AE2Enhanced {
         GameRegistryManager.initItems();
         ModContent.preInit();
         ModNetwork.init();
+        net.minecraftforge.common.ForgeChunkManager.setForcedChunkLoadingCallback(instance,
+                new com.github.aeddddd.ae2enhanced.platform.PlatformChunkLoadingCallback());
         proxy.preInit(event);
     }
 

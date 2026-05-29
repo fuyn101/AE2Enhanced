@@ -26,4 +26,7 @@ public final class ItemRegistry {
 
     // 先进中枢平台 — RF 假物品
     public static ItemEnergyDrop ENERGY_DROP;
+
+    // 先进中枢平台 — 平台开发许可
+    public static ItemPlatformDevelopmentLicense PLATFORM_DEVELOPMENT_LICENSE;
 }

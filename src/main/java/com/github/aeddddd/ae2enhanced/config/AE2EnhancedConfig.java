@@ -353,13 +353,6 @@ public class AE2EnhancedConfig {
         public int controllerRfExtractPerTick = 10000;
 
         @Config.Comment({
-            "RF access node internal capacity.",
-            "Range: 100000 ~ 2147483647, Default: 5000000"
-        })
-        @Config.RangeInt(min = 100000, max = 2147483647)
-        public int rfNodeCapacity = 5000000;
-
-        @Config.Comment({
             "Blocks placed per tick during platform generation.",
             "Range: 1 ~ 1000, Default: 100"
         })
