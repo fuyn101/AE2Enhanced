@@ -863,7 +863,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== JEI 配方转移 ==================
 
     public void loadPattern(byte mode, boolean isCrafting, int gridSize, java.util.Map<Integer, ItemStack> inputs, java.util.Map<Integer, ItemStack> outputs) {
-        // mode: 0=default/both, 1=encoding only (shift), 2=crafting only (alt), 3=alt+shift extract to storage
+        // mode: 0=default/both, 1=encoding only (shift), 2=alt (crafting→合成栏, processing→右侧存储区)
 
         if (isCrafting) {
             // Crafting recipe: 可以填充左边合成台和右边编码区
@@ -898,21 +898,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             // Processing recipe
             if (mode == 2) {
-                // Alt: 只填编码区 inputs，不填 outputs，也不碰右侧存储区
-                if (this.patternCraftMode) {
-                    this.setPatternCraftMode(false);
-                }
-                for (int i = 0; i < 81; i++) {
-                    this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
-                }
-                for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
-                    int slot = entry.getKey();
-                    if (slot >= 0 && slot < 81) {
-                        this.patternCraftingInv.setStackInSlot(slot, entry.getValue().copy());
-                    }
-                }
-            } else if (mode == 3) {
-                // Alt+Shift: 从网络提取 outputs 放入右侧 27 槽样板存储区
+                // Alt: processing → 从网络提取 outputs 放入右侧 27 槽样板存储区
                 for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
                     this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
                 }

@@ -81,12 +81,10 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
 
         byte mode;
         boolean isAlt = Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
-        if (isAlt && maxTransfer) {
-            mode = 3; // Alt+Shift: processing 时从网络提取 outputs 到右侧存储区
+        if (isAlt) {
+            mode = 2; // Alt: crafting → 合成栏, processing → 右侧存储区（从网络提取）
         } else if (maxTransfer) {
             mode = 1; // Shift: 只到编码区
-        } else if (isAlt) {
-            mode = 2; // Alt: 只到合成区 (crafting) 或只填编码区 inputs (processing)
         } else {
             mode = 0; // 默认: 两边
         }
