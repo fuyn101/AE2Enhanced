@@ -175,11 +175,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
-        // 重新定位 view cell 槽位到右侧存储栏上方（水平排列）
+        // 重新定位 view cell 槽位到 GUI 最右侧（垂直排列）
         for (int i = 0; i < this.cellView.length; i++) {
             if (this.cellView[i] != null) {
-                this.cellView[i].xPos = 180 + i * 18;
-                this.cellView[i].yPos = 149;
+                this.cellView[i].xPos = 339; // 357 - 18
+                this.cellView[i].yPos = 18 + i * 18;
             }
         }
 
@@ -863,7 +863,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== JEI 配方转移 ==================
 
     public void loadPattern(byte mode, boolean isCrafting, int gridSize, java.util.Map<Integer, ItemStack> inputs, java.util.Map<Integer, ItemStack> outputs) {
-        // mode: 0=default/both, 1=encoding only (shift), 2=crafting only (alt)
+        // mode: 0=default/both, 1=encoding only (shift), 2=crafting only (alt), 3=alt+shift extract to storage
 
         if (isCrafting) {
             // Crafting recipe: 可以填充左边合成台和右边编码区
@@ -898,19 +898,37 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             // Processing recipe
             if (mode == 2) {
-                // Alt: 将配方物品放入右侧 27 槽样板存储区
+                // Alt: 只填编码区 inputs，不填 outputs，也不碰右侧存储区
+                if (this.patternCraftMode) {
+                    this.setPatternCraftMode(false);
+                }
+                for (int i = 0; i < 81; i++) {
+                    this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
+                }
+                for (java.util.Map.Entry<Integer, ItemStack> entry : inputs.entrySet()) {
+                    int slot = entry.getKey();
+                    if (slot >= 0 && slot < 81) {
+                        this.patternCraftingInv.setStackInSlot(slot, entry.getValue().copy());
+                    }
+                }
+            } else if (mode == 3) {
+                // Alt+Shift: 从网络提取 outputs 放入右侧 27 槽样板存储区
                 for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
                     this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
                 }
                 int slotIdx = 0;
-                for (ItemStack stack : inputs.values()) {
-                    if (slotIdx < this.rightPatternStorage.getSlots()) {
-                        this.rightPatternStorage.setStackInSlot(slotIdx++, stack.copy());
-                    }
-                }
-                for (ItemStack stack : outputs.values()) {
-                    if (slotIdx < this.rightPatternStorage.getSlots()) {
-                        this.rightPatternStorage.setStackInSlot(slotIdx++, stack.copy());
+                IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                for (ItemStack out : outputs.values()) {
+                    if (slotIdx >= this.rightPatternStorage.getSlots()) break;
+                    if (out == null || out.isEmpty()) continue;
+                    IAEItemStack toExtract = channel.createStack(out);
+                    if (toExtract != null) {
+                        toExtract.setStackSize(out.getCount());
+                        IAEItemStack extracted = Platform.poweredExtraction(
+                                this.getPowerSource(), this.getCellInventory(), toExtract, this.getActionSource());
+                        if (extracted != null && extracted.getStackSize() > 0) {
+                            this.rightPatternStorage.setStackInSlot(slotIdx++, extracted.createItemStack());
+                        }
                     }
                 }
             } else if (mode == 0 || mode == 1) {
