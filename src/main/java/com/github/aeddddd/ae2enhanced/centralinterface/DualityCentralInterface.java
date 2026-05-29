@@ -76,6 +76,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final Set<TargetBinding> processingTargets = new HashSet<>();
     // 记录每个目标当前正在合成的产物列表，用于 tick 收集时匹配
     private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
+    // 记录每个 PROCESSING 目标的推料开始时间，用于超时保护防止状态无限卡住
+    private final Map<TargetBinding, Long> processingStartTimes = new HashMap<>();
     // 虚拟合成产物暂存队列（等待 waitingFor 注册后再注入网络）
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
@@ -95,6 +97,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetStates.clear();
         this.processingTargets.clear();
         this.pendingOutputs.clear();
+        this.processingStartTimes.clear();
 
         this.config = new AppEngInternalAEInventory(this, NUMBER_OF_CONFIG_SLOTS, 512);
         this.patterns = new AppEngInternalInventory(this, NUMBER_OF_PATTERN_SLOTS, 1) {
@@ -245,6 +248,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
+            // 回退已推入的材料（handler 可能已部分推入）
+            List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+            if (!reverted.isEmpty()) {
+                injectItemsToNetwork(proxy, world, reverted);
+            }
             revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
@@ -268,6 +276,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         this.targetStates.put(target, TargetState.PROCESSING);
         this.processingTargets.add(target);
+        this.processingStartTimes.put(target, world.getTotalWorldTime());
 
         try {
             appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
@@ -376,6 +385,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (handler == null) {
                 this.targetStates.put(target, TargetState.IDLE);
                 this.pendingOutputs.remove(target);
+                this.processingStartTimes.remove(target);
                 it.remove();
                 continue;
             }
@@ -408,10 +418,25 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     it.remove();
                 }
             } else {
-                // 设备已 idle 但没有产物，重置状态允许重试
-                this.targetStates.put(target, TargetState.IDLE);
-                this.pendingOutputs.remove(target);
-                it.remove();
+                // 设备 idle 但未收集到产物，检查是否超时（600 ticks = 30 秒）
+                Long startTime = this.processingStartTimes.get(target);
+                long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
+                if (elapsed > 600) {
+                    // 超时：尝试兜底收集遗留产物，避免刷物品
+                    List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), new appeng.me.helpers.MachineSource(this.host));
+                    List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, this.pendingOutputs.get(target));
+                    if (!leftoverFluids.isEmpty()) {
+                        leftover.addAll(leftoverFluids);
+                    }
+                    if (!leftover.isEmpty()) {
+                        stashItemsToStorage(world, leftover);
+                    }
+                    this.targetStates.put(target, TargetState.IDLE);
+                    this.pendingOutputs.remove(target);
+                    this.processingStartTimes.remove(target);
+                    it.remove();
+                }
+                // 未超时：继续等待，不移除 processingTargets
             }
         }
 
@@ -718,6 +743,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetStates.remove(binding);
         this.processingTargets.remove(binding);
         this.pendingOutputs.remove(binding);
+        this.processingStartTimes.remove(binding);
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
         }
@@ -729,6 +755,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetStates.clear();
         this.processingTargets.clear();
         this.pendingOutputs.clear();
+        this.processingStartTimes.clear();
         this.boundBlockId = null;
         postPatternChangeEvent();
     }
@@ -796,6 +823,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetStates.clear();
         this.processingTargets.clear();
         this.pendingOutputs.clear();
+        this.processingStartTimes.clear();
         this.boundBlockId = data.hasKey("boundBlockId") ? data.getString("boundBlockId") : null;
         if (data.hasKey("bindings")) {
             NBTTagList list = data.getTagList("bindings", 10);

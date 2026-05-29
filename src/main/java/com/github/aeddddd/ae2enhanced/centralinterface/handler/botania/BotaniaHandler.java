@@ -49,6 +49,24 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 public class BotaniaHandler implements IRemoteHandler {
 
     private static final String TAG_PORTAL_FLAG = "_elvenPortal";
+    /** 推料后最小等待 tick 数，防止 isIdle 在产物尚未生成时过早返回 true */
+    private static final int MIN_PROCESSING_TICKS = 20;
+    /** 推料状态过期时间 */
+    private static final int STATE_EXPIRY_TICKS = 1200;
+
+    private static class PushState {
+        long pushTick;
+    }
+
+    private final java.util.Map<String, PushState> pushStates = new java.util.HashMap<>();
+
+    private static String key(World world, BlockPos pos) {
+        return world.provider.getDimension() + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ();
+    }
+
+    private void cleanupExpiredStates(long now) {
+        pushStates.entrySet().removeIf(e -> now - e.getValue().pushTick > STATE_EXPIRY_TICKS);
+    }
 
     @Override
     public boolean canHandle(String blockId) {
@@ -88,19 +106,26 @@ public class BotaniaHandler implements IRemoteHandler {
 
     @Override
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+        cleanupExpiredStates(world.getTotalWorldTime());
         TileEntity te = world.getTileEntity(pos);
+        boolean success = false;
         if (te instanceof TilePool) {
-            return pushMaterialsPool(world, pos, (TilePool) te, ingredients);
+            success = pushMaterialsPool(world, pos, (TilePool) te, ingredients);
         } else if (te instanceof TileAlfPortal) {
-            return pushMaterialsAlfPortal(world, pos, (TileAlfPortal) te, ingredients);
+            success = pushMaterialsAlfPortal(world, pos, (TileAlfPortal) te, ingredients);
         } else if (te instanceof TileTerraPlate) {
-            return pushMaterialsTerraPlate(world, pos, (TileTerraPlate) te, ingredients);
+            success = pushMaterialsTerraPlate(world, pos, (TileTerraPlate) te, ingredients);
         } else if (te instanceof TileRuneAltar) {
-            return pushMaterialsRuneAltar(world, pos, (TileRuneAltar) te, ingredients);
+            success = pushMaterialsRuneAltar(world, pos, (TileRuneAltar) te, ingredients);
         } else if (te instanceof TileAltar) {
-            return pushMaterialsAltar(world, pos, (TileAltar) te, ingredients);
+            success = pushMaterialsAltar(world, pos, (TileAltar) te, ingredients);
         }
-        return false;
+        if (success) {
+            PushState state = new PushState();
+            state.pushTick = world.getTotalWorldTime();
+            pushStates.put(key(world, pos), state);
+        }
+        return success;
     }
 
     @Override
@@ -117,16 +142,24 @@ public class BotaniaHandler implements IRemoteHandler {
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
         TileEntity te = world.getTileEntity(pos);
+        List<ItemStack> result;
         if (te instanceof TileRuneAltar) {
-            return collectProductsRuneAltar(world, pos, expectedOutputs);
+            result = collectProductsRuneAltar(world, pos, expectedOutputs);
         } else if (te instanceof TileAltar) {
-            return collectMatchingEntityItems(world, pos, expectedOutputs);
+            result = collectMatchingEntityItems(world, pos, expectedOutputs);
+        } else {
+            result = collectMatchingEntityItems(world, pos, expectedOutputs);
         }
-        return collectMatchingEntityItems(world, pos, expectedOutputs);
+        if (!result.isEmpty()) {
+            pushStates.remove(key(world, pos));
+        }
+        return result;
     }
 
     @Override
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        String k = key(world, pos);
+        pushStates.remove(k);
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileRuneAltar) {
             List<ItemStack> result = new ArrayList<>();
@@ -149,11 +182,28 @@ public class BotaniaHandler implements IRemoteHandler {
             }
             return result;
         }
-        return java.util.Collections.emptyList();
+        // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备，
+        // 尝试收集 AABB 内的所有 EntityItem 作为兜底回退
+        List<ItemStack> fallback = new ArrayList<>();
+        for (EntityItem item : getEntityItemsInAABB(world, pos)) {
+            if (!item.isDead && !item.getItem().isEmpty()) {
+                fallback.add(item.getItem().copy());
+                item.setDead();
+            }
+        }
+        return fallback;
     }
 
     @Override
     public boolean isIdle(World world, BlockPos pos) {
+        cleanupExpiredStates(world.getTotalWorldTime());
+        PushState state = pushStates.get(key(world, pos));
+        if (state != null) {
+            long elapsed = world.getTotalWorldTime() - state.pushTick;
+            if (elapsed < MIN_PROCESSING_TICKS) {
+                return false; // 刚推料，给机器至少 1 秒处理时间
+            }
+        }
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {
             return isIdlePool(world, pos);
