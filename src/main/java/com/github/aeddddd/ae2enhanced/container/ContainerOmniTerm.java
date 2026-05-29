@@ -899,11 +899,24 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 this.updatePatternCraftingRecipe();
             }
         } else {
-            // Processing recipe: 只填充编码区
+            // Processing recipe
             if (mode == 2) {
-                mode = 0;
-            }
-            if (mode == 0 || mode == 1) {
+                // Alt: 将配方物品放入右侧 27 槽样板存储区
+                for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
+                    this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
+                }
+                int slotIdx = 0;
+                for (ItemStack stack : inputs.values()) {
+                    if (slotIdx < this.rightPatternStorage.getSlots()) {
+                        this.rightPatternStorage.setStackInSlot(slotIdx++, stack.copy());
+                    }
+                }
+                for (ItemStack stack : outputs.values()) {
+                    if (slotIdx < this.rightPatternStorage.getSlots()) {
+                        this.rightPatternStorage.setStackInSlot(slotIdx++, stack.copy());
+                    }
+                }
+            } else if (mode == 0 || mode == 1) {
                 if (this.patternCraftMode) {
                     this.setPatternCraftMode(false);
                 }

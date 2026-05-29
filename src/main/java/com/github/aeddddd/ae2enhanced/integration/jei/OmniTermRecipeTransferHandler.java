@@ -80,17 +80,13 @@ public class OmniTermRecipeTransferHandler implements IRecipeTransferHandler<Con
         }
 
         byte mode;
+        boolean isAlt = Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
         if (maxTransfer) {
             mode = 1; // Shift: 只到编码区
-        } else if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) {
-            mode = 2; // Alt: 只到合成区
+        } else if (isAlt) {
+            mode = 2; // Alt: 只到合成区 (crafting) 或右侧存储区 (processing)
         } else {
             mode = 0; // 默认: 两边
-        }
-
-        // 处理配方没有合成区，Alt 模式回退到默认
-        if (!isCrafting && mode == 2) {
-            mode = 0;
         }
 
         AE2Enhanced.network.sendToServer(new PacketLoadOmniRecipe(mode, isCrafting, gridSize, inputs, outputs));
