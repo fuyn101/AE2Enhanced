@@ -2,7 +2,7 @@
 {
   "modid": "ae2enhanced",
   "name": "AE2Enhanced",
-  "description": "额外添加更多后期多方块",
+  "description": "Add many things for AE2-uel",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "https://github.com/aeddddd/AE2Enhanced",
