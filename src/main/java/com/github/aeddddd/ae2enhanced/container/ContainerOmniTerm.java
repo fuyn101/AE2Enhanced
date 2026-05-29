@@ -98,6 +98,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     // === 宿主 ===
     private final ITerminalHost terminalHost;
+
+    public boolean isViewCellSlot(Slot slot) {
+        for (int i = 0; i < this.cellView.length; i++) {
+            if (this.cellView[i] == slot) return true;
+        }
+        return false;
+    }
     private final WirelessTerminalGuiObject wirelessObject;
     private int wirelessTickCounter = 0;
 

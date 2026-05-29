@@ -148,7 +148,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             if (originalY != null) {
                 s.yPos = originalY;
             }
-            if (s.yPos >= 86) {
+            if (!this.container.isViewCellSlot(s) && s.yPos >= 86) {
                 s.yPos += this.extraHeight;
             }
         }
