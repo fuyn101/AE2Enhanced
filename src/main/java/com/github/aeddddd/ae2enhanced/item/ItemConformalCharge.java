@@ -18,7 +18,7 @@ public class ItemConformalCharge extends Item {
     public ItemConformalCharge() {
         setRegistryName(AE2Enhanced.MOD_ID, "conformal_invariant_charge");
         setTranslationKey(AE2Enhanced.MOD_ID + ".conformal_invariant_charge");
-        setCreativeTab(AE2Enhanced.CREATIVE_TAB); // 不显示在创造模式物品栏，通过黑洞合成获得
+        setCreativeTab(AE2Enhanced.CREATIVE_TAB);
     }
 
     @Override

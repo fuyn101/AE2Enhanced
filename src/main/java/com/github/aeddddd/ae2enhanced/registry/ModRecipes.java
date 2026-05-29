@@ -1,20 +1,16 @@
 package com.github.aeddddd.ae2enhanced.registry;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.ModBlocks;
 import com.github.aeddddd.ae2enhanced.ModItems;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
-import appeng.api.AEApi;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.common.registry.GameRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,58 +18,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 配方注册中心：工作台配方、黑洞合成配方、奇点仪式配方
+ * 配方注册中心：黑洞合成配方、奇点仪式配方。
+ * 工作台合成配方统一通过 assets/ae2enhanced/recipes/*.json 注册。
  */
 public final class ModRecipes {
 
     private ModRecipes() {}
 
     public static void init() {
-        registerCentralInterfaceRecipe();
-        registerSmartPatternInterfaceRecipe();
         registerSingularityRecipes();
-    }
-
-    private static void registerCentralInterfaceRecipe() {
-        ItemStack centralInterface = new ItemStack(ModBlocks.CENTRAL_ME_INTERFACE, 4);
-        ItemStack stableManifold = new ItemStack(ModItems.STABLE_SPACETIME_MANIFOLD);
-        ItemStack ae2Interface = AEApi.instance().definitions().blocks().iface()
-                .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        if (!ae2Interface.isEmpty() && !stableManifold.isEmpty()) {
-            GameRegistry.addShapedRecipe(
-                    new ResourceLocation(AE2Enhanced.MOD_ID, "central_me_interface"),
-                    null,
-                    centralInterface,
-                    " I ", "IMI", " I ",
-                    'I', ae2Interface,
-                    'M', stableManifold
-            );
-        } else {
-            AE2Enhanced.LOGGER.warn("[AE2E] 无法注册中枢 ME 接口合成配方：AE2 ME 接口或稳态时空流形不可用");
-        }
-    }
-
-    private static void registerSmartPatternInterfaceRecipe() {
-        ItemStack smartPatternInterface = new ItemStack(ModBlocks.SMART_PATTERN_INTERFACE, 1);
-        ItemStack ae2Interface = AEApi.instance().definitions().blocks().iface()
-                .maybeStack(1).orElse(ItemStack.EMPTY);
-        ItemStack netherStar = new ItemStack(Items.NETHER_STAR);
-
-        if (!ae2Interface.isEmpty() && !netherStar.isEmpty()) {
-            Ingredient ingInterface = Ingredient.fromStacks(ae2Interface);
-            Ingredient ingStar = Ingredient.fromStacks(netherStar);
-            GameRegistry.addShapelessRecipe(
-                    new ResourceLocation(AE2Enhanced.MOD_ID, "smart_pattern_interface"),
-                    null,
-                    smartPatternInterface,
-                    ingInterface, ingInterface, ingInterface, ingInterface,
-                    ingInterface, ingInterface, ingInterface, ingInterface,
-                    ingStar
-            );
-        } else {
-            AE2Enhanced.LOGGER.warn("[AE2E] 无法注册智能样板接口合成配方：AE2 ME 接口或下界之星不可用");
-        }
     }
 
     private static void registerSingularityRecipes() {

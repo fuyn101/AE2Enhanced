@@ -29,7 +29,7 @@ public class ItemEssentiaDrop extends Item {
     public ItemEssentiaDrop() {
         setRegistryName(AE2Enhanced.MOD_ID, "essentia_drop");
         setTranslationKey(AE2Enhanced.MOD_ID + ".essentia_drop");
-        setCreativeTab(null);
+        setCreativeTab(AE2Enhanced.CREATIVE_TAB);
         setHasSubtypes(false); // 不再使用 metadata，全部通过 NBT 区分
     }
 
