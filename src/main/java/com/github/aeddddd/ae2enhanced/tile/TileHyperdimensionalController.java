@@ -11,10 +11,12 @@ import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.storage.FluidStorageAdapter;
+import com.github.aeddddd.ae2enhanced.storage.HyperdimensionalEnergyStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.HyperdimensionalStorageFile;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.OptionalStorageManager;
 import com.github.aeddddd.ae2enhanced.storage.SimpleMEMonitor;
+import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import appeng.api.AEApi;
 import appeng.api.storage.IMEInventoryHandler;
 import net.minecraft.block.state.IBlockState;
@@ -44,6 +46,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     private HyperdimensionalStorageFile storageFile;
     private ItemStorageAdapter itemAdapter;
     private FluidStorageAdapter fluidAdapter;
+    private HyperdimensionalEnergyStorageAdapter energyAdapter;
     private OptionalStorageManager optionalStorage;
     private SimpleMEMonitor itemMonitor;
 
@@ -123,6 +126,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
         if (channel instanceof appeng.api.storage.channels.IFluidStorageChannel && fluidAdapter != null) {
             return Collections.singletonList(fluidAdapter);
+        }
+        if (channel instanceof IEnergyStorageChannel && energyAdapter != null) {
+            return Collections.singletonList(energyAdapter);
         }
         List<IMEInventoryHandler> optional = optionalStorage.getHandlers(channel);
         if (!optional.isEmpty()) return optional;
@@ -213,6 +219,11 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             fluidAdapter.setOnChangeCallback(null);
             fluidAdapter.setPostChangeCallback(this::postFluidAlteration);
 
+            energyAdapter = new HyperdimensionalEnergyStorageAdapter(storageFile);
+            storageFile.setEnergyStorageRef(energyAdapter.getStorageMap());
+            energyAdapter.setOnChangeCallback(null);
+            energyAdapter.setPostChangeCallback(this::postEnergyAlteration);
+
             optionalStorage = new OptionalStorageManager();
             optionalStorage.init(storageFile);
             Object gasAdapter = optionalStorage.getGasAdapter();
@@ -297,6 +308,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             refreshSingleMonitor(storageGrid.getInventory(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class)
             ));
+            refreshSingleMonitor(storageGrid.getInventory(
+                appeng.api.AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
+            ));
 
             if (optionalStorage != null) {
                 refreshOptionalMonitor(storageGrid, optionalStorage.getGasAdapter(),
@@ -355,6 +369,21 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
                 "[AE2E] Failed to post item alteration", e);
+        }
+    }
+
+    private void postEnergyAlteration(com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack change, appeng.api.networking.security.IActionSource src) {
+        try {
+            appeng.api.networking.IGrid grid = getProxy().getGrid();
+            if (grid == null) return;
+            appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
+            if (storageGrid == null) return;
+            storageGrid.postAlterationOfStoredItems(
+                AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class),
+                java.util.Collections.singletonList(change), src);
+        } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
+                "[AE2E] Failed to post energy alteration", e);
         }
     }
 
@@ -464,6 +493,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             storageFile = null;
             itemAdapter = null;
             fluidAdapter = null;
+            energyAdapter = null;
             itemMonitor = null;
         }
         if (optionalStorage != null) {
@@ -571,6 +601,10 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                 newTypes += fluidAdapter.getStorageMap().size();
                 newTotal = newTotal.add(fluidAdapter.getTotalCount());
             }
+            if (energyAdapter != null) {
+                newTypes += energyAdapter.getStorageMap().size();
+                newTotal = newTotal.add(energyAdapter.getTotalCount());
+            }
             if (optionalStorage != null) {
                 newTypes += optionalStorage.getTotalTypeCount();
                 newTotal = newTotal.add(optionalStorage.getTotalCount());
@@ -619,6 +653,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     public boolean isSafeMode() {
         return (itemAdapter != null && itemAdapter.isSafeMode())
             || (fluidAdapter != null && fluidAdapter.isSafeMode())
+            || (energyAdapter != null && energyAdapter.isSafeMode())
             || (optionalStorage != null && optionalStorage.isSafeMode());
     }
 

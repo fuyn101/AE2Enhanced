@@ -53,11 +53,14 @@ public class HyperdimensionalStorageFile {
     private volatile Map<FluidDescriptor, BigInteger> fluidStorageRef = null;
     private volatile Map<?, BigInteger> gasStorageRef = null;
     private volatile Map<?, BigInteger> essentiaStorageRef = null;
+    private volatile Map<EnergyDescriptor, BigInteger> energyStorageRef = null;
 
     private final StorageSection<ItemDescriptor> itemSection =
             new StorageSection<>("items", ItemDescriptor::fromNBT);
     private final StorageSection<FluidDescriptor> fluidSection =
             new StorageSection<>("fluids", FluidDescriptor::fromNBT);
+    private final StorageSection<EnergyDescriptor> energySection =
+            new StorageSection<>("energy", tag -> EnergyDescriptor.fromNBT(tag));
     private StorageSection<Descriptor> gasSection = null;
     private StorageSection<Descriptor> essentiaSection = null;
 
@@ -161,6 +164,10 @@ public class HyperdimensionalStorageFile {
         loadSection(essentiaSection, target, "essentia");
     }
 
+    public void loadEnergy(Map<EnergyDescriptor, BigInteger> target) {
+        loadSection(energySection, target, "energy");
+    }
+
     @SuppressWarnings("unchecked")
     public boolean save() {
         NBTTagCompound root = new NBTTagCompound();
@@ -174,6 +181,9 @@ public class HyperdimensionalStorageFile {
         }
         if (essentiaSection != null && essentiaStorageRef != null) {
             ((StorageSection<Descriptor>) essentiaSection).save(root, (Map<Descriptor, BigInteger>) essentiaStorageRef);
+        }
+        if (energyStorageRef != null) {
+            energySection.save(root, energyStorageRef);
         }
 
         File tmpFile = new File(file.getAbsolutePath() + ".tmp");
@@ -209,6 +219,10 @@ public class HyperdimensionalStorageFile {
 
     public void setEssentiaStorageRef(Map<?, BigInteger> ref) {
         this.essentiaStorageRef = ref;
+    }
+
+    public void setEnergyStorageRef(Map<EnergyDescriptor, BigInteger> ref) {
+        this.energyStorageRef = ref;
     }
 
     private void flush() {

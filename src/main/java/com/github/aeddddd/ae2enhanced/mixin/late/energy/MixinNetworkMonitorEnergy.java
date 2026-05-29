@@ -84,6 +84,12 @@ public class MixinNetworkMonitorEnergy {
         ItemStack mcStack = itemStack.createItemStack();
         if (!ItemEnergyDrop.isEnergyDrop(mcStack)) return;
 
+        // 禁止玩家直接从终端取出 RF 假物品（只允许自动化提取）
+        if (source.player().isPresent()) {
+            cir.setReturnValue(request);
+            return;
+        }
+
         IMEMonitor<IAEEnergyStack> energyMonitor = ae2enhanced$getEnergyMonitor();
         if (energyMonitor == null) {
             cir.setReturnValue(request);
@@ -121,6 +127,12 @@ public class MixinNetworkMonitorEnergy {
         IAEItemStack itemStack = (IAEItemStack) input;
         ItemStack mcStack = itemStack.createItemStack();
         if (!ItemEnergyDrop.isEnergyDrop(mcStack)) return;
+
+        // 禁止玩家直接向终端存入 RF 假物品（只允许自动化存入）
+        if (source.player().isPresent()) {
+            cir.setReturnValue(input);
+            return;
+        }
 
         IMEMonitor<IAEEnergyStack> energyMonitor = ae2enhanced$getEnergyMonitor();
         if (energyMonitor == null) {

@@ -59,6 +59,12 @@ public class MixinNetworkInventoryHandlerEnergy {
         IAEItemStack itemStack = (IAEItemStack) request;
         if (!ItemEnergyDrop.isEnergyDrop(itemStack.createItemStack())) return;
 
+        // 禁止玩家直接从终端取出 RF 假物品（只允许自动化提取）
+        if (src.player().isPresent()) {
+            cir.setReturnValue(request);
+            return;
+        }
+
         IAEEnergyStack energyRequest = AEEnergyStack.create(itemStack.getStackSize());
         IAEEnergyStack notExtracted = this.ae2enhanced$energyMonitor.extractItems(energyRequest, mode, src);
         long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
@@ -81,6 +87,12 @@ public class MixinNetworkInventoryHandlerEnergy {
 
         IAEItemStack itemStack = (IAEItemStack) input;
         if (!ItemEnergyDrop.isEnergyDrop(itemStack.createItemStack())) return;
+
+        // 禁止玩家直接向终端存入 RF 假物品（只允许自动化存入）
+        if (src.player().isPresent()) {
+            cir.setReturnValue(input);
+            return;
+        }
 
         IAEEnergyStack energyInput = AEEnergyStack.create(itemStack.getStackSize());
         IAEEnergyStack notInjected = this.ae2enhanced$energyMonitor.injectItems(energyInput, mode, src);
