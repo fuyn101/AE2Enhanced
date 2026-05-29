@@ -1,6 +1,8 @@
 package com.github.aeddddd.ae2enhanced;
 
 import com.github.aeddddd.ae2enhanced.event.ModEventHandler;
+import com.github.aeddddd.ae2enhanced.util.network.WirelessChannelTickHandler;
+import net.minecraftforge.common.MinecraftForge;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.proxy.CommonProxy;
 import com.github.aeddddd.ae2enhanced.registry.GameRegistryManager;
@@ -80,6 +82,7 @@ public class AE2Enhanced {
         ModContent.init();
         ModRecipes.init();
         ModEventHandler.register();
+        MinecraftForge.EVENT_BUS.register(new WirelessChannelTickHandler());
     }
 
     @Mod.EventHandler

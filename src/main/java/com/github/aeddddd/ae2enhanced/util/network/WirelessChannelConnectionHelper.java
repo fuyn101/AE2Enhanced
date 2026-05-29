@@ -47,6 +47,42 @@ public class WirelessChannelConnectionHelper {
         }
     }
 
+    /**
+     * 验证所有缓存的无线连接，销毁已失效的连接并从缓存中移除。
+     * 由定时 tick handler 调用。
+     */
+    public static void validateAllConnections() {
+        if (AE2E_REMOTE_CONNECTIONS.isEmpty()) return;
+        java.util.Iterator<Map.Entry<IGridNode, IGridConnection>> it = AE2E_REMOTE_CONNECTIONS.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<IGridNode, IGridConnection> entry = it.next();
+            IGridConnection conn = entry.getValue();
+            if (!isConnectionValid(conn)) {
+                try {
+                    conn.destroy();
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to destroy invalid wireless connection during validation", e);
+                }
+                it.remove();
+                AE2Enhanced.LOGGER.warn("[AE2E] Removed invalid wireless connection from cache");
+            }
+        }
+    }
+
+    private static boolean isConnectionValid(IGridConnection conn) {
+        if (conn == null) return false;
+        try {
+            IGridNode a = conn.a();
+            IGridNode b = conn.b();
+            if (a == null || b == null) return false;
+            IGrid gridA = a.getGrid();
+            IGrid gridB = b.getGrid();
+            return gridA != null && gridB != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static void tryConnect(IAEAppEngInventory parent) {
         if (!Platform.isServer()) return;
 
@@ -57,11 +93,23 @@ public class WirelessChannelConnectionHelper {
             return;
         }
 
-        // If already connected, skip
-        if (AE2E_REMOTE_CONNECTIONS.containsKey(node)) {
-            AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: already connected for {}",
+        // If already connected, validate it; destroy stale connections and retry
+        IGridConnection existing = AE2E_REMOTE_CONNECTIONS.get(node);
+        if (existing != null) {
+            if (isConnectionValid(existing)) {
+                AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: already connected and valid for {}",
+                        parent.getClass().getSimpleName());
+                return;
+            }
+            // Stale connection: destroy and remove so we can reconnect
+            AE2Enhanced.LOGGER.warn("[AE2E] tryConnect: stale connection detected for {}, destroying and reconnecting",
                     parent.getClass().getSimpleName());
-            return;
+            try {
+                existing.destroy();
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to destroy stale wireless connection", e);
+            }
+            AE2E_REMOTE_CONNECTIONS.remove(node);
         }
 
         IItemHandler upgrades = getUpgradesFromParent(parent);

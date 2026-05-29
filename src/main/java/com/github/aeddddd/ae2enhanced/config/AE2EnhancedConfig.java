@@ -212,6 +212,18 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int extraUpgradeSlots = 2;
+
+        @Config.Comment({
+            "Interval (in ticks) for automatic wireless channel connection validation.",
+            "The system scans all cached wireless connections and destroys stale ones.",
+            "Stale connections are then rebuilt on the next valid event (inventory change,",
+            "chunk load, or world reload). Lower values improve recovery speed but add tick overhead.",
+            "Set to 0 to disable automatic validation entirely (connections are only checked",
+            "during inventory changes and world reloads).",
+            "Range: 0 ~ 72000, Default: 100 (5 seconds)"
+        })
+        @Config.RangeInt(min = 0, max = 72000)
+        public int reconnectIntervalTicks = 100;
     }
 
     public static class SmartPattern {
