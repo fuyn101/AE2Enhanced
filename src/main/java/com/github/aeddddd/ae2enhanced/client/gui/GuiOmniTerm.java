@@ -428,7 +428,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             viewCellField.setAccessible(true);
             if (viewCellField.getBoolean(this)) {
                 this.mc.getTextureManager().bindTexture(new ResourceLocation("appliedenergistics2", "textures/guis/terminal.png"));
-                this.drawTexturedModalRect(offsetX + 357, offsetY + 8, 197, 0, 46, 128);
+                this.drawTexturedModalRect(offsetX + 357, offsetY + this.jeiOffset, 197, 0, 46, 128);
             }
         } catch (Exception ignored) {}
 
@@ -476,7 +476,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             java.lang.reflect.Field viewCellField = GuiMEMonitorable.class.getDeclaredField("viewCell");
             viewCellField.setAccessible(true);
             if (viewCellField.getBoolean(this)) {
-                exclusionArea.add(new Rectangle(this.guiLeft + 357, this.guiTop + 8, 46, 19 * 5));
+                exclusionArea.add(new Rectangle(this.guiLeft + 357, this.guiTop + this.jeiOffset, 46, 19 * 5));
             }
         } catch (Exception ignored) {}
         return exclusionArea;
