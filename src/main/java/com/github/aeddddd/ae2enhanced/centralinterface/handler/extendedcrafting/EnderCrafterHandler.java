@@ -3,16 +3,21 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.Container;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Extended Crafting 末影工作台远程处理器。
@@ -20,6 +25,11 @@ import java.util.List;
  * <p>末影工作台为 3×3 合成网格，材料放入后自动开始合成，
  * 需要周围存在 Ender Alternator 才能推进进度。
  * 合成完成后产物留在 result 槽，matrix 中未消耗的物品保留。</p>
+ *
+ * <p>配方匹配策略（类似星辉工作台）：
+ * {@code canStart} 中将 ingredients 临时放入 matrix，
+ * 通过 {@code EnderCrafterRecipeManager.findMatchingRecipe} 验证有序配方是否匹配，
+ * 匹配成功则缓存配方；{@code pushMaterials} 按槽位精确放置。</p>
  */
 public class EnderCrafterHandler implements IRemoteHandler {
 
@@ -27,19 +37,29 @@ public class EnderCrafterHandler implements IRemoteHandler {
 
     private static Class<?> CLASS_TILE_ENDER_CRAFTER;
     private static Class<?> CLASS_ABSTRACT_EXTENDED_TABLE;
+    private static Class<?> CLASS_RECIPE_MANAGER;
+    private static Class<?> CLASS_TABLE_CRAFTING;
     private static Method METHOD_GET_PROGRESS;
     private static Method METHOD_GET_PROGRESS_REQUIRED;
     private static Method METHOD_GET_ALTERNATOR_POSITIONS;
     private static Method METHOD_GET_RESULT;
     private static Method METHOD_SET_RESULT;
     private static Method METHOD_GET_MATRIX;
+    private static Method METHOD_RECIPE_MANAGER_GET_INSTANCE;
+    private static Method METHOD_FIND_MATCHING_RECIPE;
+    private static Constructor<?> CTOR_TABLE_CRAFTING;
     private static boolean reflectionReady = false;
+
+    // 配方缓存：BlockPos → IEnderCraftingRecipe（canStart 与 pushMaterials 之间传递）
+    private final Map<BlockPos, Object> recipeCache = new ConcurrentHashMap<>();
 
     private static void initReflection() {
         if (reflectionReady) return;
         try {
             CLASS_TILE_ENDER_CRAFTER = Class.forName("com.blakebr0.extendedcrafting.tile.TileEnderCrafter");
             CLASS_ABSTRACT_EXTENDED_TABLE = Class.forName("com.blakebr0.extendedcrafting.tile.AbstractExtendedTable");
+            CLASS_RECIPE_MANAGER = Class.forName("com.blakebr0.extendedcrafting.crafting.endercrafter.EnderCrafterRecipeManager");
+            CLASS_TABLE_CRAFTING = Class.forName("com.blakebr0.extendedcrafting.crafting.table.TableCrafting");
 
             METHOD_GET_PROGRESS = CLASS_TILE_ENDER_CRAFTER.getMethod("getProgress");
             METHOD_GET_PROGRESS_REQUIRED = CLASS_TILE_ENDER_CRAFTER.getMethod("getProgressRequired");
@@ -48,6 +68,12 @@ public class EnderCrafterHandler implements IRemoteHandler {
             METHOD_GET_RESULT = CLASS_ABSTRACT_EXTENDED_TABLE.getMethod("getResult");
             METHOD_SET_RESULT = CLASS_ABSTRACT_EXTENDED_TABLE.getMethod("setResult", ItemStack.class);
             METHOD_GET_MATRIX = CLASS_ABSTRACT_EXTENDED_TABLE.getMethod("getMatrix");
+
+            METHOD_RECIPE_MANAGER_GET_INSTANCE = CLASS_RECIPE_MANAGER.getMethod("getInstance");
+            METHOD_FIND_MATCHING_RECIPE = CLASS_RECIPE_MANAGER.getMethod("findMatchingRecipe", CLASS_TABLE_CRAFTING, World.class);
+
+            Class<?> iExtendedTableClass = Class.forName("com.blakebr0.extendedcrafting.lib.IExtendedTable");
+            CTOR_TABLE_CRAFTING = CLASS_TABLE_CRAFTING.getConstructor(Container.class, iExtendedTableClass);
 
             reflectionReady = true;
         } catch (Exception e) {
@@ -75,8 +101,9 @@ public class EnderCrafterHandler implements IRemoteHandler {
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
 
         try {
-            // matrix 必须全部为空
             List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
+
+            // matrix 必须全部为空
             for (ItemStack stack : matrix) {
                 if (!stack.isEmpty()) return false;
             }
@@ -89,11 +116,49 @@ public class EnderCrafterHandler implements IRemoteHandler {
             List<BlockPos> alternators = (List<BlockPos>) METHOD_GET_ALTERNATOR_POSITIONS.invoke(te);
             if (alternators == null || alternators.isEmpty()) return false;
 
+            // 保存当前 matrix 状态（此时全空，直接记录引用即可，恢复时清空）
+            // 将 ingredients 按索引放入 matrix，模拟真实 push
+            for (int i = 0; i < ingredients.getSizeInventory() && i < matrix.size(); i++) {
+                ItemStack stack = ingredients.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    matrix.set(i, stack.copy());
+                }
+            }
+
+            // 创建 TableCrafting 并查找配方
+            Container dummyContainer = new Container() {
+                @Override
+                public boolean canInteractWith(EntityPlayer playerIn) {
+                    return false;
+                }
+            };
+            Object tableCrafting = CTOR_TABLE_CRAFTING.newInstance(dummyContainer, te);
+            Object recipeManager = METHOD_RECIPE_MANAGER_GET_INSTANCE.invoke(null);
+            Object recipe = METHOD_FIND_MATCHING_RECIPE.invoke(recipeManager, tableCrafting, world);
+
+            // 无论是否匹配，恢复 matrix（清空）
+            for (int i = 0; i < matrix.size(); i++) {
+                matrix.set(i, ItemStack.EMPTY);
+            }
+            te.markDirty();
+
+            if (recipe != null) {
+                recipeCache.put(pos, recipe);
+                return true;
+            }
         } catch (Exception e) {
+            // 异常时尝试清空 matrix 防止残留
+            try {
+                List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
+                for (int i = 0; i < matrix.size(); i++) {
+                    matrix.set(i, ItemStack.EMPTY);
+                }
+                te.markDirty();
+            } catch (Exception ignored) {}
             return false;
         }
 
-        return true;
+        return false;
     }
 
     @Override
@@ -106,7 +171,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
         try {
             List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
 
-            // 按 AE 样板槽位顺序直接放入 matrix（3×3 对应关系）
+            // 按 AE 样板槽位顺序精确放入 matrix（3×3 一一对应）
             for (int i = 0; i < ingredients.getSizeInventory() && i < matrix.size(); i++) {
                 ItemStack stack = ingredients.getStackInSlot(i);
                 if (!stack.isEmpty()) {
@@ -124,6 +189,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
         // 末影工作台自动检测配方并推进进度，无需显式启动
+        recipeCache.remove(pos);
         return true;
     }
 
@@ -195,6 +261,8 @@ public class EnderCrafterHandler implements IRemoteHandler {
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return result;
+
+        recipeCache.remove(pos);
 
         try {
             // 收集 result 槽
