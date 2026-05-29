@@ -898,14 +898,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             // Processing recipe
             if (mode == 2) {
-                // Alt: processing → 从网络提取 outputs 放入右侧 27 槽样板存储区
+                // Alt: processing → 从网络提取 outputs 放入右侧 27 槽样板存储区（自动堆叠）
                 for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
                     this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
                 }
-                int slotIdx = 0;
                 IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
                 for (ItemStack out : outputs.values()) {
-                    if (slotIdx >= this.rightPatternStorage.getSlots()) break;
                     if (out == null || out.isEmpty()) continue;
                     IAEItemStack toExtract = channel.createStack(out);
                     if (toExtract != null) {
@@ -913,7 +911,17 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                         IAEItemStack extracted = Platform.poweredExtraction(
                                 this.getPowerSource(), this.getCellInventory(), toExtract, this.getActionSource());
                         if (extracted != null && extracted.getStackSize() > 0) {
-                            this.rightPatternStorage.setStackInSlot(slotIdx++, extracted.createItemStack());
+                            ItemStack result = extracted.createItemStack();
+                            ItemStack remainder = net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(
+                                    this.rightPatternStorage, result, false);
+                            // 槽位满了仍有剩余，返还网络
+                            if (!remainder.isEmpty()) {
+                                IAEItemStack toReturn = channel.createStack(remainder);
+                                if (toReturn != null) {
+                                    toReturn.setStackSize(remainder.getCount());
+                                    this.getCellInventory().injectItems(toReturn, Actionable.MODULATE, this.getActionSource());
+                                }
+                            }
                         }
                     }
                 }
