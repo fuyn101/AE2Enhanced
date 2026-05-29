@@ -898,16 +898,16 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             // Processing recipe
             if (mode == 2) {
-                // Alt: processing → 从网络提取 outputs 放入右侧 27 槽样板存储区（自动堆叠）
+                // Alt: processing → 从网络提取 inputs 放入右侧 27 槽样板存储区（自动堆叠）
                 for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
                     this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
                 }
                 IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-                for (ItemStack out : outputs.values()) {
-                    if (out == null || out.isEmpty()) continue;
-                    IAEItemStack toExtract = channel.createStack(out);
+                for (ItemStack in : inputs.values()) {
+                    if (in == null || in.isEmpty()) continue;
+                    IAEItemStack toExtract = channel.createStack(in);
                     if (toExtract != null) {
-                        toExtract.setStackSize(out.getCount());
+                        toExtract.setStackSize(in.getCount());
                         IAEItemStack extracted = Platform.poweredExtraction(
                                 this.getPowerSource(), this.getCellInventory(), toExtract, this.getActionSource());
                         if (extracted != null && extracted.getStackSize() > 0) {
