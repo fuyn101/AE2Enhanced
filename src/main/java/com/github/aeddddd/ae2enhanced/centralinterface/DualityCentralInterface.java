@@ -72,6 +72,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final List<TargetBinding> bindings = new ArrayList<>();
     private String boundBlockId = null;
     private final Map<TargetBinding, TargetState> targetStates = new HashMap<>();
+    // 只跟踪 PROCESSING 状态的目标，避免 tickingRequest 遍历全部 targetStates
+    private final Set<TargetBinding> processingTargets = new HashSet<>();
     // 记录每个目标当前正在合成的产物列表，用于 tick 收集时匹配
     private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
     // 虚拟合成产物暂存队列（等待 waitingFor 注册后再注入网络）
@@ -91,6 +93,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         this.bindings.clear();
         this.targetStates.clear();
+        this.processingTargets.clear();
         this.pendingOutputs.clear();
 
         this.config = new AppEngInternalAEInventory(this, NUMBER_OF_CONFIG_SLOTS, 512);
@@ -196,6 +199,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         if (!handler.isValidTarget(world, target.pos)) {
             this.targetStates.put(target, TargetState.UNAVAILABLE);
+            this.processingTargets.remove(target);
             return false;
         }
 
@@ -263,6 +267,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         this.targetStates.put(target, TargetState.PROCESSING);
+        this.processingTargets.add(target);
 
         try {
             appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
@@ -354,20 +359,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         // 检查 PROCESSING 目标，收集产物
         boolean didWork = false;
-        Iterator<Map.Entry<TargetBinding, TargetState>> it = this.targetStates.entrySet().iterator();
+        Iterator<TargetBinding> it = this.processingTargets.iterator();
         while (it.hasNext()) {
-            Map.Entry<TargetBinding, TargetState> entry = it.next();
-            if (entry.getValue() != TargetState.PROCESSING) continue;
+            TargetBinding target = it.next();
+            // 防御性检查：确保 targetStates 与 processingTargets 一致
+            if (this.targetStates.get(target) != TargetState.PROCESSING) {
+                it.remove();
+                continue;
+            }
 
-            TargetBinding target = entry.getKey();
             World world = this.host.getTileEntity().getWorld();
             if (world.provider.getDimension() != target.dimension) continue;
             if (!world.isBlockLoaded(target.pos)) continue;
 
             IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
             if (handler == null) {
-                entry.setValue(TargetState.IDLE);
+                this.targetStates.put(target, TargetState.IDLE);
                 this.pendingOutputs.remove(target);
+                it.remove();
                 continue;
             }
             if (!handler.isIdle(world, target.pos)) {
@@ -387,19 +396,22 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
             if (!products.isEmpty()) {
                 if (injectItemsToNetwork(proxy, world, products)) {
-                    entry.setValue(TargetState.IDLE);
+                    this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
+                    it.remove();
                     didWork = true;
                 } else {
                     // 注入失败（网络断开等），产物暂存到 storage slots，避免丢失
                     stashItemsToStorage(world, products);
-                    entry.setValue(TargetState.IDLE);
+                    this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
+                    it.remove();
                 }
             } else {
                 // 设备已 idle 但没有产物，重置状态允许重试
-                entry.setValue(TargetState.IDLE);
+                this.targetStates.put(target, TargetState.IDLE);
                 this.pendingOutputs.remove(target);
+                it.remove();
             }
         }
 
@@ -568,12 +580,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (!this.pendingVirtualProducts.isEmpty()) {
             return true;
         }
-        for (TargetState state : this.targetStates.values()) {
-            if (state == TargetState.PROCESSING) {
-                return true;
-            }
-        }
-        return false;
+        return !this.processingTargets.isEmpty();
     }
 
     // ---- Inventory Callbacks ----
@@ -701,6 +708,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (!this.bindings.contains(binding)) {
             this.bindings.add(binding);
             this.targetStates.put(binding, TargetState.IDLE);
+            this.processingTargets.remove(binding);
             postPatternChangeEvent();
         }
     }
@@ -708,6 +716,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     public void removeBinding(TargetBinding binding) {
         this.bindings.remove(binding);
         this.targetStates.remove(binding);
+        this.processingTargets.remove(binding);
         this.pendingOutputs.remove(binding);
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
@@ -718,6 +727,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     public void clearBindings() {
         this.bindings.clear();
         this.targetStates.clear();
+        this.processingTargets.clear();
         this.pendingOutputs.clear();
         this.boundBlockId = null;
         postPatternChangeEvent();
@@ -784,6 +794,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         // 绑定
         this.bindings.clear();
         this.targetStates.clear();
+        this.processingTargets.clear();
         this.pendingOutputs.clear();
         this.boundBlockId = data.hasKey("boundBlockId") ? data.getString("boundBlockId") : null;
         if (data.hasKey("bindings")) {
