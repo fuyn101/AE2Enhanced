@@ -581,10 +581,14 @@ public class TileSmartPatternInterface extends TileEntity {
         lockedRecipeIndex = compound.getInteger("lockedRecipeIndex");
         miniGuiScrollOffset = compound.getInteger("miniGuiScrollOffset");
         if (compound.hasKey("recipeDisplay")) {
-            recipeDisplayInventory.deserializeNBT(compound.getCompoundTag("recipeDisplay"));
+            NBTTagCompound tag = compound.getCompoundTag("recipeDisplay").copy();
+            tag.setInteger("Size", 45);
+            recipeDisplayInventory.deserializeNBT(tag);
         }
         if (compound.hasKey("miniGuiInventory")) {
-            miniGuiInventory.deserializeNBT(compound.getCompoundTag("miniGuiInventory"));
+            NBTTagCompound tag = compound.getCompoundTag("miniGuiInventory").copy();
+            tag.setInteger("Size", 90);
+            miniGuiInventory.deserializeNBT(tag);
         }
         if (compound.hasKey("replaceInventory")) {
             replaceInventory.deserializeNBT(compound.getCompoundTag("replaceInventory"));
