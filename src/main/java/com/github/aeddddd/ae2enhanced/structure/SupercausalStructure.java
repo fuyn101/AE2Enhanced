@@ -1060,6 +1060,7 @@ public class SupercausalStructure {
 
         Map<Block, Integer> missing = new LinkedHashMap<>();
         for (BlockPos rel : TENSOR_CASING_SET) {
+            if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_TENSOR_FIELD_CASING) {
@@ -1067,6 +1068,7 @@ public class SupercausalStructure {
             }
         }
         for (BlockPos rel : CAUSAL_ANCHOR_SET) {
+            if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != BlockRegistry.CAUSAL_ANCHOR_CORE) {
@@ -1074,6 +1076,7 @@ public class SupercausalStructure {
             }
         }
         for (BlockPos rel : SPINOR_CASING_SET) {
+            if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_SPINOR_FIELD_CASING) {
