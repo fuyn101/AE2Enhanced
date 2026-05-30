@@ -106,9 +106,12 @@ public class MixinCraftingCPUCluster {
         }
     }
 
-    // onGetCore removed: FakeCraftingTile in TileComputationCore now ensures
-    // getCore() never throws ClassCastException, so returning null here would
-    // cause NullPointerException in callers like updateCraftingLogic.
+    @Inject(method = "getCore", at = @At("HEAD"), cancellable = true)
+    private void onGetCore(CallbackInfoReturnable<TileCraftingTile> cir) {
+        if (ae2enhanced$computationCore != null) {
+            cir.setReturnValue(null);
+        }
+    }
 
     @Inject(method = "updateName", at = @At("HEAD"), cancellable = true)
     public void onUpdateName(CallbackInfo ci) {

@@ -15,7 +15,6 @@ import appeng.api.util.WorldCoord;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.CableBusContainer;
-import appeng.tile.crafting.TileCraftingTile;
 import appeng.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
@@ -326,16 +325,10 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         );
 
         try {
-            // 设置 machineSrc 指向 FakeCraftingTile，避免 getCore() 强制转换 TileComputationCore 导致 ClassCastException
-            FakeCraftingTile fakeTile = new FakeCraftingTile();
-            fakeTile.setRealCore(this);
-            if (this.world != null) {
-                fakeTile.setWorld(this.world);
-                fakeTile.setPos(this.pos);
-            }
+            // 设置 machineSrc 指向本 TileEntity（IActionHost）
             Field machineSrcField = CraftingCPUCluster.class.getDeclaredField("machineSrc");
             machineSrcField.setAccessible(true);
-            machineSrcField.set(cluster, new MachineSource(fakeTile));
+            machineSrcField.set(cluster, new MachineSource(this));
 
             // 设置无限存储
             Field availableStorageField = CraftingCPUCluster.class.getDeclaredField("availableStorage");
@@ -353,24 +346,9 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             myNameField.set(cluster, DEFAULT_NAME);
 
             // 设置 Mixin 字段，标记该集群属于本计算核心
-            // 使用模糊匹配字段名，以防 Mixin 的 @Unique 前缀在不同环境下变化
-            boolean coreFieldSet = false;
-            for (Field f : CraftingCPUCluster.class.getDeclaredFields()) {
-                String name = f.getName();
-                if (name.contains("computationCore") || name.endsWith("$computationCore")) {
-                    f.setAccessible(true);
-                    f.set(cluster, this);
-                    coreFieldSet = true;
-                    break;
-                }
-            }
-            if (!coreFieldSet) {
-                StringBuilder sb = new StringBuilder();
-                for (Field f : CraftingCPUCluster.class.getDeclaredFields()) {
-                    sb.append(f.getName()).append(", ");
-                }
-                AE2Enhanced.LOGGER.error("[AE2E] Could not find computationCore field in CraftingCPUCluster. Available fields: {}", sb.toString());
-            }
+            Field mixinCoreField = CraftingCPUCluster.class.getDeclaredField("ae2enhanced$computationCore");
+            mixinCoreField.setAccessible(true);
+            mixinCoreField.set(cluster, this);
 
             // CrazyAE 兼容：初始化任何未初始化的集合字段（CrazyAE 通过 ASM 添加的字段
             // 可能未在构造函数中初始化，虚拟集群会导致 NPE）
@@ -567,62 +545,6 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] removeCpuPoolFromCraftingGridCache failed", e);
-        }
-    }
-
-    /**
-     * 假的 TileCraftingTile，用于作为 CraftingCPUCluster 的 machineSrc。
-     * 避免 getCore() 将 TileComputationCore 强制转换为 TileCraftingTile 时抛出 ClassCastException。
-     * 所有关键方法都委托给真实的 TileComputationCore。
-     */
-    private static class FakeCraftingTile extends TileCraftingTile {
-        private TileComputationCore realCore;
-
-        void setRealCore(TileComputationCore core) {
-            this.realCore = core;
-        }
-
-        @Override
-        public appeng.api.networking.IGridNode getActionableNode() {
-            return realCore != null ? realCore.getActionableNode() : null;
-        }
-
-        @Override
-        public boolean isActive() {
-            appeng.api.networking.IGridNode node = getActionableNode();
-            return node != null && node.isActive();
-        }
-
-        @Override
-        public net.minecraft.world.World getWorld() {
-            return realCore != null ? realCore.getWorld() : super.getWorld();
-        }
-
-        @Override
-        public void saveChanges() {
-            if (realCore != null) {
-                realCore.markDirty();
-            }
-        }
-
-        @Override
-        public void setCoreBlock(boolean isCore) {
-            // 虚拟集群无实体方块，无需操作
-        }
-
-        @Override
-        public net.minecraft.nbt.NBTTagCompound getPreviousState() {
-            return null;
-        }
-
-        @Override
-        public void setPreviousState(net.minecraft.nbt.NBTTagCompound compound) {
-            // 虚拟集群无状态恢复
-        }
-
-        @Override
-        public void breakCluster() {
-            // 虚拟集群无需破坏
         }
     }
 }
