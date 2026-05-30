@@ -107,7 +107,7 @@ public class RTSInputHandler {
         float cursorY = RTSTickController.getCursorY();
 
         int sx = (int) (cursorX * sr.getScaledWidth() / mc.displayWidth);
-        int sy = sr.getScaledHeight() - (int) (cursorY * sr.getScaledHeight() / mc.displayHeight);
+        int sy = (int) (cursorY * sr.getScaledHeight() / mc.displayHeight);
 
         // 绘制白色十字光标
         net.minecraft.client.renderer.GlStateManager.pushMatrix();
@@ -140,9 +140,6 @@ public class RTSInputHandler {
         float cursorX = RTSTickController.getCursorX();
         float cursorY = RTSTickController.getCursorY();
 
-        // OpenGL 窗口坐标 Y 轴向上，鼠标坐标 Y 轴向下，需要翻转
-        float glCursorY = mc.displayHeight - cursorY;
-
         // 相机位置
         double camX = mc.player.posX;
         double camY = mc.player.posY + RTSCamera.getHeight();
@@ -168,17 +165,17 @@ public class RTSInputHandler {
         }
         Vec3d up = right.crossProduct(forward).normalize();
 
-        // NDC 坐标
+        // NDC 坐标（鼠标坐标 Y 轴向下，OpenGL NDC Y 轴向上，需要翻转）
         float ndcX = (2.0f * cursorX / mc.displayWidth) - 1.0f;
-        float ndcY = (2.0f * glCursorY / mc.displayHeight) - 1.0f;
+        float ndcY = 1.0f - (2.0f * cursorY / mc.displayHeight);
 
         // FOV
         float fovRad = (float) Math.toRadians(RTSCamera.getFov());
         float aspect = (float) mc.displayWidth / mc.displayHeight;
         float tanHalfFov = (float) Math.tan(fovRad / 2.0f);
 
-        float camDirX = ndcX * tanHalfFov;
-        float camDirY = ndcY * tanHalfFov / aspect;
+        float camDirX = ndcX * tanHalfFov * aspect;
+        float camDirY = ndcY * tanHalfFov;
 
         // 世界空间射线方向
         Vec3d dir = forward.add(right.scale(camDirX)).add(up.scale(camDirY)).normalize();
