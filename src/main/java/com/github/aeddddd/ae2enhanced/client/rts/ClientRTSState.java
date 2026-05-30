@@ -16,8 +16,8 @@ public class ClientRTSState {
     // 相机当前位置（插值后）
     public static double currentCameraX, currentCameraY, currentCameraZ;
     // 相机朝向
-    public static float cameraYaw = 180.0f; // 面向下方
-    public static float cameraPitch = 90.0f;
+    public static float cameraYaw = 180.0f; // 面朝北 (-Z)
+    public static float cameraPitch = 60.0f; // 鸟瞰角度（从水平向下 60°）
 
     // 当前选区
     public static final Selection currentSelection = new Selection();

@@ -66,12 +66,13 @@ public class RTSInputHandler {
         if (mc.gameSettings.keyBindLeft.isKeyDown()) dx -= 1;
         if (mc.gameSettings.keyBindRight.isKeyDown()) dx += 1;
 
-        // 根据相机 yaw 旋转平移向量
+        // 根据相机 yaw 将屏幕方向映射到世界方向
+        // W=屏幕上方(相机朝向), S=屏幕下方, A=屏幕左方, D=屏幕右方
         double yawRad = Math.toRadians(ClientRTSState.cameraYaw);
-        double cos = Math.cos(yawRad);
         double sin = Math.sin(yawRad);
-        double moveX = dx * cos - dz * sin;
-        double moveZ = dx * sin + dz * cos;
+        double cos = Math.cos(yawRad);
+        double moveX = dz * sin - dx * cos;
+        double moveZ = -dz * cos - dx * sin;
 
         ClientRTSState.targetCameraX += moveX * PAN_SPEED;
         ClientRTSState.targetCameraZ += moveZ * PAN_SPEED;

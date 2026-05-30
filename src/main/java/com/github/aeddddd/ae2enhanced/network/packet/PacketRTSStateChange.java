@@ -106,9 +106,16 @@ public class PacketRTSStateChange implements IMessage {
                                         && player.posZ >= min.getZ() && player.posZ <= max.getZ()) {
                                     // 玩家在平台范围内，允许进入
                                     SelectionManager.enterRTS(player, controller.getPos());
-                                    double camX = (min.getX() + max.getX()) / 2.0 + 0.5;
-                                    double camZ = (min.getZ() + max.getZ()) / 2.0 + 0.5;
-                                    double camY = min.getY() + 64;
+                                    double cx = (min.getX() + max.getX()) / 2.0 + 0.5;
+                                    double cz = (min.getZ() + max.getZ()) / 2.0 + 0.5;
+                                    double cy = min.getY();
+                                    double height = 64.0;
+                                    double pitchRad = Math.toRadians(60.0);
+                                    double distance = height / Math.tan(pitchRad); // 相机后退距离
+                                    double yawRad = Math.toRadians(180.0);
+                                    double camX = cx + Math.sin(yawRad) * distance;
+                                    double camZ = cz - Math.cos(yawRad) * distance;
+                                    double camY = cy + height;
                                     AE2Enhanced.network.sendTo(
                                             new PacketRTSStateChange(true, camX, camY, camZ, controller.getPos()),
                                             player);
