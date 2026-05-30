@@ -30,13 +30,16 @@ public final class RTSCamera {
     // 旋转状态
     private static boolean rotating = false;
 
-    // 移动速度
-    private static final float MOVE_SPEED = 0.8f;
-    private static final float ROTATION_SENSITIVITY = 0.5f;
+    // 灵敏度配置
+    public static final float CURSOR_SENSITIVITY = 2.0f;
+    public static final float ROTATION_SENSITIVITY = 1.2f;
+    public static final float MOVE_SPEED = 1.5f;
+
+    // 高度/FOV 范围
     private static final float HEIGHT_MIN = 20f;
-    private static final float HEIGHT_MAX = 120f;
+    private static final float HEIGHT_MAX = 80f;
     private static final float FOV_MIN = 70f;
-    private static final float FOV_MAX = 110f;
+    private static final float FOV_MAX = 100f;
 
     public static boolean isActive() { return active; }
 
@@ -59,7 +62,9 @@ public final class RTSCamera {
     }
 
     public static void adjustHeight(int wheelDelta) {
-        float delta = wheelDelta * 0.15f;
+        // 滚轮向前（负值）= 放大 = 降低高度
+        // 滚轮向后（正值）= 缩小 = 升高高度
+        float delta = -wheelDelta * 0.08f;
         height = Math.max(HEIGHT_MIN, Math.min(HEIGHT_MAX, height + delta));
         // FOV 联动
         fov = FOV_MIN + (height - HEIGHT_MIN) * ((FOV_MAX - FOV_MIN) / (HEIGHT_MAX - HEIGHT_MIN));
@@ -82,11 +87,28 @@ public final class RTSCamera {
         fov = 90f;
         rotating = false;
         RTSTickController.resetCursor();
+
+        // 启用飞行 + 增加移速
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.player != null) {
+            mc.player.capabilities.allowFlying = true;
+            mc.player.capabilities.isFlying = true;
+            mc.player.capabilities.setFlySpeed(0.1f);
+            mc.player.sendPlayerAbilities();
+        }
     }
 
     public static void deactivate() {
         active = false;
         rotating = false;
+
+        // 恢复飞行状态（保留原状态）
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.player != null) {
+            mc.player.capabilities.isFlying = false;
+            mc.player.capabilities.setFlySpeed(0.05f);
+            mc.player.sendPlayerAbilities();
+        }
     }
 
     private static void syncToServer() {

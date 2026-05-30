@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.client.rts;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -14,7 +13,7 @@ import org.lwjgl.opengl.GL11;
 import java.util.Set;
 
 /**
- * RTS 世界渲染 —— 选区线框 + 锚点 + 平台边界 + 区块网格 + 射线检测
+ * RTS 世界渲染 —— 选区线框 + 锚点 + 平台边界 + 区块网格 + 悬停高亮
  */
 public class RTSWorldRenderer {
 
@@ -38,10 +37,10 @@ public class RTSWorldRenderer {
         GlStateManager.disableTexture2D();
         GlStateManager.glLineWidth(2.0f);
 
-        // 1. 绘制平台边界（红色虚线效果用实线替代）
+        // 1. 绘制平台边界（红色）
         drawPlatformBounds();
 
-        // 2. 绘制区块网格（灰色）
+        // 2. 绘制区块网格（灰色，对齐实际区块边界）
         drawChunkGrid();
 
         // 3. 绘制锚点高亮
@@ -49,7 +48,14 @@ public class RTSWorldRenderer {
             drawAnchorPulse(RTSSelection.getAnchorA(), event.getPartialTicks());
         }
 
-        // 4. 绘制选中方块线框（金黄色）
+        // 4. 绘制悬停方块高亮（绿色）
+        if (RTSInputHandler.isLastHitValid() && RTSInputHandler.getLastHitPos() != null) {
+            GlStateManager.color(0.3f, 1.0f, 0.3f, 1.0f);
+            GlStateManager.glLineWidth(2.5f);
+            drawBlockOutline(RTSInputHandler.getLastHitPos());
+        }
+
+        // 5. 绘制选中方块线框（金黄色）
         drawSelection(RTSSelection.getSelectedBlocks());
 
         GlStateManager.enableTexture2D();
@@ -81,6 +87,12 @@ public class RTSWorldRenderer {
         BlockPos max = RTSCamera.getPlatformMax();
         int surfaceY = RTSCamera.getPlatformSurfaceY();
 
+        // 对齐到实际区块边界（16 的倍数）
+        int startX = (min.getX() >> 4) << 4;
+        int endX = ((max.getX() >> 4) + 1) << 4;
+        int startZ = (min.getZ() >> 4) << 4;
+        int endZ = ((max.getZ() >> 4) + 1) << 4;
+
         GlStateManager.color(0.5f, 0.5f, 0.5f, 0.6f);
         GlStateManager.glLineWidth(1.0f);
 
@@ -88,15 +100,15 @@ public class RTSWorldRenderer {
         BufferBuilder buf = tess.getBuffer();
         buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION);
 
-        // 垂直线（每 16 格）
-        for (int x = min.getX(); x <= max.getX() + 1; x += 16) {
-            buf.pos(x, surfaceY + 0.03, min.getZ()).endVertex();
-            buf.pos(x, surfaceY + 0.03, max.getZ() + 1).endVertex();
+        // 垂直线（每 16 格，对齐实际区块边界）
+        for (int x = startX; x <= endX; x += 16) {
+            buf.pos(x, surfaceY + 0.03, startZ).endVertex();
+            buf.pos(x, surfaceY + 0.03, endZ).endVertex();
         }
-        // 水平线（每 16 格）
-        for (int z = min.getZ(); z <= max.getZ() + 1; z += 16) {
-            buf.pos(min.getX(), surfaceY + 0.03, z).endVertex();
-            buf.pos(max.getX() + 1, surfaceY + 0.03, z).endVertex();
+        // 水平线（每 16 格，对齐实际区块边界）
+        for (int z = startZ; z <= endZ; z += 16) {
+            buf.pos(startX, surfaceY + 0.03, z).endVertex();
+            buf.pos(endX, surfaceY + 0.03, z).endVertex();
         }
 
         tess.draw();

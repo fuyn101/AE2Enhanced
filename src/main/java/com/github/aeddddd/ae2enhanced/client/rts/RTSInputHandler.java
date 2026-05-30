@@ -11,7 +11,6 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
 
@@ -46,6 +45,21 @@ public class RTSInputHandler {
 
         int button = event.getButton();
         boolean state = event.isButtonstate();
+
+        // 鼠标移动事件（button == -1）
+        if (button == -1 && (event.getDx() != 0 || event.getDy() != 0)) {
+            if (RTSCamera.isRotating()) {
+                // 中键按住：旋转相机 yaw，同时同步玩家本体视角
+                RTSCamera.addYaw(event.getDx() * RTSCamera.ROTATION_SENSITIVITY);
+                Minecraft.getMinecraft().player.rotationYaw = RTSCamera.getYaw();
+            } else {
+                // 正常：移动虚拟光标
+                RTSTickController.moveCursor(
+                    event.getDx() * RTSCamera.CURSOR_SENSITIVITY,
+                    event.getDy() * RTSCamera.CURSOR_SENSITIVITY
+                );
+            }
+        }
 
         if (button == 0) {  // 左键
             event.setCanceled(true);
@@ -87,7 +101,13 @@ public class RTSInputHandler {
 
     @SubscribeEvent
     public void onPreRenderCrosshair(RenderGameOverlayEvent.Pre event) {
-        if (RTSCamera.isActive() && event.getType() == RenderGameOverlayEvent.ElementType.CROSSHAIRS) {
+        if (!RTSCamera.isActive()) return;
+        // 移除原版准星
+        if (event.getType() == RenderGameOverlayEvent.ElementType.CROSSHAIRS) {
+            event.setCanceled(true);
+        }
+        // 移除主手/物品栏显示
+        if (event.getType() == RenderGameOverlayEvent.ElementType.HOTBAR) {
             event.setCanceled(true);
         }
     }
@@ -138,7 +158,6 @@ public class RTSInputHandler {
         float cursorY = RTSTickController.getCursorY();
 
         try {
-            net.minecraft.client.renderer.ActiveRenderInfo info = new net.minecraft.client.renderer.ActiveRenderInfo();
             // 通过反射获取 MODELVIEW / PROJECTION / VIEWPORT
             java.lang.reflect.Field mvField = net.minecraft.client.renderer.ActiveRenderInfo.class.getDeclaredField("MODELVIEW");
             java.lang.reflect.Field projField = net.minecraft.client.renderer.ActiveRenderInfo.class.getDeclaredField("PROJECTION");
