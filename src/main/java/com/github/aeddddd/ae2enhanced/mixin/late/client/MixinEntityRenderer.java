@@ -7,9 +7,11 @@ import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.RayTraceResult;
+import org.lwjgl.util.glu.Project;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -63,6 +65,22 @@ public class MixinEntityRenderer {
     private void onRenderHand(float partialTicks, int pass, CallbackInfo ci) {
         if (RTSCamera.isActive()) {
             ci.cancel();
+        }
+    }
+
+    /**
+     * 强制投影矩阵使用 RTSCamera 的 FOV，确保渲染视角与射线检测完全一致。
+     * setupCameraTransform 中 gluPerspective 的 fovy 参数会被替换为 RTSCamera.getFov()。
+     */
+    @Redirect(
+        method = "func_78479_a",
+        at = @At(value = "INVOKE", target = "Lorg/lwjgl/util/glu/Project;gluPerspective(FFFF)V")
+    )
+    private void redirectGluPerspective(float fovy, float aspect, float zNear, float zFar) {
+        if (RTSCamera.isActive()) {
+            Project.gluPerspective(RTSCamera.getFov(), aspect, zNear, zFar);
+        } else {
+            Project.gluPerspective(fovy, aspect, zNear, zFar);
         }
     }
 
