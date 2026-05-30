@@ -149,23 +149,23 @@ public class MixinCraftingCPUCluster {
         }
     }
 
-    // ==================== Expand InventoryCrafting for processing patterns ====================
-
     /**
-     * ThreadLocal flag to indicate we are inside CraftingCPUCluster.executeCrafting.
-     * Used by MixinInventoryCrafting to expand 4×4 InventoryCrafting to 10×10
-     * without conflicting with ae2fc's @WrapOperation on NEW.
+     * 将 CraftingCPUCluster.executeCrafting 中的 InventoryCrafting 在 processing 模式下从 4×4 扩展为 10×10，
+     * 以支持超过 16 个输入的 processing pattern。
      */
-    public static final ThreadLocal<Boolean> EXPAND_CRAFTING_BUFFER = ThreadLocal.withInitial(() -> false);
-
-    @Inject(method = "executeCrafting", at = @At("HEAD"))
-    private void onExecuteCraftingHead(CallbackInfo ci) {
-        EXPAND_CRAFTING_BUFFER.set(true);
-    }
-
-    @Inject(method = "executeCrafting", at = @At("RETURN"))
-    private void onExecuteCraftingReturn(CallbackInfo ci) {
-        EXPAND_CRAFTING_BUFFER.set(false);
+    @Redirect(
+        method = "executeCrafting",
+        at = @At(
+            value = "NEW",
+            target = "net/minecraft/inventory/InventoryCrafting",
+            remap = true
+        )
+    )
+    public InventoryCrafting onNewInventoryCraftingCPU(net.minecraft.inventory.Container eventHandler, int width, int height) {
+        if (width == 4 && height == 4) {
+            return new InventoryCrafting(eventHandler, 10, 10);
+        }
+        return new InventoryCrafting(eventHandler, width, height);
     }
 
     // ==================== Batch Crafting (Assembly Hub) — retained ====================

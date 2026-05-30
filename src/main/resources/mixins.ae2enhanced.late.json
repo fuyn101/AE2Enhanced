@@ -11,7 +11,6 @@
     "ae2.MixinContainerCellWorkbench",
     "ae2.MixinContainerCraftConfirm",
     "ae2.MixinCraftingCPUCluster",
-    "ae2.MixinInventoryCrafting",
     "ae2.MixinDualityInterface",
     "ae2.MixinCraftingGridCache",
     "ae2.MixinCreativeCellInventory",
