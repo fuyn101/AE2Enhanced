@@ -27,7 +27,7 @@ public class RTSTickController {
     public static void moveCursor(float dx, float dy) {
         Minecraft mc = Minecraft.getMinecraft();
         cursorX = MathHelper.clamp(cursorX + dx, 0, mc.displayWidth);
-        cursorY = MathHelper.clamp(cursorY + dy, 0, mc.displayHeight);
+        cursorY = MathHelper.clamp(cursorY - dy, 0, mc.displayHeight);
     }
 
     /**
