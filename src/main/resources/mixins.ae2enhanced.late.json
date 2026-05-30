@@ -39,7 +39,8 @@
     "terminal.MixinGuiCraftingCPU",
     "terminal.MixinGuiMEMonitorableClick",
     "terminal.MixinGuiMEMonitorableTooltip",
-    "terminal.MixinGuiScreenHelper"
+    "terminal.MixinGuiScreenHelper",
+    "client.MixinEntityRenderer"
   ],
   "server": []
 }
