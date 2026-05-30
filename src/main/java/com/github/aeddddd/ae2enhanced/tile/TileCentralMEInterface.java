@@ -270,18 +270,14 @@ public class TileCentralMEInterface extends TileAENetworkBase
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
         getInterfaceDuality().readFromNBT(compound);
-        if (compound.hasKey("upgrades")) {
-            getUpgrades().readFromNBT(compound.getCompoundTag("upgrades"));
-        }
+        getUpgrades().readFromNBT(compound, "upgrades");
     }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         getInterfaceDuality().writeToNBT(compound);
-        NBTTagCompound upgradesTag = new NBTTagCompound();
-        getUpgrades().writeToNBT(upgradesTag, "upgrades");
-        compound.setTag("upgrades", upgradesTag);
+        getUpgrades().writeToNBT(compound, "upgrades");
         return compound;
     }
 
