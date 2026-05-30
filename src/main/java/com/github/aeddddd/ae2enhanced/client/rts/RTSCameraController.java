@@ -2,10 +2,10 @@ package com.github.aeddddd.ae2enhanced.client.rts;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
-import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -99,14 +99,6 @@ public class RTSCameraController {
         }
     }
 
-    @SubscribeEvent
-    public static void onCameraSetup(EntityViewRenderEvent.CameraSetup event) {
-        if (!ClientRTSState.isInRTS) return;
-        event.setYaw(ClientRTSState.cameraYaw);
-        event.setPitch(ClientRTSState.cameraPitch);
-        event.setRoll(0.0f);
-    }
-
     private static void restorePlayerState(Minecraft mc) {
         mc.player.posX = originalPlayerX;
         mc.player.posY = originalPlayerY;
@@ -123,21 +115,24 @@ public class RTSCameraController {
     /**
      * 纯客户端虚拟相机实体 —— 不加入世界 tick，仅作为 renderViewEntity 使用。
      */
-    private static class CameraEntity extends Entity {
+    private static class CameraEntity extends EntityOtherPlayerMP {
         CameraEntity(World world) {
-            super(world);
+            super(world, Minecraft.getMinecraft().player.getGameProfile());
             this.setEntityId(-9999);
             this.noClip = true;
-            this.setSize(0.0f, 0.0f);
         }
 
         @Override
-        protected void entityInit() {}
-
-        @Override
-        protected void readEntityFromNBT(NBTTagCompound compound) {}
-
-        @Override
-        protected void writeEntityToNBT(NBTTagCompound compound) {}
+        public void onLivingUpdate() {
+            // 覆盖原更新逻辑，防止手臂摆动等副作用
+            this.prevPosX = this.posX;
+            this.prevPosY = this.posY;
+            this.prevPosZ = this.posZ;
+            this.lastTickPosX = this.posX;
+            this.lastTickPosY = this.posY;
+            this.lastTickPosZ = this.posZ;
+            this.prevRotationYaw = this.rotationYaw;
+            this.prevRotationPitch = this.rotationPitch;
+        }
     }
 }
