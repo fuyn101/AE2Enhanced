@@ -2,22 +2,20 @@ package com.github.aeddddd.ae2enhanced.client.rts;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityOtherPlayerMP;
-import net.minecraft.entity.Entity;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.world.World;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 
 /**
- * RTS 相机控制器 —— 通过每帧临时修改 mc.player 的位置/角度实现鸟瞰视角。
+ * RTS 相机控制器 —— 直接修改 mc.player 的位置/角度实现鸟瞰视角。
+ * 不使用 renderViewEntity，避免退出后区块渲染异常。
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
 public class RTSCameraController {
 
-    private static Entity cameraEntity = null;
+    // 进入 RTS 前保存的玩家原始状态
     private static double originalPlayerX, originalPlayerY, originalPlayerZ;
     private static double originalPlayerLastX, originalPlayerLastY, originalPlayerLastZ;
     private static float originalPlayerYaw, originalPlayerPitch;
@@ -25,114 +23,74 @@ public class RTSCameraController {
 
     public static void enter(double camX, double camY, double camZ) {
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null) return;
+        EntityPlayerSP p = mc.player;
+        if (p == null) return;
 
-        originalPlayerX = mc.player.posX;
-        originalPlayerY = mc.player.posY;
-        originalPlayerZ = mc.player.posZ;
-        originalPlayerLastX = mc.player.lastTickPosX;
-        originalPlayerLastY = mc.player.lastTickPosY;
-        originalPlayerLastZ = mc.player.lastTickPosZ;
-        originalPlayerYaw = mc.player.rotationYaw;
-        originalPlayerPitch = mc.player.rotationPitch;
-        originalPlayerPrevYaw = mc.player.prevRotationYaw;
-        originalPlayerPrevPitch = mc.player.prevRotationPitch;
+        originalPlayerX = p.posX;
+        originalPlayerY = p.posY;
+        originalPlayerZ = p.posZ;
+        originalPlayerLastX = p.lastTickPosX;
+        originalPlayerLastY = p.lastTickPosY;
+        originalPlayerLastZ = p.lastTickPosZ;
+        originalPlayerYaw = p.rotationYaw;
+        originalPlayerPitch = p.rotationPitch;
+        originalPlayerPrevYaw = p.prevRotationYaw;
+        originalPlayerPrevPitch = p.prevRotationPitch;
 
-        // 创建虚拟相机实体作为 renderViewEntity（确保 getMouseOver 等使用相机位置）
-        if (cameraEntity == null) {
-            cameraEntity = new CameraEntity(mc.world);
-        }
-        cameraEntity.setPosition(camX, camY, camZ);
-        cameraEntity.lastTickPosX = camX;
-        cameraEntity.lastTickPosY = camY;
-        cameraEntity.lastTickPosZ = camZ;
-        cameraEntity.rotationYaw = ClientRTSState.cameraYaw;
-        cameraEntity.rotationPitch = ClientRTSState.cameraPitch;
-        cameraEntity.prevRotationYaw = ClientRTSState.cameraYaw;
-        cameraEntity.prevRotationPitch = ClientRTSState.cameraPitch;
-        mc.setRenderViewEntity(cameraEntity);
+        // 立即设置一次，确保第一帧渲染使用相机位置
+        applyCameraToPlayer(p, camX, camY, camZ);
     }
 
     public static void exit() {
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null) return;
-        mc.setRenderViewEntity(mc.player);
-        restorePlayerState(mc);
+        EntityPlayerSP p = mc.player;
+        if (p == null) return;
+        restorePlayer(p);
     }
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (!ClientRTSState.isInRTS) return;
-        if (cameraEntity == null) return;
 
         Minecraft mc = Minecraft.getMinecraft();
-
-        // 确保 renderViewEntity 没有被重置
-        if (mc.getRenderViewEntity() != cameraEntity) {
-            mc.setRenderViewEntity(cameraEntity);
-        }
+        EntityPlayerSP p = mc.player;
+        if (p == null) return;
 
         if (event.phase == TickEvent.Phase.START) {
-            // 恢复玩家状态（防止 onLivingUpdate 发送错误位置包）
-            restorePlayerState(mc);
+            // 在 onLivingUpdate 之前恢复玩家状态，确保位置包使用原始位置
+            restorePlayer(p);
         } else if (event.phase == TickEvent.Phase.END) {
-            // 同步 lastTickPos
-            cameraEntity.lastTickPosX = cameraEntity.posX;
-            cameraEntity.lastTickPosY = cameraEntity.posY;
-            cameraEntity.lastTickPosZ = cameraEntity.posZ;
-            cameraEntity.prevRotationYaw = cameraEntity.rotationYaw;
-            cameraEntity.prevRotationPitch = cameraEntity.rotationPitch;
-
-            // 平滑插值
-            double factor = 0.3;
-            ClientRTSState.currentCameraX += (ClientRTSState.targetCameraX - ClientRTSState.currentCameraX) * factor;
-            ClientRTSState.currentCameraY += (ClientRTSState.targetCameraY - ClientRTSState.currentCameraY) * factor;
-            ClientRTSState.currentCameraZ += (ClientRTSState.targetCameraZ - ClientRTSState.currentCameraZ) * factor;
-
-            cameraEntity.setPosition(
+            // 在渲染之前设置相机状态，确保 orientCamera 使用鸟瞰视角
+            applyCameraToPlayer(p,
                     ClientRTSState.currentCameraX,
                     ClientRTSState.currentCameraY,
-                    ClientRTSState.currentCameraZ
-            );
-            cameraEntity.rotationYaw = ClientRTSState.cameraYaw;
-            cameraEntity.rotationPitch = ClientRTSState.cameraPitch;
+                    ClientRTSState.currentCameraZ);
         }
     }
 
-    private static void restorePlayerState(Minecraft mc) {
-        mc.player.posX = originalPlayerX;
-        mc.player.posY = originalPlayerY;
-        mc.player.posZ = originalPlayerZ;
-        mc.player.lastTickPosX = originalPlayerLastX;
-        mc.player.lastTickPosY = originalPlayerLastY;
-        mc.player.lastTickPosZ = originalPlayerLastZ;
-        mc.player.rotationYaw = originalPlayerYaw;
-        mc.player.rotationPitch = originalPlayerPitch;
-        mc.player.prevRotationYaw = originalPlayerPrevYaw;
-        mc.player.prevRotationPitch = originalPlayerPrevPitch;
+    private static void applyCameraToPlayer(EntityPlayerSP p, double camX, double camY, double camZ) {
+        p.posX = camX;
+        p.posY = camY;
+        p.posZ = camZ;
+        p.lastTickPosX = camX;
+        p.lastTickPosY = camY;
+        p.lastTickPosZ = camZ;
+        p.rotationYaw = ClientRTSState.cameraYaw;
+        p.rotationPitch = ClientRTSState.cameraPitch;
+        p.prevRotationYaw = ClientRTSState.cameraYaw;
+        p.prevRotationPitch = ClientRTSState.cameraPitch;
     }
 
-    /**
-     * 纯客户端虚拟相机实体 —— 不加入世界 tick，仅作为 renderViewEntity 使用。
-     */
-    private static class CameraEntity extends EntityOtherPlayerMP {
-        CameraEntity(World world) {
-            super(world, Minecraft.getMinecraft().player.getGameProfile());
-            this.setEntityId(-9999);
-            this.noClip = true;
-        }
-
-        @Override
-        public void onLivingUpdate() {
-            // 覆盖原更新逻辑，防止手臂摆动等副作用
-            this.prevPosX = this.posX;
-            this.prevPosY = this.posY;
-            this.prevPosZ = this.posZ;
-            this.lastTickPosX = this.posX;
-            this.lastTickPosY = this.posY;
-            this.lastTickPosZ = this.posZ;
-            this.prevRotationYaw = this.rotationYaw;
-            this.prevRotationPitch = this.rotationPitch;
-        }
+    private static void restorePlayer(EntityPlayerSP p) {
+        p.posX = originalPlayerX;
+        p.posY = originalPlayerY;
+        p.posZ = originalPlayerZ;
+        p.lastTickPosX = originalPlayerLastX;
+        p.lastTickPosY = originalPlayerLastY;
+        p.lastTickPosZ = originalPlayerLastZ;
+        p.rotationYaw = originalPlayerYaw;
+        p.rotationPitch = originalPlayerPitch;
+        p.prevRotationYaw = originalPlayerPrevYaw;
+        p.prevRotationPitch = originalPlayerPrevPitch;
     }
 }
