@@ -56,9 +56,7 @@ dependencies {
     compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
-    compile('zone.rong:mixinbooter:8.9') {
-        transitive = false
-    }
+    compile files('libs/!mixinbooter-10.6.jar')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'

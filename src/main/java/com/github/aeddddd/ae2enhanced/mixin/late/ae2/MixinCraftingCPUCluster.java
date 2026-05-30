@@ -23,6 +23,7 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -150,22 +151,24 @@ public class MixinCraftingCPUCluster {
     }
 
     /**
-     * 将 CraftingCPUCluster.executeCrafting 中的 InventoryCrafting 在 processing 模式下从 4×4 扩展为 10×10，
-     * 以支持超过 16 个输入的 processing pattern。
+     * 将 CraftingCPUCluster.executeCrafting 中 processing pattern 的 InventoryCrafting 尺寸
+     * 从 4×4 扩展为 10×10，以支持超过 16 个输入的 processing pattern。
+     * 使用 MixinExtras 的 @ModifyExpressionValue 修改字面量 4，避免与 ae2fc 的 @WrapOperation 在 NEW 上冲突。
      */
-    @Redirect(
+    @ModifyExpressionValue(
         method = "executeCrafting",
-        at = @At(
-            value = "NEW",
-            target = "net/minecraft/inventory/InventoryCrafting",
-            remap = true
-        )
+        at = @At(value = "CONSTANT", args = "intValue=4", ordinal = 0)
     )
-    public InventoryCrafting onNewInventoryCraftingCPU(net.minecraft.inventory.Container eventHandler, int width, int height) {
-        if (width == 4 && height == 4) {
-            return new InventoryCrafting(eventHandler, 10, 10);
-        }
-        return new InventoryCrafting(eventHandler, width, height);
+    private int modifyCraftingWidth(int constant) {
+        return 10;
+    }
+
+    @ModifyExpressionValue(
+        method = "executeCrafting",
+        at = @At(value = "CONSTANT", args = "intValue=4", ordinal = 1)
+    )
+    private int modifyCraftingHeight(int constant) {
+        return 10;
     }
 
     // ==================== Batch Crafting (Assembly Hub) — retained ====================
