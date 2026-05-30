@@ -11,13 +11,6 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.util.glu.GLU;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 
 /**
  * RTS 输入处理 —— 鼠标事件 + 按键事件 + 射线检测
@@ -147,54 +140,66 @@ public class RTSInputHandler {
         float cursorX = RTSTickController.getCursorX();
         float cursorY = RTSTickController.getCursorY();
 
-        try {
-            // 通过反射获取 MODELVIEW / PROJECTION / VIEWPORT
-            java.lang.reflect.Field mvField = net.minecraft.client.renderer.ActiveRenderInfo.class.getDeclaredField("MODELVIEW");
-            java.lang.reflect.Field projField = net.minecraft.client.renderer.ActiveRenderInfo.class.getDeclaredField("PROJECTION");
-            java.lang.reflect.Field vpField = net.minecraft.client.renderer.ActiveRenderInfo.class.getDeclaredField("VIEWPORT");
-            mvField.setAccessible(true);
-            projField.setAccessible(true);
-            vpField.setAccessible(true);
+        // OpenGL 窗口坐标 Y 轴向上，鼠标坐标 Y 轴向下，需要翻转
+        float glCursorY = mc.displayHeight - cursorY;
 
-            FloatBuffer modelView = (FloatBuffer) mvField.get(null);
-            FloatBuffer projection = (FloatBuffer) projField.get(null);
-            IntBuffer viewport = (IntBuffer) vpField.get(null);
+        // 相机位置
+        double camX = mc.player.posX;
+        double camY = mc.player.posY + RTSCamera.getHeight();
+        double camZ = mc.player.posZ;
 
-            if (modelView == null || projection == null || viewport == null) return;
+        // 相机朝向
+        float yawRad = (float) Math.toRadians(RTSCamera.getYaw());
+        float pitchRad = (float) Math.toRadians(RTSCamera.getPitch());
 
-            FloatBuffer nearPos = ByteBuffer.allocateDirect(12).order(ByteOrder.nativeOrder()).asFloatBuffer();
-            FloatBuffer farPos = ByteBuffer.allocateDirect(12).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        Vec3d forward = new Vec3d(
+            -Math.sin(yawRad) * Math.cos(pitchRad),
+            -Math.sin(pitchRad),
+            Math.cos(yawRad) * Math.cos(pitchRad)
+        );
 
-            GLU.gluUnProject(cursorX, cursorY, 0.0f, modelView, projection, viewport, nearPos);
-            GLU.gluUnProject(cursorX, cursorY, 1.0f, modelView, projection, viewport, farPos);
+        // 构建相机坐标系的 right 和 up
+        Vec3d worldUp = new Vec3d(0, 1, 0);
+        Vec3d right = forward.crossProduct(worldUp);
+        if (right.lengthSquared() < 0.001) {
+            right = new Vec3d(1, 0, 0);
+        } else {
+            right = right.normalize();
+        }
+        Vec3d up = right.crossProduct(forward).normalize();
 
-            double nx = nearPos.get(0), ny = nearPos.get(1), nz = nearPos.get(2);
-            double fx = farPos.get(0), fy = farPos.get(1), fz = farPos.get(2);
+        // NDC 坐标
+        float ndcX = (2.0f * cursorX / mc.displayWidth) - 1.0f;
+        float ndcY = (2.0f * glCursorY / mc.displayHeight) - 1.0f;
 
-            Vec3d origin = new Vec3d(nx, ny, nz);
-            Vec3d dir = new Vec3d(fx - nx, fy - ny, fz - nz).normalize();
+        // FOV
+        float fovRad = (float) Math.toRadians(RTSCamera.getFov());
+        float aspect = (float) mc.displayWidth / mc.displayHeight;
+        float tanHalfFov = (float) Math.tan(fovRad / 2.0f);
 
-            int surfaceY = RTSCamera.getPlatformSurfaceY();
-            if (Math.abs(dir.y) < 0.0001) {
-                setLastHit(null, false);
+        float camDirX = ndcX * tanHalfFov;
+        float camDirY = ndcY * tanHalfFov / aspect;
+
+        // 世界空间射线方向
+        Vec3d dir = forward.add(right.scale(camDirX)).add(up.scale(camDirY)).normalize();
+
+        int surfaceY = RTSCamera.getPlatformSurfaceY();
+        if (Math.abs(dir.y) < 0.0001) {
+            setLastHit(null, false);
+            return;
+        }
+
+        // 与平台表面方块的顶面（Y = surfaceY + 1）求交
+        double t = (surfaceY + 1 - camY) / dir.y;
+        if (t > 0) {
+            Vec3d hit = new Vec3d(camX, camY, camZ).add(dir.scale(t));
+            // BlockPos 的 Y 取 surfaceY，对应平台表面的实际方块
+            BlockPos hitPos = new BlockPos(hit.x, surfaceY, hit.z);
+            if (PlatformQuery.isInside(hitPos)) {
+                setLastHit(hitPos, true);
                 return;
             }
-
-            // 与平台表面方块的顶面（Y = surfaceY + 1）求交
-            double t = (surfaceY + 1 - origin.y) / dir.y;
-            if (t > 0) {
-                Vec3d hit = origin.add(dir.scale(t));
-                // BlockPos 的 Y 取 surfaceY，对应平台表面的实际方块
-                BlockPos hitPos = new BlockPos(hit.x, surfaceY, hit.z);
-                if (PlatformQuery.isInside(hitPos)) {
-                    setLastHit(hitPos, true);
-                    return;
-                }
-            }
-            setLastHit(null, false);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] RTS raycast failed", e);
-            setLastHit(null, false);
         }
+        setLastHit(null, false);
     }
 }
