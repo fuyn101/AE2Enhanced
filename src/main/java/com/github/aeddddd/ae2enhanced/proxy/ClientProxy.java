@@ -73,20 +73,12 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
-    public static final KeyBinding RTS_TOGGLE_KEY = new KeyBinding(
-            "key.ae2enhanced.rtsToggle",
-            KeyConflictContext.IN_GAME,
-            Keyboard.KEY_I,
-            "key.categories.ae2enhanced"
-    );
-
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
         ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
-        ClientRegistry.registerKeyBinding(RTS_TOGGLE_KEY);
     }
 
     @Override
