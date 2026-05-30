@@ -31,8 +31,8 @@ public final class RTSCamera {
     private static boolean rotating = false;
 
     // 灵敏度配置
-    public static final float CURSOR_SENSITIVITY = 2.0f;
-    public static final float ROTATION_SENSITIVITY = 1.2f;
+    public static final float CURSOR_SENSITIVITY = 1.2f;
+    public static final float ROTATION_SENSITIVITY = 0.8f;
     public static final float MOVE_SPEED = 1.5f;
 
     // 高度/FOV 范围

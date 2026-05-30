@@ -180,10 +180,12 @@ public class RTSInputHandler {
                 return;
             }
 
+            // 与平台表面方块的顶面（Y = surfaceY + 1）求交
             double t = (surfaceY + 1 - origin.y) / dir.y;
             if (t > 0) {
                 Vec3d hit = origin.add(dir.scale(t));
-                BlockPos hitPos = new BlockPos(hit.x, surfaceY + 1, hit.z);
+                // BlockPos 的 Y 取 surfaceY，对应平台表面的实际方块
+                BlockPos hitPos = new BlockPos(hit.x, surfaceY, hit.z);
                 if (PlatformQuery.isInside(hitPos)) {
                     setLastHit(hitPos, true);
                     return;
