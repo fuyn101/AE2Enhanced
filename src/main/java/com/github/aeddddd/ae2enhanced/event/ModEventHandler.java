@@ -157,12 +157,17 @@ public final class ModEventHandler {
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
+        net.minecraft.server.MinecraftServer server =
+            net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
+        if (server == null) return;
+        net.minecraft.server.management.PlayerList playerList = server.getPlayerList();
+        if (playerList == null) return;
+
         java.util.Iterator<java.util.Map.Entry<java.util.UUID, com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ServerRTSState>> it =
             com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.entrySet().iterator();
         while (it.hasNext()) {
             java.util.Map.Entry<java.util.UUID, com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ServerRTSState> entry = it.next();
-            net.minecraft.entity.player.EntityPlayerMP player =
-                net.minecraftforge.fml.server.FMLServerHandler.instance().getServer().getPlayerList().getPlayerByUUID(entry.getKey());
+            net.minecraft.entity.player.EntityPlayerMP player = playerList.getPlayerByUUID(entry.getKey());
             if (player == null) {
                 it.remove();
                 continue;
