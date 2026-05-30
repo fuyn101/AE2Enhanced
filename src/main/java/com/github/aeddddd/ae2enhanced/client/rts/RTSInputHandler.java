@@ -129,6 +129,21 @@ public class RTSInputHandler {
         net.minecraft.client.renderer.GlStateManager.popMatrix();
     }
 
+    // 缓存反射方法，避免每次射线检测都查找
+    private static java.lang.reflect.Method getFOVMethod = null;
+
+    private static float getActualFov(Minecraft mc) {
+        try {
+            if (getFOVMethod == null) {
+                getFOVMethod = net.minecraft.client.renderer.EntityRenderer.class.getDeclaredMethod("func_78481_a", float.class, boolean.class);
+                getFOVMethod.setAccessible(true);
+            }
+            return (float) getFOVMethod.invoke(mc.entityRenderer, mc.getRenderPartialTicks(), true);
+        } catch (Exception e) {
+            return RTSCamera.getFov();
+        }
+    }
+
     // ==================== 射线检测（由 RenderWorldLastEvent 调用） ====================
 
     public static void updateRaycast() {
@@ -140,10 +155,10 @@ public class RTSInputHandler {
         float cursorX = RTSTickController.getCursorX();
         float cursorY = RTSTickController.getCursorY();
 
-        // 相机位置
-        double camX = mc.player.posX;
-        double camY = mc.player.posY + RTSCamera.getHeight();
-        double camZ = mc.player.posZ;
+        // 相机位置（使用插值位置，与渲染一致）
+        double camX = mc.player.lastTickPosX + (mc.player.posX - mc.player.lastTickPosX) * mc.getRenderPartialTicks();
+        double camY = mc.player.lastTickPosY + (mc.player.posY - mc.player.lastTickPosY) * mc.getRenderPartialTicks() + RTSCamera.getHeight();
+        double camZ = mc.player.lastTickPosZ + (mc.player.posZ - mc.player.lastTickPosZ) * mc.getRenderPartialTicks();
 
         // 相机朝向
         float yawRad = (float) Math.toRadians(RTSCamera.getYaw());
@@ -169,8 +184,9 @@ public class RTSInputHandler {
         float ndcX = (2.0f * cursorX / mc.displayWidth) - 1.0f;
         float ndcY = 1.0f - (2.0f * cursorY / mc.displayHeight);
 
-        // FOV
-        float fovRad = (float) Math.toRadians(RTSCamera.getFov());
+        // FOV：直接读取 Minecraft 实际渲染使用的 FOV，确保与投影矩阵完全一致
+        float actualFov = getActualFov(mc);
+        float fovRad = (float) Math.toRadians(actualFov);
         float aspect = (float) mc.displayWidth / mc.displayHeight;
         float tanHalfFov = (float) Math.tan(fovRad / 2.0f);
 

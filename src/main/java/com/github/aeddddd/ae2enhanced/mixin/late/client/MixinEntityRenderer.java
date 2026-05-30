@@ -9,8 +9,10 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.RayTraceResult;
 import org.lwjgl.util.glu.Project;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -68,19 +70,47 @@ public class MixinEntityRenderer {
         }
     }
 
+    // === 多重保险：确保 RTS 模式下投影矩阵使用 RTSCamera 的 FOV ===
+
+    @Unique
+    private float ae2enhanced$originalFov = 0f;
+    @Unique
+    private boolean ae2enhanced$fovModified = false;
+
     /**
-     * 强制投影矩阵使用 RTSCamera 的 FOV，确保渲染视角与射线检测完全一致。
-     * setupCameraTransform 中 gluPerspective 的 fovy 参数会被替换为 RTSCamera.getFov()。
+     * 保险 1：@ModifyArg 修改 gluPerspective 的第一个参数（fovy）
      */
-    @Redirect(
+    @ModifyArg(
         method = "func_78479_a",
-        at = @At(value = "INVOKE", target = "Lorg/lwjgl/util/glu/Project;gluPerspective(FFFF)V")
+        at = @At(value = "INVOKE", target = "Lorg/lwjgl/util/glu/Project;gluPerspective(FFFF)V"),
+        index = 0
     )
-    private void redirectGluPerspective(float fovy, float aspect, float zNear, float zFar) {
+    private float modifyGluPerspectiveFov(float fovy) {
+        return RTSCamera.isActive() ? RTSCamera.getFov() : fovy;
+    }
+
+    /**
+     * 保险 2：在 setupCameraTransform 开头临时修改 mc.gameSettings.fovSetting
+     * 这样即使 @ModifyArg 因 OptiFine 等 mod 干扰失效，getFOVModifier 也会返回正确值
+     */
+    @Inject(method = "func_78479_a", at = @At("HEAD"))
+    private void ae2enhanced$onSetupCameraTransformHead(float partialTicks, int pass, CallbackInfo ci) {
         if (RTSCamera.isActive()) {
-            Project.gluPerspective(RTSCamera.getFov(), aspect, zNear, zFar);
-        } else {
-            Project.gluPerspective(fovy, aspect, zNear, zFar);
+            Minecraft mc = Minecraft.getMinecraft();
+            this.ae2enhanced$originalFov = mc.gameSettings.fovSetting;
+            mc.gameSettings.fovSetting = RTSCamera.getFov();
+            this.ae2enhanced$fovModified = true;
+        }
+    }
+
+    /**
+     * 保险 2 恢复：在 setupCameraTransform 返回时恢复原始 fovSetting
+     */
+    @Inject(method = "func_78479_a", at = @At("RETURN"))
+    private void ae2enhanced$onSetupCameraTransformReturn(float partialTicks, int pass, CallbackInfo ci) {
+        if (this.ae2enhanced$fovModified) {
+            Minecraft.getMinecraft().gameSettings.fovSetting = this.ae2enhanced$originalFov;
+            this.ae2enhanced$fovModified = false;
         }
     }
 
