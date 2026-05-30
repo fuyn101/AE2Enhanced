@@ -77,10 +77,12 @@ public final class RTSCamera {
         platformCenter = center;
         platformSizeInChunks = size;
         platformSurfaceY = surfaceY;
-        int half = (size / 2) * 16;
+        // 与服务端 TileAdvancedPlatformController.getPlatformMin/Max 保持一致
+        int halfChunks = (size - 1) / 2;
+        int offset = 7 + halfChunks * 16;
         int total = size * 16;
-        platformMin = new BlockPos(center.getX() - half, surfaceY, center.getZ() - half);
-        platformMax = new BlockPos(center.getX() - half + total - 1, surfaceY, center.getZ() - half + total - 1);
+        platformMin = new BlockPos(center.getX() - offset, surfaceY, center.getZ() - offset);
+        platformMax = new BlockPos(center.getX() - offset + total - 1, surfaceY, center.getZ() - offset + total - 1);
         pitch = 60f;
         yaw = 0f;
         height = 50f;

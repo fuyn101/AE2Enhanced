@@ -46,19 +46,9 @@ public class RTSInputHandler {
         int button = event.getButton();
         boolean state = event.isButtonstate();
 
-        // 鼠标移动事件（button == -1）
-        if (button == -1 && (event.getDx() != 0 || event.getDy() != 0)) {
-            if (RTSCamera.isRotating()) {
-                // 中键按住：旋转相机 yaw，同时同步玩家本体视角
-                RTSCamera.addYaw(event.getDx() * RTSCamera.ROTATION_SENSITIVITY);
-                Minecraft.getMinecraft().player.rotationYaw = RTSCamera.getYaw();
-            } else {
-                // 正常：移动虚拟光标
-                RTSTickController.moveCursor(
-                    event.getDx() * RTSCamera.CURSOR_SENSITIVITY,
-                    event.getDy() * RTSCamera.CURSOR_SENSITIVITY
-                );
-            }
+        // 鼠标移动事件（button == -1）：累积到位移缓冲区，由 RenderTickEvent 统一应用
+        if (button == -1) {
+            RTSTickController.accumulateMouseDelta(event.getDx(), event.getDy());
         }
 
         if (button == 0) {  // 左键

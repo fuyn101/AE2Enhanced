@@ -40,10 +40,7 @@ public class RTSWorldRenderer {
         // 1. 绘制平台边界（红色）
         drawPlatformBounds();
 
-        // 2. 绘制区块网格（灰色，对齐实际区块边界）
-        drawChunkGrid();
-
-        // 3. 绘制锚点高亮
+        // 2. 绘制锚点高亮
         if (RTSSelection.getMode() == RTSSelection.Mode.ANCHOR_A_SET && RTSSelection.getAnchorA() != null) {
             drawAnchorPulse(RTSSelection.getAnchorA(), event.getPartialTicks());
         }
@@ -79,38 +76,6 @@ public class RTSWorldRenderer {
         buf.pos(max.getX() + 1, surfaceY + 0.05, min.getZ()).endVertex();
         buf.pos(max.getX() + 1, surfaceY + 0.05, max.getZ() + 1).endVertex();
         buf.pos(min.getX(), surfaceY + 0.05, max.getZ() + 1).endVertex();
-        tess.draw();
-    }
-
-    private void drawChunkGrid() {
-        BlockPos min = RTSCamera.getPlatformMin();
-        BlockPos max = RTSCamera.getPlatformMax();
-        int surfaceY = RTSCamera.getPlatformSurfaceY();
-
-        // 对齐到实际区块边界（16 的倍数）
-        int startX = (min.getX() >> 4) << 4;
-        int endX = ((max.getX() >> 4) + 1) << 4;
-        int startZ = (min.getZ() >> 4) << 4;
-        int endZ = ((max.getZ() >> 4) + 1) << 4;
-
-        GlStateManager.color(0.5f, 0.5f, 0.5f, 0.6f);
-        GlStateManager.glLineWidth(1.0f);
-
-        Tessellator tess = Tessellator.getInstance();
-        BufferBuilder buf = tess.getBuffer();
-        buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION);
-
-        // 垂直线（每 16 格，对齐实际区块边界）
-        for (int x = startX; x <= endX; x += 16) {
-            buf.pos(x, surfaceY + 0.03, startZ).endVertex();
-            buf.pos(x, surfaceY + 0.03, endZ).endVertex();
-        }
-        // 水平线（每 16 格，对齐实际区块边界）
-        for (int z = startZ; z <= endZ; z += 16) {
-            buf.pos(startX, surfaceY + 0.03, z).endVertex();
-            buf.pos(endX, surfaceY + 0.03, z).endVertex();
-        }
-
         tess.draw();
     }
 
