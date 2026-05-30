@@ -9,6 +9,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
@@ -112,6 +113,74 @@ public final class ModEventHandler {
 
         // ⑤ 燃烧
         entity.setFire(10);
+    }
+
+    // ==================== RTS 强制退出 ====================
+
+    @SubscribeEvent
+    public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player.world.isRemote) return;
+        java.util.UUID uuid = event.player.getUniqueID();
+        com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.remove(uuid);
+    }
+
+    @SubscribeEvent
+    public void onPlayerDeath(LivingDeathEvent event) {
+        if (event.getEntity().world.isRemote) return;
+        if (!(event.getEntity() instanceof net.minecraft.entity.player.EntityPlayerMP)) return;
+        net.minecraft.entity.player.EntityPlayerMP player = (net.minecraft.entity.player.EntityPlayerMP) event.getEntity();
+        java.util.UUID uuid = player.getUniqueID();
+        if (com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.containsKey(uuid)) {
+            com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.remove(uuid);
+            AE2Enhanced.network.sendTo(
+                new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange(
+                    com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ACTION_FORCE_EXIT),
+                player
+            );
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.player.world.isRemote) return;
+        java.util.UUID uuid = event.player.getUniqueID();
+        if (com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.containsKey(uuid)) {
+            com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.remove(uuid);
+            AE2Enhanced.network.sendTo(
+                new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange(
+                    com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ACTION_FORCE_EXIT),
+                (net.minecraft.entity.player.EntityPlayerMP) event.player
+            );
+        }
+    }
+
+    @SubscribeEvent
+    public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
+        java.util.Iterator<java.util.Map.Entry<java.util.UUID, com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ServerRTSState>> it =
+            com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.C2SHandler.STATES.entrySet().iterator();
+        while (it.hasNext()) {
+            java.util.Map.Entry<java.util.UUID, com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ServerRTSState> entry = it.next();
+            net.minecraft.entity.player.EntityPlayerMP player =
+                net.minecraftforge.fml.server.FMLServerHandler.instance().getServer().getPlayerList().getPlayerByUUID(entry.getKey());
+            if (player == null) {
+                it.remove();
+                continue;
+            }
+            com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ServerRTSState state = entry.getValue();
+            double margin = 8.0;
+            if (player.posX < state.platformMin.getX() - margin ||
+                player.posX > state.platformMax.getX() + 1 + margin ||
+                player.posZ < state.platformMin.getZ() - margin ||
+                player.posZ > state.platformMax.getZ() + 1 + margin) {
+                it.remove();
+                AE2Enhanced.network.sendTo(
+                    new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange(
+                        com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ACTION_FORCE_EXIT),
+                    player
+                );
+            }
+        }
     }
 
 }

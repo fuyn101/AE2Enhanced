@@ -73,12 +73,20 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding RTS_TOGGLE_KEY = new KeyBinding(
+            "key.ae2enhanced.rtsToggle",
+            KeyConflictContext.IN_GAME,
+            Keyboard.KEY_I,
+            "key.categories.ae2enhanced"
+    );
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
         ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
+        ClientRegistry.registerKeyBinding(RTS_TOGGLE_KEY);
     }
 
     @Override
@@ -87,6 +95,11 @@ public class ClientProxy extends CommonProxy {
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());
+
+        // RTS 系统事件注册
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.RTSTickController());
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.RTSInputHandler());
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.RTSWorldRenderer());
 
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
@@ -159,6 +172,17 @@ public class ClientProxy extends CommonProxy {
         }
         if (TOGGLE_MAGNET_KEY.isPressed()) {
             AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet());
+        }
+        if (RTS_TOGGLE_KEY.isPressed()) {
+            if (com.github.aeddddd.ae2enhanced.client.rts.RTSCamera.isActive()) {
+                com.github.aeddddd.ae2enhanced.client.rts.RTSCamera.deactivate();
+                com.github.aeddddd.ae2enhanced.client.rts.RTSSelection.clear();
+                AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange(
+                    com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ACTION_EXIT));
+            } else {
+                AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange(
+                    com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange.ACTION_ENTER));
+            }
         }
     }
 
