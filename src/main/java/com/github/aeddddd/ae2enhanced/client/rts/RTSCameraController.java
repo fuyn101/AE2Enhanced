@@ -34,8 +34,13 @@ public class RTSCameraController {
             cameraEntity = new CameraEntity(mc.world);
         }
         cameraEntity.setPosition(camX, camY, camZ);
+        cameraEntity.lastTickPosX = camX;
+        cameraEntity.lastTickPosY = camY;
+        cameraEntity.lastTickPosZ = camZ;
         cameraEntity.rotationYaw = ClientRTSState.cameraYaw;
         cameraEntity.rotationPitch = ClientRTSState.cameraPitch;
+        cameraEntity.prevRotationYaw = ClientRTSState.cameraYaw;
+        cameraEntity.prevRotationPitch = ClientRTSState.cameraPitch;
         mc.setRenderViewEntity(cameraEntity);
     }
 
@@ -51,6 +56,20 @@ public class RTSCameraController {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (!ClientRTSState.isInRTS || event.phase != TickEvent.Phase.END) return;
         if (cameraEntity == null) return;
+
+        Minecraft mc = Minecraft.getMinecraft();
+
+        // 确保 renderViewEntity 没有被其他代码重置
+        if (mc.getRenderViewEntity() != cameraEntity) {
+            mc.setRenderViewEntity(cameraEntity);
+        }
+
+        // 同步 lastTickPos（CameraEntity 不在世界 tick 列表中）
+        cameraEntity.lastTickPosX = cameraEntity.posX;
+        cameraEntity.lastTickPosY = cameraEntity.posY;
+        cameraEntity.lastTickPosZ = cameraEntity.posZ;
+        cameraEntity.prevRotationYaw = cameraEntity.rotationYaw;
+        cameraEntity.prevRotationPitch = cameraEntity.rotationPitch;
 
         // 平滑插值
         double factor = 0.3;

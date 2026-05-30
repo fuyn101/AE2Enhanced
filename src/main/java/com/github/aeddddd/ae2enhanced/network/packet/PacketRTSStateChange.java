@@ -23,6 +23,7 @@ public class PacketRTSStateChange implements IMessage {
 
     private boolean entering;
     private double cameraX, cameraY, cameraZ;
+    private int controllerX, controllerY, controllerZ;
 
     public PacketRTSStateChange() {
     }
@@ -32,12 +33,17 @@ public class PacketRTSStateChange implements IMessage {
         this.entering = entering;
     }
 
-    /** 服务端构造：确认进入，下发相机位置 */
-    public PacketRTSStateChange(boolean entering, double cameraX, double cameraY, double cameraZ) {
+    /** 服务端构造：确认进入，下发相机位置和控制器位置 */
+    public PacketRTSStateChange(boolean entering, double cameraX, double cameraY, double cameraZ, BlockPos controllerPos) {
         this.entering = entering;
         this.cameraX = cameraX;
         this.cameraY = cameraY;
         this.cameraZ = cameraZ;
+        if (controllerPos != null) {
+            this.controllerX = controllerPos.getX();
+            this.controllerY = controllerPos.getY();
+            this.controllerZ = controllerPos.getZ();
+        }
     }
 
     @Override
@@ -46,6 +52,9 @@ public class PacketRTSStateChange implements IMessage {
         this.cameraX = buf.readDouble();
         this.cameraY = buf.readDouble();
         this.cameraZ = buf.readDouble();
+        this.controllerX = buf.readInt();
+        this.controllerY = buf.readInt();
+        this.controllerZ = buf.readInt();
     }
 
     @Override
@@ -54,6 +63,9 @@ public class PacketRTSStateChange implements IMessage {
         buf.writeDouble(cameraX);
         buf.writeDouble(cameraY);
         buf.writeDouble(cameraZ);
+        buf.writeInt(controllerX);
+        buf.writeInt(controllerY);
+        buf.writeInt(controllerZ);
     }
 
     // ==================== 客户端 → 服务端 Handler ====================
@@ -98,7 +110,7 @@ public class PacketRTSStateChange implements IMessage {
                                     double camZ = (min.getZ() + max.getZ()) / 2.0 + 0.5;
                                     double camY = min.getY() + 64;
                                     AE2Enhanced.network.sendTo(
-                                            new PacketRTSStateChange(true, camX, camY, camZ),
+                                            new PacketRTSStateChange(true, camX, camY, camZ, controller.getPos()),
                                             player);
                                     return;
                                 }
@@ -120,9 +132,12 @@ public class PacketRTSStateChange implements IMessage {
         public IMessage onMessage(PacketRTSStateChange message, MessageContext ctx) {
             net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
                 if (message.entering) {
-                    ClientRTSState.enter(null, message.cameraX, message.cameraY, message.cameraZ);
+                    BlockPos controllerPos = new BlockPos(message.controllerX, message.controllerY, message.controllerZ);
+                    ClientRTSState.enter(controllerPos, message.cameraX, message.cameraY, message.cameraZ);
+                    com.github.aeddddd.ae2enhanced.client.rts.RTSCameraController.enter(message.cameraX, message.cameraY, message.cameraZ);
                 } else {
                     ClientRTSState.exit();
+                    com.github.aeddddd.ae2enhanced.client.rts.RTSCameraController.exit();
                 }
             });
             return null;
