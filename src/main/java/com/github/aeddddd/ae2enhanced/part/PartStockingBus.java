@@ -253,7 +253,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
         if (isAeFluidDummy(stack)) return ResourceType.FLUID;
         if (isAe2fcFluidDrop(stack)) return ResourceType.FLUID;
-        if (GasFakeItemChecks.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (GasFakeItemChecks.isGasFakeItem(stack)) return ResourceType.GAS;
         if (isAe2fcGasDrop(stack)) return ResourceType.GAS;
         if (EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         if (isTheDummyAspect(stack)) return ResourceType.ESSENTIA;
@@ -919,7 +919,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
         if (ItemFluidDrop.isFluidDrop(stack)) return 1000;
         if (isAeFluidDummy(stack)) return 1000;
         if (isAe2fcFluidDrop(stack)) return 1000;
-        if (GasFakeItemChecks.isGasFakeItemSafe(stack)) return 1000;
+        if (GasFakeItemChecks.isGasFakeItem(stack)) return 1000;
         if (isAe2fcGasDrop(stack)) return 1000;
         return 1;
     }

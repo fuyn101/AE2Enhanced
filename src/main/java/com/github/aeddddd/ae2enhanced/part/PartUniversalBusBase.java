@@ -23,7 +23,7 @@ import appeng.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.CapabilityProbe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.GasFakeItemChecks;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -247,7 +247,7 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         ItemStack stack = filter.createItemStack();
         if (stack.isEmpty()) return null;
         if (ItemFluidDrop.isFluidDrop(stack)) return ResourceType.FLUID;
-        if (FakeGases.isGasFakeItemSafe(stack)) return ResourceType.GAS;
+        if (GasFakeItemChecks.isGasFakeItem(stack)) return ResourceType.GAS;
         if (FakeEssentiaSafe.isEssentiaFakeItem(stack)) return ResourceType.ESSENTIA;
         return ResourceType.ITEM;
     }
@@ -293,7 +293,7 @@ public abstract class PartUniversalBusBase extends PartUpgradeable implements IG
         if (ItemFluidDrop.isFluidDrop(stack)) return true;
         if (isAeFluidDummy(stack)) return true;
         if (isAe2fcFluidDrop(stack)) return true;
-        if (FakeGases.isGasFakeItemSafe(stack)) return true;
+        if (GasFakeItemChecks.isGasFakeItem(stack)) return true;
         if (isAe2fcGasDrop(stack)) return true;
         if (com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks.isEssentiaFakeItem(stack)) return true;
         if (isTheDummyAspect(stack)) return true;

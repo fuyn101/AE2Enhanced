@@ -4,7 +4,7 @@ import appeng.client.gui.implementations.GuiCellWorkbench;
 import appeng.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.GasFakeItemChecks;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -37,8 +37,8 @@ public class MixinGuiCellWorkbench {
             if (fluid != null) {
                 tooltip = fluid.getLocalizedName();
             }
-        } else if (!com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat.AE2FC_LOADED && FakeGases.isGasFakeItemSafe(stack)) {
-            String gasName = FakeGases.tryGetGasName(stack);
+        } else if (!com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat.AE2FC_LOADED && GasFakeItemChecks.isGasFakeItem(stack)) {
+            String gasName = GasFakeItemChecks.tryGetGasName(stack);
             if (gasName != null) {
                 tooltip = gasName;
             }

@@ -4,7 +4,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.GasFakeItemChecks;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -44,8 +44,8 @@ public class MixinGuiArcaneTerminal {
             String name = fluid != null ? fluid.getLocalizedName() : "Unknown Fluid";
             tooltip.add("\u00A7b" + "Fluid: " + name);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());
-        } else if (FakeGases.isGasFakeItemSafe(stack)) {
-            String gasName = FakeGases.tryGetGasName(stack);
+        } else if (GasFakeItemChecks.isGasFakeItem(stack)) {
+            String gasName = GasFakeItemChecks.tryGetGasName(stack);
             String name = gasName != null ? gasName : "Unknown Gas";
             tooltip.add("\u00A7b" + "Gas: " + name);
             tooltip.add("\u00A77" + "Amount: " + aeStack.getStackSize());
