@@ -19,6 +19,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformEnergySync;
 import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
+import com.github.aeddddd.ae2enhanced.platform.energy.EnergyAdapterRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageAdapter;
@@ -223,12 +224,13 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         for (EnergyFacility facility : energyFacilities) {
             if (!facility.isReceiver()) continue;
 
-            IEnergyStorage receiver = facility.cap;
-            int demand = receiver.receiveEnergy(Integer.MAX_VALUE, true);
+            TileEntity tile = world.getTileEntity(facility.pos);
+            if (tile == null || tile.isInvalid()) continue;
+
+            int demand = facility.adapter.getReceiveableEnergy(tile, facility.cap);
             if (demand <= 0) continue;
 
             // 一次性提取全部需求，不受 rfExtractPerTick 限制
-            // 同 tick 多次调用机制负责突破机器单次 receiveEnergy 上限
             IAEEnergyStack request = AEEnergyStack.create(demand);
             IAEEnergyStack extracted = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
@@ -237,7 +239,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             if (extracted == null || extracted.getStackSize() <= 0) continue;
 
             int toInject = (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE);
-            int actual = injectEnergyMultiCall(receiver, toInject);
+            int actual = facility.adapter.injectEnergy(tile, facility.cap, toInject, false);
 
             // 未用完的能量返还 ME 网络
             long leftover = extracted.getStackSize() - actual;
@@ -248,21 +250,6 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                 ).injectItems(leftoverStack, Actionable.MODULATE, getMachineSource());
             }
         }
-    }
-
-    /**
-     * 单 tick 多次调用注入策略：突破机器单次 receiveEnergy 上限。
-     * 安全循环上限 1000 次，防止异常实现导致死循环。
-     */
-    private int injectEnergyMultiCall(IEnergyStorage receiver, int amount) {
-        int total = 0;
-        for (int i = 0; i < 1000 && amount > 0; i++) {
-            int injected = receiver.receiveEnergy(amount, false);
-            if (injected <= 0) break;
-            total += injected;
-            amount -= injected;
-        }
-        return total;
     }
 
     /**
@@ -278,8 +265,11 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             if (!facility.isReceiver()) continue;
             if (rfBuffer <= 0) break;
 
+            TileEntity tile = world.getTileEntity(facility.pos);
+            if (tile == null || tile.isInvalid()) continue;
+
             long toSend = Math.min(perReceiver, rfBuffer);
-            int accepted = injectEnergyMultiCall(facility.cap, (int) Math.min(toSend, Integer.MAX_VALUE));
+            int accepted = facility.adapter.injectEnergy(tile, facility.cap, (int) Math.min(toSend, Integer.MAX_VALUE), false);
             rfBuffer -= accepted;
         }
     }
@@ -354,8 +344,11 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                     if (te != null && te.hasCapability(CapabilityEnergy.ENERGY, EnumFacing.UP)) {
                         IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
                         if (cap != null && cap.canReceive()) {
-                            // 默认只作为 RECEIVER；PROVIDER 模式后续通过特殊标记启用
-                            energyFacilities.add(new EnergyFacility(mutable.toImmutable(), cap, EnergyFacility.Type.RECEIVER));
+                            String blockId = world.getBlockState(mutable).getBlock().getRegistryName().toString();
+                            energyFacilities.add(new EnergyFacility(
+                                    mutable.toImmutable(), cap, blockId,
+                                    EnergyAdapterRegistry.findAdapter(blockId),
+                                    EnergyFacility.Type.RECEIVER));
                         }
                     }
                 }
