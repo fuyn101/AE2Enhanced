@@ -350,6 +350,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                     for (appeng.api.storage.data.IAEItemStack aeStack : itemMonitor.getStorageList()) {
                         if (aeStack == null || aeStack.getStackSize() <= 0) continue;
                         net.minecraft.item.ItemStack stack = aeStack.createItemStack();
+                        if (!(stack.getItem() instanceof net.minecraft.item.ItemBlock)) continue;
                         stack.setCount(1);
                         entries.add(new PacketRTSMEStorageSync.Entry(stack, aeStack.getStackSize()));
                         if (entries.size() >= 200) break; // 限制同步数量

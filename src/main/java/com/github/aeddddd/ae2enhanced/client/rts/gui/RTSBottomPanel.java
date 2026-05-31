@@ -314,6 +314,9 @@ public class RTSBottomPanel {
     }
 
     private static String formatCount(long count) {
+        if (count >= 1_000_000_000_000_000_000L) {
+            return String.format("%.1fE", count / 1_000_000_000_000_000_000.0);
+        }
         if (count >= 1_000_000_000_000_000L) {
             return String.format("%.1fP", count / 1_000_000_000_000_000.0);
         }

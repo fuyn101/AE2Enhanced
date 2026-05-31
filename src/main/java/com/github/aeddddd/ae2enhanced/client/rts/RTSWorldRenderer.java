@@ -119,12 +119,14 @@ public class RTSWorldRenderer {
         BlockPos hitPos = RTSInputHandler.getLastHitPos();
         if (hitPos == null) return;
 
+        BlockPos placePos = hitPos.up();
+
         net.minecraft.item.ItemStack placementItem = com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.getCurrentPlacementItem();
         if (placementItem.isEmpty()) return;
 
         Minecraft mc = Minecraft.getMinecraft();
-        boolean canPlace = mc.world.getBlockState(hitPos).getMaterial().isReplaceable()
-                || mc.world.isAirBlock(hitPos);
+        boolean canPlace = mc.world.getBlockState(placePos).getMaterial().isReplaceable()
+                || mc.world.isAirBlock(placePos);
 
         float r = canPlace ? 0.3f : 1.0f;
         float g = canPlace ? 1.0f : 0.2f;
@@ -144,9 +146,9 @@ public class RTSWorldRenderer {
         BufferBuilder buf = tess.getBuffer();
         buf.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION);
 
-        double x = hitPos.getX();
-        double y = hitPos.getY() + 0.5;
-        double z = hitPos.getZ();
+        double x = placePos.getX();
+        double y = placePos.getY() + 0.5;
+        double z = placePos.getZ();
 
         // 底面
         buf.pos(x, y, z).endVertex(); buf.pos(x + 1, y, z).endVertex();

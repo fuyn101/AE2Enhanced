@@ -45,11 +45,11 @@ public class RTSInputHandler {
             RTSTickController.accumulateMouseDelta(event.getDx(), event.getDy());
         }
 
-        // 计算缩放后的鼠标坐标
+        // 计算缩放后的鼠标坐标（使用虚拟光标，与渲染一致）
         Minecraft mc = Minecraft.getMinecraft();
         net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(mc);
-        int mouseX = Mouse.getX() * sr.getScaledWidth() / mc.displayWidth;
-        int mouseY = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
+        int mouseX = (int) (RTSTickController.getCursorX() * sr.getScaledWidth() / mc.displayWidth);
+        int mouseY = (int) (RTSTickController.getCursorY() * sr.getScaledHeight() / mc.displayHeight);
 
         // GUI 交互优先：鼠标在底部面板内时，所有鼠标事件都被面板消费
         if (com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.isMouseOverPanel(mouseX, mouseY)) {
@@ -79,7 +79,7 @@ public class RTSInputHandler {
                                 com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SELECTION, placement));
                     } else if (lastHitValid && lastHitPos != null) {
                         AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace(
-                                com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SINGLE, lastHitPos, placement));
+                                com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SINGLE, lastHitPos.up(), placement));
                     }
                 }
             }
@@ -267,8 +267,7 @@ public class RTSInputHandler {
         net.minecraft.util.math.RayTraceResult result = mc.world.rayTraceBlocks(start, end, false, false, false);
 
         if (result != null && result.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
-            // rayTraceBlocks 返回的 blockPos 在俯视场景中会低一格，取上方方块修正
-            BlockPos hitPos = result.getBlockPos().up();
+            BlockPos hitPos = result.getBlockPos();
             setLastHit(hitPos, true);
         } else {
             setLastHit(null, false);
