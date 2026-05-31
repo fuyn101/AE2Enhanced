@@ -117,6 +117,13 @@ public class RTSInputHandler {
         if (Keyboard.getEventKey() == Keyboard.KEY_TAB && Keyboard.getEventKeyState()) {
             com.github.aeddddd.ae2enhanced.client.rts.gui.RTSMEStorageCache.toggleSortMode();
         }
+
+        // X 键破坏当前选区中的方块
+        if (Keyboard.getEventKey() == Keyboard.KEY_X && Keyboard.getEventKeyState()) {
+            if (!RTSSelection.getSelectedBlocks().isEmpty()) {
+                AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSBreak());
+            }
+        }
     }
 
     // ==================== 准星与光标渲染 ====================

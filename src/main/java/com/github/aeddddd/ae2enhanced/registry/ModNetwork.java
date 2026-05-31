@@ -28,6 +28,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSStateChange;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSSelection;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSCameraSync;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSMEStorageSync;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSBreak;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
@@ -76,5 +77,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketRTSCameraSync.Handler.class, PacketRTSCameraSync.class, 26, Side.SERVER);
         nw.registerMessage(PacketRTSPlace.Handler.class, PacketRTSPlace.class, 27, Side.SERVER);
         nw.registerMessage(PacketRTSMEStorageSync.Handler.class, PacketRTSMEStorageSync.class, 28, Side.CLIENT);
+        nw.registerMessage(PacketRTSBreak.Handler.class, PacketRTSBreak.class, 29, Side.SERVER);
     }
 }
