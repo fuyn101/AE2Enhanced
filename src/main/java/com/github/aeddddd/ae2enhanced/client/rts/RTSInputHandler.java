@@ -196,23 +196,16 @@ public class RTSInputHandler {
         // 世界空间射线方向
         Vec3d dir = forward.add(right.scale(camDirX)).add(up.scale(camDirY)).normalize();
 
-        int surfaceY = RTSCamera.getPlatformSurfaceY();
-        if (Math.abs(dir.y) < 0.0001) {
-            setLastHit(null, false);
-            return;
-        }
+        // 使用 Minecraft 原生射线检测沿世界空间遍历，返回碰到的首个方块
+        Vec3d start = new Vec3d(camX, camY, camZ);
+        Vec3d end = start.add(dir.scale(256)); // 256 格足够覆盖任何平台尺寸
+        net.minecraft.util.math.RayTraceResult result = mc.world.rayTraceBlocks(start, end, false, false, false);
 
-        // 与平台表面方块的顶面（Y = surfaceY + 1）求交
-        double t = (surfaceY + 1 - camY) / dir.y;
-        if (t > 0) {
-            Vec3d hit = new Vec3d(camX, camY, camZ).add(dir.scale(t));
-            // BlockPos 的 Y 取 surfaceY，对应平台表面的实际方块
-            BlockPos hitPos = new BlockPos(hit.x, surfaceY, hit.z);
-            if (PlatformQuery.isInside(hitPos)) {
-                setLastHit(hitPos, true);
-                return;
-            }
+        if (result != null && result.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
+            BlockPos hitPos = result.getBlockPos();
+            setLastHit(hitPos, true);
+        } else {
+            setLastHit(null, false);
         }
-        setLastHit(null, false);
     }
 }
