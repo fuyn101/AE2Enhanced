@@ -66,7 +66,7 @@ public class PacketRTSBreak implements IMessage {
                 int relZ = i % height;
                 BlockPos pos = new BlockPos(
                         state.platformMin.getX() + relX,
-                        state.selectionY,
+                        state.surfaceY,
                         state.platformMin.getZ() + relZ);
 
                 if (!isInsidePlatform(pos, state)) continue;
