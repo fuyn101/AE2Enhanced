@@ -18,6 +18,7 @@ import appeng.me.helpers.MachineSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformEnergySync;
+import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageAdapter;
@@ -58,9 +59,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private long rfBufferCapacity;
     private long rfExtractPerTick;
 
-    // ===== 用电/发电设施缓存 =====
-    private final List<net.minecraftforge.energy.IEnergyStorage> energyReceivers = new ArrayList<>();
-    private final List<net.minecraftforge.energy.IEnergyStorage> energyProviders = new ArrayList<>();
+    // ===== 能量设施缓存 =====
+    private final List<EnergyFacility> energyFacilities = new ArrayList<>();
     private int cacheRefreshCooldown = 0;
 
     // ===== ForgeChunkManager =====
@@ -182,7 +182,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         this.markDirty();
     }
 
-    // === 能量 Tick 逻辑 ===
+    // === 能量 Tick 逻辑（P2：按需直供） ===
 
     private void doEnergyTick() {
         if (cacheRefreshCooldown <= 0) {
@@ -190,77 +190,123 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             cacheRefreshCooldown = 100;
         }
 
-        if (rfBuffer < rfBufferCapacity) {
-            extractRFFromNetwork();
-        }
+        // 网络正常时按需直供；断网时回退到 rfBuffer 应急
+        supplyReceiversFromNetwork();
 
-        collectRFFromProviders();
-        distributeRFToReceivers();
-        injectRFBackToNetwork();
+        // 网络恢复时优先清空本地缓冲回注 ME 网络
+        handleBufferRecovery();
+
         syncEnergyToClients();
     }
 
-    private void extractRFFromNetwork() {
-        try {
-            appeng.api.networking.storage.IStorageGrid storageGrid =
-                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
-            if (storageGrid == null) return;
-            long want = Math.min(rfExtractPerTick, rfBufferCapacity - rfBuffer);
-            if (want <= 0) return;
+    /**
+     * 从 ME 网络按需提取能量，通过单 tick 多次调用策略注入接收设施。
+     * 断网时自动回退到 rfBuffer 应急供能。
+     */
+    private void supplyReceiversFromNetwork() {
+        if (energyFacilities.isEmpty()) return;
 
-            IAEEnergyStack request = AEEnergyStack.create(want);
-            IAEEnergyStack extracted = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
-            ).extractItems(request, Actionable.MODULATE, getMachineSource());
-            if (extracted != null) {
-                rfBuffer += extracted.getStackSize();
-            }
+        appeng.api.networking.storage.IStorageGrid storageGrid = null;
+        boolean networkAvailable = false;
+        try {
+            storageGrid = getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            networkAvailable = storageGrid != null;
         } catch (GridAccessException e) {
             // 断网
         }
-    }
 
-    private void collectRFFromProviders() {
-        for (net.minecraftforge.energy.IEnergyStorage provider : energyProviders) {
-            int canExtract = provider.extractEnergy(Integer.MAX_VALUE, true);
-            if (canExtract > 0) {
-                int actual = provider.extractEnergy(canExtract, false);
-                rfBuffer = Math.min(rfBuffer + actual, rfBufferCapacity);
+        if (!networkAvailable) {
+            distributeRFBufferToReceivers();
+            return;
+        }
+
+        for (EnergyFacility facility : energyFacilities) {
+            if (!facility.isReceiver()) continue;
+
+            IEnergyStorage receiver = facility.cap;
+            int demand = receiver.receiveEnergy(Integer.MAX_VALUE, true);
+            if (demand <= 0) continue;
+
+            // 限制单 tick 从网络提取上限，避免瞬时爆请求
+            demand = (int) Math.min(demand, rfExtractPerTick);
+
+            IAEEnergyStack request = AEEnergyStack.create(demand);
+            IAEEnergyStack extracted = storageGrid.getInventory(
+                    AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
+            ).extractItems(request, Actionable.MODULATE, getMachineSource());
+
+            if (extracted == null || extracted.getStackSize() <= 0) continue;
+
+            int toInject = (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE);
+            int actual = injectEnergyMultiCall(receiver, toInject);
+
+            // 未用完的能量返还 ME 网络
+            long leftover = extracted.getStackSize() - actual;
+            if (leftover > 0) {
+                IAEEnergyStack leftoverStack = AEEnergyStack.create(leftover);
+                storageGrid.getInventory(
+                        AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
+                ).injectItems(leftoverStack, Actionable.MODULATE, getMachineSource());
             }
         }
     }
 
-    private void distributeRFToReceivers() {
-        if (energyReceivers.isEmpty() || rfBuffer <= 0) return;
+    /**
+     * 单 tick 多次调用注入策略：突破机器单次 receiveEnergy 上限。
+     * 安全循环上限 1000 次，防止异常实现导致死循环。
+     */
+    private int injectEnergyMultiCall(IEnergyStorage receiver, int amount) {
+        int total = 0;
+        for (int i = 0; i < 1000 && amount > 0; i++) {
+            int injected = receiver.receiveEnergy(amount, false);
+            if (injected <= 0) break;
+            total += injected;
+            amount -= injected;
+        }
+        return total;
+    }
 
-        long perReceiver = rfBuffer / energyReceivers.size();
+    /**
+     * 断网应急：使用 rfBuffer 给接收设施供能。
+     */
+    private void distributeRFBufferToReceivers() {
+        if (rfBuffer <= 0 || energyFacilities.isEmpty()) return;
+
+        long perReceiver = rfBuffer / energyFacilities.size();
         if (perReceiver <= 0) perReceiver = rfBuffer;
 
-        for (net.minecraftforge.energy.IEnergyStorage receiver : energyReceivers) {
+        for (EnergyFacility facility : energyFacilities) {
+            if (!facility.isReceiver()) continue;
             if (rfBuffer <= 0) break;
+
             long toSend = Math.min(perReceiver, rfBuffer);
-            int accepted = receiver.receiveEnergy((int) Math.min(toSend, Integer.MAX_VALUE), false);
+            int accepted = injectEnergyMultiCall(facility.cap, (int) Math.min(toSend, Integer.MAX_VALUE));
             rfBuffer -= accepted;
         }
     }
 
-    private void injectRFBackToNetwork() {
-        if (rfBuffer < rfBufferCapacity * 0.9) return;
+    /**
+     * 网络恢复时，将 rfBuffer 中的能量优先回注 ME 网络。
+     */
+    private void handleBufferRecovery() {
+        if (rfBuffer <= 0) return;
         try {
             appeng.api.networking.storage.IStorageGrid storageGrid =
                     getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            long excess = rfBuffer - (rfBufferCapacity / 2);
-            if (excess <= 0) return;
 
-            IAEEnergyStack toInject = AEEnergyStack.create(excess);
+            long toRecover = Math.min(rfBuffer, rfExtractPerTick);
+            if (toRecover <= 0) return;
+
+            IAEEnergyStack toInject = AEEnergyStack.create(toRecover);
             IAEEnergyStack leftover = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
             ).injectItems(toInject, Actionable.MODULATE, getMachineSource());
-            long injected = excess - (leftover != null ? leftover.getStackSize() : 0);
+
+            long injected = toRecover - (leftover != null ? leftover.getStackSize() : 0);
             rfBuffer -= injected;
         } catch (GridAccessException e) {
-            // 断网
+            // 仍然断网，保持缓冲
         }
     }
 
@@ -293,8 +339,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     // === 设施缓存刷新 ===
 
     public void refreshFacilityCache() {
-        energyReceivers.clear();
-        energyProviders.clear();
+        energyFacilities.clear();
         if (!isPlatformActive) return;
 
         BlockPos min = getPlatformMin();
@@ -308,11 +353,10 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                     mutable.setPos(x, y, z);
                     TileEntity te = world.getTileEntity(mutable);
                     if (te != null && te.hasCapability(CapabilityEnergy.ENERGY, EnumFacing.UP)) {
-                        net.minecraftforge.energy.IEnergyStorage cap =
-                                te.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
-                        if (cap != null) {
-                            if (cap.canReceive()) energyReceivers.add(cap);
-                            if (cap.canExtract()) energyProviders.add(cap);
+                        IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
+                        if (cap != null && cap.canReceive()) {
+                            // 默认只作为 RECEIVER；PROVIDER 模式后续通过特殊标记启用
+                            energyFacilities.add(new EnergyFacility(mutable.toImmutable(), cap, EnergyFacility.Type.RECEIVER));
                         }
                     }
                 }
@@ -367,8 +411,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     public void deactivatePlatform() {
         this.isPlatformActive = false;
         unloadPlatformChunks();
-        energyReceivers.clear();
-        energyProviders.clear();
+        energyFacilities.clear();
         markDirty();
     }
 
