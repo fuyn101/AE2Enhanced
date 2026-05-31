@@ -269,7 +269,7 @@ public class PacketRTSSelection implements IMessage {
                     for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
                         int relX = i / height;
                         int relZ = i % height;
-                        result.add(new BlockPos(platformMin.getX() + relX, y, platformMin.getZ() + relZ));
+                        result.add(new BlockPos(platformMin.getX() + relX, y + 1, platformMin.getZ() + relZ));
                     }
                 }
             } else if (len > 0) {
