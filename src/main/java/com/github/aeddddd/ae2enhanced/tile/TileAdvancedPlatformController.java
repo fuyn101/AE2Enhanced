@@ -74,7 +74,6 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // ===== 客户端同步计数器 =====
     private int syncCooldown = 0;
-    private int meSyncCooldown = 0;
 
     public TileAdvancedPlatformController() {
         updateConfigValues();
@@ -136,9 +135,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (isPlatformActive && cacheRefreshCooldown > 0) {
             cacheRefreshCooldown--;
         }
-        // 客户端同步不依赖 AE 网络 tick，确保无能量时 HUD/GUI 仍能更新
         syncEnergyToClients();
-        syncMEStorageToClients();
     }
 
     // === IGridTickable ===
@@ -328,106 +325,6 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                 new PacketPlatformEnergySync(pos, rfBuffer, rfBufferCapacity, networkStored),
                 new net.minecraftforge.fml.common.network.NetworkRegistry.TargetPoint(
                         world.provider.getDimension(), pos.getX(), pos.getY(), pos.getZ(), 64));
-    }
-
-    /**
-     * 客户端同步：ME 网络存储物品列表（可放置方块）。
-     * 数据缓存在本地，供平台相关的客户端 UI 按需读取。
-     */
-    public static class MEStorageEntry {
-        public final ItemStack stack;
-        public final long count;
-        public MEStorageEntry(ItemStack stack, long count) {
-            this.stack = stack;
-            this.count = count;
-        }
-    }
-
-    private java.util.List<MEStorageEntry> cachedMEStorage = java.util.Collections.emptyList();
-    private boolean cachedMEStorageConnected = false;
-
-    public java.util.List<MEStorageEntry> getCachedMEStorage() {
-        return cachedMEStorage;
-    }
-
-    public boolean isCachedMEStorageConnected() {
-        return cachedMEStorageConnected;
-    }
-
-    public void syncMEStorageToClients() {
-        if (world == null || world.isRemote) return;
-        meSyncCooldown--;
-        if (meSyncCooldown > 0) return;
-        meSyncCooldown = 20; // 每秒刷新一次缓存
-
-        boolean connected = false;
-        java.util.List<MEStorageEntry> entries = new java.util.ArrayList<>();
-        try {
-            appeng.api.networking.storage.IStorageGrid storageGrid =
-                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
-            if (storageGrid != null) {
-                connected = true;
-                appeng.api.storage.IMEMonitor<appeng.api.storage.data.IAEItemStack> itemMonitor =
-                        storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-                if (itemMonitor != null) {
-                    for (appeng.api.storage.data.IAEItemStack aeStack : itemMonitor.getStorageList()) {
-                        if (aeStack == null || aeStack.getStackSize() <= 0) continue;
-                        net.minecraft.item.ItemStack stack = aeStack.createItemStack();
-                        if (!(stack.getItem() instanceof net.minecraft.item.ItemBlock)) continue;
-                        stack.setCount(1);
-                        entries.add(new MEStorageEntry(stack, aeStack.getStackSize()));
-                        if (entries.size() >= 200) break; // 限制数量
-                    }
-                }
-            }
-        } catch (GridAccessException e) {
-            // 断网
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to sync ME storage", e);
-        }
-
-        this.cachedMEStorage = entries;
-        this.cachedMEStorageConnected = connected;
-    }
-
-    /**
-     * 将指定位置周围的物品实体吸入所连 ME 网络。
-     * 通用方法，可用于任何破坏/采集场景。
-     */
-    public void absorbDropsAround(BlockPos center, double radius) {
-        if (world == null || world.isRemote) return;
-        java.util.List<net.minecraft.entity.item.EntityItem> entities = world.getEntitiesWithinAABB(
-                net.minecraft.entity.item.EntityItem.class,
-                new net.minecraft.util.math.AxisAlignedBB(center).grow(radius));
-        if (entities.isEmpty()) return;
-
-        try {
-            appeng.api.networking.storage.IStorageGrid storageGrid =
-                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
-            if (storageGrid == null) return;
-
-            appeng.api.storage.channels.IItemStorageChannel channel =
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            for (net.minecraft.entity.item.EntityItem entity : entities) {
-                ItemStack stack = entity.getItem();
-                if (stack.isEmpty()) continue;
-
-                appeng.api.storage.data.IAEItemStack toInject = channel.createStack(stack);
-                if (toInject == null) continue;
-
-                appeng.api.storage.data.IAEItemStack leftover = storageGrid.getInventory(channel).injectItems(
-                        toInject, Actionable.MODULATE, getMachineSource());
-
-                if (leftover == null || leftover.getStackSize() <= 0) {
-                    entity.setDead(); // 全部吸入
-                } else {
-                    stack.setCount((int) Math.min(leftover.getStackSize(), Integer.MAX_VALUE));
-                    if (stack.getCount() <= 0) entity.setDead();
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to absorb drops into ME network", e);
-        }
     }
 
     // === 设施缓存刷新 ===
