@@ -124,6 +124,10 @@ public class PacketRTSStateChange implements IMessage {
             state.selectionY = surfaceY;
             STATES.put(uuid, state);
 
+            // 立即同步 ME 存储和能量状态到客户端
+            controller.syncMEStorageToClients();
+            controller.syncEnergyToClients();
+
             // 发送确认包
             AE2Enhanced.network.sendTo(
                 new PacketRTSStateChange(ACTION_ENTER_CONFIRM, center, size, surfaceY),

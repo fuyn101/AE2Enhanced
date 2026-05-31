@@ -137,6 +137,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (isPlatformActive && cacheRefreshCooldown > 0) {
             cacheRefreshCooldown--;
         }
+        // 客户端同步不依赖 AE 网络 tick，确保无能量时 HUD/GUI 仍能更新
+        syncEnergyToClients();
+        syncMEStorageToClients();
     }
 
     // === IGridTickable ===
@@ -302,7 +305,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         }
     }
 
-    private void syncEnergyToClients() {
+    public void syncEnergyToClients() {
         if (world == null || world.isRemote) return;
         syncCooldown--;
         if (syncCooldown > 0) return;
@@ -324,6 +327,41 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
         AE2Enhanced.network.sendToAllTracking(
                 new PacketPlatformEnergySync(pos, rfBuffer, rfBufferCapacity, networkStored),
+                new net.minecraftforge.fml.common.network.NetworkRegistry.TargetPoint(
+                        world.provider.getDimension(), pos.getX(), pos.getY(), pos.getZ(), 64));
+    }
+
+    public void syncMEStorageToClients() {
+        if (world == null || world.isRemote) return;
+        meSyncCooldown--;
+        if (meSyncCooldown > 0) return;
+        meSyncCooldown = 20; // 每秒同步一次
+
+        java.util.List<PacketRTSMEStorageSync.Entry> entries = new java.util.ArrayList<>();
+        try {
+            appeng.api.networking.storage.IStorageGrid storageGrid =
+                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            if (storageGrid != null) {
+                appeng.api.storage.IMEMonitor<appeng.api.storage.data.IAEItemStack> itemMonitor =
+                        storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+                if (itemMonitor != null) {
+                    for (appeng.api.storage.data.IAEItemStack aeStack : itemMonitor.getStorageList()) {
+                        if (aeStack == null || aeStack.getStackSize() <= 0) continue;
+                        net.minecraft.item.ItemStack stack = aeStack.createItemStack();
+                        stack.setCount(1);
+                        entries.add(new PacketRTSMEStorageSync.Entry(stack, aeStack.getStackSize()));
+                        if (entries.size() >= 200) break; // 限制同步数量
+                    }
+                }
+            }
+        } catch (GridAccessException e) {
+            // 断网
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to sync ME storage to RTS clients", e);
+        }
+
+        AE2Enhanced.network.sendToAllTracking(
+                new PacketRTSMEStorageSync(entries),
                 new net.minecraftforge.fml.common.network.NetworkRegistry.TargetPoint(
                         world.provider.getDimension(), pos.getX(), pos.getY(), pos.getZ(), 64));
     }
