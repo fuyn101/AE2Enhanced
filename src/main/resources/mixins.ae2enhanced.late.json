@@ -32,8 +32,6 @@
     "upgrade.MixinUpgradeSlots"
   ],
   "client": [
-    "client.MixinEntityRenderer",
-    "client.MixinMinecraft",
     "terminal.MixinGuiCellWorkbench",
     "terminal.MixinGuiContainerWrapper",
     "terminal.MixinGuiCraftAmount",
