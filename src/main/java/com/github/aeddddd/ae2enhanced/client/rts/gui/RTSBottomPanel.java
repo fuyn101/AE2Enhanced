@@ -40,6 +40,7 @@ public class RTSBottomPanel {
 
     // 当前选中的放置物品
     private static ItemStack currentPlacementItem = ItemStack.EMPTY;
+    private static int selectedSlot = -1; // ME 存储区域的选中槽位，-1 表示未选中
 
     public static ItemStack getCurrentPlacementItem() {
         return currentPlacementItem;
@@ -47,6 +48,25 @@ public class RTSBottomPanel {
 
     public static void setCurrentPlacementItem(ItemStack stack) {
         currentPlacementItem = stack != null ? stack : ItemStack.EMPTY;
+    }
+
+    public static int getSelectedSlot() {
+        return selectedSlot;
+    }
+
+    /**
+     * 通过数字键选择 ME 存储区域的前 N 个物品。
+     * @param slot 0-based slot index
+     */
+    public static void selectSlot(int slot) {
+        List<PacketRTSMEStorageSync.Entry> entries = RTSMEStorageCache.getEntries();
+        if (slot >= 0 && slot < entries.size()) {
+            selectedSlot = slot;
+            currentPlacementItem = entries.get(slot).stack.copy();
+        } else {
+            selectedSlot = -1;
+            currentPlacementItem = ItemStack.EMPTY;
+        }
     }
 
     // 收藏与历史（客户端本地）
@@ -88,7 +108,7 @@ public class RTSBottomPanel {
 
         // 渲染 ME 存储物品
         List<PacketRTSMEStorageSync.Entry> meEntries = RTSMEStorageCache.getEntries();
-        renderMEGrid(mc, meEntries, MARGIN_X, panelY + MARGIN_Y, meWidth - MARGIN_X * 2);
+        renderMEGrid(mc, meEntries, MARGIN_X, panelY + MARGIN_Y, meWidth - MARGIN_X * 2, selectedSlot);
 
         // 渲染收藏（占位）
         renderItemRow(mc, favorites, meWidth + MARGIN_X, panelY + MARGIN_Y, favWidth - MARGIN_X * 2);
@@ -104,7 +124,7 @@ public class RTSBottomPanel {
         net.minecraft.client.gui.Gui.drawRect(0, panelY, screenW, panelY + 1, 0x80FFFFFF);
     }
 
-    private void renderMEGrid(Minecraft mc, List<PacketRTSMEStorageSync.Entry> entries, int x, int y, int maxWidth) {
+    private void renderMEGrid(Minecraft mc, List<PacketRTSMEStorageSync.Entry> entries, int x, int y, int maxWidth, int selectedSlot) {
         if (entries.isEmpty()) {
             String text = "\u00a78\u672a\u8fde\u63a5";
             mc.fontRenderer.drawStringWithShadow(text, x, y + 2, 0xFFFFFFFF);
@@ -131,8 +151,9 @@ public class RTSBottomPanel {
             int slotX = x + i * SLOT_SIZE;
             int slotY = y;
 
-            // 绘制槽位背景
-            net.minecraft.client.gui.Gui.drawRect(slotX, slotY, slotX + ICON_SIZE, slotY + ICON_SIZE, 0x40FFFFFF);
+            // 选中槽位高亮
+            int bgColor = (i == selectedSlot) ? 0x80FFFF00 : 0x40FFFFFF;
+            net.minecraft.client.gui.Gui.drawRect(slotX, slotY, slotX + ICON_SIZE, slotY + ICON_SIZE, bgColor);
 
             ItemStack stack = entry.stack;
             if (!stack.isEmpty()) {

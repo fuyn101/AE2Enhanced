@@ -55,6 +55,9 @@ public class RTSWorldRenderer {
         // 5. 绘制选中方块线框（金黄色）
         drawSelection(RTSSelection.getSelectedBlocks());
 
+        // 6. 绘制幽灵方块（放置预览）
+        drawGhostBlock();
+
         GlStateManager.enableTexture2D();
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
@@ -109,6 +112,65 @@ public class RTSWorldRenderer {
         buf.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION);
         addBlockOutlineVertices(buf, pos);
         tess.draw();
+    }
+
+    private void drawGhostBlock() {
+        if (!RTSInputHandler.isLastHitValid()) return;
+        BlockPos hitPos = RTSInputHandler.getLastHitPos();
+        if (hitPos == null) return;
+
+        net.minecraft.item.ItemStack placementItem = com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.getCurrentPlacementItem();
+        if (placementItem.isEmpty()) return;
+
+        Minecraft mc = Minecraft.getMinecraft();
+        boolean canPlace = mc.world.getBlockState(hitPos).getMaterial().isReplaceable()
+                || mc.world.isAirBlock(hitPos);
+
+        float r = canPlace ? 0.3f : 1.0f;
+        float g = canPlace ? 1.0f : 0.2f;
+        float b = canPlace ? 0.3f : 0.2f;
+        float a = 0.25f;
+
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO);
+        GlStateManager.color(r, g, b, a);
+        GlStateManager.disableCull();
+
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder buf = tess.getBuffer();
+        buf.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION);
+
+        double x = hitPos.getX();
+        double y = hitPos.getY() + 0.5;
+        double z = hitPos.getZ();
+
+        // 底面
+        buf.pos(x, y, z).endVertex(); buf.pos(x + 1, y, z).endVertex();
+        buf.pos(x + 1, y, z + 1).endVertex(); buf.pos(x, y, z + 1).endVertex();
+        // 顶面
+        buf.pos(x, y + 1, z).endVertex(); buf.pos(x, y + 1, z + 1).endVertex();
+        buf.pos(x + 1, y + 1, z + 1).endVertex(); buf.pos(x + 1, y + 1, z).endVertex();
+        // 前面 (z)
+        buf.pos(x, y, z).endVertex(); buf.pos(x, y + 1, z).endVertex();
+        buf.pos(x + 1, y + 1, z).endVertex(); buf.pos(x + 1, y, z).endVertex();
+        // 后面 (z+1)
+        buf.pos(x, y, z + 1).endVertex(); buf.pos(x + 1, y, z + 1).endVertex();
+        buf.pos(x + 1, y + 1, z + 1).endVertex(); buf.pos(x, y + 1, z + 1).endVertex();
+        // 左面 (x)
+        buf.pos(x, y, z).endVertex(); buf.pos(x, y, z + 1).endVertex();
+        buf.pos(x, y + 1, z + 1).endVertex(); buf.pos(x, y + 1, z).endVertex();
+        // 右面 (x+1)
+        buf.pos(x + 1, y, z).endVertex(); buf.pos(x + 1, y + 1, z).endVertex();
+        buf.pos(x + 1, y + 1, z + 1).endVertex(); buf.pos(x + 1, y, z + 1).endVertex();
+
+        tess.draw();
+
+        GlStateManager.enableCull();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private void addBlockOutlineVertices(BufferBuilder buf, BlockPos pos) {

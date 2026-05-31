@@ -77,6 +77,15 @@ public class RTSInputHandler {
             RTSCamera.deactivate();
             RTSSelection.clear();
             AE2Enhanced.network.sendToServer(new PacketRTSStateChange(PacketRTSStateChange.ACTION_EXIT));
+            return;
+        }
+
+        // 数字键 1-9 选择底部面板 ME 存储物品
+        for (int i = 0; i < 9; i++) {
+            if (Keyboard.isKeyDown(Keyboard.KEY_1 + i)) {
+                com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.selectSlot(i);
+                break;
+            }
         }
     }
 
@@ -123,6 +132,21 @@ public class RTSInputHandler {
         if (lastHitValid) {
             net.minecraft.client.renderer.GlStateManager.color(0.3f, 1.0f, 0.3f, 1.0f);
             net.minecraft.client.gui.Gui.drawRect(sx - 1, sy - 1, sx + 2, sy + 2, 0xFF4DFF4D);
+        }
+
+        // 绘制当前放置物的 2D 缩略图（光标左下侧）
+        net.minecraft.item.ItemStack placement = com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.getCurrentPlacementItem();
+        if (!placement.isEmpty()) {
+            net.minecraft.client.renderer.RenderItem renderItem = mc.getRenderItem();
+            net.minecraft.client.renderer.GlStateManager.enableTexture2D();
+            net.minecraft.client.renderer.GlStateManager.enableRescaleNormal();
+            net.minecraft.client.renderer.RenderHelper.enableGUIStandardItemLighting();
+            int thumbX = sx + 8;
+            int thumbY = sy + 8;
+            renderItem.renderItemAndEffectIntoGUI(placement, thumbX, thumbY);
+            renderItem.renderItemOverlayIntoGUI(mc.fontRenderer, placement, thumbX, thumbY, null);
+            net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
+            net.minecraft.client.renderer.GlStateManager.disableRescaleNormal();
         }
 
         net.minecraft.client.renderer.GlStateManager.enableTexture2D();
