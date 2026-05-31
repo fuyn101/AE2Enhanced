@@ -7,10 +7,12 @@ buildscript {
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
         classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
     }
 }
 apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 version = '1.5.2-dev'
 group = 'com.github.aeddddd'
@@ -56,6 +58,9 @@ dependencies {
     compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
+    // fastutil: 高性能集合库，shadow 瘦身打包
+    shadow 'it.unimi.dsi:fastutil:8.5.12'
+
     compile files('libs/!mixinbooter-10.6.jar')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
@@ -114,4 +119,17 @@ jar {
             'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
         ])
     }
+}
+
+// Shadow: 打包 fastutil 并瘦身，只包含实际用到的类
+shadowJar {
+    classifier = ''
+    configurations = [project.configurations.shadow]
+    minimizeJar()
+    relocate 'it.unimi.dsi.fastutil', 'com.github.aeddddd.ae2enhanced.shade.fastutil'
+}
+
+// 用 shadowJar 作为默认发布产物
+artifacts {
+    archives shadowJar
 }
