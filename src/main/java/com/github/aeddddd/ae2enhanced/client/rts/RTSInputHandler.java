@@ -53,7 +53,18 @@ public class RTSInputHandler {
             }
         } else if (button == 1) {  // 右键
             event.setCanceled(true);
-            // P2：右键放置等操作
+            if (state) {
+                net.minecraft.item.ItemStack placement = com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.getCurrentPlacementItem();
+                if (!placement.isEmpty()) {
+                    if (!RTSSelection.getSelectedBlocks().isEmpty()) {
+                        AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace(
+                                com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SELECTION, placement));
+                    } else if (lastHitValid && lastHitPos != null) {
+                        AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace(
+                                com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SINGLE, lastHitPos, placement));
+                    }
+                }
+            }
         } else if (button == 2) {  // 中键
             event.setCanceled(true);
             RTSCamera.setRotating(state);

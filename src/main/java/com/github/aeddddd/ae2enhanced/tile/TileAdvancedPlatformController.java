@@ -482,7 +482,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // === 辅助 ===
 
-    private MachineSource getMachineSource() {
+    public MachineSource getMachineSource() {
         if (this.machineSource == null) {
             this.machineSource = new MachineSource(this);
         }
