@@ -45,18 +45,22 @@ public class RTSInputHandler {
             RTSTickController.accumulateMouseDelta(event.getDx(), event.getDy());
         }
 
-        // 计算缩放后的鼠标坐标，用于面板交互检测
+        // 计算缩放后的鼠标坐标
         Minecraft mc = Minecraft.getMinecraft();
         net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(mc);
         int mouseX = Mouse.getX() * sr.getScaledWidth() / mc.displayWidth;
         int mouseY = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
 
-        // 优先检查底部面板点击
-        if (state && com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.handleMouseClick(mouseX, mouseY, button)) {
+        // GUI 交互优先：鼠标在底部面板内时，所有鼠标事件都被面板消费
+        if (com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.isMouseOverPanel(mouseX, mouseY)) {
+            if (state && button == 0) {
+                com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.handleMouseClick(mouseX, mouseY, button);
+            }
             event.setCanceled(true);
             return;
         }
 
+        // 不在面板内时，正常处理世界交互
         if (button == 0) {  // 左键
             event.setCanceled(true);
             if (state) {

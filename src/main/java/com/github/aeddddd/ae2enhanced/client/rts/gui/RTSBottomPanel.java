@@ -20,16 +20,17 @@ import java.util.List;
  *
  * <p>特性：</p>
  * <ul>
- *   <li>左侧 50%：ME 网络存储物品多行网格（来自服务端同步）</li>
+ *   <li>左侧 50%：ME 网络存储物品多行网格（来自服务端同步，3 行）</li>
  *   <li>中间 25%：收藏栏（客户端本地）</li>
  *   <li>右侧 25%：历史记录（客户端本地，自动记录使用过的物品）</li>
  *   <li>支持鼠标点击选中 ME 物品和排序切换</li>
- *   <li>物品数量缩写：K / M / G / T / P</li>
+ *   <li>物品数量缩写：K / M / G / T / P（缩小字体显示）</li>
  * </ul>
  */
 public class RTSBottomPanel {
 
-    public static final int PANEL_HEIGHT = 100;
+    // 面板高度（像素）：标题 16 + 3 行 × 18 + 底部边距 = 约 78，取 84
+    public static final int PANEL_HEIGHT = 84;
     public static final int SLOT_SIZE = 18;
     public static final int ICON_SIZE = 16;
     public static final int MARGIN_X = 6;
@@ -85,7 +86,20 @@ public class RTSBottomPanel {
     }
 
     /**
-     * 处理鼠标点击事件。返回 true 表示点击被面板消费（不应传播到世界）。
+     * 判断鼠标是否在底部面板区域内。
+     */
+    public static boolean isMouseOverPanel(int mouseX, int mouseY) {
+        if (!com.github.aeddddd.ae2enhanced.client.rts.RTSCamera.isActive()) return false;
+        Minecraft mc = Minecraft.getMinecraft();
+        ScaledResolution sr = new ScaledResolution(mc);
+        int screenH = sr.getScaledHeight();
+        int panelY = screenH - PANEL_HEIGHT;
+        return mouseY >= panelY && mouseY < screenH;
+    }
+
+    /**
+     * 处理鼠标点击事件。调用方应已通过 {@link #isMouseOverPanel} 确认鼠标在面板内。
+     * 返回 true 表示点击被面板内的交互元素消费。
      */
     public static boolean handleMouseClick(int mouseX, int mouseY, int button) {
         if (!com.github.aeddddd.ae2enhanced.client.rts.RTSCamera.isActive()) return false;
@@ -96,9 +110,6 @@ public class RTSBottomPanel {
         int screenW = sr.getScaledWidth();
         int screenH = sr.getScaledHeight();
         int panelY = screenH - PANEL_HEIGHT;
-
-        if (mouseY < panelY || mouseY >= screenH) return false;
-
         int meWidth = screenW / 2;
 
         // 检测排序按钮点击
@@ -135,8 +146,7 @@ public class RTSBottomPanel {
             }
         }
 
-        // 在面板内但不在有效槽位上，仍消费点击以避免世界交互
-        return true;
+        return false; // 在面板内但没有点中交互元素
     }
 
     @SubscribeEvent
@@ -239,8 +249,19 @@ public class RTSBottomPanel {
             ItemStack stack = entry.stack;
             if (!stack.isEmpty()) {
                 renderItem.renderItemAndEffectIntoGUI(stack, slotX, slotY);
+
+                // 自定义缩小数量文字，避免遮挡图标
                 String countStr = formatCount(entry.count);
-                renderItem.renderItemOverlayIntoGUI(mc.fontRenderer, stack, slotX, slotY, countStr);
+                if (!countStr.equals("1")) {
+                    GlStateManager.pushMatrix();
+                    GlStateManager.translate(slotX, slotY, 300);
+                    float scale = 0.6f;
+                    GlStateManager.scale(scale, scale, 1.0f);
+                    int textX = (int) ((ICON_SIZE - 2) / scale) - mc.fontRenderer.getStringWidth(countStr);
+                    int textY = (int) ((ICON_SIZE - 2) / scale) - mc.fontRenderer.FONT_HEIGHT + 1;
+                    mc.fontRenderer.drawStringWithShadow(countStr, textX, textY, 0xFFFFFFFF);
+                    GlStateManager.popMatrix();
+                }
             }
         }
 
