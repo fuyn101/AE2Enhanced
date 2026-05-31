@@ -337,11 +337,13 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (meSyncCooldown > 0) return;
         meSyncCooldown = 20; // 每秒同步一次
 
+        boolean connected = false;
         java.util.List<PacketRTSMEStorageSync.Entry> entries = new java.util.ArrayList<>();
         try {
             appeng.api.networking.storage.IStorageGrid storageGrid =
                     getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid != null) {
+                connected = true;
                 appeng.api.storage.IMEMonitor<appeng.api.storage.data.IAEItemStack> itemMonitor =
                         storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
                 if (itemMonitor != null) {
@@ -361,7 +363,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         }
 
         AE2Enhanced.network.sendToAllTracking(
-                new PacketRTSMEStorageSync(entries),
+                new PacketRTSMEStorageSync(entries, connected),
                 new net.minecraftforge.fml.common.network.NetworkRegistry.TargetPoint(
                         world.provider.getDimension(), pos.getX(), pos.getY(), pos.getZ(), 64));
     }

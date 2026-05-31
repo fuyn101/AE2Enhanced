@@ -11,6 +11,7 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
 
 /**
  * RTS 输入处理 —— 鼠标事件 + 按键事件 + 射线检测
@@ -44,6 +45,18 @@ public class RTSInputHandler {
             RTSTickController.accumulateMouseDelta(event.getDx(), event.getDy());
         }
 
+        // 计算缩放后的鼠标坐标，用于面板交互检测
+        Minecraft mc = Minecraft.getMinecraft();
+        net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(mc);
+        int mouseX = Mouse.getX() * sr.getScaledWidth() / mc.displayWidth;
+        int mouseY = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
+
+        // 优先检查底部面板点击
+        if (state && com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.handleMouseClick(mouseX, mouseY, button)) {
+            event.setCanceled(true);
+            return;
+        }
+
         if (button == 0) {  // 左键
             event.setCanceled(true);
             if (state) {
@@ -56,6 +69,7 @@ public class RTSInputHandler {
             if (state) {
                 net.minecraft.item.ItemStack placement = com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.getCurrentPlacementItem();
                 if (!placement.isEmpty()) {
+                    com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.addToHistory(placement.copy());
                     if (!RTSSelection.getSelectedBlocks().isEmpty()) {
                         AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace(
                                 com.github.aeddddd.ae2enhanced.network.packet.PacketRTSPlace.MODE_SELECTION, placement));
@@ -97,6 +111,11 @@ public class RTSInputHandler {
                 com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel.selectSlot(i);
                 break;
             }
+        }
+
+        // Tab 键切换排序模式（只在按键按下瞬间触发一次）
+        if (Keyboard.getEventKey() == Keyboard.KEY_TAB && Keyboard.getEventKeyState()) {
+            com.github.aeddddd.ae2enhanced.client.rts.gui.RTSMEStorageCache.toggleSortMode();
         }
     }
 

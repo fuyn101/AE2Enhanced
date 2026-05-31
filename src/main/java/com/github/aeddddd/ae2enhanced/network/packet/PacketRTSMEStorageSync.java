@@ -28,20 +28,27 @@ public class PacketRTSMEStorageSync implements IMessage {
     }
 
     private List<Entry> entries = Collections.emptyList();
+    private boolean networkConnected = false;
 
     public PacketRTSMEStorageSync() {
     }
 
-    public PacketRTSMEStorageSync(List<Entry> entries) {
+    public PacketRTSMEStorageSync(List<Entry> entries, boolean networkConnected) {
         this.entries = entries;
+        this.networkConnected = networkConnected;
     }
 
     public List<Entry> getEntries() {
         return entries;
     }
 
+    public boolean isNetworkConnected() {
+        return networkConnected;
+    }
+
     @Override
     public void toBytes(ByteBuf buf) {
+        buf.writeBoolean(networkConnected);
         buf.writeInt(entries.size());
         for (Entry e : entries) {
             ByteBufUtils.writeItemStack(buf, e.stack);
@@ -51,6 +58,7 @@ public class PacketRTSMEStorageSync implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
+        networkConnected = buf.readBoolean();
         int count = buf.readInt();
         entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -64,7 +72,7 @@ public class PacketRTSMEStorageSync implements IMessage {
         @Override
         public IMessage onMessage(PacketRTSMEStorageSync message, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
-                com.github.aeddddd.ae2enhanced.client.rts.gui.RTSMEStorageCache.update(message.getEntries());
+                com.github.aeddddd.ae2enhanced.client.rts.gui.RTSMEStorageCache.update(message.getEntries(), message.isNetworkConnected());
             });
             return null;
         }

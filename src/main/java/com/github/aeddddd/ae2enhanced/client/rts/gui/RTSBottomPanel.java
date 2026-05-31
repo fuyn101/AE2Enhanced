@@ -18,29 +18,30 @@ import java.util.List;
 /**
  * RTS 模式底部面板：ME 存储 / 收藏 / 历史。
  *
- * <p>当前实现为简化版：</p>
+ * <p>特性：</p>
  * <ul>
- *   <li>左侧 50%：ME 网络存储物品网格（来自服务端同步）</li>
- *   <li>中间 25%：收藏栏（客户端本地，占位）</li>
- *   <li>右侧 25%：历史记录（客户端本地，占位）</li>
+ *   <li>左侧 50%：ME 网络存储物品多行网格（来自服务端同步）</li>
+ *   <li>中间 25%：收藏栏（客户端本地）</li>
+ *   <li>右侧 25%：历史记录（客户端本地，自动记录使用过的物品）</li>
+ *   <li>支持鼠标点击选中 ME 物品和排序切换</li>
+ *   <li>物品数量缩写：K / M / G / T / P</li>
  * </ul>
  */
 public class RTSBottomPanel {
 
-    // 面板高度（像素）
-    public static final int PANEL_HEIGHT = 56;
-    // 物品图标大小
+    public static final int PANEL_HEIGHT = 100;
     public static final int SLOT_SIZE = 18;
-    // 物品实际渲染大小
     public static final int ICON_SIZE = 16;
-    // 左/右边距
     public static final int MARGIN_X = 6;
-    // 顶部边距（面板内部）
-    public static final int MARGIN_Y = 18;
+    public static final int MARGIN_Y = 16;
 
-    // 当前选中的放置物品
     private static ItemStack currentPlacementItem = ItemStack.EMPTY;
     private static int selectedSlot = -1; // ME 存储区域的选中槽位，-1 表示未选中
+
+    // 收藏与历史（客户端本地）
+    private static final List<ItemStack> favorites = new ArrayList<>();
+    private static final LinkedList<ItemStack> history = new LinkedList<>();
+    private static final int MAX_HISTORY = 18;
 
     public static ItemStack getCurrentPlacementItem() {
         return currentPlacementItem;
@@ -55,8 +56,8 @@ public class RTSBottomPanel {
     }
 
     /**
-     * 通过数字键选择 ME 存储区域的前 N 个物品。
-     * @param slot 0-based slot index
+     * 通过索引选择 ME 存储区域的物品。
+     * @param slot 0-based slot index（按当前排序模式后的列表索引）
      */
     public static void selectSlot(int slot) {
         List<PacketRTSMEStorageSync.Entry> entries = RTSMEStorageCache.getEntries();
@@ -69,9 +70,74 @@ public class RTSBottomPanel {
         }
     }
 
-    // 收藏与历史（客户端本地）
-    private static final List<ItemStack> favorites = new ArrayList<>();
-    private static final LinkedList<ItemStack> history = new LinkedList<>();
+    /**
+     * 将物品加入历史记录（去重，移到最前，限制数量）。
+     */
+    public static void addToHistory(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+        ItemStack copy = stack.copy();
+        copy.setCount(1);
+        history.removeIf(h -> ItemStack.areItemsEqual(h, copy) && ItemStack.areItemStackTagsEqual(h, copy));
+        history.addFirst(copy);
+        while (history.size() > MAX_HISTORY) {
+            history.removeLast();
+        }
+    }
+
+    /**
+     * 处理鼠标点击事件。返回 true 表示点击被面板消费（不应传播到世界）。
+     */
+    public static boolean handleMouseClick(int mouseX, int mouseY, int button) {
+        if (!com.github.aeddddd.ae2enhanced.client.rts.RTSCamera.isActive()) return false;
+        if (button != 0) return false; // 只处理左键点击
+
+        Minecraft mc = Minecraft.getMinecraft();
+        ScaledResolution sr = new ScaledResolution(mc);
+        int screenW = sr.getScaledWidth();
+        int screenH = sr.getScaledHeight();
+        int panelY = screenH - PANEL_HEIGHT;
+
+        if (mouseY < panelY || mouseY >= screenH) return false;
+
+        int meWidth = screenW / 2;
+
+        // 检测排序按钮点击
+        String title = "\u00a77ME \u00a7f\u5b58\u50a8";
+        String sortLabel = " \u00a7e[" + RTSMEStorageCache.getSortMode().label
+                + (RTSMEStorageCache.getSortMode().descending ? "\u2193" : "\u2191") + "]";
+        int titleWidth = mc.fontRenderer.getStringWidth(title);
+        int sortLabelWidth = mc.fontRenderer.getStringWidth(sortLabel);
+        int sortButtonX = MARGIN_X + titleWidth;
+        int sortButtonY = panelY + 4;
+        if (mouseX >= sortButtonX && mouseX < sortButtonX + sortLabelWidth &&
+            mouseY >= sortButtonY && mouseY < sortButtonY + mc.fontRenderer.FONT_HEIGHT) {
+            RTSMEStorageCache.toggleSortMode();
+            return true;
+        }
+
+        // 检测 ME 网格点击
+        int gridX = MARGIN_X;
+        int gridY = panelY + MARGIN_Y;
+        int gridW = meWidth - MARGIN_X * 2;
+        int slotsPerRow = Math.max(1, gridW / SLOT_SIZE);
+        int relX = mouseX - gridX;
+        int relY = mouseY - gridY;
+        if (relX >= 0 && relY >= 0) {
+            int col = relX / SLOT_SIZE;
+            int row = relY / SLOT_SIZE;
+            if (col < slotsPerRow) {
+                int slot = row * slotsPerRow + col;
+                List<PacketRTSMEStorageSync.Entry> entries = RTSMEStorageCache.getEntries();
+                if (slot >= 0 && slot < entries.size()) {
+                    selectSlot(slot);
+                    return true;
+                }
+            }
+        }
+
+        // 在面板内但不在有效槽位上，仍消费点击以避免世界交互
+        return true;
+    }
 
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
@@ -89,16 +155,21 @@ public class RTSBottomPanel {
 
         int panelY = screenH - PANEL_HEIGHT;
 
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(0, 0, 500); // 提高 GUI 图层，避免被其他 overlay 遮挡
+
         // 绘制背景
         drawBackground(screenW, panelY);
 
-        // 计算三个区域宽度
         int meWidth = screenW / 2;
         int favWidth = screenW / 4;
         int histWidth = screenW - meWidth - favWidth;
 
         // 绘制标题
-        mc.fontRenderer.drawStringWithShadow("\u00a77ME \u00a7f\u5b58\u50a8", MARGIN_X, panelY + 4, 0xFFFFFFFF);
+        String meTitle = "\u00a77ME \u00a7f\u5b58\u50a8";
+        String sortLabel = " \u00a7e[" + RTSMEStorageCache.getSortMode().label
+                + (RTSMEStorageCache.getSortMode().descending ? "\u2193" : "\u2191") + "]";
+        mc.fontRenderer.drawStringWithShadow(meTitle + sortLabel, MARGIN_X, panelY + 4, 0xFFFFFFFF);
         mc.fontRenderer.drawStringWithShadow("\u00a77\u6536\u85cf", meWidth + MARGIN_X, panelY + 4, 0xFFFFFFFF);
         mc.fontRenderer.drawStringWithShadow("\u00a77\u5386\u53f2", meWidth + favWidth + MARGIN_X, panelY + 4, 0xFFFFFFFF);
 
@@ -108,31 +179,40 @@ public class RTSBottomPanel {
 
         // 渲染 ME 存储物品
         List<PacketRTSMEStorageSync.Entry> meEntries = RTSMEStorageCache.getEntries();
-        renderMEGrid(mc, meEntries, MARGIN_X, panelY + MARGIN_Y, meWidth - MARGIN_X * 2, selectedSlot);
+        boolean connected = RTSMEStorageCache.isNetworkConnected();
+        renderMEGrid(mc, meEntries, connected, MARGIN_X, panelY + MARGIN_Y, meWidth - MARGIN_X * 2, selectedSlot);
 
-        // 渲染收藏（占位）
-        renderItemRow(mc, favorites, meWidth + MARGIN_X, panelY + MARGIN_Y, favWidth - MARGIN_X * 2);
+        // 渲染收藏
+        renderItemGrid(mc, favorites, meWidth + MARGIN_X, panelY + MARGIN_Y, favWidth - MARGIN_X * 2, 1);
 
-        // 渲染历史（占位）
-        renderItemRow(mc, history, meWidth + favWidth + MARGIN_X, panelY + MARGIN_Y, histWidth - MARGIN_X * 2);
+        // 渲染历史
+        renderItemGrid(mc, history, meWidth + favWidth + MARGIN_X, panelY + MARGIN_Y, histWidth - MARGIN_X * 2, 1);
+
+        GlStateManager.popMatrix();
     }
 
     private void drawBackground(int screenW, int panelY) {
-        // 半透明黑色背景
         net.minecraft.client.gui.Gui.drawRect(0, panelY, screenW, panelY + PANEL_HEIGHT, 0xCC000000);
-        // 顶部细线
         net.minecraft.client.gui.Gui.drawRect(0, panelY, screenW, panelY + 1, 0x80FFFFFF);
     }
 
-    private void renderMEGrid(Minecraft mc, List<PacketRTSMEStorageSync.Entry> entries, int x, int y, int maxWidth, int selectedSlot) {
+    private void renderMEGrid(Minecraft mc, List<PacketRTSMEStorageSync.Entry> entries, boolean connected,
+                              int x, int y, int maxWidth, int selectedSlot) {
+        if (!connected) {
+            String text = "\u00a7c\u672a\u8fde\u63a5\u7f51\u7edc";
+            mc.fontRenderer.drawStringWithShadow(text, x, y + 2, 0xFFFFFFFF);
+            return;
+        }
         if (entries.isEmpty()) {
-            String text = "\u00a78\u672a\u8fde\u63a5";
+            String text = "\u00a78\u7f51\u7edc\u4e2d\u65e0\u7269\u54c1";
             mc.fontRenderer.drawStringWithShadow(text, x, y + 2, 0xFFFFFFFF);
             return;
         }
 
         int slotsPerRow = Math.max(1, maxWidth / SLOT_SIZE);
-        int visibleCount = Math.min(entries.size(), slotsPerRow);
+        int maxRows = Math.max(1, (PANEL_HEIGHT - MARGIN_Y - 4) / SLOT_SIZE);
+        int maxSlots = slotsPerRow * maxRows;
+        int visibleCount = Math.min(entries.size(), maxSlots);
 
         RenderItem renderItem = mc.getRenderItem();
 
@@ -148,10 +228,11 @@ public class RTSBottomPanel {
 
         for (int i = 0; i < visibleCount; i++) {
             PacketRTSMEStorageSync.Entry entry = entries.get(i);
-            int slotX = x + i * SLOT_SIZE;
-            int slotY = y;
+            int col = i % slotsPerRow;
+            int row = i / slotsPerRow;
+            int slotX = x + col * SLOT_SIZE;
+            int slotY = y + row * SLOT_SIZE;
 
-            // 选中槽位高亮
             int bgColor = (i == selectedSlot) ? 0x80FFFF00 : 0x40FFFFFF;
             net.minecraft.client.gui.Gui.drawRect(slotX, slotY, slotX + ICON_SIZE, slotY + ICON_SIZE, bgColor);
 
@@ -169,13 +250,14 @@ public class RTSBottomPanel {
         GlStateManager.popMatrix();
     }
 
-    private void renderItemRow(Minecraft mc, List<ItemStack> items, int x, int y, int maxWidth) {
+    private void renderItemGrid(Minecraft mc, List<ItemStack> items, int x, int y, int maxWidth, int maxRows) {
         if (items.isEmpty()) {
             return;
         }
 
         int slotsPerRow = Math.max(1, maxWidth / SLOT_SIZE);
-        int visibleCount = Math.min(items.size(), slotsPerRow);
+        int maxSlots = slotsPerRow * Math.max(1, maxRows);
+        int visibleCount = Math.min(items.size(), maxSlots);
 
         RenderItem renderItem = mc.getRenderItem();
 
@@ -191,8 +273,10 @@ public class RTSBottomPanel {
 
         for (int i = 0; i < visibleCount; i++) {
             ItemStack stack = items.get(i);
-            int slotX = x + i * SLOT_SIZE;
-            int slotY = y;
+            int col = i % slotsPerRow;
+            int row = i / slotsPerRow;
+            int slotX = x + col * SLOT_SIZE;
+            int slotY = y + row * SLOT_SIZE;
 
             net.minecraft.client.gui.Gui.drawRect(slotX, slotY, slotX + ICON_SIZE, slotY + ICON_SIZE, 0x40FFFFFF);
 
@@ -209,8 +293,14 @@ public class RTSBottomPanel {
     }
 
     private static String formatCount(long count) {
+        if (count >= 1_000_000_000_000_000L) {
+            return String.format("%.1fP", count / 1_000_000_000_000_000.0);
+        }
+        if (count >= 1_000_000_000_000L) {
+            return String.format("%.1fT", count / 1_000_000_000_000.0);
+        }
         if (count >= 1_000_000_000L) {
-            return String.format("%.1fB", count / 1_000_000_000.0);
+            return String.format("%.1fG", count / 1_000_000_000.0);
         }
         if (count >= 1_000_000L) {
             return String.format("%.1fM", count / 1_000_000.0);
