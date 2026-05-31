@@ -113,7 +113,7 @@ public class RTSWorldRenderer {
 
     private void addBlockOutlineVertices(BufferBuilder buf, BlockPos pos) {
         double x = pos.getX();
-        double y = pos.getY();
+        double y = pos.getY() + 0.5;
         double z = pos.getZ();
 
         // 底面
