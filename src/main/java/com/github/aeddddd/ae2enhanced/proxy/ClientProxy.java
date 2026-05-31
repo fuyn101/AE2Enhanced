@@ -101,6 +101,7 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.RTSInputHandler());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.RTSWorldRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.gui.RTSTopHUD());
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.rts.gui.RTSBottomPanel());
 
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());

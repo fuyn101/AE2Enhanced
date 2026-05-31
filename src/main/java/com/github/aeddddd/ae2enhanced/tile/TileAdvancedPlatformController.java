@@ -22,9 +22,11 @@ import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
 import com.github.aeddddd.ae2enhanced.platform.energy.EnergyAdapterRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRTSMEStorageSync;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
+import appeng.api.storage.channels.IItemStorageChannel;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -73,6 +75,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // ===== 客户端同步计数器 =====
     private int syncCooldown = 0;
+    private int meSyncCooldown = 0;
 
     public TileAdvancedPlatformController() {
         updateConfigValues();
