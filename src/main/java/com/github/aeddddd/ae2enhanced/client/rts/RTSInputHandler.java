@@ -202,7 +202,8 @@ public class RTSInputHandler {
         net.minecraft.util.math.RayTraceResult result = mc.world.rayTraceBlocks(start, end, false, false, false);
 
         if (result != null && result.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
-            BlockPos hitPos = result.getBlockPos();
+            // rayTraceBlocks 返回的 blockPos 在俯视场景中会低一格，取上方方块修正
+            BlockPos hitPos = result.getBlockPos().up();
             setLastHit(hitPos, true);
         } else {
             setLastHit(null, false);
