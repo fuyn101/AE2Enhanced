@@ -227,9 +227,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             int demand = receiver.receiveEnergy(Integer.MAX_VALUE, true);
             if (demand <= 0) continue;
 
-            // 限制单 tick 从网络提取上限，避免瞬时爆请求
-            demand = (int) Math.min(demand, rfExtractPerTick);
-
+            // 一次性提取全部需求，不受 rfExtractPerTick 限制
+            // 同 tick 多次调用机制负责突破机器单次 receiveEnergy 上限
             IAEEnergyStack request = AEEnergyStack.create(demand);
             IAEEnergyStack extracted = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
