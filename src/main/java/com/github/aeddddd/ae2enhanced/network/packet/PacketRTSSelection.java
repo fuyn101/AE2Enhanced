@@ -48,15 +48,15 @@ public class PacketRTSSelection implements IMessage {
     }
 
     // S→C 构造器：从 Set<BlockPos>
-    public PacketRTSSelection(Set<BlockPos> selection, BlockPos platformMin, BlockPos platformMax) {
+    public PacketRTSSelection(Set<BlockPos> selection, BlockPos platformMin, BlockPos platformMax, int y) {
         this.mode = MODE_FULL_SYNC;
-        this.compressedData = compressSelection(selection, platformMin, platformMax);
+        this.compressedData = compressSelection(selection, platformMin, platformMax, y);
     }
 
     // S→C 构造器：从 BitSet（服务端直接压缩，避免解压再压缩）
-    public PacketRTSSelection(java.util.BitSet bitmap, BlockPos platformMin, BlockPos platformMax) {
+    public PacketRTSSelection(java.util.BitSet bitmap, BlockPos platformMin, BlockPos platformMax, int y) {
         this.mode = MODE_FULL_SYNC;
-        this.compressedData = compressBitmap(bitmap);
+        this.compressedData = compressBitmap(bitmap, y);
     }
 
     public byte getMode() { return mode; }
@@ -110,12 +110,14 @@ public class PacketRTSSelection implements IMessage {
                 switch (message.mode) {
                     case MODE_SINGLE:
                         state.selectionBitmap.clear();
+                        state.selectionY = message.getPos1().getY();
                         addToBitmap(state, message.getPos1());
                         break;
                     case MODE_BOX: {
                         state.selectionBitmap.clear();
                         BlockPos a = message.getPos1();
                         BlockPos b = message.getPos2();
+                        state.selectionY = a.getY();
                         int minX = Math.min(a.getX(), b.getX());
                         int maxX = Math.max(a.getX(), b.getX());
                         int minZ = Math.min(a.getZ(), b.getZ());
@@ -129,6 +131,7 @@ public class PacketRTSSelection implements IMessage {
                     }
                     case MODE_FLOOD:
                         state.selectionBitmap.clear();
+                        state.selectionY = message.getPos1().getY();
                         floodFill(state, player, message.getPos1());
                         break;
                     case MODE_CLEAR:
@@ -138,7 +141,7 @@ public class PacketRTSSelection implements IMessage {
 
                 // 回传全量同步：直接从 bitmap 压缩，避免解压再压缩
                 AE2Enhanced.network.sendTo(
-                    new PacketRTSSelection(state.selectionBitmap, state.platformMin, state.platformMax),
+                    new PacketRTSSelection(state.selectionBitmap, state.platformMin, state.platformMax, state.selectionY),
                     player
                 );
             });
@@ -207,12 +210,18 @@ public class PacketRTSSelection implements IMessage {
 
     // ==================== 压缩 / 解压工具 ====================
 
-    public static byte[] compressBitmap(java.util.BitSet bitmap) {
+    public static byte[] compressBitmap(java.util.BitSet bitmap, int y) {
         byte[] raw = bitmap.toByteArray();
+        byte[] combined = new byte[raw.length + 4];
+        combined[0] = (byte)(y >>> 24);
+        combined[1] = (byte)(y >>> 16);
+        combined[2] = (byte)(y >>> 8);
+        combined[3] = (byte)y;
+        System.arraycopy(raw, 0, combined, 4, raw.length);
         Deflater deflater = new Deflater();
-        deflater.setInput(raw);
+        deflater.setInput(combined);
         deflater.finish();
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(raw.length);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(combined.length);
         byte[] buffer = new byte[1024];
         while (!deflater.finished()) {
             int count = deflater.deflate(buffer);
@@ -221,7 +230,7 @@ public class PacketRTSSelection implements IMessage {
         return out.toByteArray();
     }
 
-    public static byte[] compressSelection(Set<BlockPos> selection, BlockPos platformMin, BlockPos platformMax) {
+    public static byte[] compressSelection(Set<BlockPos> selection, BlockPos platformMin, BlockPos platformMax, int y) {
         int width = platformMax.getX() - platformMin.getX() + 1;
         int height = platformMax.getZ() - platformMin.getZ() + 1;
         BitSet bits = new BitSet(width * height);
@@ -232,68 +241,58 @@ public class PacketRTSSelection implements IMessage {
                 bits.set(relX * height + relZ);
             }
         }
-        byte[] raw = bits.toByteArray();
-        Deflater deflater = new Deflater();
-        deflater.setInput(raw);
-        deflater.finish();
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(raw.length);
-        byte[] buffer = new byte[1024];
-        while (!deflater.finished()) {
-            int count = deflater.deflate(buffer);
-            out.write(buffer, 0, count);
-        }
-        return out.toByteArray();
+        return compressBitmap(bits, y);
     }
 
-    public static Set<BlockPos> decompressBitmap(byte[] compressed, BlockPos platformMin, BlockPos platformMax) {
+    public static java.util.Map.Entry<Integer, java.util.Set<BlockPos>> decompressBitmap(byte[] compressed, BlockPos platformMin, BlockPos platformMax) {
         java.util.HashSet<BlockPos> result = new java.util.HashSet<>();
         int width = platformMax.getX() - platformMin.getX() + 1;
         int height = platformMax.getZ() - platformMin.getZ() + 1;
         int expectedBits = width * height;
         int expectedBytes = (expectedBits + 7) / 8;
+        int y = platformMin.getY(); // fallback for legacy data
 
         try {
             Inflater inflater = new Inflater();
             inflater.setInput(compressed);
-            byte[] raw = new byte[expectedBytes];
+            byte[] raw = new byte[expectedBytes + 4];
             int len = inflater.inflate(raw);
             inflater.end();
 
-            BitSet bits = BitSet.valueOf(java.nio.ByteBuffer.wrap(raw, 0, len));
-            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                int relX = i / height;
-                int relZ = i % height;
-                result.add(new BlockPos(platformMin.getX() + relX, platformMin.getY(), platformMin.getZ() + relZ));
+            if (len >= 4) {
+                y = ((raw[0] & 0xFF) << 24) | ((raw[1] & 0xFF) << 16) | ((raw[2] & 0xFF) << 8) | (raw[3] & 0xFF);
+                int bitDataLen = len - 4;
+                if (bitDataLen > 0) {
+                    byte[] bitData = new byte[bitDataLen];
+                    System.arraycopy(raw, 4, bitData, 0, bitDataLen);
+                    BitSet bits = BitSet.valueOf(java.nio.ByteBuffer.wrap(bitData));
+                    for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+                        int relX = i / height;
+                        int relZ = i % height;
+                        result.add(new BlockPos(platformMin.getX() + relX, y, platformMin.getZ() + relZ));
+                    }
+                }
+            } else if (len > 0) {
+                // Legacy format without Y prefix: treat entire data as bitset
+                BitSet bits = BitSet.valueOf(java.nio.ByteBuffer.wrap(raw, 0, len));
+                for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+                    int relX = i / height;
+                    int relZ = i % height;
+                    result.add(new BlockPos(platformMin.getX() + relX, platformMin.getY(), platformMin.getZ() + relZ));
+                }
             }
         } catch (DataFormatException e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to decompress selection bitmap", e);
         }
-        return result;
+        return new java.util.AbstractMap.SimpleEntry<>(y, result);
     }
 
     // 供客户端内部使用：直接解压位图数据到 RTSSelection
     public static void decompressToSelection(byte[] compressed, BlockPos platformMin, BlockPos platformMax,
                                              java.util.function.Consumer<BlockPos> addCallback) {
-        int width = platformMax.getX() - platformMin.getX() + 1;
-        int height = platformMax.getZ() - platformMin.getZ() + 1;
-        int expectedBits = width * height;
-        int expectedBytes = (expectedBits + 7) / 8;
-
-        try {
-            Inflater inflater = new Inflater();
-            inflater.setInput(compressed);
-            byte[] raw = new byte[expectedBytes];
-            int len = inflater.inflate(raw);
-            inflater.end();
-
-            BitSet bits = BitSet.valueOf(java.nio.ByteBuffer.wrap(raw, 0, len));
-            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                int relX = i / height;
-                int relZ = i % height;
-                addCallback.accept(new BlockPos(platformMin.getX() + relX, platformMin.getY(), platformMin.getZ() + relZ));
-            }
-        } catch (DataFormatException e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to decompress selection bitmap", e);
+        java.util.Map.Entry<Integer, java.util.Set<BlockPos>> entry = decompressBitmap(compressed, platformMin, platformMax);
+        for (BlockPos pos : entry.getValue()) {
+            addCallback.accept(pos);
         }
     }
 }

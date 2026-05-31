@@ -121,6 +121,7 @@ public class PacketRTSStateChange implements IMessage {
             state.surfaceY = surfaceY;
             state.platformMin = min;
             state.platformMax = max;
+            state.selectionY = surfaceY;
             STATES.put(uuid, state);
 
             // 发送确认包
@@ -173,5 +174,6 @@ public class PacketRTSStateChange implements IMessage {
         public BlockPos platformMin;
         public BlockPos platformMax;
         public java.util.BitSet selectionBitmap = new java.util.BitSet();
+        public int selectionY; // 当前选区的实际 Y 层（不再是固定的 surfaceY）
     }
 }

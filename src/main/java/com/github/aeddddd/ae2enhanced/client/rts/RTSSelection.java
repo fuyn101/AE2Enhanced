@@ -72,12 +72,9 @@ public final class RTSSelection {
      */
     public static void syncFromBitmap(byte[] compressedData) {
         selectedBlocks.clear();
-        PacketRTSSelection.decompressToSelection(
-            compressedData,
-            RTSCamera.getPlatformMin(),
-            RTSCamera.getPlatformMax(),
-            selectedBlocks::add
-        );
+        java.util.Map.Entry<Integer, java.util.Set<BlockPos>> entry =
+            PacketRTSSelection.decompressBitmap(compressedData, RTSCamera.getPlatformMin(), RTSCamera.getPlatformMax());
+        selectedBlocks.addAll(entry.getValue());
         // 同步完成后，如果是 BOX 模式，重置为 NONE（因为选区已确认）
         if (mode == Mode.BOX_SELECTED) {
             mode = Mode.NONE;
