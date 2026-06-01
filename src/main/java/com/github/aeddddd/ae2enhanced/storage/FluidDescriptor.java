@@ -43,6 +43,13 @@ public class FluidDescriptor implements Descriptor {
         );
     }
 
+    /**
+     * 供自定义二进制 Codec 使用的工厂方法。
+     */
+    public static FluidDescriptor fromRaw(Fluid fluid, NBTTagCompound nbt) {
+        return new FluidDescriptor(fluid, nbt);
+    }
+
     public static FluidDescriptor fromNBT(NBTTagCompound tag) {
         String id = tag.getString("id");
         if (id.isEmpty()) return null;

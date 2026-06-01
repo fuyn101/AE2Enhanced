@@ -33,6 +33,13 @@ public class ItemDescriptor implements Descriptor {
         this.nbt = nbt != null ? nbt.copy() : null;
     }
 
+    /**
+     * 供自定义二进制 Codec 使用的工厂方法。
+     */
+    public static ItemDescriptor fromRaw(Item item, int meta, NBTTagCompound nbt) {
+        return new ItemDescriptor(item, meta, nbt);
+    }
+
     public static ItemDescriptor fromNBT(NBTTagCompound tag) {
         String id = tag.getString("id");
         if (id.isEmpty()) return null;
