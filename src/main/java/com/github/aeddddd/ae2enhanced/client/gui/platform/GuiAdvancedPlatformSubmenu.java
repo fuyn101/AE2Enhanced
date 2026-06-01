@@ -36,8 +36,15 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int LEFT_PANEL_Y = 17;
     private static final int LEFT_PANEL_W = 55;
     private static final int LEFT_PANEL_H = 198;
-    private static final int LIST_ITEM_H = 15;
-    private static final int LIST_ITEM_SPACING = 17;
+
+    // 列表项: 53×17, 标准(8,36), 高亮(8,18), 间隔18
+    private static final int LIST_ITEM_W = 53;
+    private static final int LIST_ITEM_H = 17;
+    private static final int LIST_ITEM_SPACING = 18;
+    private static final int LIST_ITEM_UV_X = 8;
+    private static final int LIST_ITEM_UV_Y = 36;
+    private static final int LIST_HIGHLIGHT_UV_X = 8;
+    private static final int LIST_HIGHLIGHT_UV_Y = 18;
 
     // === 名称栏: (76,17)→(146,26), 71×10 ===
     private static final int NAME_BAR_X = 76;
@@ -64,6 +71,11 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int CLOSE_BTN_X = 225;
     private static final int CLOSE_BTN_Y = 17;
     private static final int CLOSE_BTN_SIZE = 8;
+
+    // === 删除按钮(X) — 复用关闭按钮纹理 ===
+    private static final int DELETE_BTN_UV_X = 225;
+    private static final int DELETE_BTN_UV_Y = 17;
+    private static final int DELETE_BTN_SIZE = 8;
 
     // === IO 配置槽区域: (76,35)→(237,124), 162×90 ===
     private static final int IO_AREA_X = 76;
@@ -116,7 +128,10 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             for (ClientPlatformState.ZoneSummary zone : init.zones) {
                 if (zone.subnetId == selectedSubnetId) {
                     boundZones.add(zone);
-                } else if (zone.subnetId == 0) {
+                } else if (zone.subnetId == 0 && selectedSubnetId != 0) {
+                    unboundZones.add(zone);
+                } else if (zone.subnetId != 0 && selectedSubnetId == 0) {
+                    // 主网界面：其他子网的 zone 视为未绑定
                     unboundZones.add(zone);
                 }
             }
@@ -143,7 +158,9 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         for (ClientPlatformState.ZoneSummary zone : init.zones) {
             if (zone.subnetId == selectedSubnetId) {
                 newBound.add(zone);
-            } else if (zone.subnetId == 0) {
+            } else if (zone.subnetId == 0 && selectedSubnetId != 0) {
+                newUnbound.add(zone);
+            } else if (zone.subnetId != 0 && selectedSubnetId == 0) {
                 newUnbound.add(zone);
             }
         }
@@ -169,7 +186,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
                 }
             }
         }
-
         if (!changed) return;
 
         boundZones.clear();
@@ -177,7 +193,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         unboundZones.clear();
         unboundZones.addAll(newUnbound);
 
-        // 保持选中 zone 有效
         int newIndex = -1;
         for (int i = 0; i < boundZones.size(); i++) {
             if (boundZones.get(i).id == selectedZoneId) {
@@ -207,22 +222,19 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
 
         // 左侧列表项
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
-        int visibleCount = 0;
-        for (int i = 0; i < maxVisible && leftScrollOffset + i < boundZones.size(); i++) {
+        for (int i = 0; i < maxVisible; i++) {
             int idx = leftScrollOffset + i;
-            int itemY = LEFT_PANEL_Y + visibleCount * LIST_ITEM_SPACING;
-            boolean selected = (idx == selectedZoneIndex);
-            drawListItem(itemY, selected);
-            visibleCount++;
-        }
-        // 分隔线
-        if (!unboundZones.isEmpty() && !boundZones.isEmpty() && visibleCount < maxVisible) {
-            visibleCount++;
-        }
-        // 未绑定选区
-        for (int i = 0; i < maxVisible - visibleCount && i < unboundZones.size(); i++) {
-            int itemY = LEFT_PANEL_Y + (visibleCount + i) * LIST_ITEM_SPACING;
-            drawListItem(itemY, false);
+            int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
+            if (idx < boundZones.size()) {
+                boolean selected = (idx == selectedZoneIndex);
+                int drawY = selected ? itemY + 3 : itemY;
+                int srcY = selected ? LIST_HIGHLIGHT_UV_Y : LIST_ITEM_UV_Y;
+                this.drawTexturedModalRect(this.guiLeft + LIST_ITEM_UV_X, this.guiTop + drawY,
+                        LIST_ITEM_UV_X, srcY, LIST_ITEM_W, LIST_ITEM_H);
+            } else if (idx - boundZones.size() < unboundZones.size()) {
+                this.drawTexturedModalRect(this.guiLeft + LIST_ITEM_UV_X, this.guiTop + itemY,
+                        LIST_ITEM_UV_X, LIST_ITEM_UV_Y, LIST_ITEM_W, LIST_ITEM_H);
+            }
         }
 
         // 名称栏
@@ -252,14 +264,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         drawDirSlot(DIR_RIGHT_X, DIR_RIGHT_Y, EnumFacing.EAST);
         drawDirSlot(DIR_FRONT_X, DIR_FRONT_Y, EnumFacing.NORTH);
         drawDirSlot(DIR_BACK_X, DIR_BACK_Y, EnumFacing.SOUTH);
-    }
-
-    private void drawListItem(int itemY, boolean selected) {
-        if (selected) {
-            this.drawTexturedModalRect(this.guiLeft + 9, this.guiTop + itemY, 9, 19, 51, 14);
-        } else {
-            this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
-        }
     }
 
     private void drawDirSlot(int destX, int destY, EnumFacing face) {
@@ -296,25 +300,31 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
         this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
 
-        // 左侧列表文本
+        // 左侧列表文本 + 删除按钮
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
-        int visibleCount = 0;
-        for (int i = 0; i < maxVisible && leftScrollOffset + i < boundZones.size(); i++) {
+        for (int i = 0; i < maxVisible; i++) {
             int idx = leftScrollOffset + i;
-            int itemY = LEFT_PANEL_Y + visibleCount * LIST_ITEM_SPACING;
-            String text = boundZones.get(idx).name;
-            if (text.length() > 8) text = text.substring(0, 7) + "..";
-            this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 3, 0x404040);
-            visibleCount++;
-        }
-        if (!unboundZones.isEmpty() && !boundZones.isEmpty() && visibleCount < maxVisible) {
-            visibleCount++;
-        }
-        for (int i = 0; i < maxVisible - visibleCount && i < unboundZones.size(); i++) {
-            int itemY = LEFT_PANEL_Y + (visibleCount + i) * LIST_ITEM_SPACING;
-            String text = unboundZones.get(i).name;
-            if (text.length() > 8) text = text.substring(0, 7) + "..";
-            this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 3, 0x888888);
+            int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
+            if (idx < boundZones.size()) {
+                boolean selected = (idx == selectedZoneIndex);
+                int drawY = selected ? itemY + 3 : itemY;
+                String text = boundZones.get(idx).name;
+                if (text.length() > 8) text = text.substring(0, 7) + "..";
+                this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, drawY + 4, 0x404040);
+                // 删除按钮
+                int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
+                int delY = drawY + 4;
+                this.drawTexturedModalRect(delX, delY, DELETE_BTN_UV_X, DELETE_BTN_UV_Y, DELETE_BTN_SIZE, DELETE_BTN_SIZE);
+            } else if (idx - boundZones.size() < unboundZones.size()) {
+                int unboundIdx = idx - boundZones.size();
+                String text = unboundZones.get(unboundIdx).name;
+                if (text.length() > 8) text = text.substring(0, 7) + "..";
+                this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 4, 0x888888);
+                // 删除按钮
+                int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
+                int delY = itemY + 4;
+                this.drawTexturedModalRect(delX, delY, DELETE_BTN_UV_X, DELETE_BTN_UV_Y, DELETE_BTN_SIZE, DELETE_BTN_SIZE);
+            }
         }
     }
 
@@ -336,15 +346,40 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             return;
         }
 
-        // 编辑按钮
-        if (isInEditButton(relX, relY) && mouseButton == 0) {
-            return;
-        }
-
         // 选区列表点击
         int zoneClick = getZoneAt(relX, relY);
         if (zoneClick >= 0) {
-            handleZoneClick(zoneClick);
+            int idx = leftScrollOffset + zoneClick;
+            boolean isBound = idx < boundZones.size();
+            int actualIdx = isBound ? idx : idx - boundZones.size();
+
+            // 删除按钮
+            if (isInZoneDeleteButton(relX, relY, zoneClick, isBound)) {
+                int zoneId = isBound ? boundZones.get(actualIdx).id : unboundZones.get(actualIdx).id;
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.DELETE, tile.getPos(), zoneId, selectedSubnetId, null, null));
+                return;
+            }
+
+            // 右键 bound zone = 解绑
+            if (mouseButton == 1 && isBound) {
+                int zoneId = boundZones.get(actualIdx).id;
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.ASSIGN, tile.getPos(), zoneId, 0, null, null));
+                return;
+            }
+
+            if (isBound) {
+                this.selectedZoneIndex = actualIdx;
+                this.selectedZoneId = boundZones.get(actualIdx).id;
+                updateCurrentFaceMode();
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.SELECT, tile.getPos(), selectedZoneId, selectedSubnetId, selectedFace, null));
+            } else {
+                int zoneId = unboundZones.get(actualIdx).id;
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.ASSIGN, tile.getPos(), zoneId, selectedSubnetId, null, null));
+            }
             return;
         }
 
@@ -365,29 +400,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         }
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
-    }
-
-    private void handleZoneClick(int zoneClick) {
-        int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
-        int boundVisible = Math.min(boundZones.size() - leftScrollOffset, maxVisible);
-
-        if (zoneClick < boundVisible) {
-            int idx = leftScrollOffset + zoneClick;
-            if (idx >= 0 && idx < boundZones.size()) {
-                this.selectedZoneIndex = idx;
-                this.selectedZoneId = boundZones.get(idx).id;
-                updateCurrentFaceMode();
-                AE2Enhanced.network.sendToServer(new PacketZoneAction(
-                        PacketZoneAction.Action.SELECT, tile.getPos(), selectedZoneId, selectedSubnetId, selectedFace, null));
-            }
-        } else {
-            int unboundIdx = zoneClick - boundVisible;
-            if (unboundIdx >= 0 && unboundIdx < unboundZones.size()) {
-                int zoneId = unboundZones.get(unboundIdx).id;
-                AE2Enhanced.network.sendToServer(new PacketZoneAction(
-                        PacketZoneAction.Action.ASSIGN, tile.getPos(), zoneId, selectedSubnetId, null, null));
-            }
-        }
     }
 
     private void cycleIoMode() {
@@ -422,12 +434,43 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             return;
         }
 
+        // 方向槽位 tooltip
         EnumFacing face = getFaceAt(relX, relY);
         if (face != null) {
-            drawHoveringText(Collections.singletonList(
-                    I18n.format("gui.ae2enhanced.advanced_platform.face." + getFaceName(face))),
-                    mouseX, mouseY);
+            FaceIoConfig.IoMode mode = getFaceMode(face);
+            List<String> lines = new ArrayList<>();
+            lines.add(I18n.format("gui.ae2enhanced.advanced_platform.face." + getFaceName(face)));
+            lines.add(I18n.format("gui.ae2enhanced.advanced_platform.current_mode") + ": " +
+                    I18n.format("gui.ae2enhanced.advanced_platform.io_mode." + mode.name().toLowerCase()));
+            lines.add(I18n.format("gui.ae2enhanced.advanced_platform.click_to_cycle"));
+            drawHoveringText(lines, mouseX, mouseY);
             return;
+        }
+
+        // 选区列表 tooltip
+        int zoneClick = getZoneAt(relX, relY);
+        if (zoneClick >= 0) {
+            int idx = leftScrollOffset + zoneClick;
+            boolean isBound = idx < boundZones.size();
+            int actualIdx = isBound ? idx : idx - boundZones.size();
+            ClientPlatformState.ZoneSummary zone = isBound ? boundZones.get(actualIdx) : unboundZones.get(actualIdx);
+            if (zone != null) {
+                if (isInZoneDeleteButton(relX, relY, zoneClick, isBound)) {
+                    drawHoveringText(Collections.singletonList(
+                            I18n.format("gui.ae2enhanced.advanced_platform.delete_zone")), mouseX, mouseY);
+                    return;
+                }
+                List<String> lines = new ArrayList<>();
+                lines.add(zone.name);
+                lines.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.blocks", zone.blockCount));
+                if (isBound) {
+                    lines.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.right_click_unbind"));
+                } else {
+                    lines.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.click_to_assign"));
+                }
+                drawHoveringText(lines, mouseX, mouseY);
+                return;
+            }
         }
 
         super.renderHoveredToolTip(mouseX, mouseY);
@@ -452,22 +495,33 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
                 && y >= CLOSE_BTN_Y && y < CLOSE_BTN_Y + CLOSE_BTN_SIZE;
     }
 
-    private boolean isInEditButton(int x, int y) {
-        return x >= EDIT_BTN_X && x < EDIT_BTN_X + EDIT_BTN_SIZE
-                && y >= EDIT_BTN_Y && y < EDIT_BTN_Y + EDIT_BTN_SIZE;
-    }
-
     private int getZoneAt(int x, int y) {
         int itemY = LEFT_PANEL_Y;
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
         for (int i = 0; i < maxVisible; i++) {
             if (x >= LEFT_PANEL_X && x < LEFT_PANEL_X + LEFT_PANEL_W
                     && y >= itemY && y < itemY + LIST_ITEM_H) {
-                return i;
+                int idx = leftScrollOffset + i;
+                if (idx < boundZones.size() + unboundZones.size()) {
+                    return i;
+                }
             }
             itemY += LIST_ITEM_SPACING;
         }
         return -1;
+    }
+
+    private boolean isInZoneDeleteButton(int x, int y, int visibleIndex, boolean isBound) {
+        int itemY = LEFT_PANEL_Y + visibleIndex * LIST_ITEM_SPACING;
+        int drawY = itemY;
+        if (isBound) {
+            int idx = leftScrollOffset + visibleIndex;
+            if (idx == selectedZoneIndex) drawY += 3;
+        }
+        int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
+        int delY = drawY + 4;
+        return x >= delX && x < delX + DELETE_BTN_SIZE
+                && y >= delY && y < delY + DELETE_BTN_SIZE;
     }
 
     private EnumFacing getFaceAt(int x, int y) {

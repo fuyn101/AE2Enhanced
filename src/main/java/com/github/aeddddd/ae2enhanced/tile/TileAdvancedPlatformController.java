@@ -50,8 +50,11 @@ import com.github.aeddddd.ae2enhanced.platform.zone.ZoneRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
 
 /**
  * 先进中枢平台控制器 TileEntity。
@@ -89,6 +92,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private final ZoneRegistry zoneRegistry = new ZoneRegistry();
     private int nextZoneId = 1;
     private int nextSubnetId = 1;
+    private final Set<ItemStackKey> mainNetAllowFrom = new HashSet<>();
+    private final Set<ItemStackKey> mainNetAllowTo = new HashSet<>();
 
     // ===== IO 引擎 =====
     private com.github.aeddddd.ae2enhanced.platform.io.PlatformIoCache ioCache;
@@ -474,6 +479,23 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                 this.subnets.put(subnet.getId(), subnet);
             }
         }
+
+        this.mainNetAllowFrom.clear();
+        if (compound.hasKey("MainAllowFrom")) {
+            NBTTagList list = compound.getTagList("MainAllowFrom", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < list.tagCount(); i++) {
+                ItemStackKey key = ItemStackKey.readFromNBT(list.getCompoundTagAt(i));
+                if (key != null) this.mainNetAllowFrom.add(key);
+            }
+        }
+        this.mainNetAllowTo.clear();
+        if (compound.hasKey("MainAllowTo")) {
+            NBTTagList list = compound.getTagList("MainAllowTo", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < list.tagCount(); i++) {
+                ItemStackKey key = ItemStackKey.readFromNBT(list.getCompoundTagAt(i));
+                if (key != null) this.mainNetAllowTo.add(key);
+            }
+        }
     }
 
     @Override
@@ -496,6 +518,17 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             subnetList.appendTag(subnet.writeToNBT());
         }
         compound.setTag("Subnets", subnetList);
+
+        NBTTagList mainFrom = new NBTTagList();
+        for (ItemStackKey key : this.mainNetAllowFrom) {
+            mainFrom.appendTag(key.writeToNBT());
+        }
+        compound.setTag("MainAllowFrom", mainFrom);
+        NBTTagList mainTo = new NBTTagList();
+        for (ItemStackKey key : this.mainNetAllowTo) {
+            mainTo.appendTag(key.writeToNBT());
+        }
+        compound.setTag("MainAllowTo", mainTo);
         return compound;
     }
 
@@ -603,6 +636,14 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     @Nullable
     public Subnet getSubnet(int id) {
         return subnets.get(id);
+    }
+
+    public Set<ItemStackKey> getMainNetAllowFrom() {
+        return mainNetAllowFrom;
+    }
+
+    public Set<ItemStackKey> getMainNetAllowTo() {
+        return mainNetAllowTo;
     }
 
     public ZoneRegistry getZoneRegistry() {

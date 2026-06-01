@@ -149,11 +149,10 @@ public class PacketSubnetAction implements IMessage {
                             }
                             break;
                         case UPDATE_FILTER:
-                            com.github.aeddddd.ae2enhanced.platform.subnet.Subnet subnet = controller.getSubnet(message.subnetId);
-                            if (subnet != null) {
+                            if (message.subnetId == 0) {
                                 java.util.Set<ItemStackKey> filter = message.inputMode
-                                        ? subnet.getAllowFromMain()
-                                        : subnet.getAllowToMain();
+                                        ? controller.getMainNetAllowFrom()
+                                        : controller.getMainNetAllowTo();
                                 filter.clear();
                                 for (ItemStack stack : message.filterItems) {
                                     if (stack != null && !stack.isEmpty()) {
@@ -162,6 +161,21 @@ public class PacketSubnetAction implements IMessage {
                                 }
                                 controller.markDirty();
                                 controller.sendPlatformInitToAllViewingPlayers();
+                            } else {
+                                com.github.aeddddd.ae2enhanced.platform.subnet.Subnet subnet = controller.getSubnet(message.subnetId);
+                                if (subnet != null) {
+                                    java.util.Set<ItemStackKey> filter = message.inputMode
+                                            ? subnet.getAllowFromMain()
+                                            : subnet.getAllowToMain();
+                                    filter.clear();
+                                    for (ItemStack stack : message.filterItems) {
+                                        if (stack != null && !stack.isEmpty()) {
+                                            filter.add(ItemStackKey.of(stack));
+                                        }
+                                    }
+                                    controller.markDirty();
+                                    controller.sendPlatformInitToAllViewingPlayers();
+                                }
                             }
                             break;
                         default:

@@ -70,5 +70,13 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         registry.addGhostIngredientHandler(
                 com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface.class,
                 new com.github.aeddddd.ae2enhanced.integration.jei.SmartPatternInterfaceGhostHandler());
+
+        // Advanced Platform Controller ghost ingredient drag support
+        registry.addGhostIngredientHandler(
+                com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController.class,
+                new com.github.aeddddd.ae2enhanced.integration.jei.PlatformControllerGhostHandler());
+        registry.addGhostIngredientHandler(
+                com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu.class,
+                new com.github.aeddddd.ae2enhanced.integration.jei.PlatformSubmenuGhostHandler());
     }
 }

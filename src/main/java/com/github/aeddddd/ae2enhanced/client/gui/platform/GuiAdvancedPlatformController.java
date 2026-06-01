@@ -34,8 +34,15 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private static final int LEFT_PANEL_Y = 17;
     private static final int LEFT_PANEL_W = 55;
     private static final int LEFT_PANEL_H = 198;
-    private static final int LIST_ITEM_H = 15;
-    private static final int LIST_ITEM_SPACING = 17; // 15+2
+
+    // 列表项: 53×17, 标准(8,36), 高亮(8,18), 间隔18
+    private static final int LIST_ITEM_W = 53;
+    private static final int LIST_ITEM_H = 17;
+    private static final int LIST_ITEM_SPACING = 18;
+    private static final int LIST_ITEM_UV_X = 8;
+    private static final int LIST_ITEM_UV_Y = 36;
+    private static final int LIST_HIGHLIGHT_UV_X = 8;
+    private static final int LIST_HIGHLIGHT_UV_Y = 18;
 
     // === 名称栏: (76,17)→(146,26), 71×10 ===
     private static final int NAME_BAR_X = 76;
@@ -64,6 +71,11 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private static final int CLOSE_BTN_X = 225;
     private static final int CLOSE_BTN_Y = 17;
     private static final int CLOSE_BTN_SIZE = 8;
+
+    // === 删除按钮(X) — 复用关闭按钮纹理 ===
+    private static final int DELETE_BTN_UV_X = 225;
+    private static final int DELETE_BTN_UV_Y = 17;
+    private static final int DELETE_BTN_SIZE = 8;
 
     // === 过滤格区域: (76,35)→(237,124), 162×90 ===
     private static final int FILTER_AREA_X = 76;
@@ -153,8 +165,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         if (this.nameField != null) {
             this.nameField.updateCursorCounter();
         }
-
-        // 刷新子网和选区数据（非编辑状态时）
         if (!isEditing) {
             refreshClientData();
         }
@@ -164,19 +174,13 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
         if (init == null) return;
 
-        // 重建子网列表（主网 + 服务端子网）
         List<ClientPlatformState.SubnetData> newSubnets = new ArrayList<>();
         newSubnets.add(new ClientPlatformState.SubnetData(0, ""));
         newSubnets.addAll(init.subnets);
-
-        // 重建选区列表
         List<ClientPlatformState.ZoneSummary> newZones = new ArrayList<>(init.zones);
 
-        // 检查是否有变化
-        boolean changed = false;
-        if (newSubnets.size() != this.subnets.size() || newZones.size() != this.zones.size()) {
-            changed = true;
-        } else {
+        boolean changed = newSubnets.size() != this.subnets.size() || newZones.size() != this.zones.size();
+        if (!changed) {
             for (int i = 0; i < newSubnets.size(); i++) {
                 ClientPlatformState.SubnetData a = newSubnets.get(i);
                 ClientPlatformState.SubnetData b = this.subnets.get(i);
@@ -186,7 +190,16 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                 }
             }
         }
-
+        if (!changed) {
+            for (int i = 0; i < newZones.size(); i++) {
+                ClientPlatformState.ZoneSummary a = newZones.get(i);
+                ClientPlatformState.ZoneSummary b = this.zones.get(i);
+                if (a.id != b.id || !a.name.equals(b.name) || a.subnetId != b.subnetId) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
         if (!changed) return;
 
         this.subnets.clear();
@@ -194,7 +207,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         this.zones.clear();
         this.zones.addAll(newZones);
 
-        // 保持选中状态有效
         int newIndex = -1;
         for (int i = 0; i < this.subnets.size(); i++) {
             if (this.subnets.get(i).id == this.selectedSubnetId) {
@@ -249,19 +261,17 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         for (int i = 0; i < visibleSubnetCount; i++) {
             int idx = subnetScrollOffset + i;
             int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
-            if (idx == selectedSubnetIndex) {
-                // 高亮项: (9,19)→(59,32), 51×14
-                this.drawTexturedModalRect(this.guiLeft + 9, this.guiTop + itemY, 9, 19, 51, 14);
-            } else {
-                // 标准项: (8,37)→(60,51), 53×15
-                this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
-            }
+            int drawY = (idx == selectedSubnetIndex) ? itemY + 3 : itemY;
+            int srcY = (idx == selectedSubnetIndex) ? LIST_HIGHLIGHT_UV_Y : LIST_ITEM_UV_Y;
+            this.drawTexturedModalRect(this.guiLeft + LIST_ITEM_UV_X, this.guiTop + drawY,
+                    LIST_ITEM_UV_X, srcY, LIST_ITEM_W, LIST_ITEM_H);
         }
 
         // 创建子网条目
         if (visibleSubnetCount < maxVisible) {
             int itemY = LEFT_PANEL_Y + visibleSubnetCount * LIST_ITEM_SPACING;
-            this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
+            this.drawTexturedModalRect(this.guiLeft + LIST_ITEM_UV_X, this.guiTop + itemY,
+                    LIST_ITEM_UV_X, LIST_ITEM_UV_Y, LIST_ITEM_W, LIST_ITEM_H);
         }
 
         // 名称栏: (76,17)→(146,26), 71×10
@@ -302,12 +312,21 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
         }
 
-        // 左侧子网列表文本
+        // 当前模式文字（名称栏和输入按钮之间）
+        String modeText = inputMode
+                ? I18n.format("gui.ae2enhanced.advanced_platform.io_mode.input")
+                : I18n.format("gui.ae2enhanced.advanced_platform.io_mode.output");
+        int modeColor = inputMode ? 0x3366CC : 0xCCAA33;
+        int modeX = NAME_BAR_X + NAME_BAR_W + 4;
+        this.fontRenderer.drawString(modeText, modeX, NAME_BAR_Y + 2, modeColor);
+
+        // 左侧子网列表文本 + 删除按钮
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
         int visibleSubnetCount = Math.min(subnets.size() - subnetScrollOffset, maxVisible);
         for (int i = 0; i < visibleSubnetCount; i++) {
             int idx = subnetScrollOffset + i;
             int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
+            int drawY = (idx == selectedSubnetIndex) ? itemY + 3 : itemY;
             String text;
             if (idx == 0) {
                 text = I18n.format("gui.ae2enhanced.advanced_platform.main_net");
@@ -315,12 +334,19 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                 text = subnets.get(idx).name;
                 if (text.length() > 8) text = text.substring(0, 7) + "..";
             }
-            this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 3, 0x404040);
+            this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, drawY + 4, 0x404040);
+
+            // 删除按钮（主网除外）
+            if (idx > 0) {
+                int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
+                int delY = drawY + 4;
+                this.drawTexturedModalRect(delX, delY, DELETE_BTN_UV_X, DELETE_BTN_UV_Y, DELETE_BTN_SIZE, DELETE_BTN_SIZE);
+            }
         }
         // 创建子网条目文本
         if (visibleSubnetCount < maxVisible) {
             int itemY = LEFT_PANEL_Y + visibleSubnetCount * LIST_ITEM_SPACING;
-            this.fontRenderer.drawString("+", LEFT_PANEL_X + 4, itemY + 3, 0x404040);
+            this.fontRenderer.drawString("+", LEFT_PANEL_X + 4, itemY + 4, 0x404040);
         }
 
         // 选区列表文本
@@ -336,9 +362,17 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.fontRenderer.drawString(text, ZONE_LIST_X + 2, itemY + 3, textColor);
         }
 
-        // 绘制名称输入框
+        // 绘制名称输入框（缩小字体）
         if (this.isEditing && this.nameField != null) {
+            GlStateManager.pushMatrix();
+            float scale = 0.75f;
+            float offsetX = NAME_BAR_X + 2;
+            float offsetY = NAME_BAR_Y;
+            GlStateManager.translate(offsetX, offsetY, 0);
+            GlStateManager.scale(scale, scale, 1.0f);
+            GlStateManager.translate(-offsetX, -offsetY, 0);
             this.nameField.drawTextBox();
+            GlStateManager.popMatrix();
         }
     }
 
@@ -356,7 +390,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.nameField.mouseClicked(mouseX, mouseY, mouseButton);
             if (!this.nameField.isFocused()) {
                 cancelEdit();
-                // 继续处理其他点击
             } else {
                 return;
             }
@@ -405,13 +438,17 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             return;
         }
 
-        // 子网列表点击
+        // 子网列表点击（含删除按钮和创建条目）
         int subnetClick = getSubnetAt(relX, relY);
         if (subnetClick >= 0) {
             int idx = subnetClick + subnetScrollOffset;
             if (idx == subnets.size()) {
-                // 创建子网
                 startCreateSubnet();
+            } else if (idx > 0 && idx < subnets.size() && isInDeleteButton(relX, relY, idx)) {
+                // 删除子网
+                int subnetId = subnets.get(idx).id;
+                AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                        PacketSubnetAction.Action.DELETE, tile.getPos(), subnetId, ""));
             } else if (idx >= 0 && idx < subnets.size()) {
                 this.selectedSubnetIndex = idx;
                 this.selectedSubnetId = subnets.get(idx).id;
@@ -441,7 +478,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     }
 
     private void openSubmenu() {
-        if (selectedSubnetId <= 0) return;
         AE2Enhanced.network.sendToServer(new PacketSubnetAction(
                 PacketSubnetAction.Action.OPEN_SUBMENU, tile.getPos(), selectedSubnetId, ""));
     }
@@ -524,6 +560,18 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             if (idx == subnets.size()) {
                 drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.create_subnet")), mouseX, mouseY);
                 return;
+            } else if (idx > 0 && idx < subnets.size() && isInDeleteButton(relX, relY, idx)) {
+                drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.delete_subnet")), mouseX, mouseY);
+                return;
+            } else if (idx >= 0 && idx < subnets.size()) {
+                ClientPlatformState.SubnetData subnet = subnets.get(idx);
+                List<String> lines = new ArrayList<>();
+                lines.add(subnet.name.isEmpty() ? I18n.format("gui.ae2enhanced.advanced_platform.main_net") : subnet.name);
+                if (idx == 0) {
+                    lines.add(I18n.format("gui.ae2enhanced.advanced_platform.main_net_desc"));
+                }
+                drawHoveringText(lines, mouseX, mouseY);
+                return;
             }
         }
 
@@ -532,11 +580,14 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             int idx = zoneClick + zoneScrollOffset;
             if (idx >= 0 && idx < zones.size()) {
                 ClientPlatformState.ZoneSummary zone = zones.get(idx);
+                List<String> lines = new ArrayList<>();
+                lines.add(zone.name);
+                lines.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.blocks", zone.blockCount));
                 if (zone.subnetId != selectedSubnetId) {
-                    drawHoveringText(Collections.singletonList(
-                            I18n.format("gui.ae2enhanced.advanced_platform.zone.other_subnet")), mouseX, mouseY);
-                    return;
+                    lines.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.other_subnet"));
                 }
+                drawHoveringText(lines, mouseX, mouseY);
+                return;
             }
         }
 
@@ -577,13 +628,24 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             if (x >= LEFT_PANEL_X && x < LEFT_PANEL_X + LEFT_PANEL_W
                     && y >= itemY && y < itemY + LIST_ITEM_H) {
                 int idx = subnetScrollOffset + i;
-                if (idx <= subnets.size()) { // <= 包含创建条目
+                if (idx <= subnets.size()) {
                     return i;
                 }
             }
             itemY += LIST_ITEM_SPACING;
         }
         return -1;
+    }
+
+    private boolean isInDeleteButton(int x, int y, int idx) {
+        int itemIndex = idx - subnetScrollOffset;
+        if (itemIndex < 0) return false;
+        int itemY = LEFT_PANEL_Y + itemIndex * LIST_ITEM_SPACING;
+        int drawY = (idx == selectedSubnetIndex) ? itemY + 3 : itemY;
+        int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
+        int delY = drawY + 4;
+        return x >= delX && x < delX + DELETE_BTN_SIZE
+                && y >= delY && y < delY + DELETE_BTN_SIZE;
     }
 
     private int getZoneAt(int x, int y) {

@@ -19,7 +19,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
  */
 public class PacketZoneAction implements IMessage {
 
-    public enum Action { ASSIGN, SELECT, IO_CONFIG }
+    public enum Action { ASSIGN, SELECT, IO_CONFIG, DELETE }
 
     private Action action;
     private int zoneId;
@@ -120,6 +120,10 @@ public class PacketZoneAction implements IMessage {
                                 ContainerAdvancedPlatformSubmenu c = (ContainerAdvancedPlatformSubmenu) player.openContainer;
                                 c.refreshIoConfigSlots();
                             }
+                            controller.sendPlatformInitToAllViewingPlayers();
+                            break;
+                        case DELETE:
+                            controller.deleteZone(message.zoneId);
                             controller.sendPlatformInitToAllViewingPlayers();
                             break;
                         default:
