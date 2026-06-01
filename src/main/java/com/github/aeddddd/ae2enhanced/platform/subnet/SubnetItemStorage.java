@@ -18,4 +18,9 @@ public class SubnetItemStorage {
     public NBTTagCompound writeToNBT() {
         return new NBTTagCompound();
     }
+
+    public long getStoredItemCount() {
+        // TODO: implement in later phase
+        return 0L;
+    }
 }

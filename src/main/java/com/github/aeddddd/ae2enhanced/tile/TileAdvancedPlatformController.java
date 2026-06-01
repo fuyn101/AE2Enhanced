@@ -41,8 +41,16 @@ import net.minecraftforge.energy.IEnergyStorage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import com.github.aeddddd.ae2enhanced.platform.subnet.Subnet;
+import com.github.aeddddd.ae2enhanced.platform.zone.FaceIoConfig;
+import com.github.aeddddd.ae2enhanced.platform.zone.Zone;
+import com.github.aeddddd.ae2enhanced.platform.zone.ZoneRegistry;
+
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 先进中枢平台控制器 TileEntity。
@@ -74,6 +82,11 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // ===== 客户端同步计数器 =====
     private int syncCooldown = 0;
+
+    // ===== 子网与选区管理 =====
+    private final Map<Integer, Subnet> subnets = new HashMap<>();
+    private final ZoneRegistry zoneRegistry = new ZoneRegistry();
+    private int nextSubnetId = 1;
 
     public TileAdvancedPlatformController() {
         updateConfigValues();
@@ -486,5 +499,82 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             this.machineSource = new MachineSource(this);
         }
         return this.machineSource;
+    }
+
+    // ===== 子网管理 =====
+
+    public Subnet createSubnet(String name) {
+        int id = nextSubnetId++;
+        Subnet subnet = new Subnet(id, name);
+        subnets.put(id, subnet);
+        markDirty();
+        return subnet;
+    }
+
+    public void deleteSubnet(int id) {
+        if (subnets.remove(id) != null) {
+            for (Zone zone : zoneRegistry.getAllZones()) {
+                if (zone.getSubnetId() == id) {
+                    zone.setSubnetId(0);
+                }
+            }
+            markDirty();
+        }
+    }
+
+    public void renameSubnet(int id, String name) {
+        Subnet subnet = subnets.get(id);
+        if (subnet != null) {
+            subnet.setName(name);
+            markDirty();
+        }
+    }
+
+    public Collection<Subnet> getSubnets() {
+        return subnets.values();
+    }
+
+    @Nullable
+    public Subnet getSubnet(int id) {
+        return subnets.get(id);
+    }
+
+    public ZoneRegistry getZoneRegistry() {
+        return zoneRegistry;
+    }
+
+    public void assignZoneToSubnet(int zoneId, int subnetId) {
+        Zone zone = zoneRegistry.getZone(zoneId);
+        if (zone != null) {
+            zone.setSubnetId(subnetId);
+            markDirty();
+        }
+    }
+
+    public void setZoneFaceIoConfig(int zoneId, EnumFacing face, FaceIoConfig config) {
+        Zone zone = zoneRegistry.getZone(zoneId);
+        if (zone != null && config != null && face != null) {
+            FaceIoConfig target = zone.getFaceIo().get(face);
+            if (target != null) {
+                target.setMode(config.getMode());
+                target.getChannels().clear();
+                target.getChannels().addAll(config.getChannels());
+                target.getFilter().clear();
+                target.getFilter().addAll(config.getFilter());
+                markDirty();
+            }
+        }
+    }
+
+    public Map<Integer, Long> getSubnetStorageUsage() {
+        Map<Integer, Long> usage = new HashMap<>();
+        for (Subnet subnet : subnets.values()) {
+            if (subnet.getStorage() != null) {
+                usage.put(subnet.getId(), subnet.getStorage().getStoredItemCount());
+            } else {
+                usage.put(subnet.getId(), 0L);
+            }
+        }
+        return usage;
     }
 }
