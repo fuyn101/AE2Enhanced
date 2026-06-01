@@ -18,15 +18,7 @@ import java.util.List;
 
 /**
  * 先进中枢平台控制器主 GUI。
- *
- * <p>布局说明（基于 advance.png UV 坐标，适配 256px 高度以容纳玩家背包）：</p>
- * <ul>
- *   <li>左侧面板: 子网滚动列表 (x=7, y=8, w=54, h=198)</li>
- *   <li>名称栏: (x=76, y=8, w=71, h=10)</li>
- *   <li>过滤格: 10×5 (x=77, y=22, 间距 18)</li>
- *   <li>选区列表: (x=77, y=118, w=160, ~4 条目)</li>
- *   <li>玩家背包: (x=42, y=174)</li>
- * </ul>
+ * 严格遵循 docs/planning/GUI_Design.md 的 UV 坐标。
  */
 public class GuiAdvancedPlatformController extends GuiContainer {
 
@@ -36,57 +28,73 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private static final int GUI_WIDTH = 246;
     private static final int GUI_HEIGHT = 220;
 
-    // 左侧面板
+    // === 左侧滚动栏: (7,17)→(61,214), 55×198 ===
     private static final int LEFT_PANEL_X = 7;
-    private static final int LEFT_PANEL_Y = 8;
-    private static final int LEFT_PANEL_W = 54;
+    private static final int LEFT_PANEL_Y = 17;
+    private static final int LEFT_PANEL_W = 55;
     private static final int LEFT_PANEL_H = 198;
-    private static final int LIST_ITEM_H = 14;
+    private static final int LIST_ITEM_H = 15;
+    private static final int LIST_ITEM_SPACING = 17; // 15+2
 
-    // 名称栏
+    // === 名称栏: (76,17)→(146,26), 71×10 ===
     private static final int NAME_BAR_X = 76;
-    private static final int NAME_BAR_Y = 8;
+    private static final int NAME_BAR_Y = 17;
     private static final int NAME_BAR_W = 71;
     private static final int NAME_BAR_H = 10;
 
-    // 编辑按钮
+    // === 编辑按钮: (79,20)→(82,23), 4×4 ===
     private static final int EDIT_BTN_X = 79;
-    private static final int EDIT_BTN_Y = 11;
+    private static final int EDIT_BTN_Y = 20;
     private static final int EDIT_BTN_SIZE = 4;
 
-    // IO 切换按钮
+    // === IO 切换按钮 ===
+    // 输入按钮(蓝): (190,17)→(193,18), 4×2
     private static final int INPUT_BTN_X = 190;
-    private static final int INPUT_BTN_Y = 8;
-    private static final int IO_BTN_W = 6;
-    private static final int IO_BTN_H = 9;
+    private static final int INPUT_BTN_Y = 17;
+    private static final int INPUT_BTN_W = 4;
+    private static final int INPUT_BTN_H = 2;
+    // 输出按钮(黄): (209,24)→(212,25), 4×2
     private static final int OUTPUT_BTN_X = 209;
-    private static final int OUTPUT_BTN_Y = 8;
+    private static final int OUTPUT_BTN_Y = 24;
+    private static final int OUTPUT_BTN_W = 4;
+    private static final int OUTPUT_BTN_H = 2;
 
-    // 关闭按钮
+    // === 关闭按钮: (225,17)→(232,24), 8×8 ===
     private static final int CLOSE_BTN_X = 225;
-    private static final int CLOSE_BTN_Y = 8;
+    private static final int CLOSE_BTN_Y = 17;
     private static final int CLOSE_BTN_SIZE = 8;
 
-    // 过滤格
+    // === 过滤格区域: (76,35)→(237,124), 162×90 ===
+    private static final int FILTER_AREA_X = 76;
+    private static final int FILTER_AREA_Y = 35;
+    private static final int FILTER_AREA_W = 162;
+    private static final int FILTER_AREA_H = 90;
+
+    // === 过滤格槽位: x=77+col×18, y=37+row×18 ===
     private static final int FILTER_START_X = 77;
-    private static final int FILTER_START_Y = 22;
+    private static final int FILTER_START_Y = 37;
     private static final int FILTER_COLS = 10;
     private static final int FILTER_ROWS = 5;
     private static final int FILTER_SPACING = 18;
 
-    // 加号按钮
+    // === 加号按钮: (80,130)→(87,137), 8×8 ===
     private static final int PLUS_BTN_X = 80;
-    private static final int PLUS_BTN_Y = 116;
+    private static final int PLUS_BTN_Y = 130;
     private static final int PLUS_BTN_SIZE = 8;
 
-    // 选区列表
+    // === 选区列表区域: (76,143)→(237,214), 162×72 ===
+    private static final int ZONE_AREA_X = 76;
+    private static final int ZONE_AREA_Y = 143;
+    private static final int ZONE_AREA_W = 162;
+    private static final int ZONE_AREA_H = 72;
+
+    // === 选区条目: (77,145)→(236,159), 160×15, 间距18 ===
     private static final int ZONE_LIST_X = 77;
-    private static final int ZONE_LIST_Y = 118;
-    private static final int ZONE_LIST_W = 160;
-    private static final int ZONE_ENTRY_H = 14;
-    private static final int VISIBLE_ZONES = 4;
-
-
+    private static final int ZONE_LIST_Y = 145;
+    private static final int ZONE_ENTRY_W = 160;
+    private static final int ZONE_ENTRY_H = 15;
+    private static final int ZONE_ENTRY_SPACING = 18;
+    private static final int VISIBLE_ZONES = 5;
 
     private final TileAdvancedPlatformController tile;
 
@@ -130,8 +138,55 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 绘制主背景
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+        // 主背景: (0,0)→(246,220)
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
+
+        // 过滤格区域背景: (76,35)→(237,124)
+        this.drawTexturedModalRect(this.guiLeft + FILTER_AREA_X, this.guiTop + FILTER_AREA_Y,
+                FILTER_AREA_X, FILTER_AREA_Y, FILTER_AREA_W, FILTER_AREA_H);
+
+        // 选区列表区域背景: (76,143)→(237,214)
+        this.drawTexturedModalRect(this.guiLeft + ZONE_AREA_X, this.guiTop + ZONE_AREA_Y,
+                ZONE_AREA_X, ZONE_AREA_Y, ZONE_AREA_W, ZONE_AREA_H);
+
+        // 左侧列表项 — 纹理复制
+        int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
+        for (int i = 0; i < maxVisible; i++) {
+            int idx = subnetScrollOffset + i;
+            if (idx >= subnets.size()) break;
+            int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
+            if (idx == selectedSubnetIndex) {
+                // 高亮项: (9,19)→(59,32), 51×14
+                this.drawTexturedModalRect(this.guiLeft + 9, this.guiTop + itemY, 9, 19, 51, 14);
+            } else {
+                // 标准项: (8,37)→(60,51), 53×15
+                this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
+            }
+        }
+
+        // 名称栏: (76,17)→(146,26), 71×10
+        this.drawTexturedModalRect(this.guiLeft + NAME_BAR_X, this.guiTop + NAME_BAR_Y,
+                NAME_BAR_X, NAME_BAR_Y, NAME_BAR_W, NAME_BAR_H);
+
+        // 编辑按钮: (79,20)→(82,23), 4×4
+        this.drawTexturedModalRect(this.guiLeft + EDIT_BTN_X, this.guiTop + EDIT_BTN_Y,
+                EDIT_BTN_X, EDIT_BTN_Y, EDIT_BTN_SIZE, EDIT_BTN_SIZE);
+
+        // 输入按钮: (190,17)→(193,18), 4×2
+        this.drawTexturedModalRect(this.guiLeft + INPUT_BTN_X, this.guiTop + INPUT_BTN_Y,
+                INPUT_BTN_X, INPUT_BTN_Y, INPUT_BTN_W, INPUT_BTN_H);
+
+        // 输出按钮: (209,24)→(212,25), 4×2
+        this.drawTexturedModalRect(this.guiLeft + OUTPUT_BTN_X, this.guiTop + OUTPUT_BTN_Y,
+                OUTPUT_BTN_X, OUTPUT_BTN_Y, OUTPUT_BTN_W, OUTPUT_BTN_H);
+
+        // 关闭按钮: (225,17)→(232,24), 8×8
+        this.drawTexturedModalRect(this.guiLeft + CLOSE_BTN_X, this.guiTop + CLOSE_BTN_Y,
+                CLOSE_BTN_X, CLOSE_BTN_Y, CLOSE_BTN_SIZE, CLOSE_BTN_SIZE);
+
+        // 加号按钮: (80,130)→(87,137), 8×8
+        this.drawTexturedModalRect(this.guiLeft + PLUS_BTN_X, this.guiTop + PLUS_BTN_Y,
+                PLUS_BTN_X, PLUS_BTN_Y, PLUS_BTN_SIZE, PLUS_BTN_SIZE);
     }
 
     @Override
@@ -139,84 +194,35 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
-        // 名称栏文本
+        // 名称栏文本（居中）
         String name = getSelectedSubnetName();
         int nameW = this.fontRenderer.getStringWidth(name);
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
-        this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 1, 0x404040);
+        this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
 
-        // 绘制左侧面板子网列表
-        drawSubnetList(relX, relY);
-
-        // 绘制选区列表
-        drawZoneList(relX, relY);
-
-        // 绘制 IO 模式指示器
-        drawIoModeIndicator();
-    }
-
-    private void drawSubnetList(int relX, int relY) {
-        int y = LEFT_PANEL_Y;
-        int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
+        // 左侧子网列表文本
+        int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
         for (int i = 0; i < maxVisible; i++) {
             int idx = subnetScrollOffset + i;
             if (idx >= subnets.size()) break;
-
-            boolean selected = (idx == selectedSubnetIndex);
-            boolean hovered = relX >= LEFT_PANEL_X && relX < LEFT_PANEL_X + LEFT_PANEL_W
-                    && relY >= y && relY < y + LIST_ITEM_H;
-
-            int bgColor = selected ? 0xFF9CD3FF : (hovered ? 0xFFADB0C4 : 0x00FFFFFF);
-            if (bgColor != 0x00FFFFFF) {
-                drawRect(LEFT_PANEL_X + 1, y, LEFT_PANEL_X + LEFT_PANEL_W - 1, y + LIST_ITEM_H, bgColor);
-            }
-
+            int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
             String text = subnets.get(idx).name;
             if (text.length() > 8) text = text.substring(0, 7) + "..";
-            this.fontRenderer.drawString(text, LEFT_PANEL_X + 2, y + 3, 0x404040);
-
-            y += LIST_ITEM_H + 2;
+            this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 3, 0x404040);
         }
-    }
 
-    private void drawZoneList(int relX, int relY) {
-        int y = ZONE_LIST_Y;
+        // 选区列表文本
         for (int i = 0; i < VISIBLE_ZONES; i++) {
             int idx = zoneScrollOffset + i;
             if (idx >= zones.size()) break;
-
             ClientPlatformState.ZoneSummary zone = zones.get(idx);
             boolean belongsToSelected = (zone.subnetId == selectedSubnetId);
-            boolean selected = (idx == selectedZoneIndex) && belongsToSelected;
-            boolean hovered = relX >= ZONE_LIST_X && relX < ZONE_LIST_X + ZONE_LIST_W
-                    && relY >= y && relY < y + ZONE_ENTRY_H;
-
-            int bgColor;
-            if (selected) {
-                bgColor = 0xFF9CD3FF;
-            } else if (hovered) {
-                bgColor = belongsToSelected ? 0xFFADB0C4 : 0xFF7A7D8C;
-            } else {
-                bgColor = 0x00FFFFFF;
-            }
-            if (bgColor != 0x00FFFFFF) {
-                drawRect(ZONE_LIST_X, y, ZONE_LIST_X + ZONE_LIST_W, y + ZONE_ENTRY_H, bgColor);
-            }
-
+            int itemY = ZONE_LIST_Y + i * ZONE_ENTRY_SPACING;
             String text = zone.name;
             if (text.length() > 20) text = text.substring(0, 19) + "..";
-            int textColor = belongsToSelected ? 0x404040 : 0xFF7A7A7A;
-            this.fontRenderer.drawString(text, ZONE_LIST_X + 2, y + 3, textColor);
-
-            y += ZONE_ENTRY_H + 2;
+            int textColor = belongsToSelected ? 0x404040 : 0x888888;
+            this.fontRenderer.drawString(text, ZONE_LIST_X + 2, itemY + 3, textColor);
         }
-    }
-
-    private void drawIoModeIndicator() {
-        int color = inputMode ? 0xFF3C7FDE : 0xFFDEA83C;
-        // 在输入/输出按钮旁绘制小指示点
-        int indicatorX = inputMode ? INPUT_BTN_X - 4 : OUTPUT_BTN_X + IO_BTN_W + 2;
-        drawRect(indicatorX, INPUT_BTN_Y + 3, indicatorX + 2, INPUT_BTN_Y + 5, color);
     }
 
     @Override
@@ -259,7 +265,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
         // 编辑按钮
         if (isInEditButton(relX, relY) && mouseButton == 0) {
-            // TODO: 打开名称编辑
             return;
         }
 
@@ -353,13 +358,13 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     }
 
     private boolean isInInputButton(int x, int y) {
-        return x >= INPUT_BTN_X && x < INPUT_BTN_X + IO_BTN_W
-                && y >= INPUT_BTN_Y && y < INPUT_BTN_Y + IO_BTN_H;
+        return x >= INPUT_BTN_X && x < INPUT_BTN_X + INPUT_BTN_W
+                && y >= INPUT_BTN_Y && y < INPUT_BTN_Y + INPUT_BTN_H;
     }
 
     private boolean isInOutputButton(int x, int y) {
-        return x >= OUTPUT_BTN_X && x < OUTPUT_BTN_X + IO_BTN_W
-                && y >= OUTPUT_BTN_Y && y < OUTPUT_BTN_Y + IO_BTN_H;
+        return x >= OUTPUT_BTN_X && x < OUTPUT_BTN_X + OUTPUT_BTN_W
+                && y >= OUTPUT_BTN_Y && y < OUTPUT_BTN_Y + OUTPUT_BTN_H;
     }
 
     private boolean isInEditButton(int x, int y) {
@@ -374,13 +379,13 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
     private int getSubnetAt(int x, int y) {
         int itemY = LEFT_PANEL_Y;
-        int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
+        int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
         for (int i = 0; i < maxVisible; i++) {
             if (x >= LEFT_PANEL_X && x < LEFT_PANEL_X + LEFT_PANEL_W
                     && y >= itemY && y < itemY + LIST_ITEM_H) {
                 return i;
             }
-            itemY += LIST_ITEM_H + 2;
+            itemY += LIST_ITEM_SPACING;
         }
         return -1;
     }
@@ -388,11 +393,11 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private int getZoneAt(int x, int y) {
         int itemY = ZONE_LIST_Y;
         for (int i = 0; i < VISIBLE_ZONES; i++) {
-            if (x >= ZONE_LIST_X && x < ZONE_LIST_X + ZONE_LIST_W
+            if (x >= ZONE_LIST_X && x < ZONE_LIST_X + ZONE_ENTRY_W
                     && y >= itemY && y < itemY + ZONE_ENTRY_H) {
                 return i;
             }
-            itemY += ZONE_ENTRY_H + 2;
+            itemY += ZONE_ENTRY_SPACING;
         }
         return -1;
     }

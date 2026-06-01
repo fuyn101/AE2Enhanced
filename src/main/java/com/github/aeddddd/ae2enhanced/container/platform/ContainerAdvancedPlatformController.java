@@ -30,7 +30,7 @@ public class ContainerAdvancedPlatformController extends AEBaseContainer {
     public static final int FILTER_COLS = 10;
     public static final int FILTER_ROWS = 5;
     public static final int FILTER_START_X = 77;
-    public static final int FILTER_START_Y = 22;
+    public static final int FILTER_START_Y = 37;
     public static final int FILTER_SPACING = 18;
 
     public static final int SLOT_FILTER_START = 0;

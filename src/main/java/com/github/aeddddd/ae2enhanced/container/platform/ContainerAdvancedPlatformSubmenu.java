@@ -32,7 +32,7 @@ public class ContainerAdvancedPlatformSubmenu extends AEBaseContainer {
     public static final int IO_CONFIG_COLS = 10;
     public static final int IO_CONFIG_ROWS = 5;
     public static final int IO_START_X = 77;
-    public static final int IO_START_Y = 22;
+    public static final int IO_START_Y = 37;
     public static final int IO_SPACING = 18;
 
     public static final int SLOT_IO_START = 0;
