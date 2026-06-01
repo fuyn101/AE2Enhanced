@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 public class PlatformIoScheduler implements IGridTickable {
+    private final com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController controller;
     private final ZoneRegistry zones;
     private final PlatformIoCache cache;
     private final ZoneIoAdapterRegistry adapters;
@@ -44,11 +45,13 @@ public class PlatformIoScheduler implements IGridTickable {
     // Flush tracking
     private long tickCounter = 0;
     private long lastOutputFlushTick = 0;
-    private static final long OUTPUT_FLUSH_INTERVAL = 20;
-    private static final long OUTPUT_FLUSH_THRESHOLD = 64;
+    private static final long OUTPUT_FLUSH_INTERVAL = 5;
+    private static final long OUTPUT_FLUSH_THRESHOLD = 1;
 
-    public PlatformIoScheduler(ZoneRegistry zones, PlatformIoCache cache,
+    public PlatformIoScheduler(com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController controller,
+                               ZoneRegistry zones, PlatformIoCache cache,
                                ZoneIoAdapterRegistry adapters, IActionSource actionSource) {
+        this.controller = controller;
         this.zones = zones;
         this.cache = cache;
         this.adapters = adapters;
@@ -150,6 +153,11 @@ public class PlatformIoScheduler implements IGridTickable {
                 continue;
             }
 
+            // 获取输出过滤集
+            java.util.Set<ItemStackKey> allowFilter = (subnet.getId() == 0)
+                    ? controller.getMainNetAllowTo()
+                    : subnet.getAllowToMain();
+
             List<FaceIoConfig> containers = zone.getOutputContainers();
             if (containers == null) {
                 continue;
@@ -170,6 +178,12 @@ public class PlatformIoScheduler implements IGridTickable {
                     }
 
                     ItemStackKey key = new ItemStackKey(stack);
+
+                    // 如果过滤非空，且物品不在过滤集中，跳过
+                    if (!allowFilter.isEmpty() && !allowFilter.contains(key)) {
+                        continue;
+                    }
+
                     Long accAmount = subnetAcc.get(key);
                     if (accAmount == null || accAmount <= 0) {
                         continue;
@@ -221,10 +235,20 @@ public class PlatformIoScheduler implements IGridTickable {
             Subnet subnet = subnetEntry.getKey();
             Map<ItemStackKey, Long> demands = subnetEntry.getValue();
 
+            // 获取输入过滤集
+            java.util.Set<ItemStackKey> allowFilter = (subnet.getId() == 0)
+                    ? controller.getMainNetAllowFrom()
+                    : subnet.getAllowFromMain();
+
             for (Map.Entry<ItemStackKey, Long> demandEntry : demands.entrySet()) {
                 ItemStackKey key = demandEntry.getKey();
                 long demand = demandEntry.getValue();
                 if (demand <= 0) {
+                    continue;
+                }
+
+                // 如果过滤非空，且物品不在过滤集中，跳过
+                if (!allowFilter.isEmpty() && !allowFilter.contains(key)) {
                     continue;
                 }
 

@@ -88,6 +88,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private int syncCooldown = 0;
 
     // ===== 子网与选区管理 =====
+    public static final Subnet MAIN_NET_SUBNET = new Subnet(0, "MainNet");
     private final Map<Integer, Subnet> subnets = new HashMap<>();
     private final ZoneRegistry zoneRegistry = new ZoneRegistry();
     private int nextZoneId = 1;
@@ -158,7 +159,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             getProxy().onReady();
             if (ioCache == null) {
                 ioCache = new com.github.aeddddd.ae2enhanced.platform.io.PlatformIoCache(world);
-                ioScheduler = new com.github.aeddddd.ae2enhanced.platform.io.PlatformIoScheduler(zoneRegistry, ioCache, adapterRegistry, getMachineSource());
+                ioScheduler = new com.github.aeddddd.ae2enhanced.platform.io.PlatformIoScheduler(this, zoneRegistry, ioCache, adapterRegistry, getMachineSource());
             }
         }
         if (isPlatformActive && cacheRefreshCooldown > 0) {
@@ -694,8 +695,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (zone == null) return false;
         if (subnetId == 0) {
             zone.setSubnetId(0);
-            zone.setInputTarget(null);
-            zone.setOutputTarget(null);
+            zone.setInputTarget(MAIN_NET_SUBNET);
+            zone.setOutputTarget(MAIN_NET_SUBNET);
             zoneRegistry.reclassifyZone(zone);
             markDirty();
             return true;
