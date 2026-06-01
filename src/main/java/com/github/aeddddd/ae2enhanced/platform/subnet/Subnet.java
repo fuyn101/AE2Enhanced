@@ -52,6 +52,19 @@ public class Subnet {
         this.storage = storage != null ? storage : new SubnetItemStorage();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Subnet)) return false;
+        Subnet other = (Subnet) o;
+        return this.id == other.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+
     public Set<ItemStackKey> getAllowFromMain() {
         return allowFromMain;
     }

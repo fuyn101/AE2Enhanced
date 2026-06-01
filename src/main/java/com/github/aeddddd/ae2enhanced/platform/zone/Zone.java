@@ -1,5 +1,9 @@
 package com.github.aeddddd.ae2enhanced.platform.zone;
 
+import com.github.aeddddd.ae2enhanced.platform.io.ActivityLevel;
+import com.github.aeddddd.ae2enhanced.platform.io.ZoneActivityTracker;
+import com.github.aeddddd.ae2enhanced.platform.subnet.Subnet;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
@@ -8,21 +12,17 @@ import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Zone model for the Advanced Platform Controller.
  */
 public class Zone {
-
-    public enum ActivityLevel {
-        ACTIVE,
-        WARM,
-        COLD,
-        FROZEN
-    }
 
     private int id;
     private String name = "";
@@ -32,6 +32,9 @@ public class Zone {
     private ActivityLevel activityLevel = ActivityLevel.ACTIVE;
     private int ticksSinceLastIo = 0;
     private int consecutiveFailures = 0;
+    private final ZoneActivityTracker activityTracker = new ZoneActivityTracker();
+    private Subnet outputSubnet;
+    private Subnet inputSubnet;
 
     public Zone(int id, @Nonnull BlockPos min, @Nonnull BlockPos max) {
         this.id = id;
@@ -88,6 +91,10 @@ public class Zone {
         this.activityLevel = activityLevel != null ? activityLevel : ActivityLevel.ACTIVE;
     }
 
+    public ZoneActivityTracker getActivityTracker() {
+        return activityTracker;
+    }
+
     public int getTicksSinceLastIo() {
         return ticksSinceLastIo;
     }
@@ -104,6 +111,66 @@ public class Zone {
         this.consecutiveFailures = consecutiveFailures;
     }
 
+    public Subnet getOutputTarget() {
+        return outputSubnet;
+    }
+
+    public void setOutputTarget(Subnet outputSubnet) {
+        this.outputSubnet = outputSubnet;
+    }
+
+    public Subnet getInputTarget() {
+        return inputSubnet;
+    }
+
+    public void setInputTarget(Subnet inputSubnet) {
+        this.inputSubnet = inputSubnet;
+    }
+
+    public List<FaceIoConfig> getOutputContainers() {
+        List<FaceIoConfig> result = new ArrayList<>();
+        List<BlockPos> positions = this.positions.getAllPositions();
+        BlockPos fallback = positions.isEmpty() ? BlockPos.ORIGIN : positions.get(0);
+        for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
+            if (entry.getValue().isOutput()) {
+                FaceIoConfig copy = new FaceIoConfig(fallback, entry.getKey());
+                copy.setMode(entry.getValue().getMode());
+                copy.getChannels().addAll(entry.getValue().getChannels());
+                copy.getFilter().addAll(entry.getValue().getFilter());
+                result.add(copy);
+            }
+        }
+        return result;
+    }
+
+    public List<FaceIoConfig> getInputContainers() {
+        List<FaceIoConfig> result = new ArrayList<>();
+        List<BlockPos> positions = this.positions.getAllPositions();
+        BlockPos fallback = positions.isEmpty() ? BlockPos.ORIGIN : positions.get(0);
+        for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
+            if (entry.getValue().isInput()) {
+                FaceIoConfig copy = new FaceIoConfig(fallback, entry.getKey());
+                copy.setMode(entry.getValue().getMode());
+                copy.getChannels().addAll(entry.getValue().getChannels());
+                copy.getFilter().addAll(entry.getValue().getFilter());
+                result.add(copy);
+            }
+        }
+        return result;
+    }
+
+    public Set<ItemStack> getInputFilters() {
+        Set<ItemStack> filters = new HashSet<>();
+        for (FaceIoConfig config : faceIo.values()) {
+            if (config.isInput()) {
+                for (com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey key : config.getFilter()) {
+                    filters.add(key.toItemStack(1));
+                }
+            }
+        }
+        return filters;
+    }
+
     public boolean hasInput() {
         for (FaceIoConfig config : faceIo.values()) {
             if (config.isInput()) return true;
@@ -118,29 +185,11 @@ public class Zone {
         return false;
     }
 
-    /**
-     * Returns the first available position as the input target, or null if empty.
-     */
-    @Nullable
-    public BlockPos getInputTarget() {
-        List<BlockPos> all = positions.getAllPositions();
-        return all.isEmpty() ? null : all.get(0);
-    }
-
-    /**
-     * Returns the first available position as the output target, or null if empty.
-     */
-    @Nullable
-    public BlockPos getOutputTarget() {
-        List<BlockPos> all = positions.getAllPositions();
-        return all.isEmpty() ? null : all.get(0);
-    }
-
     public void readFromNBT(@Nonnull NBTTagCompound tag) {
         this.id = tag.getInteger("id");
         this.name = tag.getString("name");
         this.subnetId = tag.getInteger("subnetId");
-        this.activityLevel = ActivityLevel.values()[tag.getInteger("activityLevel")];
+        this.activityLevel = com.github.aeddddd.ae2enhanced.platform.io.ActivityLevel.values()[tag.getInteger("activityLevel")];
         this.ticksSinceLastIo = tag.getInteger("ticksSinceLastIo");
         this.consecutiveFailures = tag.getInteger("consecutiveFailures");
 

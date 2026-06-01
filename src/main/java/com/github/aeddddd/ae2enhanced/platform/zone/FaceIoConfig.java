@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.platform.zone;
 import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nonnull;
@@ -33,8 +35,15 @@ public class FaceIoConfig {
     private IoMode mode = IoMode.NONE;
     private final EnumSet<IoChannel> channels = EnumSet.noneOf(IoChannel.class);
     private final Set<ItemStackKey> filter = new HashSet<>();
+    private BlockPos pos = BlockPos.ORIGIN;
+    private EnumFacing face = EnumFacing.NORTH;
 
     public FaceIoConfig() {
+    }
+
+    public FaceIoConfig(BlockPos pos, EnumFacing face) {
+        this.pos = pos != null ? pos : BlockPos.ORIGIN;
+        this.face = face != null ? face : EnumFacing.NORTH;
     }
 
     public IoMode getMode() {
@@ -63,6 +72,22 @@ public class FaceIoConfig {
 
     public boolean hasChannel(IoChannel channel) {
         return channels.contains(channel);
+    }
+
+    public BlockPos getPos() {
+        return pos;
+    }
+
+    public void setPos(BlockPos pos) {
+        this.pos = pos != null ? pos : BlockPos.ORIGIN;
+    }
+
+    public EnumFacing getFace() {
+        return face;
+    }
+
+    public void setFace(EnumFacing face) {
+        this.face = face != null ? face : EnumFacing.NORTH;
     }
 
     public boolean isEmptyFilter() {

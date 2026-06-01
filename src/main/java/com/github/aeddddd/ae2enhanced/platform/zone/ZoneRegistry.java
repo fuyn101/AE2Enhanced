@@ -1,14 +1,18 @@
 package com.github.aeddddd.ae2enhanced.platform.zone;
 
+import com.github.aeddddd.ae2enhanced.platform.io.ActivityLevel;
+import com.github.aeddddd.ae2enhanced.platform.subnet.Subnet;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -62,12 +66,34 @@ public class ZoneRegistry {
     public void reclassifyZone(@Nonnull Zone zone) {
         inputActiveZones.remove(zone);
         outputActiveZones.remove(zone);
-        if (zone.hasInput() && zone.getActivityLevel() != Zone.ActivityLevel.FROZEN) {
+        if (zone.hasInput() && zone.getActivityLevel() != ActivityLevel.FROZEN) {
             inputActiveZones.add(zone);
         }
-        if (zone.hasOutput() && zone.getActivityLevel() != Zone.ActivityLevel.FROZEN) {
+        if (zone.hasOutput() && zone.getActivityLevel() != ActivityLevel.FROZEN) {
             outputActiveZones.add(zone);
         }
+    }
+
+    public List<Zone> getInputZonesForSubnet(Subnet subnet) {
+        List<Zone> result = new ArrayList<>();
+        if (subnet == null) return result;
+        for (Zone zone : inputActiveZones) {
+            if (zone.getInputTarget() != null && zone.getInputTarget().equals(subnet)) {
+                result.add(zone);
+            }
+        }
+        return result;
+    }
+
+    public List<Zone> getOutputZonesForSubnet(Subnet subnet) {
+        List<Zone> result = new ArrayList<>();
+        if (subnet == null) return result;
+        for (Zone zone : outputActiveZones) {
+            if (zone.getOutputTarget() != null && zone.getOutputTarget().equals(subnet)) {
+                result.add(zone);
+            }
+        }
+        return result;
     }
 
     public void clear() {

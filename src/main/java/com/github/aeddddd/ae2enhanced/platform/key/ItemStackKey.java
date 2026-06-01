@@ -28,6 +28,18 @@ public final class ItemStackKey {
         this.hash = Objects.hash(item.getRegistryName(), meta, nbt != null ? nbt.hashCode() : 0);
     }
 
+    public ItemStackKey(@Nonnull ItemStack stack) {
+        this(stack.getItem(), stack.getMetadata(), stack.getTagCompound() != null ? stack.getTagCompound().copy() : null);
+    }
+
+    public ItemStack toItemStack(int count) {
+        ItemStack stack = new ItemStack(item, count, meta);
+        if (nbt != null) {
+            stack.setTagCompound(nbt.copy());
+        }
+        return stack;
+    }
+
     public static ItemStackKey of(@Nonnull ItemStack stack) {
         NBTTagCompound tag = stack.getTagCompound();
         return new ItemStackKey(stack.getItem(), stack.getMetadata(), tag != null ? tag.copy() : null);
