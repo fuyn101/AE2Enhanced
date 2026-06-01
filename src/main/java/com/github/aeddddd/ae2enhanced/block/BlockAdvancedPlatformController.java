@@ -59,8 +59,10 @@ public class BlockAdvancedPlatformController extends Block {
 
     @Override
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+        AE2Enhanced.LOGGER.info("[AE2E-Debug] onBlockActivated called, isRemote={}, pos={}, player={}", world.isRemote, pos, player.getName());
         if (world.isRemote) return true;
         TileEntity te = world.getTileEntity(pos);
+        AE2Enhanced.LOGGER.info("[AE2E-Debug] te={}, class={}", te, te != null ? te.getClass().getSimpleName() : "null");
         if (!(te instanceof TileAdvancedPlatformController)) return false;
 
         TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
@@ -85,6 +87,7 @@ public class BlockAdvancedPlatformController extends Block {
             }
         }
 
+        AE2Enhanced.LOGGER.info("[AE2E-Debug] Opening GUI for controller at {}", pos);
         player.openGui(AE2Enhanced.instance, GuiHandler.GUI_ADVANCED_PLATFORM_CONTROLLER, world, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }
