@@ -28,6 +28,7 @@ import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
@@ -86,7 +87,13 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     // ===== 子网与选区管理 =====
     private final Map<Integer, Subnet> subnets = new HashMap<>();
     private final ZoneRegistry zoneRegistry = new ZoneRegistry();
+    private int nextZoneId = 1;
     private int nextSubnetId = 1;
+
+    // ===== IO 引擎 =====
+    private com.github.aeddddd.ae2enhanced.platform.io.PlatformIoCache ioCache;
+    private final com.github.aeddddd.ae2enhanced.platform.io.ZoneIoAdapterRegistry adapterRegistry = new com.github.aeddddd.ae2enhanced.platform.io.ZoneIoAdapterRegistry();
+    private com.github.aeddddd.ae2enhanced.platform.io.PlatformIoScheduler ioScheduler;
 
     public TileAdvancedPlatformController() {
         updateConfigValues();
@@ -144,6 +151,10 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (needsReady()) {
             clearNeedsReady();
             getProxy().onReady();
+            if (ioCache == null) {
+                ioCache = new com.github.aeddddd.ae2enhanced.platform.io.PlatformIoCache(world);
+                ioScheduler = new com.github.aeddddd.ae2enhanced.platform.io.PlatformIoScheduler(zoneRegistry, ioCache, adapterRegistry, getMachineSource());
+            }
         }
         if (isPlatformActive && cacheRefreshCooldown > 0) {
             cacheRefreshCooldown--;
@@ -155,6 +166,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     @Override
     public TickingRequest getTickingRequest(IGridNode node) {
+        if (isPlatformActive && ioScheduler != null) {
+            return ioScheduler.getTickingRequest(node);
+        }
         return new TickingRequest(1, 1, false, false);
     }
 
@@ -170,6 +184,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         }
 
         doEnergyTick();
+        if (ioScheduler != null) {
+            return ioScheduler.tickingRequest(node, ticksSinceLastCall);
+        }
         return TickRateModulation.SAME;
     }
 
@@ -437,6 +454,26 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             this.networkEnergyStorage.setCapacityRF(this.rfBufferCapacity);
             this.networkEnergyStorage.addRF(compound.getLong("NetworkEnergyStored"));
         }
+
+        this.nextZoneId = compound.getInteger("NextZoneId");
+        if (this.nextZoneId <= 0) this.nextZoneId = 1;
+        this.nextSubnetId = compound.getInteger("NextSubnetId");
+        if (this.nextSubnetId <= 0) this.nextSubnetId = 1;
+
+        this.zoneRegistry.clear();
+        if (compound.hasKey("Zones")) {
+            this.zoneRegistry.readFromNBT(compound.getCompoundTag("Zones"));
+        }
+
+        this.subnets.clear();
+        if (compound.hasKey("Subnets")) {
+            NBTTagList subnetList = compound.getTagList("Subnets", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < subnetList.tagCount(); i++) {
+                Subnet subnet = new Subnet();
+                subnet.readFromNBT(subnetList.getCompoundTagAt(i));
+                this.subnets.put(subnet.getId(), subnet);
+            }
+        }
     }
 
     @Override
@@ -450,6 +487,15 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         if (this.networkEnergyStorage != null) {
             compound.setLong("NetworkEnergyStored", this.networkEnergyStorage.getStoredRF());
         }
+
+        compound.setTag("Zones", this.zoneRegistry.writeToNBT());
+        compound.setInteger("NextZoneId", this.nextZoneId);
+        compound.setInteger("NextSubnetId", this.nextSubnetId);
+        NBTTagList subnetList = new NBTTagList();
+        for (Subnet subnet : this.subnets.values()) {
+            subnetList.appendTag(subnet.writeToNBT());
+        }
+        compound.setTag("Subnets", subnetList);
         return compound;
     }
 
@@ -503,7 +549,23 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     // ===== 子网管理 =====
 
+    public boolean hasHyperdimensionalController() {
+        try {
+            appeng.api.networking.IGrid grid = getProxy().getGrid();
+            if (grid == null) return false;
+            for (appeng.api.networking.IGridNode node : grid.getNodes()) {
+                if (node != null && node.getMachine() instanceof TileHyperdimensionalController) {
+                    return true;
+                }
+            }
+        } catch (GridAccessException e) {
+            return false;
+        }
+        return false;
+    }
+
     public Subnet createSubnet(String name) {
+        if (!hasHyperdimensionalController()) return null;
         int id = nextSubnetId++;
         Subnet subnet = new Subnet(id, name);
         subnets.put(id, subnet);
@@ -511,15 +573,19 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         return subnet;
     }
 
-    public void deleteSubnet(int id) {
-        if (subnets.remove(id) != null) {
-            for (Zone zone : zoneRegistry.getAllZones()) {
-                if (zone.getSubnetId() == id) {
-                    zone.setSubnetId(0);
-                }
+    public boolean deleteSubnet(int id) {
+        if (!subnets.containsKey(id)) return false;
+        for (Zone zone : zoneRegistry.getAllZones()) {
+            if (zone.getSubnetId() == id) {
+                zone.setSubnetId(0);
+                zone.setInputTarget(null);
+                zone.setOutputTarget(null);
+                zoneRegistry.reclassifyZone(zone);
             }
-            markDirty();
         }
+        subnets.remove(id);
+        markDirty();
+        return true;
     }
 
     public void renameSubnet(int id, String name) {
@@ -543,12 +609,64 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         return zoneRegistry;
     }
 
-    public void assignZoneToSubnet(int zoneId, int subnetId) {
-        Zone zone = zoneRegistry.getZone(zoneId);
-        if (zone != null) {
-            zone.setSubnetId(subnetId);
-            markDirty();
+    public Zone createZone(String name, java.util.Set<BlockPos> positions) {
+        if (positions == null || positions.isEmpty()) return null;
+        int id = nextZoneId++;
+        BlockPos min = null;
+        BlockPos max = null;
+        for (BlockPos p : positions) {
+            if (min == null) {
+                min = p;
+                max = p;
+            } else {
+                min = new BlockPos(
+                        Math.min(min.getX(), p.getX()),
+                        Math.min(min.getY(), p.getY()),
+                        Math.min(min.getZ(), p.getZ()));
+                max = new BlockPos(
+                        Math.max(max.getX(), p.getX()),
+                        Math.max(max.getY(), p.getY()),
+                        Math.max(max.getZ(), p.getZ()));
+            }
         }
+        Zone zone = new Zone(id, min, max);
+        zone.setName(name != null ? name : "");
+        for (BlockPos p : positions) {
+            zone.getPositions().add(p);
+        }
+        this.zoneRegistry.addZone(zone);
+        markDirty();
+        return zone;
+    }
+
+    public boolean deleteZone(int id) {
+        Zone zone = this.zoneRegistry.removeZone(id);
+        if (zone != null) {
+            markDirty();
+            return true;
+        }
+        return false;
+    }
+
+    public boolean assignZoneToSubnet(int zoneId, int subnetId) {
+        Zone zone = zoneRegistry.getZone(zoneId);
+        if (zone == null) return false;
+        if (subnetId == 0) {
+            zone.setSubnetId(0);
+            zone.setInputTarget(null);
+            zone.setOutputTarget(null);
+            zoneRegistry.reclassifyZone(zone);
+            markDirty();
+            return true;
+        }
+        Subnet subnet = subnets.get(subnetId);
+        if (subnet == null) return false;
+        zone.setSubnetId(subnetId);
+        zone.setInputTarget(subnet);
+        zone.setOutputTarget(subnet);
+        zoneRegistry.reclassifyZone(zone);
+        markDirty();
+        return true;
     }
 
     public void setZoneFaceIoConfig(int zoneId, EnumFacing face, FaceIoConfig config) {

@@ -73,6 +73,12 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding CYCLE_UMC_MODE_KEY = new KeyBinding(
+            "key.ae2enhanced.cycleUmcMode",
+            KeyConflictContext.IN_GAME,
+            Keyboard.KEY_M,
+            "key.categories.ae2enhanced"
+    );
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
@@ -80,6 +86,7 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
         ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
+        ClientRegistry.registerKeyBinding(CYCLE_UMC_MODE_KEY);
     }
 
     @Override
@@ -160,6 +167,16 @@ public class ClientProxy extends CommonProxy {
         }
         if (TOGGLE_MAGNET_KEY.isPressed()) {
             AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet());
+        }
+        if (CYCLE_UMC_MODE_KEY.isPressed()) {
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().player;
+            if (player != null) {
+                net.minecraft.item.ItemStack held = player.getHeldItemMainhand();
+                if (held.getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard) {
+                    AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction(
+                            com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction.ActionType.CYCLE_MODE));
+                }
+            }
         }
     }
 

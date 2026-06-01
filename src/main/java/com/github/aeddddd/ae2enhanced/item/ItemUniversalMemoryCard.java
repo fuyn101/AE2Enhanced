@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction;
+import com.github.aeddddd.ae2enhanced.platform.zone.ZonePositionData;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCCopyService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCPasteService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCSelectionService;
@@ -27,7 +28,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 通用内存卡：复制/粘贴 AE2 设备配置（含升级卡），选取世界中的目标方块。
@@ -41,7 +44,14 @@ public class ItemUniversalMemoryCard extends Item {
     private static final String NBT_CONFIG = "ae2e:umc_config";
     private static final String NBT_SELECTIONS = "ae2e:umc_selections";
     private static final String NBT_BINDING = "ae2e:umc_binding";
+    private static final String NBT_MODE = "ae2e:umc_mode";
+    private static final String NBT_ZONE_POSITIONS = "ae2e:umc_zone_positions";
     public static final int GUI_ID = 10;
+
+    public enum Mode {
+        CONFIG_COPY,
+        PLATFORM_ZONE
+    }
 
     public ItemUniversalMemoryCard() {
         setMaxStackSize(1);
@@ -191,6 +201,111 @@ public class ItemUniversalMemoryCard extends Item {
     }
 
     // ============================================================
+    // Mode Helpers
+    // ============================================================
+
+    public static Mode getMode(ItemStack stack) {
+        if (!stack.hasTagCompound()) return Mode.CONFIG_COPY;
+        int ordinal = stack.getTagCompound().getInteger(NBT_MODE);
+        if (ordinal < 0 || ordinal >= Mode.values().length) return Mode.CONFIG_COPY;
+        return Mode.values()[ordinal];
+    }
+
+    public static void setMode(ItemStack stack, Mode mode) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setInteger(NBT_MODE, mode.ordinal());
+    }
+
+    public static void cycleMode(ItemStack stack) {
+        Mode current = getMode(stack);
+        Mode next = Mode.values()[(current.ordinal() + 1) % Mode.values().length];
+        setMode(stack, next);
+    }
+
+    public static boolean isUniversalMemoryCard(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof ItemUniversalMemoryCard;
+    }
+
+    public static boolean isPlatformZoneMode(ItemStack stack) {
+        return getMode(stack) == Mode.PLATFORM_ZONE;
+    }
+
+    // ============================================================
+    // Zone Position Helpers (BitSet compressed via ZonePositionData)
+    // ============================================================
+
+    public static Set<BlockPos> getZonePositions(ItemStack stack) {
+        Set<BlockPos> result = new HashSet<>();
+        if (!stack.hasTagCompound()) return result;
+        NBTTagCompound zoneTag = stack.getTagCompound().getCompoundTag(NBT_ZONE_POSITIONS);
+        if (!zoneTag.hasKey("min")) return result;
+        BlockPos min = BlockPos.fromLong(zoneTag.getLong("min"));
+        BlockPos max = BlockPos.fromLong(zoneTag.getLong("max"));
+        ZonePositionData data = new ZonePositionData(min, max);
+        data.readFromNBT(zoneTag);
+        result.addAll(data.getAllPositions());
+        return result;
+    }
+
+    public static void setZonePositions(ItemStack stack, Set<BlockPos> positions) {
+        if (positions == null || positions.isEmpty()) {
+            if (stack.hasTagCompound()) {
+                stack.getTagCompound().removeTag(NBT_ZONE_POSITIONS);
+            }
+            return;
+        }
+        BlockPos min = null;
+        BlockPos max = null;
+        for (BlockPos pos : positions) {
+            if (min == null) {
+                min = pos;
+                max = pos;
+            } else {
+                min = new BlockPos(
+                        Math.min(min.getX(), pos.getX()),
+                        Math.min(min.getY(), pos.getY()),
+                        Math.min(min.getZ(), pos.getZ()));
+                max = new BlockPos(
+                        Math.max(max.getX(), pos.getX()),
+                        Math.max(max.getY(), pos.getY()),
+                        Math.max(max.getZ(), pos.getZ()));
+            }
+        }
+        ZonePositionData data = new ZonePositionData(min, max);
+        for (BlockPos pos : positions) {
+            data.add(pos);
+        }
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        NBTTagCompound zoneTag = data.writeToNBT();
+        zoneTag.setLong("min", min.toLong());
+        zoneTag.setLong("max", max.toLong());
+        stack.getTagCompound().setTag(NBT_ZONE_POSITIONS, zoneTag);
+    }
+
+    public static void addZonePosition(ItemStack stack, BlockPos pos) {
+        Set<BlockPos> positions = getZonePositions(stack);
+        positions.add(pos);
+        setZonePositions(stack, positions);
+    }
+
+    public static void removeZonePosition(ItemStack stack, BlockPos pos) {
+        Set<BlockPos> positions = getZonePositions(stack);
+        if (positions.remove(pos)) {
+            setZonePositions(stack, positions);
+        }
+    }
+
+    public static void clearZonePositions(ItemStack stack) {
+        if (stack.hasTagCompound()) {
+            stack.getTagCompound().removeTag(NBT_ZONE_POSITIONS);
+        }
+    }
+
+    public static int getZonePositionCount(ItemStack stack) {
+        return getZonePositions(stack).size();
+    }
+
+    // ============================================================
     // Client Events
     // ============================================================
 
@@ -221,6 +336,17 @@ public class ItemUniversalMemoryCard extends Item {
                     // 智能样板接口绑定：客户端查询 JEI 后直接发送 PacketSmartPatternBind
                     if (isSmartPatternInterface && !isSneaking && !isCtrl && !isAlt) {
                         handleSmartPatternBindClient(player, stack, event.getPos(), event.getWorld());
+                        event.setCanceled(true);
+                        event.setCancellationResult(EnumActionResult.FAIL);
+                        return;
+                    }
+
+                    Mode mode = getMode(stack);
+                    if (mode == Mode.PLATFORM_ZONE) {
+                        PacketUMCAction.ActionType type = isSneaking
+                                ? PacketUMCAction.ActionType.ZONE_DESELECT
+                                : PacketUMCAction.ActionType.ZONE_SELECT;
+                        AE2Enhanced.network.sendToServer(new PacketUMCAction(type, event.getPos(), event.getFace()));
                         event.setCanceled(true);
                         event.setCancellationResult(EnumActionResult.FAIL);
                         return;
@@ -300,6 +426,23 @@ public class ItemUniversalMemoryCard extends Item {
                 break;
             case CLEAR_BINDINGS:
                 UMCSelectionService.handleClearBindings(player, message.getPos());
+                break;
+            case ZONE_SELECT:
+                addZonePosition(stack, message.getPos());
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.zone_select", message.getPos().getX(), message.getPos().getY(), message.getPos().getZ()));
+                break;
+            case ZONE_DESELECT:
+                removeZonePosition(stack, message.getPos());
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.zone_deselect", message.getPos().getX(), message.getPos().getY(), message.getPos().getZ()));
+                break;
+            case ZONE_CLEAR:
+                clearZonePositions(stack);
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.zone_clear"));
+                break;
+            case CYCLE_MODE:
+                cycleMode(stack);
+                Mode newMode = getMode(stack);
+                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.mode_changed", I18n.format("item.ae2enhanced.universal_memory_card.tooltip.mode." + newMode.name().toLowerCase())));
                 break;
         }
 
@@ -418,6 +561,16 @@ public class ItemUniversalMemoryCard extends Item {
         int count = getSelectionCount(stack);
         if (count > 0) {
             tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.selections", count));
+        }
+
+        Mode mode = getMode(stack);
+        tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.mode", I18n.format("item.ae2enhanced.universal_memory_card.tooltip.mode." + mode.name().toLowerCase())));
+
+        if (mode == Mode.PLATFORM_ZONE) {
+            int zoneCount = getZonePositionCount(stack);
+            if (zoneCount > 0) {
+                tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.zone_positions", zoneCount));
+            }
         }
 
         tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
