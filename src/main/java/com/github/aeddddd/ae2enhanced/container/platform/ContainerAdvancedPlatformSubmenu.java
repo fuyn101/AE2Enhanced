@@ -2,6 +2,8 @@ package com.github.aeddddd.ae2enhanced.container.platform;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.slot.SlotFake;
+import appeng.container.slot.SlotPlayerHotBar;
+import appeng.container.slot.SlotPlayerInv;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
@@ -10,9 +12,9 @@ import com.github.aeddddd.ae2enhanced.platform.zone.Zone;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
+import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -71,16 +73,17 @@ public class ContainerAdvancedPlatformSubmenu extends AEBaseContainer {
             }
         }
 
-        // 玩家背包 3行
+        // 玩家背包 3行 (AEBaseContainer 要求 AppEngSlot)
+        PlayerInvWrapper wrapper = new PlayerInvWrapper(ip);
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlotToContainer(new Slot(ip, col + row * 9 + 9,
+                this.addSlotToContainer(new SlotPlayerInv(wrapper, col + row * 9 + 9,
                         PLAYER_INV_X + col * 18, PLAYER_INV_Y + row * 18));
             }
         }
         // 玩家快捷栏
         for (int col = 0; col < 9; col++) {
-            this.addSlotToContainer(new Slot(ip, col,
+            this.addSlotToContainer(new SlotPlayerHotBar(wrapper, col,
                     PLAYER_INV_X + col * 18, PLAYER_INV_Y + 58));
         }
     }

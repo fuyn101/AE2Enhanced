@@ -197,15 +197,12 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (ID == GUI_ADVANCED_PLATFORM_CONTROLLER) {
-            AE2Enhanced.LOGGER.info("[AE2E-Debug] getServerGuiElement GUI_ADVANCED_PLATFORM_CONTROLLER, te={}, teClass={}", te, te != null ? te.getClass().getSimpleName() : "null");
             if (te instanceof TileAdvancedPlatformController) {
                 TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
                 if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
                     controller.sendPlatformInitToPlayer((net.minecraft.entity.player.EntityPlayerMP) player);
                 }
-                ContainerAdvancedPlatformController container = new ContainerAdvancedPlatformController(player.inventory, controller);
-                AE2Enhanced.LOGGER.info("[AE2E-Debug] Created container {}", container);
-                return container;
+                return new ContainerAdvancedPlatformController(player.inventory, controller);
             }
         }
         if (baseId == GUI_ADVANCED_PLATFORM_SUBMENU) {
@@ -321,11 +318,8 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (ID == GUI_ADVANCED_PLATFORM_CONTROLLER) {
-            AE2Enhanced.LOGGER.info("[AE2E-Debug] getClientGuiElement GUI_ADVANCED_PLATFORM_CONTROLLER, te={}, teClass={}", te, te != null ? te.getClass().getSimpleName() : "null");
             if (te instanceof TileAdvancedPlatformController) {
-                GuiAdvancedPlatformController gui = new GuiAdvancedPlatformController(player.inventory, (TileAdvancedPlatformController) te);
-                AE2Enhanced.LOGGER.info("[AE2E-Debug] Created gui {}", gui);
-                return gui;
+                return new GuiAdvancedPlatformController(player.inventory, (TileAdvancedPlatformController) te);
             }
         }
         int clientBaseId = ID & 0xFF;
