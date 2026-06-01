@@ -28,6 +28,7 @@ public class OutputProcessor {
         }
 
         Map<ItemStackKey, Long> subnetAccumulator = accumulator.computeIfAbsent(targetSubnet, k -> new java.util.HashMap<>());
+        java.util.Set<net.minecraft.item.ItemStack> filters = zone.getOutputFilters();
 
         for (FaceIoConfig config : containers) {
             BlockPos pos = config.getPos();
@@ -50,16 +51,29 @@ public class OutputProcessor {
             }
 
             if (!handled) {
-                genericScan(handler, subnetAccumulator);
+                genericScan(handler, filters, subnetAccumulator);
             }
         }
     }
 
-    private void genericScan(IItemHandler handler, Map<ItemStackKey, Long> out) {
+    private void genericScan(IItemHandler handler, java.util.Set<ItemStack> filters, Map<ItemStackKey, Long> out) {
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
             if (stack.isEmpty()) {
                 continue;
+            }
+
+            if (filters != null && !filters.isEmpty()) {
+                boolean matches = false;
+                for (ItemStack filter : filters) {
+                    if (ItemStack.areItemsEqual(stack, filter) && ItemStack.areItemStackTagsEqual(stack, filter)) {
+                        matches = true;
+                        break;
+                    }
+                }
+                if (!matches) {
+                    continue;
+                }
             }
 
             ItemStackKey key = new ItemStackKey(stack);

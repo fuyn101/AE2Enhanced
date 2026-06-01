@@ -83,16 +83,15 @@ public class ContainerAdvancedPlatformController extends AEBaseContainer {
             this.filterInventory.setStackInSlot(i, ItemStack.EMPTY);
             this.lastFilterItems[i] = ItemStack.EMPTY;
         }
-        Set<ItemStackKey> filter;
+        // 主网过滤槽禁用
         if (this.selectedSubnetId == 0) {
-            filter = this.inputMode ? tile.getMainNetAllowFrom() : tile.getMainNetAllowTo();
-        } else {
-            Subnet subnet = tile.getSubnet(this.selectedSubnetId);
-            if (subnet == null) {
-                return;
-            }
-            filter = this.inputMode ? subnet.getAllowFromMain() : subnet.getAllowToMain();
+            return;
         }
+        Subnet subnet = tile.getSubnet(this.selectedSubnetId);
+        if (subnet == null) {
+            return;
+        }
+        Set<ItemStackKey> filter = this.inputMode ? subnet.getAllowFromMain() : subnet.getAllowToMain();
         int slot = 0;
         for (ItemStackKey key : filter) {
             if (slot >= FILTER_SLOTS) {
@@ -123,16 +122,15 @@ public class ContainerAdvancedPlatformController extends AEBaseContainer {
     }
 
     private void updateTileFromSlots() {
-        Set<ItemStackKey> filter;
+        // 主网过滤槽禁用，不保存任何数据
         if (this.selectedSubnetId == 0) {
-            filter = this.inputMode ? tile.getMainNetAllowFrom() : tile.getMainNetAllowTo();
-        } else {
-            Subnet subnet = tile.getSubnet(this.selectedSubnetId);
-            if (subnet == null) {
-                return;
-            }
-            filter = this.inputMode ? subnet.getAllowFromMain() : subnet.getAllowToMain();
+            return;
         }
+        Subnet subnet = tile.getSubnet(this.selectedSubnetId);
+        if (subnet == null) {
+            return;
+        }
+        Set<ItemStackKey> filter = this.inputMode ? subnet.getAllowFromMain() : subnet.getAllowToMain();
         Set<ItemStackKey> newFilter = new HashSet<>();
         for (int i = 0; i < FILTER_SLOTS; i++) {
             ItemStack stack = this.filterInventory.getStackInSlot(i);

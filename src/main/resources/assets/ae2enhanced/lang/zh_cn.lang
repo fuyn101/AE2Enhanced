@@ -330,6 +330,7 @@ gui.ae2enhanced.advanced_platform.main_net_desc=主 ME 网络
 gui.ae2enhanced.advanced_platform.create_subnet=创建子网
 gui.ae2enhanced.advanced_platform.new_subnet=新子网
 gui.ae2enhanced.advanced_platform.rename_subnet=重命名
+gui.ae2enhanced.advanced_platform.main_net_filter_disabled=主网：无过滤
 gui.ae2enhanced.advanced_platform.delete_subnet=删除子网
 gui.ae2enhanced.advanced_platform.delete_zone=删除选区
 gui.ae2enhanced.advanced_platform.current_mode=当前模式

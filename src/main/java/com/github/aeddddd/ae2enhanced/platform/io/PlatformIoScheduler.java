@@ -179,8 +179,12 @@ public class PlatformIoScheduler implements IGridTickable {
 
                     ItemStackKey key = new ItemStackKey(stack);
 
-                    // 如果过滤非空，且物品不在过滤集中，跳过
+                    // 子网级过滤
                     if (!allowFilter.isEmpty() && !allowFilter.contains(key)) {
+                        continue;
+                    }
+                    // 面级过滤（空过滤=全部通过）
+                    if (!config.accepts(key)) {
                         continue;
                     }
 
@@ -318,6 +322,10 @@ public class PlatformIoScheduler implements IGridTickable {
 
             BlockPos pos = config.getPos();
             EnumFacing face = config.getFace();
+            // 面级过滤（空过滤=全部通过）
+            if (!config.accepts(key)) {
+                continue;
+            }
             IItemHandler handler = this.cache.getHandler(pos, face);
             if (handler == null) {
                 continue;

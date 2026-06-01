@@ -332,6 +332,7 @@ gui.ae2enhanced.advanced_platform.main_net_desc=Main ME Network
 gui.ae2enhanced.advanced_platform.create_subnet=Create Subnet
 gui.ae2enhanced.advanced_platform.new_subnet=New Subnet
 gui.ae2enhanced.advanced_platform.rename_subnet=Rename
+gui.ae2enhanced.advanced_platform.main_net_filter_disabled=Main Net: No Filter
 gui.ae2enhanced.advanced_platform.delete_subnet=Delete Subnet
 gui.ae2enhanced.advanced_platform.delete_zone=Delete Zone
 gui.ae2enhanced.advanced_platform.current_mode=Current Mode

@@ -149,10 +149,15 @@ public class PacketSubnetAction implements IMessage {
                             }
                             break;
                         case UPDATE_FILTER:
+                            // 主网过滤已禁用，subnetId==0 时忽略
                             if (message.subnetId == 0) {
+                                break;
+                            }
+                            com.github.aeddddd.ae2enhanced.platform.subnet.Subnet subnet = controller.getSubnet(message.subnetId);
+                            if (subnet != null) {
                                 java.util.Set<ItemStackKey> filter = message.inputMode
-                                        ? controller.getMainNetAllowFrom()
-                                        : controller.getMainNetAllowTo();
+                                        ? subnet.getAllowFromMain()
+                                        : subnet.getAllowToMain();
                                 filter.clear();
                                 for (ItemStack stack : message.filterItems) {
                                     if (stack != null && !stack.isEmpty()) {
@@ -161,21 +166,6 @@ public class PacketSubnetAction implements IMessage {
                                 }
                                 controller.markDirty();
                                 controller.sendPlatformInitToAllViewingPlayers();
-                            } else {
-                                com.github.aeddddd.ae2enhanced.platform.subnet.Subnet subnet = controller.getSubnet(message.subnetId);
-                                if (subnet != null) {
-                                    java.util.Set<ItemStackKey> filter = message.inputMode
-                                            ? subnet.getAllowFromMain()
-                                            : subnet.getAllowToMain();
-                                    filter.clear();
-                                    for (ItemStack stack : message.filterItems) {
-                                        if (stack != null && !stack.isEmpty()) {
-                                            filter.add(ItemStackKey.of(stack));
-                                        }
-                                    }
-                                    controller.markDirty();
-                                    controller.sendPlatformInitToAllViewingPlayers();
-                                }
                             }
                             break;
                         default:

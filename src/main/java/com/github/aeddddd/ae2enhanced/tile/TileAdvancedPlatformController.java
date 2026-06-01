@@ -93,8 +93,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private final ZoneRegistry zoneRegistry = new ZoneRegistry();
     private int nextZoneId = 1;
     private int nextSubnetId = 1;
-    private final Set<ItemStackKey> mainNetAllowFrom = new HashSet<>();
-    private final Set<ItemStackKey> mainNetAllowTo = new HashSet<>();
+    // 主网不过滤：始终返回空集，不持久化
+    private static final Set<ItemStackKey> MAIN_NET_EMPTY_FILTER = java.util.Collections.unmodifiableSet(new HashSet<>());
 
     // ===== IO 引擎 =====
     private com.github.aeddddd.ae2enhanced.platform.io.PlatformIoCache ioCache;
@@ -481,22 +481,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             }
         }
 
-        this.mainNetAllowFrom.clear();
-        if (compound.hasKey("MainAllowFrom")) {
-            NBTTagList list = compound.getTagList("MainAllowFrom", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < list.tagCount(); i++) {
-                ItemStackKey key = ItemStackKey.readFromNBT(list.getCompoundTagAt(i));
-                if (key != null) this.mainNetAllowFrom.add(key);
-            }
-        }
-        this.mainNetAllowTo.clear();
-        if (compound.hasKey("MainAllowTo")) {
-            NBTTagList list = compound.getTagList("MainAllowTo", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < list.tagCount(); i++) {
-                ItemStackKey key = ItemStackKey.readFromNBT(list.getCompoundTagAt(i));
-                if (key != null) this.mainNetAllowTo.add(key);
-            }
-        }
+        // 主网不过滤：不读取旧数据
     }
 
     @Override
@@ -520,16 +505,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         }
         compound.setTag("Subnets", subnetList);
 
-        NBTTagList mainFrom = new NBTTagList();
-        for (ItemStackKey key : this.mainNetAllowFrom) {
-            mainFrom.appendTag(key.writeToNBT());
-        }
-        compound.setTag("MainAllowFrom", mainFrom);
-        NBTTagList mainTo = new NBTTagList();
-        for (ItemStackKey key : this.mainNetAllowTo) {
-            mainTo.appendTag(key.writeToNBT());
-        }
-        compound.setTag("MainAllowTo", mainTo);
+        // 主网不过滤：不写入数据
         return compound;
     }
 
@@ -640,11 +616,11 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     }
 
     public Set<ItemStackKey> getMainNetAllowFrom() {
-        return mainNetAllowFrom;
+        return MAIN_NET_EMPTY_FILTER;
     }
 
     public Set<ItemStackKey> getMainNetAllowTo() {
-        return mainNetAllowTo;
+        return MAIN_NET_EMPTY_FILTER;
     }
 
     public ZoneRegistry getZoneRegistry() {

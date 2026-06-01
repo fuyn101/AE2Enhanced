@@ -171,6 +171,18 @@ public class Zone {
         return filters;
     }
 
+    public Set<ItemStack> getOutputFilters() {
+        Set<ItemStack> filters = new HashSet<>();
+        for (FaceIoConfig config : faceIo.values()) {
+            if (config.isOutput()) {
+                for (com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey key : config.getFilter()) {
+                    filters.add(key.toItemStack(1));
+                }
+            }
+        }
+        return filters;
+    }
+
     public boolean hasInput() {
         for (FaceIoConfig config : faceIo.values()) {
             if (config.isInput()) return true;

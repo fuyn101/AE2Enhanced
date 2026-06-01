@@ -349,6 +349,15 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.fontRenderer.drawString("+", LEFT_PANEL_X + 4, itemY + 4, 0x404040);
         }
 
+        // 主网过滤禁用提示
+        if (selectedSubnetId == 0) {
+            String hint = I18n.format("gui.ae2enhanced.advanced_platform.main_net_filter_disabled");
+            int hintW = this.fontRenderer.getStringWidth(hint);
+            int hintX = FILTER_AREA_X + (FILTER_AREA_W - hintW) / 2;
+            int hintY = FILTER_AREA_Y + FILTER_AREA_H / 2 - 4;
+            this.fontRenderer.drawString(hint, hintX, hintY, 0x888888);
+        }
+
         // 选区列表文本
         for (int i = 0; i < VISIBLE_ZONES; i++) {
             int idx = zoneScrollOffset + i;
@@ -459,6 +468,14 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                         PacketSubnetAction.Action.SELECT, tile.getPos(), selectedSubnetId, "", inputMode, Collections.emptyList()));
             }
             return;
+        }
+
+        // 主网时禁用过滤槽交互
+        if (selectedSubnetId == 0) {
+            if (relX >= FILTER_AREA_X && relX < FILTER_AREA_X + FILTER_AREA_W
+                    && relY >= FILTER_AREA_Y && relY < FILTER_AREA_Y + FILTER_AREA_H) {
+                return;
+            }
         }
 
         // 选区列表点击
