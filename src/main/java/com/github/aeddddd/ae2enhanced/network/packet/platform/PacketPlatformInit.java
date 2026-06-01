@@ -51,7 +51,11 @@ public class PacketPlatformInit implements IMessage {
             String name = ByteBufUtils.readUTF8String(buf);
             int subnetId = buf.readInt();
             int blockCount = buf.readInt();
-            this.zones.add(new ZoneSummary(id, name, subnetId, blockCount));
+            int[] faceModes = new int[6];
+            for (int j = 0; j < 6; j++) {
+                faceModes[j] = buf.readByte();
+            }
+            this.zones.add(new ZoneSummary(id, name, subnetId, blockCount, faceModes));
         }
     }
 
@@ -71,6 +75,9 @@ public class PacketPlatformInit implements IMessage {
             ByteBufUtils.writeUTF8String(buf, zone.name);
             buf.writeInt(zone.subnetId);
             buf.writeInt(zone.blockCount);
+            for (int j = 0; j < 6; j++) {
+                buf.writeByte(zone.faceModes[j]);
+            }
         }
     }
 
@@ -101,12 +108,18 @@ public class PacketPlatformInit implements IMessage {
         public final String name;
         public final int subnetId;
         public final int blockCount;
+        public final int[] faceModes;
 
         public ZoneSummary(int id, String name, int subnetId, int blockCount) {
+            this(id, name, subnetId, blockCount, new int[6]);
+        }
+
+        public ZoneSummary(int id, String name, int subnetId, int blockCount, int[] faceModes) {
             this.id = id;
             this.name = name;
             this.subnetId = subnetId;
             this.blockCount = blockCount;
+            this.faceModes = faceModes != null ? faceModes : new int[6];
         }
     }
 
@@ -122,7 +135,7 @@ public class PacketPlatformInit implements IMessage {
                 }
                 List<ClientPlatformState.ZoneSummary> zones = new ArrayList<>();
                 for (ZoneSummary zs : message.zones) {
-                    zones.add(new ClientPlatformState.ZoneSummary(zs.id, zs.name, zs.subnetId, zs.blockCount));
+                    zones.add(new ClientPlatformState.ZoneSummary(zs.id, zs.name, zs.subnetId, zs.blockCount, zs.faceModes));
                 }
                 ClientPlatformState.updatePlatformInit(message.controllerPos, subnets, zones);
             });

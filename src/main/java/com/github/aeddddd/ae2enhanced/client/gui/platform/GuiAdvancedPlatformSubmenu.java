@@ -84,7 +84,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int IO_AREA_H = 90;
 
     // === 6 方向槽位 (8×8) ===
-    // 上(89,132), 左(79,142), 前(89,142), 右(99,142), 下(89,152), 后(99,152)
     private static final int DIR_UP_X = 89;
     private static final int DIR_UP_Y = 132;
     private static final int DIR_DOWN_X = 89;
@@ -100,7 +99,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int DIR_SLOT_SIZE = 8;
 
     // 方向槽状态纹理源 UV (8×8)
-    // BOTH→上槽(89,132), INPUT→左槽(79,142), OUTPUT→前槽(89,142), NONE→右槽(99,142)
     private static final int[] UV_BOTH = {89, 132};
     private static final int[] UV_INPUT = {79, 142};
     private static final int[] UV_OUTPUT = {89, 142};
@@ -131,7 +129,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
                 } else if (zone.subnetId == 0 && selectedSubnetId != 0) {
                     unboundZones.add(zone);
                 } else if (zone.subnetId != 0 && selectedSubnetId == 0) {
-                    // 主网界面：其他子网的 zone 视为未绑定
                     unboundZones.add(zone);
                 }
             }
@@ -170,7 +167,8 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             for (int i = 0; i < newBound.size(); i++) {
                 ClientPlatformState.ZoneSummary a = newBound.get(i);
                 ClientPlatformState.ZoneSummary b = boundZones.get(i);
-                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount) {
+                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount
+                        || !java.util.Arrays.equals(a.faceModes, b.faceModes)) {
                     changed = true;
                     break;
                 }
@@ -180,7 +178,8 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             for (int i = 0; i < newUnbound.size(); i++) {
                 ClientPlatformState.ZoneSummary a = newUnbound.get(i);
                 ClientPlatformState.ZoneSummary b = unboundZones.get(i);
-                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount) {
+                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount
+                        || !java.util.Arrays.equals(a.faceModes, b.faceModes)) {
                     changed = true;
                     break;
                 }
@@ -283,10 +282,20 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
 
     private FaceIoConfig.IoMode getFaceMode(EnumFacing face) {
         if (selectedZoneId <= 0 || face == null) return FaceIoConfig.IoMode.NONE;
-        com.github.aeddddd.ae2enhanced.platform.zone.Zone zone = tile.getZoneRegistry().getZone(selectedZoneId);
-        if (zone == null) return FaceIoConfig.IoMode.NONE;
-        com.github.aeddddd.ae2enhanced.platform.zone.FaceIoConfig config = zone.getFaceIo().get(face);
-        return config != null ? config.getMode() : FaceIoConfig.IoMode.NONE;
+
+        // 从 ClientPlatformState 读取（不再依赖客户端 tile.getZoneRegistry()）
+        ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
+        if (init != null) {
+            for (ClientPlatformState.ZoneSummary zone : init.zones) {
+                if (zone.id == selectedZoneId && zone.faceModes != null) {
+                    int modeOrdinal = zone.faceModes[face.ordinal()];
+                    if (modeOrdinal >= 0 && modeOrdinal < FaceIoConfig.IoMode.values().length) {
+                        return FaceIoConfig.IoMode.values()[modeOrdinal];
+                    }
+                }
+            }
+        }
+        return FaceIoConfig.IoMode.NONE;
     }
 
     @Override
@@ -300,6 +309,21 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
         this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
 
+        // 当前选中方向的 mode 文字（名称栏和输入按钮之间）
+        if (selectedFace != null) {
+            FaceIoConfig.IoMode mode = getFaceMode(selectedFace);
+            String modeText = I18n.format("gui.ae2enhanced.advanced_platform.io_mode." + mode.name().toLowerCase());
+            int modeColor;
+            switch (mode) {
+                case INPUT: modeColor = 0x3366CC; break;
+                case OUTPUT: modeColor = 0xCCAA33; break;
+                case BOTH: modeColor = 0x33AA33; break;
+                default: modeColor = 0x888888; break;
+            }
+            int modeX = NAME_BAR_X + NAME_BAR_W + 4;
+            this.fontRenderer.drawString(modeText, modeX, NAME_BAR_Y + 2, modeColor);
+        }
+
         // 左侧列表文本 + 删除按钮
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
         for (int i = 0; i < maxVisible; i++) {
@@ -311,7 +335,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
                 String text = boundZones.get(idx).name;
                 if (text.length() > 8) text = text.substring(0, 7) + "..";
                 this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, drawY + 4, 0x404040);
-                // 删除按钮
                 int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
                 int delY = drawY + 4;
                 this.drawTexturedModalRect(delX, delY, DELETE_BTN_UV_X, DELETE_BTN_UV_Y, DELETE_BTN_SIZE, DELETE_BTN_SIZE);
@@ -320,7 +343,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
                 String text = unboundZones.get(unboundIdx).name;
                 if (text.length() > 8) text = text.substring(0, 7) + "..";
                 this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 4, 0x888888);
-                // 删除按钮
                 int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
                 int delY = itemY + 4;
                 this.drawTexturedModalRect(delX, delY, DELETE_BTN_UV_X, DELETE_BTN_UV_Y, DELETE_BTN_SIZE, DELETE_BTN_SIZE);
@@ -343,6 +365,11 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         // 关闭/返回按钮
         if (isInCloseButton(relX, relY) && mouseButton == 0) {
             returnToMainGui();
+            return;
+        }
+
+        // 输入/输出按钮 —— 拦截点击防止事件穿透到过滤槽
+        if ((isInInputButton(relX, relY) || isInOutputButton(relX, relY)) && mouseButton == 0) {
             return;
         }
 
@@ -434,6 +461,17 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             return;
         }
 
+        if (isInInputButton(relX, relY)) {
+            drawHoveringText(Collections.singletonList(
+                    I18n.format("gui.ae2enhanced.advanced_platform.input_mode")), mouseX, mouseY);
+            return;
+        }
+        if (isInOutputButton(relX, relY)) {
+            drawHoveringText(Collections.singletonList(
+                    I18n.format("gui.ae2enhanced.advanced_platform.output_mode")), mouseX, mouseY);
+            return;
+        }
+
         // 方向槽位 tooltip
         EnumFacing face = getFaceAt(relX, relY);
         if (face != null) {
@@ -493,6 +531,16 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private boolean isInCloseButton(int x, int y) {
         return x >= CLOSE_BTN_X && x < CLOSE_BTN_X + CLOSE_BTN_SIZE
                 && y >= CLOSE_BTN_Y && y < CLOSE_BTN_Y + CLOSE_BTN_SIZE;
+    }
+
+    private boolean isInInputButton(int x, int y) {
+        return x >= INPUT_BTN_X && x < INPUT_BTN_X + INPUT_BTN_W
+                && y >= INPUT_BTN_Y && y < INPUT_BTN_Y + INPUT_BTN_H;
+    }
+
+    private boolean isInOutputButton(int x, int y) {
+        return x >= OUTPUT_BTN_X && x < OUTPUT_BTN_X + OUTPUT_BTN_W
+                && y >= OUTPUT_BTN_Y && y < OUTPUT_BTN_Y + OUTPUT_BTN_H;
     }
 
     private int getZoneAt(int x, int y) {

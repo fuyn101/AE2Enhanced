@@ -67,12 +67,18 @@ public class ClientPlatformState {
         public final String name;
         public final int subnetId;
         public final int blockCount;
+        public final int[] faceModes; // 6 directions, indexed by EnumFacing.ordinal()
 
         public ZoneSummary(int id, String name, int subnetId, int blockCount) {
+            this(id, name, subnetId, blockCount, new int[6]);
+        }
+
+        public ZoneSummary(int id, String name, int subnetId, int blockCount, int[] faceModes) {
             this.id = id;
             this.name = name;
             this.subnetId = subnetId;
             this.blockCount = blockCount;
+            this.faceModes = faceModes != null ? faceModes : new int[6];
         }
     }
 

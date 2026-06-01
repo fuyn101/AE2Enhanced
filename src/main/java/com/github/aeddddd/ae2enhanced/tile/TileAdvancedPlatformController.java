@@ -749,7 +749,13 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         java.util.List<com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.ZoneSummary> zoneList = new java.util.ArrayList<>();
         for (Zone zone : zoneRegistry.getAllZones()) {
             int blockCount = zone.getPositions().getAllPositions().size();
-            zoneList.add(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.ZoneSummary(zone.getId(), zone.getName(), zone.getSubnetId(), blockCount));
+            int[] faceModes = new int[6];
+            for (net.minecraft.util.EnumFacing facing : net.minecraft.util.EnumFacing.values()) {
+                FaceIoConfig config = zone.getFaceIo().get(facing);
+                faceModes[facing.ordinal()] = config != null ? config.getMode().ordinal() : 0;
+            }
+            zoneList.add(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.ZoneSummary(
+                    zone.getId(), zone.getName(), zone.getSubnetId(), blockCount, faceModes));
         }
         AE2Enhanced.network.sendTo(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit(pos, subnetList, zoneList), player);
     }
