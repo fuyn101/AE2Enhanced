@@ -7,12 +7,10 @@ buildscript {
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
         classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
     }
 }
 apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
-apply plugin: 'com.github.johnrengelman.shadow'
 
 version = '1.5.2-dev'
 group = 'com.github.aeddddd'
@@ -58,8 +56,8 @@ dependencies {
     compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
-    // fastutil: 高性能集合库，shadow 瘦身打包
-    shadow 'it.unimi.dsi:fastutil:8.5.12'
+    // fastutil: 高性能集合库，打包进 jar
+    compile 'it.unimi.dsi:fastutil:8.5.12'
 
     compile files('libs/!mixinbooter-10.6.jar')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
@@ -112,22 +110,13 @@ afterEvaluate {
 jar {
     // 排除 JEI 内部类的编译期 stub，避免与运行时 JEI/HEI 的类冲突
     exclude 'mezz/jei/**'
-    manifest {
-        attributes([
-            'FMLCorePluginContainsFMLMod': true,
-            'ForceLoadAsMod': true,
-            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
-        ])
-    }
-}
-
-// Shadow: 打包 fastutil 并手动瘦身，排除不相关的原始类型包
-shadowJar {
-    classifier = ''
-    configurations = [project.configurations.shadow]
-    relocate 'it.unimi.dsi.fastutil', 'com.github.aeddddd.ae2enhanced.shade.fastutil'
     
-    // 排除 fastutil 中不相关的原始类型包（这些占了大部分体积）
+    // 打包 fastutil 并手动瘦身，排除不相关的原始类型包
+    from {
+        configurations.compile.findAll { it.name.contains('fastutil') }.collect { zipTree(it) }
+    }
+    
+    // 排除 fastutil 中不相关的原始类型包
     exclude 'it/unimi/dsi/fastutil/doubles/**'
     exclude 'it/unimi/dsi/fastutil/shorts/**'
     exclude 'it/unimi/dsi/fastutil/floats/**'
@@ -175,9 +164,12 @@ shadowJar {
     exclude 'it/unimi/dsi/fastutil/ints/*Char*'
     exclude 'it/unimi/dsi/fastutil/ints/*Byte*'
     exclude 'it/unimi/dsi/fastutil/ints/*Boolean*'
-}
-
-// 用 shadowJar 作为默认发布产物
-artifacts {
-    archives shadowJar
+    
+    manifest {
+        attributes([
+            'FMLCorePluginContainsFMLMod': true,
+            'ForceLoadAsMod': true,
+            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
+        ])
+    }
 }
