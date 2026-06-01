@@ -121,12 +121,60 @@ jar {
     }
 }
 
-// Shadow: 打包 fastutil 并瘦身，只包含实际用到的类
+// Shadow: 打包 fastutil 并手动瘦身，排除不相关的原始类型包
 shadowJar {
     classifier = ''
     configurations = [project.configurations.shadow]
-    // minimizeJar() // 不可用，Shadow 2.0.4 不支持
     relocate 'it.unimi.dsi.fastutil', 'com.github.aeddddd.ae2enhanced.shade.fastutil'
+    
+    // 排除 fastutil 中不相关的原始类型包（这些占了大部分体积）
+    exclude 'it/unimi/dsi/fastutil/doubles/**'
+    exclude 'it/unimi/dsi/fastutil/shorts/**'
+    exclude 'it/unimi/dsi/fastutil/floats/**'
+    exclude 'it/unimi/dsi/fastutil/chars/**'
+    exclude 'it/unimi/dsi/fastutil/bytes/**'
+    exclude 'it/unimi/dsi/fastutil/booleans/**'
+    exclude 'it/unimi/dsi/fastutil/io/**'
+    
+    // 进一步排除 objects/longs/ints 包中与其他原始类型组合的类
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Double*'
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Float*'
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Short*'
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Char*'
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Byte*'
+    exclude 'it/unimi/dsi/fastutil/objects/Object2Boolean*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Double*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Float*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Short*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Char*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Byte*'
+    exclude 'it/unimi/dsi/fastutil/objects/*Boolean*'
+    
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Double*'
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Float*'
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Short*'
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Char*'
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Byte*'
+    exclude 'it/unimi/dsi/fastutil/longs/Long2Boolean*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Double*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Float*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Short*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Char*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Byte*'
+    exclude 'it/unimi/dsi/fastutil/longs/*Boolean*'
+    
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Double*'
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Float*'
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Short*'
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Char*'
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Byte*'
+    exclude 'it/unimi/dsi/fastutil/ints/Int2Boolean*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Double*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Float*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Short*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Char*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Byte*'
+    exclude 'it/unimi/dsi/fastutil/ints/*Boolean*'
 }
 
 // 用 shadowJar 作为默认发布产物
