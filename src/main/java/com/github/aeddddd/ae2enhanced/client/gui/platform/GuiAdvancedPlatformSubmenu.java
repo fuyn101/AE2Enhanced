@@ -38,7 +38,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             new ResourceLocation("ae2enhanced", "textures/gui/advance-2.png");
 
     private static final int GUI_WIDTH = 246;
-    private static final int GUI_HEIGHT = 256;
+    private static final int GUI_HEIGHT = 220;
 
     // 左侧面板
     private static final int LEFT_PANEL_X = 7;
@@ -102,9 +102,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int IO_CYCLE_W = 50;
     private static final int IO_CYCLE_H = 12;
 
-    // 玩家背包标签
-    private static final int INV_LABEL_X = 42;
-    private static final int INV_LABEL_Y = 163;
+
 
     private final TileAdvancedPlatformController tile;
     private final int selectedSubnetId;
@@ -155,8 +153,8 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 绘制主背景（纹理顶部 220px）
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, Math.min(this.ySize, 220));
+        // 绘制主背景
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
     }
 
     @Override
@@ -169,9 +167,6 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int nameW = this.fontRenderer.getStringWidth(name);
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
         this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 1, 0x404040);
-
-        // 玩家背包标签
-        this.fontRenderer.drawString(I18n.format("container.inventory"), INV_LABEL_X, INV_LABEL_Y, 0x404040);
 
         // 绘制左侧面板选区列表
         drawZoneList(relX, relY);
@@ -237,18 +232,14 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         drawRect(DIR_AREA_X, DIR_AREA_Y + DIR_AREA_SIZE - 1,
                 DIR_AREA_X + DIR_AREA_SIZE, DIR_AREA_Y + DIR_AREA_SIZE, 0xFF0f3460);
 
-        // 上
+        // 6 个方向槽位
         drawDirSlot(DIR_UP_X, DIR_UP_Y, EnumFacing.UP, relX, relY);
-        // 下
         drawDirSlot(DIR_DOWN_X, DIR_DOWN_Y, EnumFacing.DOWN, relX, relY);
-        // 左
         drawDirSlot(DIR_LEFT_X, DIR_LEFT_Y, EnumFacing.WEST, relX, relY);
-        // 右
         drawDirSlot(DIR_RIGHT_X, DIR_RIGHT_Y, EnumFacing.EAST, relX, relY);
-        // 前 (中心)
         drawDirSlot(DIR_FRONT_X, DIR_FRONT_Y, EnumFacing.NORTH, relX, relY);
-
-        // TODO: 后 (BACK) 方向槽位 — 当前纹理仅提供 5 个可见位置，需设计确认第 6 个位置
+        // BACK 方向 — 放在方向区右侧
+        drawDirSlot(DIR_AREA_X + DIR_AREA_SIZE + 4, DIR_FRONT_Y, EnumFacing.SOUTH, relX, relY);
     }
 
     private void drawDirSlot(int x, int y, EnumFacing face, int relX, int relY) {
@@ -282,7 +273,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         drawRect(IO_CYCLE_X, IO_CYCLE_Y, IO_CYCLE_X + IO_CYCLE_W, IO_CYCLE_Y + IO_CYCLE_H, 0xFFFFFFFF);
         drawRect(IO_CYCLE_X + 1, IO_CYCLE_Y + 1, IO_CYCLE_X + IO_CYCLE_W - 1, IO_CYCLE_Y + IO_CYCLE_H - 1, bg);
 
-        String label = currentFaceMode.name();
+        String label = I18n.format("gui.ae2enhanced.advanced_platform.io_mode." + currentFaceMode.name().toLowerCase());
         int color = getIoModeColor(currentFaceMode);
         int lw = this.fontRenderer.getStringWidth(label);
         this.fontRenderer.drawString(label, IO_CYCLE_X + (IO_CYCLE_W - lw) / 2, IO_CYCLE_Y + 2, color);

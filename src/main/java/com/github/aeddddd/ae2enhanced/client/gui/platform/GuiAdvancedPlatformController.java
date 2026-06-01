@@ -34,7 +34,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             new ResourceLocation("ae2enhanced", "textures/gui/advance.png");
 
     private static final int GUI_WIDTH = 246;
-    private static final int GUI_HEIGHT = 256;
+    private static final int GUI_HEIGHT = 220;
 
     // 左侧面板
     private static final int LEFT_PANEL_X = 7;
@@ -86,9 +86,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private static final int ZONE_ENTRY_H = 14;
     private static final int VISIBLE_ZONES = 4;
 
-    // 玩家背包标签
-    private static final int INV_LABEL_X = 42;
-    private static final int INV_LABEL_Y = 163;
+
 
     private final TileAdvancedPlatformController tile;
 
@@ -132,8 +130,8 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 绘制主背景（纹理顶部 220px，ySize=256 时剩余区域由 drawDefaultBackground 覆盖）
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, Math.min(this.ySize, 220));
+        // 绘制主背景
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
     }
 
     @Override
@@ -146,9 +144,6 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int nameW = this.fontRenderer.getStringWidth(name);
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
         this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 1, 0x404040);
-
-        // 玩家背包标签
-        this.fontRenderer.drawString(I18n.format("container.inventory"), INV_LABEL_X, INV_LABEL_Y, 0x404040);
 
         // 绘制左侧面板子网列表
         drawSubnetList(relX, relY);

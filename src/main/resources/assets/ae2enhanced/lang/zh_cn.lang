@@ -304,3 +304,24 @@ item.ae2enhanced.universal_memory_card.tooltip.mode.config_copy=配置复制
 
 gui.ae2enhanced.umc.msg.zone_loaded=§a▸ 已载入 §e%d§a 个方块到选区
 gui.ae2enhanced.umc.msg.mode_changed=§a▸ 模式已切换为 §e%s
+
+# 先进中枢平台 GUI
+gui.ae2enhanced.advanced_platform.close=关闭
+gui.ae2enhanced.advanced_platform.back=返回
+gui.ae2enhanced.advanced_platform.input_mode=输入模式
+gui.ae2enhanced.advanced_platform.output_mode=输出模式
+gui.ae2enhanced.advanced_platform.add_zone=管理选区
+gui.ae2enhanced.advanced_platform.zone.other_subnet=属于其他子网
+gui.ae2enhanced.advanced_platform.no_subnet=无子网
+gui.ae2enhanced.advanced_platform.no_zone=未选择选区
+gui.ae2enhanced.advanced_platform.io_mode.cycle=切换IO模式
+gui.ae2enhanced.advanced_platform.io_mode.none=无
+gui.ae2enhanced.advanced_platform.io_mode.input=输入
+gui.ae2enhanced.advanced_platform.io_mode.output=输出
+gui.ae2enhanced.advanced_platform.io_mode.both=双向
+gui.ae2enhanced.advanced_platform.face.up=上
+gui.ae2enhanced.advanced_platform.face.down=下
+gui.ae2enhanced.advanced_platform.face.north=北
+gui.ae2enhanced.advanced_platform.face.south=南
+gui.ae2enhanced.advanced_platform.face.west=西
+gui.ae2enhanced.advanced_platform.face.east=东

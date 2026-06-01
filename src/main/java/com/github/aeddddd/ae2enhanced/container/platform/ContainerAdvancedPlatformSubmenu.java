@@ -35,13 +35,8 @@ public class ContainerAdvancedPlatformSubmenu extends AEBaseContainer {
     public static final int IO_START_Y = 22;
     public static final int IO_SPACING = 18;
 
-    public static final int PLAYER_INV_X = 42;
-    public static final int PLAYER_INV_Y = 174;
-
     public static final int SLOT_IO_START = 0;
     public static final int SLOT_IO_END = 50;
-    public static final int SLOT_PLAYER_START = 50;
-    public static final int SLOT_HOTBAR_START = 77;
 
     private final TileAdvancedPlatformController tile;
     private final int selectedSubnetId;
