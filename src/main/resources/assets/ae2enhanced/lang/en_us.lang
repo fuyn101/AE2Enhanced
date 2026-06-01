@@ -303,10 +303,6 @@ key.ae2enhanced.cycleUmcMode=Cycle UMC Mode
 
 item.ae2enhanced.universal_memory_card.tooltip.mode=§b▸ Mode: §f%s
 item.ae2enhanced.universal_memory_card.tooltip.mode.config_copy=Config Copy
-item.ae2enhanced.universal_memory_card.tooltip.mode.platform_zone=Platform Zone
-item.ae2enhanced.universal_memory_card.tooltip.zone_positions=§b▸ Zone Positions: §f%d
 
-gui.ae2enhanced.umc.msg.zone_select=§a▸ Selected block §e%d, %d, %d§a for zone
-gui.ae2enhanced.umc.msg.zone_deselect=§e▸ Deselected block §e%d, %d, %d§e from zone
-gui.ae2enhanced.umc.msg.zone_clear=§e▸ Cleared all zone positions
+gui.ae2enhanced.umc.msg.zone_loaded=§a▸ Loaded §e%d§a positions into zone
 gui.ae2enhanced.umc.msg.mode_changed=§a▸ Mode switched to §e%s

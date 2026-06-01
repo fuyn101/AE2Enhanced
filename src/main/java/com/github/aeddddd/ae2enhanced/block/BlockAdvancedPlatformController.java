@@ -16,6 +16,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -61,13 +63,25 @@ public class BlockAdvancedPlatformController extends Block {
         TileEntity te = world.getTileEntity(pos);
         if (!(te instanceof TileAdvancedPlatformController)) return false;
 
+        TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
+
+        // UMC selections 载入为未绑定选区
         ItemStack held = player.getHeldItem(hand);
-        if (ItemUniversalMemoryCard.isUniversalMemoryCard(held) && ItemUniversalMemoryCard.isPlatformZoneMode(held)) {
-            Set<BlockPos> zonePositions = ItemUniversalMemoryCard.getZonePositions(held);
-            if (!zonePositions.isEmpty()) {
-                TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
-                controller.createZone("Imported Zone", zonePositions);
-                ItemUniversalMemoryCard.clearZonePositions(held);
+        if (ItemUniversalMemoryCard.isUniversalMemoryCard(held)) {
+            List<ItemUniversalMemoryCard.SelectionEntry> selections = ItemUniversalMemoryCard.getSelections(held);
+            if (!selections.isEmpty()) {
+                Set<BlockPos> zonePositions = new HashSet<>();
+                for (ItemUniversalMemoryCard.SelectionEntry entry : selections) {
+                    if (entry.dim == world.provider.getDimension()) {
+                        zonePositions.add(entry.pos);
+                    }
+                }
+                if (!zonePositions.isEmpty()) {
+                    controller.createZone("Imported Zone", zonePositions);
+                    ItemUniversalMemoryCard.clearSelections(held);
+                    player.sendMessage(new net.minecraft.util.text.TextComponentTranslation(
+                            "gui.ae2enhanced.umc.msg.zone_loaded", zonePositions.size()));
+                }
             }
         }
 

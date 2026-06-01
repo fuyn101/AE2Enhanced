@@ -17,7 +17,6 @@ public class PacketUMCAction implements IMessage {
         CLEAR_CONFIG, CLEAR_SELECTIONS, REMOVE_SELECTION,
         OPEN_GUI,
         BIND_SOURCE, BIND_TARGET, CLEAR_BINDINGS,
-        ZONE_SELECT, ZONE_DESELECT, ZONE_CLEAR,
         CYCLE_MODE
     }
 
