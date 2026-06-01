@@ -1,17 +1,23 @@
 package com.github.aeddddd.ae2enhanced.client.gui.platform;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.platform.ClientPlatformState;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu;
-import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
+import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketZoneAction;
+import com.github.aeddddd.ae2enhanced.platform.zone.FaceIoConfig;
+import com.github.aeddddd.ae2enhanced.platform.zone.Zone;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -90,6 +96,12 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final int DIR_FRONT_X = 91;
     private static final int DIR_FRONT_Y = 126;
 
+    // IO 模式循环按钮
+    private static final int IO_CYCLE_X = 140;
+    private static final int IO_CYCLE_Y = 118;
+    private static final int IO_CYCLE_W = 50;
+    private static final int IO_CYCLE_H = 12;
+
     // 玩家背包标签
     private static final int INV_LABEL_X = 42;
     private static final int INV_LABEL_Y = 163;
@@ -97,12 +109,13 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private final TileAdvancedPlatformController tile;
     private final int selectedSubnetId;
 
-    // TODO: 客户端状态（待网络同步协议实现后替换）
-    private final List<String> boundZoneNames = new ArrayList<>();
-    private final List<String> unboundZoneNames = new ArrayList<>();
+    private final List<ClientPlatformState.ZoneSummary> boundZones = new ArrayList<>();
+    private final List<ClientPlatformState.ZoneSummary> unboundZones = new ArrayList<>();
     private int selectedZoneIndex = -1;
+    private int selectedZoneId = 0;
     private int leftScrollOffset = 0;
     private EnumFacing selectedFace = null;
+    private FaceIoConfig.IoMode currentFaceMode = FaceIoConfig.IoMode.NONE;
 
     // 6 个方向的显示名称
     private static final String[] DIR_NAMES = {
@@ -120,7 +133,16 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
 
-        // TODO: 从 Tile 或网络包加载实际数据
+        ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
+        if (init != null) {
+            for (ClientPlatformState.ZoneSummary zone : init.zones) {
+                if (zone.subnetId == selectedSubnetId) {
+                    boundZones.add(zone);
+                } else if (zone.subnetId == 0) {
+                    unboundZones.add(zone);
+                }
+            }
+        }
     }
 
     @Override
@@ -156,6 +178,9 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
 
         // 绘制 6 方向配置区
         drawDirectionConfig(relX, relY);
+
+        // 绘制 IO 模式循环按钮
+        drawIoModeCycle(relX, relY);
     }
 
     private void drawZoneList(int relX, int relY) {
@@ -164,27 +189,28 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
 
         // 已绑定选区
-        for (int i = 0; i < maxVisible && leftScrollOffset + i < boundZoneNames.size(); i++) {
+        for (int i = 0; i < maxVisible && leftScrollOffset + i < boundZones.size(); i++) {
             int idx = leftScrollOffset + i;
+            boolean selected = (idx == selectedZoneIndex);
             drawListItem(LEFT_PANEL_X, y, LEFT_PANEL_W, LIST_ITEM_H,
-                    boundZoneNames.get(idx), idx == selectedZoneIndex,
+                    boundZones.get(idx).name, selected,
                     relX, relY, 0xFF9CD3FF);
             y += LIST_ITEM_H + 2;
             visibleCount++;
         }
 
         // 分隔（如有未绑定选区）
-        if (!unboundZoneNames.isEmpty() && !boundZoneNames.isEmpty() && visibleCount < maxVisible) {
+        if (!unboundZones.isEmpty() && !boundZones.isEmpty() && visibleCount < maxVisible) {
             drawRect(LEFT_PANEL_X + 2, y, LEFT_PANEL_X + LEFT_PANEL_W - 2, y + 1, 0xFF9A9FB4);
             y += 3;
             visibleCount++;
         }
 
         // 未绑定选区
-        for (int i = 0; i < maxVisible - visibleCount && i < unboundZoneNames.size(); i++) {
+        for (int i = 0; i < maxVisible - visibleCount && i < unboundZones.size(); i++) {
             int idx = i;
             drawListItem(LEFT_PANEL_X, y, LEFT_PANEL_W, LIST_ITEM_H,
-                    unboundZoneNames.get(idx), false,
+                    unboundZones.get(idx).name, false,
                     relX, relY, 0xFFADB0C4);
             y += LIST_ITEM_H + 2;
         }
@@ -240,6 +266,43 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         String label = face.name().substring(0, 1);
         int lw = this.fontRenderer.getStringWidth(label);
         this.fontRenderer.drawString(label, x + (DIR_SLOT_SIZE - lw) / 2, y + 1, 0xFFFFFF);
+
+        // 绘制该面的 IO 模式指示器（小点）
+        FaceIoConfig.IoMode mode = getFaceMode(face);
+        if (mode != FaceIoConfig.IoMode.NONE) {
+            int modeColor = getIoModeColor(mode);
+            drawRect(x + DIR_SLOT_SIZE + 1, y + 1, x + DIR_SLOT_SIZE + 4, y + 4, modeColor);
+        }
+    }
+
+    private void drawIoModeCycle(int relX, int relY) {
+        boolean hovered = relX >= IO_CYCLE_X && relX < IO_CYCLE_X + IO_CYCLE_W
+                && relY >= IO_CYCLE_Y && relY < IO_CYCLE_Y + IO_CYCLE_H;
+        int bg = hovered ? 0xFFADB0C4 : 0xFF1a1a2e;
+        drawRect(IO_CYCLE_X, IO_CYCLE_Y, IO_CYCLE_X + IO_CYCLE_W, IO_CYCLE_Y + IO_CYCLE_H, 0xFFFFFFFF);
+        drawRect(IO_CYCLE_X + 1, IO_CYCLE_Y + 1, IO_CYCLE_X + IO_CYCLE_W - 1, IO_CYCLE_Y + IO_CYCLE_H - 1, bg);
+
+        String label = currentFaceMode.name();
+        int color = getIoModeColor(currentFaceMode);
+        int lw = this.fontRenderer.getStringWidth(label);
+        this.fontRenderer.drawString(label, IO_CYCLE_X + (IO_CYCLE_W - lw) / 2, IO_CYCLE_Y + 2, color);
+    }
+
+    private FaceIoConfig.IoMode getFaceMode(EnumFacing face) {
+        if (selectedZoneId <= 0 || face == null) return FaceIoConfig.IoMode.NONE;
+        Zone zone = tile.getZoneRegistry().getZone(selectedZoneId);
+        if (zone == null) return FaceIoConfig.IoMode.NONE;
+        FaceIoConfig config = zone.getFaceIo().get(face);
+        return config != null ? config.getMode() : FaceIoConfig.IoMode.NONE;
+    }
+
+    private int getIoModeColor(FaceIoConfig.IoMode mode) {
+        switch (mode) {
+            case INPUT: return 0xFF3C7FDE;
+            case OUTPUT: return 0xFFDEA83C;
+            case BOTH: return 0xFF3CDE5A;
+            default: return 0xFF999999;
+        }
     }
 
     @Override
@@ -266,11 +329,16 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             return;
         }
 
+        // IO 模式循环按钮
+        if (isInIoCycleButton(relX, relY) && mouseButton == 0) {
+            cycleIoMode();
+            return;
+        }
+
         // 选区列表点击
         int zoneClick = getZoneAt(relX, relY);
         if (zoneClick >= 0) {
-            this.selectedZoneIndex = zoneClick + leftScrollOffset;
-            // TODO: 同步选中选区到服务端
+            handleZoneClick(zoneClick);
             return;
         }
 
@@ -278,17 +346,70 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         EnumFacing clickedFace = getFaceAt(relX, relY);
         if (clickedFace != null) {
             this.selectedFace = clickedFace;
-            // TODO: 打开该面的详细 IO 配置（模式 / 过滤 / 通道）
+            updateCurrentFaceMode();
+            if (selectedZoneId > 0) {
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.SELECT, tile.getPos(), selectedZoneId, selectedSubnetId, selectedFace, null));
+            }
             return;
         }
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
+    private void handleZoneClick(int zoneClick) {
+        int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
+        int boundVisible = Math.min(boundZones.size() - leftScrollOffset, maxVisible);
+
+        if (zoneClick < boundVisible) {
+            // 已绑定选区点击 -> 选中
+            int idx = leftScrollOffset + zoneClick;
+            if (idx >= 0 && idx < boundZones.size()) {
+                this.selectedZoneIndex = idx;
+                this.selectedZoneId = boundZones.get(idx).id;
+                updateCurrentFaceMode();
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.SELECT, tile.getPos(), selectedZoneId, selectedSubnetId, selectedFace, null));
+            }
+        } else {
+            // 未绑定选区点击 -> 绑定到当前子网
+            int unboundIdx = zoneClick - boundVisible;
+            if (unboundIdx >= 0 && unboundIdx < unboundZones.size()) {
+                int zoneId = unboundZones.get(unboundIdx).id;
+                AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                        PacketZoneAction.Action.ASSIGN, tile.getPos(), zoneId, selectedSubnetId, null, null));
+            }
+        }
+    }
+
+    private void cycleIoMode() {
+        if (selectedZoneId <= 0 || selectedFace == null) return;
+        FaceIoConfig.IoMode[] modes = FaceIoConfig.IoMode.values();
+        int next = (currentFaceMode.ordinal() + 1) % modes.length;
+        currentFaceMode = modes[next];
+        FaceIoConfig config = new FaceIoConfig();
+        config.setMode(currentFaceMode);
+        AE2Enhanced.network.sendToServer(new PacketZoneAction(
+                PacketZoneAction.Action.IO_CONFIG, tile.getPos(), selectedZoneId, selectedSubnetId, selectedFace, config));
+    }
+
+    private void updateCurrentFaceMode() {
+        if (selectedZoneId <= 0 || selectedFace == null) {
+            currentFaceMode = FaceIoConfig.IoMode.NONE;
+            return;
+        }
+        Zone zone = tile.getZoneRegistry().getZone(selectedZoneId);
+        if (zone != null) {
+            FaceIoConfig config = zone.getFaceIo().get(selectedFace);
+            currentFaceMode = config != null ? config.getMode() : FaceIoConfig.IoMode.NONE;
+        } else {
+            currentFaceMode = FaceIoConfig.IoMode.NONE;
+        }
+    }
+
     private void returnToMainGui() {
-        // TODO: 通过发送网络包请求服务端切回主 GUI
-        this.mc.player.closeScreen();
-        // 完整实现应发送 PacketOpenGui 到服务端，由服务端调用 player.openGui
+        AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                PacketSubnetAction.Action.OPEN_MAIN, tile.getPos(), 0, ""));
     }
 
     @Override
@@ -297,14 +418,20 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int relY = mouseY - this.guiTop;
 
         if (isInCloseButton(relX, relY)) {
-            drawHoveringText(java.util.Collections.singletonList(
+            drawHoveringText(Collections.singletonList(
                     I18n.format("gui.ae2enhanced.advanced_platform.back")), mouseX, mouseY);
+            return;
+        }
+
+        if (isInIoCycleButton(relX, relY)) {
+            drawHoveringText(Collections.singletonList(
+                    I18n.format("gui.ae2enhanced.advanced_platform.io_mode.cycle")), mouseX, mouseY);
             return;
         }
 
         EnumFacing face = getFaceAt(relX, relY);
         if (face != null) {
-            drawHoveringText(java.util.Collections.singletonList(
+            drawHoveringText(Collections.singletonList(
                     I18n.format("gui.ae2enhanced.advanced_platform.face." + face.getName().toLowerCase())),
                     mouseX, mouseY);
             return;
@@ -323,6 +450,11 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private boolean isInEditButton(int x, int y) {
         return x >= EDIT_BTN_X && x < EDIT_BTN_X + EDIT_BTN_SIZE
                 && y >= EDIT_BTN_Y && y < EDIT_BTN_Y + EDIT_BTN_SIZE;
+    }
+
+    private boolean isInIoCycleButton(int x, int y) {
+        return x >= IO_CYCLE_X && x < IO_CYCLE_X + IO_CYCLE_W
+                && y >= IO_CYCLE_Y && y < IO_CYCLE_Y + IO_CYCLE_H;
     }
 
     private int getZoneAt(int x, int y) {
@@ -363,8 +495,8 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     }
 
     private String getSelectedZoneName() {
-        if (selectedZoneIndex >= 0 && selectedZoneIndex < boundZoneNames.size()) {
-            return boundZoneNames.get(selectedZoneIndex);
+        if (selectedZoneIndex >= 0 && selectedZoneIndex < boundZones.size()) {
+            return boundZones.get(selectedZoneIndex).name;
         }
         return I18n.format("gui.ae2enhanced.advanced_platform.no_zone");
     }

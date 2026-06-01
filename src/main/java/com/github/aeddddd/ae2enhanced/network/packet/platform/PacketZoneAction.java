@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.network.packet.platform;
 
+import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu;
 import com.github.aeddddd.ae2enhanced.platform.zone.FaceIoConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import io.netty.buffer.ByteBuf;
@@ -14,11 +15,11 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * C→S packet for zone assign and IO config.
+ * C→S packet for zone assign, select and IO config.
  */
 public class PacketZoneAction implements IMessage {
 
-    public enum Action { ASSIGN, IO_CONFIG }
+    public enum Action { ASSIGN, SELECT, IO_CONFIG }
 
     private Action action;
     private int zoneId;
@@ -46,7 +47,9 @@ public class PacketZoneAction implements IMessage {
         this.controllerPos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
         this.zoneId = buf.readInt();
         this.subnetId = buf.readInt();
-        this.face = EnumFacing.values()[buf.readByte()];
+        int faceOrdinal = buf.readByte();
+        this.face = faceOrdinal >= 0 && faceOrdinal < EnumFacing.values().length
+                ? EnumFacing.values()[faceOrdinal] : null;
         NBTTagCompound tag = ByteBufUtils.readTag(buf);
         this.ioConfig = new FaceIoConfig();
         if (tag != null) {
@@ -62,7 +65,7 @@ public class PacketZoneAction implements IMessage {
         buf.writeInt(controllerPos.getZ());
         buf.writeInt(zoneId);
         buf.writeInt(subnetId);
-        buf.writeByte(face != null ? face.ordinal() : 0);
+        buf.writeByte(face != null ? face.ordinal() : -1);
         ByteBufUtils.writeTag(buf, ioConfig != null ? ioConfig.writeToNBT() : new NBTTagCompound());
     }
 
@@ -102,9 +105,22 @@ public class PacketZoneAction implements IMessage {
                     switch (message.action) {
                         case ASSIGN:
                             controller.assignZoneToSubnet(message.zoneId, message.subnetId);
+                            controller.sendPlatformInitToAllViewingPlayers();
+                            break;
+                        case SELECT:
+                            if (player.openContainer instanceof ContainerAdvancedPlatformSubmenu) {
+                                ContainerAdvancedPlatformSubmenu c = (ContainerAdvancedPlatformSubmenu) player.openContainer;
+                                c.setSelectedZoneId(message.zoneId);
+                                c.setSelectedFace(message.face);
+                            }
                             break;
                         case IO_CONFIG:
                             controller.setZoneFaceIoConfig(message.zoneId, message.face, message.ioConfig);
+                            if (player.openContainer instanceof ContainerAdvancedPlatformSubmenu) {
+                                ContainerAdvancedPlatformSubmenu c = (ContainerAdvancedPlatformSubmenu) player.openContainer;
+                                c.refreshIoConfigSlots();
+                            }
+                            controller.sendPlatformInitToAllViewingPlayers();
                             break;
                         default:
                             break;

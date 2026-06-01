@@ -675,10 +675,14 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             FaceIoConfig target = zone.getFaceIo().get(face);
             if (target != null) {
                 target.setMode(config.getMode());
-                target.getChannels().clear();
-                target.getChannels().addAll(config.getChannels());
-                target.getFilter().clear();
-                target.getFilter().addAll(config.getFilter());
+                if (!config.getChannels().isEmpty()) {
+                    target.getChannels().clear();
+                    target.getChannels().addAll(config.getChannels());
+                }
+                if (!config.getFilter().isEmpty()) {
+                    target.getFilter().clear();
+                    target.getFilter().addAll(config.getFilter());
+                }
                 markDirty();
             }
         }
@@ -694,5 +698,40 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             }
         }
         return usage;
+    }
+
+    public void sendPlatformInitToPlayer(net.minecraft.entity.player.EntityPlayerMP player) {
+        java.util.List<com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.SubnetData> subnetList = new java.util.ArrayList<>();
+        for (Subnet subnet : subnets.values()) {
+            subnetList.add(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.SubnetData(subnet.getId(), subnet.getName()));
+        }
+        java.util.List<com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.ZoneSummary> zoneList = new java.util.ArrayList<>();
+        for (Zone zone : zoneRegistry.getAllZones()) {
+            int blockCount = zone.getPositions().getAllPositions().size();
+            zoneList.add(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit.ZoneSummary(zone.getId(), zone.getName(), zone.getSubnetId(), blockCount));
+        }
+        AE2Enhanced.network.sendTo(new com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit(pos, subnetList, zoneList), player);
+    }
+
+    public void sendPlatformInitToAllViewingPlayers() {
+        if (world == null || world.isRemote) return;
+        for (net.minecraft.entity.player.EntityPlayer player : world.playerEntities) {
+            if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                net.minecraft.entity.player.EntityPlayerMP mp = (net.minecraft.entity.player.EntityPlayerMP) player;
+                if (mp.openContainer instanceof com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController) {
+                    com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController c =
+                            (com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController) mp.openContainer;
+                    if (c.getTile() == this) {
+                        sendPlatformInitToPlayer(mp);
+                    }
+                } else if (mp.openContainer instanceof com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu) {
+                    com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu c =
+                            (com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu) mp.openContainer;
+                    if (c.getTile() == this) {
+                        sendPlatformInitToPlayer(mp);
+                    }
+                }
+            }
+        }
     }
 }

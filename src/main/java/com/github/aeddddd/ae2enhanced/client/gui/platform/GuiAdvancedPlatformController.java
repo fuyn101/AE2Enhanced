@@ -1,8 +1,9 @@
 package com.github.aeddddd.ae2enhanced.client.gui.platform;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.platform.ClientPlatformState;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
-import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -12,6 +13,7 @@ import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -90,10 +92,11 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
     private final TileAdvancedPlatformController tile;
 
-    // TODO: 客户端状态（待网络同步协议实现后替换）
-    private final List<String> subnetNames = new ArrayList<>();
-    private final List<String> zoneNames = new ArrayList<>();
+    private final List<ClientPlatformState.SubnetData> subnets = new ArrayList<>();
+    private final List<ClientPlatformState.ZoneSummary> zones = new ArrayList<>();
     private int selectedSubnetIndex = 0;
+    private int selectedSubnetId = 0;
+    private int selectedZoneIndex = -1;
     private boolean inputMode = true;
     private int subnetScrollOffset = 0;
     private int zoneScrollOffset = 0;
@@ -104,9 +107,19 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
 
-        // TODO: 从 Tile 或网络包加载实际数据
-        this.subnetNames.add(I18n.format("gui.ae2enhanced.advanced_platform.main_net"));
-        this.zoneNames.add(I18n.format("gui.ae2enhanced.advanced_platform.zone.example"));
+        ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
+        if (init != null) {
+            this.subnets.addAll(init.subnets);
+            this.zones.addAll(init.zones);
+        }
+        if (!this.subnets.isEmpty()) {
+            this.selectedSubnetIndex = 0;
+            this.selectedSubnetId = this.subnets.get(0).id;
+        }
+
+        ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
+        container.setSelectedSubnetId(this.selectedSubnetId);
+        container.setInputMode(this.inputMode);
     }
 
     @Override
@@ -149,9 +162,10 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
     private void drawSubnetList(int relX, int relY) {
         int y = LEFT_PANEL_Y;
-        for (int i = 0; i < VISIBLE_ZONES + 2; i++) {
+        int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
+        for (int i = 0; i < maxVisible; i++) {
             int idx = subnetScrollOffset + i;
-            if (idx >= subnetNames.size()) break;
+            if (idx >= subnets.size()) break;
 
             boolean selected = (idx == selectedSubnetIndex);
             boolean hovered = relX >= LEFT_PANEL_X && relX < LEFT_PANEL_X + LEFT_PANEL_W
@@ -162,7 +176,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                 drawRect(LEFT_PANEL_X + 1, y, LEFT_PANEL_X + LEFT_PANEL_W - 1, y + LIST_ITEM_H, bgColor);
             }
 
-            String text = subnetNames.get(idx);
+            String text = subnets.get(idx).name;
             if (text.length() > 8) text = text.substring(0, 7) + "..";
             this.fontRenderer.drawString(text, LEFT_PANEL_X + 2, y + 3, 0x404040);
 
@@ -174,18 +188,30 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int y = ZONE_LIST_Y;
         for (int i = 0; i < VISIBLE_ZONES; i++) {
             int idx = zoneScrollOffset + i;
-            if (idx >= zoneNames.size()) break;
+            if (idx >= zones.size()) break;
 
+            ClientPlatformState.ZoneSummary zone = zones.get(idx);
+            boolean belongsToSelected = (zone.subnetId == selectedSubnetId);
+            boolean selected = (idx == selectedZoneIndex) && belongsToSelected;
             boolean hovered = relX >= ZONE_LIST_X && relX < ZONE_LIST_X + ZONE_LIST_W
                     && relY >= y && relY < y + ZONE_ENTRY_H;
-            int bgColor = hovered ? 0xFFADB0C4 : 0x00FFFFFF;
+
+            int bgColor;
+            if (selected) {
+                bgColor = 0xFF9CD3FF;
+            } else if (hovered) {
+                bgColor = belongsToSelected ? 0xFFADB0C4 : 0xFF7A7D8C;
+            } else {
+                bgColor = 0x00FFFFFF;
+            }
             if (bgColor != 0x00FFFFFF) {
                 drawRect(ZONE_LIST_X, y, ZONE_LIST_X + ZONE_LIST_W, y + ZONE_ENTRY_H, bgColor);
             }
 
-            String text = zoneNames.get(idx);
+            String text = zone.name;
             if (text.length() > 20) text = text.substring(0, 19) + "..";
-            this.fontRenderer.drawString(text, ZONE_LIST_X + 2, y + 3, 0x404040);
+            int textColor = belongsToSelected ? 0x404040 : 0xFF7A7A7A;
+            this.fontRenderer.drawString(text, ZONE_LIST_X + 2, y + 3, textColor);
 
             y += ZONE_ENTRY_H + 2;
         }
@@ -219,14 +245,20 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         // 输入模式切换
         if (isInInputButton(relX, relY) && mouseButton == 0) {
             this.inputMode = true;
-            // TODO: 同步到服务端
+            ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
+            container.setInputMode(true);
+            AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                    PacketSubnetAction.Action.SELECT, tile.getPos(), selectedSubnetId, "", true, Collections.emptyList()));
             return;
         }
 
         // 输出模式切换
         if (isInOutputButton(relX, relY) && mouseButton == 0) {
             this.inputMode = false;
-            // TODO: 同步到服务端
+            ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
+            container.setInputMode(false);
+            AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                    PacketSubnetAction.Action.SELECT, tile.getPos(), selectedSubnetId, "", false, Collections.emptyList()));
             return;
         }
 
@@ -245,15 +277,29 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         // 子网列表点击
         int subnetClick = getSubnetAt(relX, relY);
         if (subnetClick >= 0) {
-            this.selectedSubnetIndex = subnetClick + subnetScrollOffset;
-            // TODO: 同步选中子网到服务端，刷新过滤格
+            int idx = subnetClick + subnetScrollOffset;
+            if (idx >= 0 && idx < subnets.size()) {
+                this.selectedSubnetIndex = idx;
+                this.selectedSubnetId = subnets.get(idx).id;
+                this.selectedZoneIndex = -1;
+                ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
+                container.setSelectedSubnetId(this.selectedSubnetId);
+                AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                        PacketSubnetAction.Action.SELECT, tile.getPos(), selectedSubnetId, "", inputMode, Collections.emptyList()));
+            }
             return;
         }
 
         // 选区列表点击
         int zoneClick = getZoneAt(relX, relY);
         if (zoneClick >= 0) {
-            // TODO: 处理选区点击（打开配置或高亮）
+            int idx = zoneClick + zoneScrollOffset;
+            if (idx >= 0 && idx < zones.size()) {
+                ClientPlatformState.ZoneSummary zone = zones.get(idx);
+                if (zone.subnetId == selectedSubnetId) {
+                    this.selectedZoneIndex = idx;
+                }
+            }
             return;
         }
 
@@ -261,9 +307,9 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     }
 
     private void openSubmenu() {
-        // TODO: 通过发送网络包请求服务端打开二级菜单
-        // 临时实现：直接关闭当前 GUI（完整实现需 PacketOpenSubmenu）
-        // mc.displayGuiScreen(new GuiAdvancedPlatformSubmenu(...));
+        if (selectedSubnetId <= 0) return;
+        AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                PacketSubnetAction.Action.OPEN_SUBMENU, tile.getPos(), selectedSubnetId, ""));
     }
 
     @Override
@@ -272,20 +318,33 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int relY = mouseY - this.guiTop;
 
         if (isInCloseButton(relX, relY)) {
-            drawHoveringText(java.util.Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.close")), mouseX, mouseY);
+            drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.close")), mouseX, mouseY);
             return;
         }
         if (isInInputButton(relX, relY)) {
-            drawHoveringText(java.util.Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.input_mode")), mouseX, mouseY);
+            drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.input_mode")), mouseX, mouseY);
             return;
         }
         if (isInOutputButton(relX, relY)) {
-            drawHoveringText(java.util.Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.output_mode")), mouseX, mouseY);
+            drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.output_mode")), mouseX, mouseY);
             return;
         }
         if (isInPlusButton(relX, relY)) {
-            drawHoveringText(java.util.Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.add_zone")), mouseX, mouseY);
+            drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.add_zone")), mouseX, mouseY);
             return;
+        }
+
+        int zoneClick = getZoneAt(relX, relY);
+        if (zoneClick >= 0) {
+            int idx = zoneClick + zoneScrollOffset;
+            if (idx >= 0 && idx < zones.size()) {
+                ClientPlatformState.ZoneSummary zone = zones.get(idx);
+                if (zone.subnetId != selectedSubnetId) {
+                    drawHoveringText(Collections.singletonList(
+                            I18n.format("gui.ae2enhanced.advanced_platform.zone.other_subnet")), mouseX, mouseY);
+                    return;
+                }
+            }
         }
 
         super.renderHoveredToolTip(mouseX, mouseY);
@@ -320,7 +379,8 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
     private int getSubnetAt(int x, int y) {
         int itemY = LEFT_PANEL_Y;
-        for (int i = 0; i < VISIBLE_ZONES + 2; i++) {
+        int maxVisible = LEFT_PANEL_H / (LIST_ITEM_H + 2);
+        for (int i = 0; i < maxVisible; i++) {
             if (x >= LEFT_PANEL_X && x < LEFT_PANEL_X + LEFT_PANEL_W
                     && y >= itemY && y < itemY + LIST_ITEM_H) {
                 return i;
@@ -343,9 +403,9 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     }
 
     private String getSelectedSubnetName() {
-        if (subnetNames.isEmpty()) return I18n.format("gui.ae2enhanced.advanced_platform.no_subnet");
-        int idx = Math.max(0, Math.min(selectedSubnetIndex, subnetNames.size() - 1));
-        return subnetNames.get(idx);
+        if (subnets.isEmpty()) return I18n.format("gui.ae2enhanced.advanced_platform.no_subnet");
+        int idx = Math.max(0, Math.min(selectedSubnetIndex, subnets.size() - 1));
+        return subnets.get(idx).name;
     }
 
     public TileAdvancedPlatformController getTile() {

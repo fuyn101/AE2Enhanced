@@ -198,13 +198,21 @@ public class GuiHandler implements IGuiHandler {
         }
         if (ID == GUI_ADVANCED_PLATFORM_CONTROLLER) {
             if (te instanceof TileAdvancedPlatformController) {
-                return new ContainerAdvancedPlatformController(player.inventory, (TileAdvancedPlatformController) te);
+                TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
+                if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                    controller.sendPlatformInitToPlayer((net.minecraft.entity.player.EntityPlayerMP) player);
+                }
+                return new ContainerAdvancedPlatformController(player.inventory, controller);
             }
         }
         if (baseId == GUI_ADVANCED_PLATFORM_SUBMENU) {
             if (te instanceof TileAdvancedPlatformController) {
+                TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
+                if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                    controller.sendPlatformInitToPlayer((net.minecraft.entity.player.EntityPlayerMP) player);
+                }
                 int subnetId = decodeSubmenuSubnetId(ID);
-                return new ContainerAdvancedPlatformSubmenu(player.inventory, (TileAdvancedPlatformController) te, subnetId);
+                return new ContainerAdvancedPlatformSubmenu(player.inventory, controller, subnetId);
             }
         }
 
