@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.client.platform.ClientPlatformState;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
+import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
@@ -25,8 +26,8 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private static final ResourceLocation TEXTURE =
             new ResourceLocation("ae2enhanced", "textures/gui/advance.png");
 
-    private static final int GUI_WIDTH = 246;
-    private static final int GUI_HEIGHT = 220;
+    private static final int GUI_WIDTH = 256;
+    private static final int GUI_HEIGHT = 224;
 
     // === 左侧滚动栏: (7,17)→(61,214), 55×198 ===
     private static final int LEFT_PANEL_X = 7;
@@ -107,21 +108,28 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private int subnetScrollOffset = 0;
     private int zoneScrollOffset = 0;
 
+    // 名称编辑
+    private GuiTextField nameField;
+    private boolean isEditing = false;
+    private boolean isCreating = false;
+
     public GuiAdvancedPlatformController(InventoryPlayer inventory, TileAdvancedPlatformController tile) {
         super(new ContainerAdvancedPlatformController(inventory, tile));
         this.tile = tile;
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
 
+        // 固定主网为第一个条目
+        this.subnets.add(new ClientPlatformState.SubnetData(0, ""));
+
         ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
         if (init != null) {
             this.subnets.addAll(init.subnets);
             this.zones.addAll(init.zones);
         }
-        if (!this.subnets.isEmpty()) {
-            this.selectedSubnetIndex = 0;
-            this.selectedSubnetId = this.subnets.get(0).id;
-        }
+
+        this.selectedSubnetIndex = 0;
+        this.selectedSubnetId = 0;
 
         ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
         container.setSelectedSubnetId(this.selectedSubnetId);
@@ -131,6 +139,92 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     @Override
     public void initGui() {
         super.initGui();
+        this.nameField = new GuiTextField(0, this.fontRenderer,
+                this.guiLeft + NAME_BAR_X + 2, this.guiTop + NAME_BAR_Y,
+                NAME_BAR_W - 4, NAME_BAR_H);
+        this.nameField.setMaxStringLength(32);
+        this.nameField.setVisible(false);
+        this.nameField.setEnabled(false);
+    }
+
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+        if (this.nameField != null) {
+            this.nameField.updateCursorCounter();
+        }
+
+        // 刷新子网和选区数据（非编辑状态时）
+        if (!isEditing) {
+            refreshClientData();
+        }
+    }
+
+    private void refreshClientData() {
+        ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
+        if (init == null) return;
+
+        // 重建子网列表（主网 + 服务端子网）
+        List<ClientPlatformState.SubnetData> newSubnets = new ArrayList<>();
+        newSubnets.add(new ClientPlatformState.SubnetData(0, ""));
+        newSubnets.addAll(init.subnets);
+
+        // 重建选区列表
+        List<ClientPlatformState.ZoneSummary> newZones = new ArrayList<>(init.zones);
+
+        // 检查是否有变化
+        boolean changed = false;
+        if (newSubnets.size() != this.subnets.size() || newZones.size() != this.zones.size()) {
+            changed = true;
+        } else {
+            for (int i = 0; i < newSubnets.size(); i++) {
+                ClientPlatformState.SubnetData a = newSubnets.get(i);
+                ClientPlatformState.SubnetData b = this.subnets.get(i);
+                if (a.id != b.id || !a.name.equals(b.name)) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (!changed) return;
+
+        this.subnets.clear();
+        this.subnets.addAll(newSubnets);
+        this.zones.clear();
+        this.zones.addAll(newZones);
+
+        // 保持选中状态有效
+        int newIndex = -1;
+        for (int i = 0; i < this.subnets.size(); i++) {
+            if (this.subnets.get(i).id == this.selectedSubnetId) {
+                newIndex = i;
+                break;
+            }
+        }
+        if (newIndex >= 0) {
+            this.selectedSubnetIndex = newIndex;
+        } else {
+            this.selectedSubnetIndex = 0;
+            this.selectedSubnetId = 0;
+            ContainerAdvancedPlatformController container = (ContainerAdvancedPlatformController) this.inventorySlots;
+            container.setSelectedSubnetId(0);
+        }
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (this.isEditing && this.nameField != null) {
+            if (keyCode == 28) { // Enter
+                confirmEdit();
+            } else if (keyCode == 1) { // Escape
+                cancelEdit();
+            } else {
+                this.nameField.textboxKeyTyped(typedChar, keyCode);
+            }
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
     }
 
     @Override
@@ -138,7 +232,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 主背景: (0,0)→(246,220)
+        // 主背景: (0,0)→(256,224)
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
         // 过滤格区域背景: (76,35)→(237,124)
@@ -151,9 +245,9 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
         // 左侧列表项 — 纹理复制
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
-        for (int i = 0; i < maxVisible; i++) {
+        int visibleSubnetCount = Math.min(subnets.size() - subnetScrollOffset, maxVisible);
+        for (int i = 0; i < visibleSubnetCount; i++) {
             int idx = subnetScrollOffset + i;
-            if (idx >= subnets.size()) break;
             int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
             if (idx == selectedSubnetIndex) {
                 // 高亮项: (9,19)→(59,32), 51×14
@@ -162,6 +256,12 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                 // 标准项: (8,37)→(60,51), 53×15
                 this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
             }
+        }
+
+        // 创建子网条目
+        if (visibleSubnetCount < maxVisible) {
+            int itemY = LEFT_PANEL_Y + visibleSubnetCount * LIST_ITEM_SPACING;
+            this.drawTexturedModalRect(this.guiLeft + 8, this.guiTop + itemY, 8, 37, 53, 15);
         }
 
         // 名称栏: (76,17)→(146,26), 71×10
@@ -194,21 +294,33 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
-        // 名称栏文本（居中）
-        String name = getSelectedSubnetName();
-        int nameW = this.fontRenderer.getStringWidth(name);
-        int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
-        this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
+        // 名称栏文本（居中），编辑时不显示（被输入框覆盖）
+        if (!isEditing) {
+            String name = getSelectedSubnetName();
+            int nameW = this.fontRenderer.getStringWidth(name);
+            int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
+            this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
+        }
 
         // 左侧子网列表文本
         int maxVisible = LEFT_PANEL_H / LIST_ITEM_SPACING;
-        for (int i = 0; i < maxVisible; i++) {
+        int visibleSubnetCount = Math.min(subnets.size() - subnetScrollOffset, maxVisible);
+        for (int i = 0; i < visibleSubnetCount; i++) {
             int idx = subnetScrollOffset + i;
-            if (idx >= subnets.size()) break;
             int itemY = LEFT_PANEL_Y + i * LIST_ITEM_SPACING;
-            String text = subnets.get(idx).name;
-            if (text.length() > 8) text = text.substring(0, 7) + "..";
+            String text;
+            if (idx == 0) {
+                text = I18n.format("gui.ae2enhanced.advanced_platform.main_net");
+            } else {
+                text = subnets.get(idx).name;
+                if (text.length() > 8) text = text.substring(0, 7) + "..";
+            }
             this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, itemY + 3, 0x404040);
+        }
+        // 创建子网条目文本
+        if (visibleSubnetCount < maxVisible) {
+            int itemY = LEFT_PANEL_Y + visibleSubnetCount * LIST_ITEM_SPACING;
+            this.fontRenderer.drawString("+", LEFT_PANEL_X + 4, itemY + 3, 0x404040);
         }
 
         // 选区列表文本
@@ -223,6 +335,11 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             int textColor = belongsToSelected ? 0x404040 : 0x888888;
             this.fontRenderer.drawString(text, ZONE_LIST_X + 2, itemY + 3, textColor);
         }
+
+        // 绘制名称输入框
+        if (this.isEditing && this.nameField != null) {
+            this.nameField.drawTextBox();
+        }
     }
 
     @Override
@@ -234,6 +351,17 @@ public class GuiAdvancedPlatformController extends GuiContainer {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // 处理名称输入框点击
+        if (this.isEditing && this.nameField != null) {
+            this.nameField.mouseClicked(mouseX, mouseY, mouseButton);
+            if (!this.nameField.isFocused()) {
+                cancelEdit();
+                // 继续处理其他点击
+            } else {
+                return;
+            }
+        }
+
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
@@ -263,8 +391,11 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             return;
         }
 
-        // 编辑按钮
+        // 编辑按钮 — 改名
         if (isInEditButton(relX, relY) && mouseButton == 0) {
+            if (selectedSubnetId > 0 && !isEditing) {
+                startRename();
+            }
             return;
         }
 
@@ -278,7 +409,10 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int subnetClick = getSubnetAt(relX, relY);
         if (subnetClick >= 0) {
             int idx = subnetClick + subnetScrollOffset;
-            if (idx >= 0 && idx < subnets.size()) {
+            if (idx == subnets.size()) {
+                // 创建子网
+                startCreateSubnet();
+            } else if (idx >= 0 && idx < subnets.size()) {
                 this.selectedSubnetIndex = idx;
                 this.selectedSubnetId = subnets.get(idx).id;
                 this.selectedZoneIndex = -1;
@@ -312,6 +446,49 @@ public class GuiAdvancedPlatformController extends GuiContainer {
                 PacketSubnetAction.Action.OPEN_SUBMENU, tile.getPos(), selectedSubnetId, ""));
     }
 
+    private void startCreateSubnet() {
+        this.isEditing = true;
+        this.isCreating = true;
+        this.nameField.setText(I18n.format("gui.ae2enhanced.advanced_platform.new_subnet"));
+        this.nameField.setVisible(true);
+        this.nameField.setEnabled(true);
+        this.nameField.setFocused(true);
+    }
+
+    private void startRename() {
+        if (selectedSubnetId <= 0) return;
+        this.isEditing = true;
+        this.isCreating = false;
+        this.nameField.setText(getSelectedSubnetName());
+        this.nameField.setVisible(true);
+        this.nameField.setEnabled(true);
+        this.nameField.setFocused(true);
+    }
+
+    private void confirmEdit() {
+        String text = this.nameField.getText().trim();
+        if (!text.isEmpty()) {
+            if (isCreating) {
+                AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                        PacketSubnetAction.Action.CREATE, tile.getPos(), 0, text));
+            } else {
+                AE2Enhanced.network.sendToServer(new PacketSubnetAction(
+                        PacketSubnetAction.Action.RENAME, tile.getPos(), selectedSubnetId, text));
+            }
+        }
+        cancelEdit();
+    }
+
+    private void cancelEdit() {
+        this.isEditing = false;
+        this.isCreating = false;
+        if (this.nameField != null) {
+            this.nameField.setVisible(false);
+            this.nameField.setEnabled(false);
+            this.nameField.setFocused(false);
+        }
+    }
+
     @Override
     protected void renderHoveredToolTip(int mouseX, int mouseY) {
         int relX = mouseX - this.guiLeft;
@@ -332,6 +509,22 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         if (isInPlusButton(relX, relY)) {
             drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.add_zone")), mouseX, mouseY);
             return;
+        }
+        if (isInEditButton(relX, relY)) {
+            if (selectedSubnetId > 0) {
+                drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.rename_subnet")), mouseX, mouseY);
+            }
+            return;
+        }
+
+        // 子网列表 tooltip
+        int subnetClick = getSubnetAt(relX, relY);
+        if (subnetClick >= 0) {
+            int idx = subnetClick + subnetScrollOffset;
+            if (idx == subnets.size()) {
+                drawHoveringText(Collections.singletonList(I18n.format("gui.ae2enhanced.advanced_platform.create_subnet")), mouseX, mouseY);
+                return;
+            }
         }
 
         int zoneClick = getZoneAt(relX, relY);
@@ -383,7 +576,10 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         for (int i = 0; i < maxVisible; i++) {
             if (x >= LEFT_PANEL_X && x < LEFT_PANEL_X + LEFT_PANEL_W
                     && y >= itemY && y < itemY + LIST_ITEM_H) {
-                return i;
+                int idx = subnetScrollOffset + i;
+                if (idx <= subnets.size()) { // <= 包含创建条目
+                    return i;
+                }
             }
             itemY += LIST_ITEM_SPACING;
         }
@@ -405,6 +601,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
     private String getSelectedSubnetName() {
         if (subnets.isEmpty()) return I18n.format("gui.ae2enhanced.advanced_platform.no_subnet");
         int idx = Math.max(0, Math.min(selectedSubnetIndex, subnets.size() - 1));
+        if (idx == 0) return I18n.format("gui.ae2enhanced.advanced_platform.main_net");
         return subnets.get(idx).name;
     }
 

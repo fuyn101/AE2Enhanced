@@ -327,3 +327,7 @@ gui.ae2enhanced.advanced_platform.face.front=Front
 gui.ae2enhanced.advanced_platform.face.back=Back
 gui.ae2enhanced.advanced_platform.face.left=Left
 gui.ae2enhanced.advanced_platform.face.right=Right
+gui.ae2enhanced.advanced_platform.main_net=Main Network
+gui.ae2enhanced.advanced_platform.create_subnet=Create Subnet
+gui.ae2enhanced.advanced_platform.new_subnet=New Subnet
+gui.ae2enhanced.advanced_platform.rename_subnet=Rename

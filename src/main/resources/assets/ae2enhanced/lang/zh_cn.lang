@@ -325,3 +325,7 @@ gui.ae2enhanced.advanced_platform.face.front=前
 gui.ae2enhanced.advanced_platform.face.back=后
 gui.ae2enhanced.advanced_platform.face.left=左
 gui.ae2enhanced.advanced_platform.face.right=右
+gui.ae2enhanced.advanced_platform.main_net=主网
+gui.ae2enhanced.advanced_platform.create_subnet=创建子网
+gui.ae2enhanced.advanced_platform.new_subnet=新子网
+gui.ae2enhanced.advanced_platform.rename_subnet=重命名

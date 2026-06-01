@@ -28,8 +28,8 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private static final ResourceLocation TEXTURE =
             new ResourceLocation("ae2enhanced", "textures/gui/advance-2.png");
 
-    private static final int GUI_WIDTH = 246;
-    private static final int GUI_HEIGHT = 220;
+    private static final int GUI_WIDTH = 256;
+    private static final int GUI_HEIGHT = 224;
 
     // === 左侧滚动栏: (7,17)→(61,214), 55×198 ===
     private static final int LEFT_PANEL_X = 7;
@@ -129,11 +129,76 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     }
 
     @Override
+    public void updateScreen() {
+        super.updateScreen();
+        refreshClientData();
+    }
+
+    private void refreshClientData() {
+        ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
+        if (init == null) return;
+
+        List<ClientPlatformState.ZoneSummary> newBound = new ArrayList<>();
+        List<ClientPlatformState.ZoneSummary> newUnbound = new ArrayList<>();
+        for (ClientPlatformState.ZoneSummary zone : init.zones) {
+            if (zone.subnetId == selectedSubnetId) {
+                newBound.add(zone);
+            } else if (zone.subnetId == 0) {
+                newUnbound.add(zone);
+            }
+        }
+
+        boolean changed = newBound.size() != boundZones.size() || newUnbound.size() != unboundZones.size();
+        if (!changed) {
+            for (int i = 0; i < newBound.size(); i++) {
+                ClientPlatformState.ZoneSummary a = newBound.get(i);
+                ClientPlatformState.ZoneSummary b = boundZones.get(i);
+                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (!changed) {
+            for (int i = 0; i < newUnbound.size(); i++) {
+                ClientPlatformState.ZoneSummary a = newUnbound.get(i);
+                ClientPlatformState.ZoneSummary b = unboundZones.get(i);
+                if (a.id != b.id || !a.name.equals(b.name) || a.blockCount != b.blockCount) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (!changed) return;
+
+        boundZones.clear();
+        boundZones.addAll(newBound);
+        unboundZones.clear();
+        unboundZones.addAll(newUnbound);
+
+        // 保持选中 zone 有效
+        int newIndex = -1;
+        for (int i = 0; i < boundZones.size(); i++) {
+            if (boundZones.get(i).id == selectedZoneId) {
+                newIndex = i;
+                break;
+            }
+        }
+        if (newIndex >= 0) {
+            selectedZoneIndex = newIndex;
+        } else {
+            selectedZoneIndex = -1;
+            selectedZoneId = 0;
+        }
+    }
+
+    @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 主背景
+        // 主背景: (0,0)→(256,224)
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
         // IO 配置槽区域背景
