@@ -701,6 +701,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
                     target.getFilter().clear();
                     target.getFilter().addAll(config.getFilter());
                 }
+                zoneRegistry.reclassifyZone(zone);
                 markDirty();
             }
         }

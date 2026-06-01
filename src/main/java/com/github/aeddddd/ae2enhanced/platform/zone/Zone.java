@@ -130,14 +130,15 @@ public class Zone {
     public List<FaceIoConfig> getOutputContainers() {
         List<FaceIoConfig> result = new ArrayList<>();
         List<BlockPos> positions = this.positions.getAllPositions();
-        BlockPos fallback = positions.isEmpty() ? BlockPos.ORIGIN : positions.get(0);
-        for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
-            if (entry.getValue().isOutput()) {
-                FaceIoConfig copy = new FaceIoConfig(fallback, entry.getKey());
-                copy.setMode(entry.getValue().getMode());
-                copy.getChannels().addAll(entry.getValue().getChannels());
-                copy.getFilter().addAll(entry.getValue().getFilter());
-                result.add(copy);
+        for (BlockPos pos : positions) {
+            for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
+                if (entry.getValue().isOutput()) {
+                    FaceIoConfig copy = new FaceIoConfig(pos, entry.getKey());
+                    copy.setMode(entry.getValue().getMode());
+                    copy.getChannels().addAll(entry.getValue().getChannels());
+                    copy.getFilter().addAll(entry.getValue().getFilter());
+                    result.add(copy);
+                }
             }
         }
         return result;
@@ -146,14 +147,15 @@ public class Zone {
     public List<FaceIoConfig> getInputContainers() {
         List<FaceIoConfig> result = new ArrayList<>();
         List<BlockPos> positions = this.positions.getAllPositions();
-        BlockPos fallback = positions.isEmpty() ? BlockPos.ORIGIN : positions.get(0);
-        for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
-            if (entry.getValue().isInput()) {
-                FaceIoConfig copy = new FaceIoConfig(fallback, entry.getKey());
-                copy.setMode(entry.getValue().getMode());
-                copy.getChannels().addAll(entry.getValue().getChannels());
-                copy.getFilter().addAll(entry.getValue().getFilter());
-                result.add(copy);
+        for (BlockPos pos : positions) {
+            for (Map.Entry<EnumFacing, FaceIoConfig> entry : faceIo.entrySet()) {
+                if (entry.getValue().isInput()) {
+                    FaceIoConfig copy = new FaceIoConfig(pos, entry.getKey());
+                    copy.setMode(entry.getValue().getMode());
+                    copy.getChannels().addAll(entry.getValue().getChannels());
+                    copy.getFilter().addAll(entry.getValue().getFilter());
+                    result.add(copy);
+                }
             }
         }
         return result;
