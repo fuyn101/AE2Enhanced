@@ -125,7 +125,7 @@ jar {
 shadowJar {
     classifier = ''
     configurations = [project.configurations.shadow]
-    minimizeJar()
+    // minimizeJar() // 不可用，Shadow 2.0.4 不支持
     relocate 'it.unimi.dsi.fastutil', 'com.github.aeddddd.ae2enhanced.shade.fastutil'
 }
 
