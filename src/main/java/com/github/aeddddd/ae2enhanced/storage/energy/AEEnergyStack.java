@@ -84,8 +84,7 @@ public final class AEEnergyStack extends AEStack<IAEEnergyStack> implements IAEE
 
     @Override
     public ItemStack asItemStackRepresentation() {
-        // P1：返回 ItemEnergyDrop 的代表物品
-        return ItemStack.EMPTY;
+        return com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop.createStack();
     }
 
     @Override

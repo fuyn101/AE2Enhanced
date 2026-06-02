@@ -102,9 +102,7 @@ public class MixinNetworkMonitorEnergy {
         }
 
         if (notExtractedSize == 0) {
-            IAEItemStack emptyResult = itemStack.copy();
-            emptyResult.setStackSize(0);
-            cir.setReturnValue(emptyResult);
+            cir.setReturnValue(null);
         } else {
             IAEItemStack result = itemStack.copy();
             result.setStackSize(notExtractedSize);

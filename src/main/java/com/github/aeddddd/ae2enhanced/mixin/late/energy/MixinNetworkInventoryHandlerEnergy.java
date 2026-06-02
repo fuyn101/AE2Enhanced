@@ -64,9 +64,7 @@ public class MixinNetworkInventoryHandlerEnergy {
         long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
 
         if (notExtractedSize == 0) {
-            IAEItemStack emptyResult = itemStack.copy();
-            emptyResult.setStackSize(0);
-            cir.setReturnValue(emptyResult);
+            cir.setReturnValue(null);
         } else {
             IAEItemStack result = itemStack.copy();
             result.setStackSize(notExtractedSize);

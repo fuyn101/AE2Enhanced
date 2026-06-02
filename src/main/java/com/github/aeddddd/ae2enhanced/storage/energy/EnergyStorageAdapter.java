@@ -41,7 +41,6 @@ public class EnergyStorageAdapter implements IMEMonitor<IAEEnergyStack> {
 
         if (mode == Actionable.MODULATE) {
             this.storedRF += canAccept;
-            notifyListeners();
         }
 
         long remaining = input.getStackSize() - canAccept;
@@ -61,7 +60,6 @@ public class EnergyStorageAdapter implements IMEMonitor<IAEEnergyStack> {
 
         if (mode == Actionable.MODULATE) {
             this.storedRF -= canProvide;
-            notifyListeners();
         }
 
         return AEEnergyStack.create(canProvide);
@@ -155,6 +153,10 @@ public class EnergyStorageAdapter implements IMEMonitor<IAEEnergyStack> {
         long actual = Math.min(amount, this.storedRF);
         this.storedRF -= actual;
         return actual;
+    }
+
+    public void setStoredRF(long amount) {
+        this.storedRF = Math.max(0, Math.min(amount, this.capacityRF));
     }
 
     private void notifyListeners() {

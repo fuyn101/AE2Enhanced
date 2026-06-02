@@ -265,7 +265,10 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             TileEntity tile = world.getTileEntity(facility.pos);
             if (tile == null || tile.isInvalid()) continue;
 
-            int demand = facility.adapter.getReceiveableEnergy(tile, facility.cap);
+            IEnergyStorage cap = tile.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
+            if (cap == null || !cap.canReceive()) continue;
+
+            int demand = facility.adapter.getReceiveableEnergy(tile, cap);
             if (demand <= 0) continue;
 
             // 一次性提取全部需求，不受 rfExtractPerTick 限制
@@ -277,7 +280,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             if (extracted == null || extracted.getStackSize() <= 0) continue;
 
             int toInject = (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE);
-            int actual = facility.adapter.injectEnergy(tile, facility.cap, toInject, false);
+            int actual = facility.adapter.injectEnergy(tile, cap, toInject, false);
 
             // 未用完的能量返还 ME 网络
             long leftover = extracted.getStackSize() - actual;
@@ -306,8 +309,11 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             TileEntity tile = world.getTileEntity(facility.pos);
             if (tile == null || tile.isInvalid()) continue;
 
+            IEnergyStorage cap = tile.getCapability(CapabilityEnergy.ENERGY, EnumFacing.UP);
+            if (cap == null || !cap.canReceive()) continue;
+
             long toSend = Math.min(perReceiver, rfBuffer);
-            int accepted = facility.adapter.injectEnergy(tile, facility.cap, (int) Math.min(toSend, Integer.MAX_VALUE), false);
+            int accepted = facility.adapter.injectEnergy(tile, cap, (int) Math.min(toSend, Integer.MAX_VALUE), false);
             rfBuffer -= accepted;
         }
     }
@@ -458,7 +464,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         this.rfBufferCapacity = compound.getLong("RFBufferCapacity");
         if (this.networkEnergyStorage != null) {
             this.networkEnergyStorage.setCapacityRF(this.rfBufferCapacity);
-            this.networkEnergyStorage.addRF(compound.getLong("NetworkEnergyStored"));
+            this.networkEnergyStorage.setStoredRF(compound.getLong("NetworkEnergyStored"));
         }
 
         this.nextZoneId = compound.getInteger("NextZoneId");

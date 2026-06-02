@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -33,6 +34,6 @@ public class ItemEnergyDrop extends AbstractNbtDrop {
 
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
-        return "RF Energy";
+        return I18n.format("item.ae2enhanced.energy_drop.name");
     }
 }

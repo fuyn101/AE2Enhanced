@@ -225,4 +225,5 @@ tooltip.ae2enhanced.smart_pattern.recipe_count=§7レシピ数: §f%d
 message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 
+item.ae2enhanced.energy_drop.name=RFエネルギー滴
 key.ae2enhanced.rtsToggle=RTSモードの切り替え

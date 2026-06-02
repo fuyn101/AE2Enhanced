@@ -45,17 +45,17 @@ public class MixinGridStorageCacheEnergy {
     @Inject(method = "postAlterationOfStoredItems", at = @At("TAIL"))
     private void onPostAlteration(IStorageChannel<?> chan, Iterable<? extends IAEStack<?>> input, IActionSource src, CallbackInfo ci) {
         if (!ENERGY_CHANNELS.contains(chan)) return;
-        postEnergyChanges(input, src);
+        postEnergyChanges(input, src, true);
     }
 
     @Inject(method = "postChangesToNetwork", at = @At("TAIL"))
     private <T extends IAEStack<T>, C extends IStorageChannel<T>> void onPostChanges(C chan, int upOrDown, IItemList<T> availableItems, IActionSource src, CallbackInfo ci) {
         if (!ENERGY_CHANNELS.contains(chan)) return;
-        postEnergyChanges(availableItems, src);
+        postEnergyChanges(availableItems, src, upOrDown > 0);
     }
 
     @SuppressWarnings("unchecked")
-    private void postEnergyChanges(Iterable<? extends IAEStack<?>> changes, IActionSource src) {
+    private void postEnergyChanges(Iterable<? extends IAEStack<?>> changes, IActionSource src, boolean add) {
         if (changes == null) return;
 
         try {
@@ -78,7 +78,7 @@ public class MixinGridStorageCacheEnergy {
 
             if (fakeChanges.isEmpty()) return;
 
-            MixinReflectionHelper.postChange(itemMonitor, true, fakeChanges, src);
+            MixinReflectionHelper.postChange(itemMonitor, add, fakeChanges, src);
         } catch (Exception e) {
             // 反射调用失败，静默处理
         }
