@@ -40,6 +40,22 @@ public class AssemblyAutoUploadHelper {
     }
 
     private static TileAssemblyController findTargetController(World world, EntityPlayer player, ItemStack pattern) {
+        // 1. 先搜索玩家当前维度
+        TileAssemblyController target = findTargetControllerInWorld(world, player, pattern);
+        if (target != null) return target;
+
+        // 2. 当前维度找不到时，搜索主世界（维度 0）
+        if (world.provider.getDimension() != 0) {
+            World overworld = net.minecraftforge.common.DimensionManager.getWorld(0);
+            if (overworld != null) {
+                target = findTargetControllerInWorld(overworld, player, pattern);
+                if (target != null) return target;
+            }
+        }
+        return null;
+    }
+
+    private static TileAssemblyController findTargetControllerInWorld(World world, EntityPlayer player, ItemStack pattern) {
         ControllerIndex index = ControllerIndex.get(world);
         if (index == null) return null;
 

@@ -213,14 +213,15 @@ public class BotaniaHandler implements IRemoteHandler {
     // ==================== Pool ====================
 
     private boolean canStartPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
+        long totalManaNeeded = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             RecipeManaInfusion recipe = TilePool.getMatchingRecipe(stack, world.getBlockState(pos.down()));
             if (recipe == null) return false;
-            if (pool.getCurrentMana() < recipe.getManaToConsume()) return false;
+            totalManaNeeded += (long) recipe.getManaToConsume() * stack.getCount();
         }
-        return true;
+        return (long) pool.getCurrentMana() >= totalManaNeeded;
     }
 
     private boolean pushMaterialsPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
@@ -570,7 +571,7 @@ public class BotaniaHandler implements IRemoteHandler {
         // 生成产物
         ItemStack output = recipe.getOutput().copy();
         EntityItem outputItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, output);
-        outputItem.addTag("ApothecarySpawned");
+        outputItem.getEntityData().setBoolean("ApothecarySpawned", true);
         outputItem.setNoPickupDelay();
         outputItem.motionX = 0;
         outputItem.motionY = 0;

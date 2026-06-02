@@ -142,14 +142,8 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
-        if (getProgress(te) != 0) return false;
-
-        // 还要确认 slot 0 没有残留产物（合成完成后 progress=0 但产物还在 slot 0）
-        IItemHandler coreInv = getCoreInventory(te);
-        if (coreInv != null && !coreInv.getStackInSlot(0).isEmpty()) {
-            return false;
-        }
-        return true;
+        // progress == 0 表示合成已完成（或尚未开始），允许 collectProducts 提取产物
+        return getProgress(te) == 0;
     }
 
     @Override

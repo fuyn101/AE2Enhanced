@@ -253,12 +253,15 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     }
 
     /**
-     * 输出匹配：忽略 NBT 与数量，只比较 Item + Metadata。
+     * 输出匹配：忽略 NBT，比较 Item + Metadata + Count。
+     * <p>必须比较数量，以区分相同产物但不同输出数量的配方
+     *（如一种输出 4 个，另一种输出 8 个）。</p>
      */
     private static boolean outputsMatch(ItemStack recipeOutput, ItemStack expected) {
         if (recipeOutput.isEmpty() || expected.isEmpty()) return false;
         if (recipeOutput.getItem() != expected.getItem()) return false;
         if (recipeOutput.getMetadata() != expected.getMetadata()) return false;
+        if (recipeOutput.getCount() != expected.getCount()) return false;
         return true;
     }
 }

@@ -746,6 +746,10 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
 
     @Override
     public NBTTagCompound getUpdateTag() {
+        // 确保在客户端请求同步前，存储已初始化（避免重载后信息面板显示 0）
+        if (formed && itemAdapter == null && nexusId != null && world != null && !world.isRemote) {
+            initStorage();
+        }
         NBTTagCompound tag = super.getUpdateTag();
         tag.setBoolean("formed", formed);
         tag.setBoolean("networkActive", networkActive);

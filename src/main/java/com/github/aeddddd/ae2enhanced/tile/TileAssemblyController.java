@@ -120,6 +120,21 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             return stack.getItem() instanceof ICraftingPatternItem;
         }
 
+        /**
+         * 插入过滤：先越界保护，再校验 isItemValid。
+         * ItemStackHandler 原 insertItem 也会调用 isItemValid，但此处显式校验可防御
+         * 未来 Forge 版本行为变动，同时保证与 setStackInSlot 一致。
+         */
+        @Override
+        @Nonnull
+        public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+            if (slot < 0 || slot >= stacks.size()) return stack;
+            if (!isItemValid(slot, stack)) {
+                return stack;
+            }
+            return super.insertItem(slot, stack, simulate);
+        }
+
         /** 扩容升级取出限制：如果扩展页面留有样板，禁止提取 */
         @Override
         @Nonnull
@@ -153,21 +168,19 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         }
 
         @Override
-        @Nonnull
-        public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-            if (slot < 0 || slot >= stacks.size()) return stack;
-            return super.insertItem(slot, stack, simulate);
-        }
-
-        @Override
         public int getSlotLimit(int slot) {
             if (slot < 0 || slot >= stacks.size()) return 0;
             return super.getSlotLimit(slot);
         }
 
+        /**
+         * setStackInSlot 校验：防止 GUI 直接调用 IItemHandlerModifiable.setStackInSlot
+         * 绕过 insertItem 的 isItemValid 检查。
+         */
         @Override
         public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
             if (slot < 0 || slot >= stacks.size()) return;
+            if (!stack.isEmpty() && !isItemValid(slot, stack)) return;
             super.setStackInSlot(slot, stack);
         }
     }
