@@ -48,12 +48,12 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
     }
 
     @Override
-    public int getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
+    public long getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
         if (reflectionReady && tile != null && tilePoweredClass.isInstance(tile)) {
             try {
                 int current = cap != null ? cap.getEnergyStored() : 0;
                 int max = cap != null ? cap.getMaxEnergyStored() : 0;
-                return Math.max(0, max - current);
+                return Math.max(0L, (long) max - current);
             } catch (Exception e) {
                 // 反射失败，回退
             }
@@ -62,7 +62,7 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
     }
 
     @Override
-    public int injectEnergy(TileEntity tile, IEnergyStorage cap, int amount, boolean simulate) {
+    public long injectEnergy(TileEntity tile, IEnergyStorage cap, long amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
@@ -70,10 +70,11 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
             try {
                 int current = cap != null ? cap.getEnergyStored() : 0;
                 int max = cap != null ? cap.getMaxEnergyStored() : 0;
-                int canAdd = Math.max(0, max - current);
-                int toAdd = Math.min(amount, canAdd);
+                long canAdd = Math.max(0L, (long) max - current);
+                long toAdd = Math.min(amount, canAdd);
                 if (toAdd > 0 && !simulate) {
-                    setEnergyStoredMethod.invoke(tile, current + toAdd);
+                    long newEnergy = (long) current + toAdd;
+                    setEnergyStoredMethod.invoke(tile, (int) Math.min(newEnergy, Integer.MAX_VALUE));
                     tile.markDirty();
                 }
                 return toAdd;

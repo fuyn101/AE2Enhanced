@@ -33,7 +33,7 @@ public interface IEnergyAdapter {
      * @param cap  标准 Forge IEnergyStorage（可能为 null）
      * @return 当前可接收的能量量；若无法注入则返回 0
      */
-    int getReceiveableEnergy(TileEntity tile, IEnergyStorage cap);
+    long getReceiveableEnergy(TileEntity tile, IEnergyStorage cap);
 
     /**
      * 向目标机器注入能量。
@@ -44,5 +44,5 @@ public interface IEnergyAdapter {
      * @param simulate true=仅模拟，false=实际注入
      * @return 实际成功注入（或模拟可注入）的能量量
      */
-    int injectEnergy(TileEntity tile, IEnergyStorage cap, int amount, boolean simulate);
+    long injectEnergy(TileEntity tile, IEnergyStorage cap, long amount, boolean simulate);
 }

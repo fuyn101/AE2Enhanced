@@ -59,12 +59,12 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
     }
 
     @Override
-    public int getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
+    public long getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
         if (reflectionReady && tile != null && legacyTileClass.isInstance(tile)) {
             try {
                 int current = (Integer) getEnergyStoredMethod.invoke(tile);
                 int max = (Integer) getMaxEnergyStoredMethod.invoke(tile);
-                return Math.max(0, max - current);
+                return Math.max(0L, (long) max - current);
             } catch (Exception e) {
                 // 反射失败，回退
             }
@@ -73,7 +73,7 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
     }
 
     @Override
-    public int injectEnergy(TileEntity tile, IEnergyStorage cap, int amount, boolean simulate) {
+    public long injectEnergy(TileEntity tile, IEnergyStorage cap, long amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
@@ -81,10 +81,11 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
             try {
                 int current = (Integer) getEnergyStoredMethod.invoke(tile);
                 int max = (Integer) getMaxEnergyStoredMethod.invoke(tile);
-                int canAdd = Math.max(0, max - current);
-                int toAdd = Math.min(amount, canAdd);
+                long canAdd = Math.max(0L, (long) max - current);
+                long toAdd = Math.min(amount, canAdd);
                 if (toAdd > 0 && !simulate) {
-                    setEnergyStoredMethod.invoke(tile, current + toAdd);
+                    long newEnergy = (long) current + toAdd;
+                    setEnergyStoredMethod.invoke(tile, (int) Math.min(newEnergy, Integer.MAX_VALUE));
                 }
                 return toAdd;
             } catch (Exception e) {
@@ -94,23 +95,24 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
         return fallbackInject(cap, amount, simulate);
     }
 
-    private static int fallbackReceiveable(IEnergyStorage cap) {
+    private static long fallbackReceiveable(IEnergyStorage cap) {
         if (cap == null || !cap.canReceive()) {
             return 0;
         }
         return cap.receiveEnergy(Integer.MAX_VALUE, true);
     }
 
-    private static int fallbackInject(IEnergyStorage cap, int amount, boolean simulate) {
-        if (cap == null || !cap.canReceive()) {
+    private static long fallbackInject(IEnergyStorage cap, long amount, boolean simulate) {
+        if (cap == null || !cap.canReceive() || amount <= 0) {
             return 0;
         }
         if (simulate) {
-            return cap.receiveEnergy(amount, true);
+            return cap.receiveEnergy((int) Math.min(amount, Integer.MAX_VALUE), true);
         }
-        int total = 0;
-        for (int i = 0; i < 1000 && amount > 0; i++) {
-            int injected = cap.receiveEnergy(amount, false);
+        long total = 0;
+        while (amount > 0) {
+            int toReceive = (int) Math.min(amount, Integer.MAX_VALUE);
+            int injected = cap.receiveEnergy(toReceive, false);
             if (injected <= 0) {
                 break;
             }

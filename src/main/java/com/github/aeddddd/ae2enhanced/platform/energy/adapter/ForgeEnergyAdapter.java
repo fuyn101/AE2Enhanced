@@ -18,7 +18,7 @@ public class ForgeEnergyAdapter implements IEnergyAdapter {
     }
 
     @Override
-    public int getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
+    public long getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
         if (cap == null || !cap.canReceive()) {
             return 0;
         }
@@ -26,16 +26,17 @@ public class ForgeEnergyAdapter implements IEnergyAdapter {
     }
 
     @Override
-    public int injectEnergy(TileEntity tile, IEnergyStorage cap, int amount, boolean simulate) {
+    public long injectEnergy(TileEntity tile, IEnergyStorage cap, long amount, boolean simulate) {
         if (cap == null || !cap.canReceive() || amount <= 0) {
             return 0;
         }
         if (simulate) {
-            return cap.receiveEnergy(amount, true);
+            return cap.receiveEnergy((int) Math.min(amount, Integer.MAX_VALUE), true);
         }
-        int total = 0;
-        for (int i = 0; i < 1000 && amount > 0; i++) {
-            int injected = cap.receiveEnergy(amount, false);
+        long total = 0;
+        while (amount > 0) {
+            int toReceive = (int) Math.min(amount, Integer.MAX_VALUE);
+            int injected = cap.receiveEnergy(toReceive, false);
             if (injected <= 0) {
                 break;
             }
