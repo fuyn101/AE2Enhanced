@@ -49,6 +49,8 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 public class BotaniaHandler implements IRemoteHandler {
 
     private static final String TAG_PORTAL_FLAG = "_elvenPortal";
+    /** 中枢推送的输入物品标记，用于 revertMaterials 区分未消耗输入与产物 */
+    private static final String TAG_INPUT_FLAG = "_ae2eInput";
     /** 推料状态过期时间 */
     private static final int STATE_EXPIRY_TICKS = 1200;
 
@@ -181,10 +183,10 @@ public class BotaniaHandler implements IRemoteHandler {
             return result;
         }
         // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备，
-        // 尝试收集 AABB 内的所有 EntityItem 作为兜底回退
+        // 只回收带 TAG_INPUT_FLAG 标记的未消耗输入，不回收产物
         List<ItemStack> fallback = new ArrayList<>();
         for (EntityItem item : getEntityItemsInAABB(world, pos)) {
-            if (!item.isDead && !item.getItem().isEmpty()) {
+            if (!item.isDead && !item.getItem().isEmpty() && item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
                 fallback.add(item.getItem().copy());
                 item.setDead();
             }
@@ -213,15 +215,13 @@ public class BotaniaHandler implements IRemoteHandler {
     // ==================== Pool ====================
 
     private boolean canStartPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
-        long totalManaNeeded = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             RecipeManaInfusion recipe = TilePool.getMatchingRecipe(stack, world.getBlockState(pos.down()));
             if (recipe == null) return false;
-            totalManaNeeded += (long) recipe.getManaToConsume() * stack.getCount();
         }
-        return (long) pool.getCurrentMana() >= totalManaNeeded;
+        return true;
     }
 
     private boolean pushMaterialsPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
@@ -234,6 +234,8 @@ public class BotaniaHandler implements IRemoteHandler {
             while (!remaining.isEmpty()) {
                 ItemStack single = remaining.splitStack(1);
                 EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, single);
+                // 标记为中枢输入，使 revertMaterials 能区分未消耗输入与产物
+                entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
                 // pickupDelay 在 EntityItem 中为 private，需反射设置
                 // 100 < pickupDelay < 130 才能被 collideEntityItem 接受
                 try {
@@ -249,13 +251,13 @@ public class BotaniaHandler implements IRemoteHandler {
 
                 boolean consumed = pool.collideEntityItem(entityItem);
                 if (!consumed) {
-                    entityItem.setDead();
+                    // mana 不足或其他原因未消耗：保留 EntityItem 在地上，
+                    // 由 revertMaterials 按 TAG_INPUT_FLAG 回收
                     return false;
                 }
                 // collideEntityItem 成功时如果 stack 被消耗完，entityItem.getItem() 为空
                 if (!entityItem.getItem().isEmpty()) {
-                    // 异常情况，未完全消耗
-                    entityItem.setDead();
+                    // 异常情况，未完全消耗：保留在地上待回收
                     return false;
                 }
                 entityItem.setDead();
@@ -265,9 +267,16 @@ public class BotaniaHandler implements IRemoteHandler {
     }
 
     private boolean isIdlePool(World world, BlockPos pos) {
-        // 输入已被 collideEntityItem 消耗，AABB 内任何 EntityItem 都是产物
+        // 只把不带 TAG_INPUT_FLAG 的 EntityItem 视为产物；
+        // 带标记的是未消耗的输入，不应视为产物
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
-        return !items.isEmpty();
+        for (EntityItem item : items) {
+            if (item.isDead) continue;
+            if (!item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ==================== Alf Portal ====================
@@ -293,6 +302,7 @@ public class BotaniaHandler implements IRemoteHandler {
             entityItem.motionX = 0;
             entityItem.motionY = 0;
             entityItem.motionZ = 0;
+            entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
             world.spawnEntity(entityItem);
         }
         return true;
@@ -347,6 +357,7 @@ public class BotaniaHandler implements IRemoteHandler {
             entityItem.motionX = 0;
             entityItem.motionY = 0;
             entityItem.motionZ = 0;
+            entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
             world.spawnEntity(entityItem);
         }
         return true;
@@ -642,6 +653,8 @@ public class BotaniaHandler implements IRemoteHandler {
 
         for (EntityItem entityItem : new ArrayList<>(items)) {
             if (entityItem.isDead) continue;
+            // 跳过未消耗的输入，只收集产物
+            if (entityItem.getEntityData().getBoolean(TAG_INPUT_FLAG)) continue;
             ItemStack stack = entityItem.getItem();
             if (stack.isEmpty()) continue;
 
