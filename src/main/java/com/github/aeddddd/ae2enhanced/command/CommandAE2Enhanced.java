@@ -28,6 +28,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
@@ -110,8 +111,8 @@ public class CommandAE2Enhanced extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  List all hyperdimensional storage UUIDs (sorted by mtime)."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd <uuid>"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Give the player a Hyperdimensional Controller block carrying the specified UUID."));
-        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e testhd <count>"));
-        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Inject <count> random enchanted gear types into each formed hyperdimensional controller."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e testhd <uuid> <count>"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Inject <count> random enchanted gear types into the controller with the specified UUID."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e help"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Display this help message."));
         sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=============================================="));
@@ -206,18 +207,35 @@ public class CommandAE2Enhanced extends CommandBase {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] No hyperdimensional storage data found."));
             return;
         }
-        File[] files = storageDir.listFiles((dir, name) -> name.endsWith(".dat") && !name.startsWith("smartpattern_"));
-        if (files == null || files.length == 0) {
+        File[] entries = storageDir.listFiles((dir, name) -> {
+            if (name.startsWith("smartpattern_")) return false;
+            File f = new File(dir, name);
+            return f.isDirectory() || name.endsWith(".dat");
+        });
+        if (entries == null || entries.length == 0) {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] No hyperdimensional storage data found."));
             return;
         }
-        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Found " + files.length + " hyperdimensional storage data file(s):"));
-        Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-        for (File file : files) {
-            String name = file.getName();
-            String uuidStr = name.substring(0, name.length() - 4);
-            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  - " + uuidStr + "  ("
-                    + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date(file.lastModified())) + ")"));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Found " + entries.length + " hyperdimensional storage entry(s) (click UUID to copy):"));
+        Arrays.sort(entries, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+        for (File entry : entries) {
+            String name = entry.getName();
+            String uuidStr = entry.isDirectory() ? name : name.substring(0, name.length() - 4);
+
+            TextComponentString uuidText = new TextComponentString(uuidStr);
+            uuidText.getStyle().setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, uuidStr));
+            uuidText.getStyle().setColor(TextFormatting.AQUA);
+            uuidText.getStyle().setUnderlined(true);
+
+            TextComponentString suffix = new TextComponentString("  ("
+                    + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date(entry.lastModified())) + ")");
+            suffix.getStyle().setColor(TextFormatting.GRAY);
+
+            TextComponentString line = new TextComponentString("  - ");
+            line.getStyle().setColor(TextFormatting.GRAY);
+            line.appendSibling(uuidText);
+            line.appendSibling(suffix);
+            sender.sendMessage(line);
         }
     }
 
@@ -250,19 +268,53 @@ public class CommandAE2Enhanced extends CommandBase {
     private static final List<Item> GEAR_CACHE = new ArrayList<>();
 
     private void executeTestHd(MinecraftServer server, ICommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e testhd <count>"));
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e testhd <uuid> <count>"));
+            return;
+        }
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(args[1]);
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Invalid UUID: " + args[1]));
             return;
         }
         int count;
         try {
-            count = Integer.parseInt(args[1]);
+            count = Integer.parseInt(args[2]);
             if (count <= 0 || count > 100_000) {
                 sender.sendMessage(new TextComponentString(TextFormatting.RED + "Count must be between 1 and 100000."));
                 return;
             }
         } catch (NumberFormatException e) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Invalid count: " + args[1]));
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Invalid count: " + args[2]));
+            return;
+        }
+
+        // Locate controller by UUID
+        TileHyperdimensionalController targetController = null;
+        for (WorldServer world : server.worlds) {
+            if (world == null) continue;
+            for (net.minecraft.tileentity.TileEntity te : world.loadedTileEntityList) {
+                if (te instanceof TileHyperdimensionalController) {
+                    TileHyperdimensionalController controller = (TileHyperdimensionalController) te;
+                    if (controller.isFormed() && uuid.equals(controller.getNexusId())) {
+                        targetController = controller;
+                        break;
+                    }
+                }
+            }
+            if (targetController != null) break;
+        }
+
+        if (targetController == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] No formed hyperdimensional controller found with UUID " + uuid + "."));
+            return;
+        }
+
+        ItemStorageAdapter adapter = targetController.getItemAdapter();
+        if (adapter == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Controller found but item adapter is not initialized."));
             return;
         }
 
@@ -282,45 +334,26 @@ public class CommandAE2Enhanced extends CommandBase {
             return;
         }
 
-        IActionSource fallbackSource = null;
+        IActionSource actionSource;
         if (sender instanceof EntityPlayerMP) {
-            fallbackSource = new PlayerSource((EntityPlayerMP) sender, null);
+            actionSource = new PlayerSource((EntityPlayerMP) sender, null);
+        } else {
+            actionSource = new MachineSource(targetController);
         }
 
-        int totalControllers = 0;
-        long totalTypes = 0;
         Random random = new Random();
+        for (int i = 0; i < count; i++) {
+            ItemStack stack = generateRandomGear(random);
+            if (stack.isEmpty()) continue;
 
-        for (WorldServer world : server.worlds) {
-            if (world == null) continue;
-            for (net.minecraft.tileentity.TileEntity te : world.loadedTileEntityList) {
-                if (te instanceof TileHyperdimensionalController) {
-                    TileHyperdimensionalController controller = (TileHyperdimensionalController) te;
-                    if (!controller.isFormed()) continue;
-                    totalControllers++;
+            IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
+            if (aeStack == null) continue;
 
-                    ItemStorageAdapter adapter = controller.getItemAdapter();
-                    if (adapter == null) continue;
-
-                    IActionSource source = fallbackSource != null ? fallbackSource : new MachineSource(controller);
-
-                    for (int i = 0; i < count; i++) {
-                        ItemStack stack = generateRandomGear(random);
-                        if (stack.isEmpty()) continue;
-
-                        IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
-                        if (aeStack == null) continue;
-
-                        // Random BigInteger amount: 1 .. ~2^100 (approx 10^30)
-                        BigInteger amount = new BigInteger(100, random).abs().add(BigInteger.ONE);
-                        injectBigInteger(adapter, aeStack, amount, source);
-                        totalTypes++;
-                    }
-                }
-            }
+            BigInteger amount = new BigInteger(100, random).abs().add(BigInteger.ONE);
+            injectBigInteger(adapter, aeStack, amount, actionSource);
         }
 
-        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Injected " + totalTypes + " random enchanted gear type(s) across " + totalControllers + " controller(s)."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Injected " + count + " random enchanted gear type(s) into controller " + uuid + "."));
     }
 
     private static ItemStack generateRandomGear(Random random) {
