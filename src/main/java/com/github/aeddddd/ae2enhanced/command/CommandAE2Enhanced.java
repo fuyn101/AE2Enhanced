@@ -349,8 +349,11 @@ public class CommandAE2Enhanced extends CommandBase {
             IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
             if (aeStack == null) continue;
 
-            BigInteger amount = new BigInteger(100, random).abs().add(BigInteger.ONE);
-            injectBigInteger(adapter, aeStack, amount, actionSource);
+            long amountLong = Math.abs(random.nextLong());
+            if (amountLong <= 0) amountLong = 1;
+            IAEItemStack toInject = aeStack.copy();
+            toInject.setStackSize(amountLong);
+            adapter.injectItems(toInject, Actionable.MODULATE, actionSource);
         }
 
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Injected " + count + " random enchanted gear type(s) into controller " + uuid + "."));
@@ -380,15 +383,5 @@ public class CommandAE2Enhanced extends CommandBase {
         return stack;
     }
 
-    private static void injectBigInteger(ItemStorageAdapter adapter, IAEItemStack template, BigInteger amount, IActionSource source) {
-        BigInteger remaining = amount;
-        BigInteger maxChunk = BigInteger.valueOf(Long.MAX_VALUE);
-        while (remaining.compareTo(BigInteger.ZERO) > 0) {
-            BigInteger chunk = remaining.min(maxChunk);
-            IAEItemStack toInject = template.copy();
-            toInject.setStackSize(chunk.longValueExact());
-            adapter.injectItems(toInject, Actionable.MODULATE, source);
-            remaining = remaining.subtract(chunk);
-        }
-    }
+
 }
