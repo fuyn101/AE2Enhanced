@@ -180,6 +180,13 @@ public class BotaniaHandler implements IRemoteHandler {
                     if (!stack.isEmpty()) result.add(stack);
                 }
             }
+            // 同时回收 AABB 内尚未被 collideEntityItem 消耗的输入 EntityItem
+            for (EntityItem item : getEntityItemsInAABB(world, pos)) {
+                if (!item.isDead && !item.getItem().isEmpty() && item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                    result.add(item.getItem().copy());
+                    item.setDead();
+                }
+            }
             return result;
         }
         // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备，
@@ -525,93 +532,47 @@ public class BotaniaHandler implements IRemoteHandler {
     // ==================== Petal Apothecary (Altar) ====================
 
     private boolean canStartAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
-        if (!altar.hasWater()) return false;
-        if (altar.hasLava()) return false;
-        if (!altar.isEmpty()) return false;
+        // 不预置水/空状态；水、种子、花瓣等统一作为样板输入通过 EntityItem 推入，
+        // 由 altar 自身的 collideEntityItem 处理。
         return findMatchingRecipe(ingredients) != null;
     }
 
     private boolean pushMaterialsAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
-        IItemHandlerModifiable handler = altar.getItemHandler();
-        int slot = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
-
-            // 找到下一个空槽
-            while (slot < altar.getSizeInventory()) {
-                if (handler.getStackInSlot(slot).isEmpty()) {
-                    handler.setStackInSlot(slot, stack.copy());
-                    break;
-                }
-                slot++;
-            }
-            if (slot >= altar.getSizeInventory()) {
-                return false;
-            }
+            EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, stack.copy());
+            entityItem.setNoPickupDelay();
+            entityItem.motionX = 0;
+            entityItem.motionY = 0;
+            entityItem.motionZ = 0;
+            entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
+            world.spawnEntity(entityItem);
         }
         return true;
     }
 
     private boolean startProcessAltar(World world, BlockPos pos, TileAltar altar) {
-        IItemHandlerModifiable handler = altar.getItemHandler();
-        RecipePetals recipe = findMatchingRecipe(handler);
-
-        if (recipe == null) {
-            // 配方不匹配，退还所有物品
-            for (int i = 0; i < altar.getSizeInventory(); i++) {
-                ItemStack stack = handler.getStackInSlot(i);
-                if (!stack.isEmpty()) {
-                    EntityItem entity = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, stack.copy());
-                    entity.setNoPickupDelay();
-                    entity.motionX = 0;
-                    entity.motionY = 0;
-                    entity.motionZ = 0;
-                    world.spawnEntity(entity);
-                    handler.setStackInSlot(i, ItemStack.EMPTY);
-                }
-            }
-            return false;
-        }
-
-        // 清空物品栏
-        for (int i = 0; i < altar.getSizeInventory(); i++) {
-            handler.setStackInSlot(i, ItemStack.EMPTY);
-        }
-
-        // 生成产物
-        ItemStack output = recipe.getOutput().copy();
-        EntityItem outputItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, output);
-        outputItem.getEntityData().setBoolean("ApothecarySpawned", true);
-        outputItem.setNoPickupDelay();
-        outputItem.motionX = 0;
-        outputItem.motionY = 0;
-        outputItem.motionZ = 0;
-        world.spawnEntity(outputItem);
-
-        // 清空水
-        altar.setWater(false);
-
-        // 保存配方（用于 HUD 显示）
-        altar.saveLastRecipe();
-
-        // 发送 block event，触发客户端粒子效果
-        world.addBlockEvent(pos, ModBlocks.altar, 1, 0);
-
+        // 花药台通过 update() 自动扫描 AABB 内 EntityItem 并调用 collideEntityItem。
+        // collideEntityItem 会：
+        //   - 消耗水瓶/水桶并设置 hasWater()
+        //   - 把花瓣/种子放入 itemHandler
+        // 随后 update() 匹配 RecipePetals，成功后自动生成产物 EntityItem。
+        // 因此无需外部手动触发合成。
         return true;
     }
 
     private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar) {
-        // 花药台合成在 startProcess 中瞬时完成，只要产物存在即可收集
+        // 只把不带 _ae2eInput 的 EntityItem 视为产物；
+        // 带标记的是尚未被 collideEntityItem 消耗的输入。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            if (item.getEntityData().hasKey("ApothecarySpawned")) {
+            if (!item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
                 return true;
             }
         }
-        // 如果没有带标记的产物，检查是否有任何 EntityItem（可能是其他产物）
-        return !items.isEmpty();
+        return false;
     }
 
     private RecipePetals findMatchingRecipe(InventoryCrafting ingredients) {

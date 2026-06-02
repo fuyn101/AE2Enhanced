@@ -183,6 +183,8 @@ public class ContainerAssemblyPattern extends Container {
         @Override
         public void setInventorySlotContents(int index, @Nonnull ItemStack stack) {
             if (index < 0 || index >= size) return;
+            // 防御性校验：防止任何绕过 Slot.isItemValid 的路径导致非法物品静默丢失
+            if (!stack.isEmpty() && !isItemValidForSlot(index, stack)) return;
             int handlerIndex = toHandlerIndex(index);
             if (handler instanceof IItemHandlerModifiable) {
                 ((IItemHandlerModifiable) handler).setStackInSlot(handlerIndex,
