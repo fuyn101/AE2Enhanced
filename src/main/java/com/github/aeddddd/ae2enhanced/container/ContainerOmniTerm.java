@@ -638,12 +638,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.patternSlotOUT.putStack(output);
         }
 
-        // 装配枢纽自动上传：如果 patternSlotOUT 中有合成样板，尝试上传到附近的装配枢纽
+        // 装配枢纽自动上传：如果 patternSlotOUT 中有合成样板，尝试上传到同一 ME 网络中的装配枢纽
         ItemStack patternInSlot = this.patternSlotOUT.getStack();
         if (!patternInSlot.isEmpty() && this.getPlayerInv().player != null
                 && !this.getPlayerInv().player.world.isRemote) {
+            appeng.api.networking.IGridNode node = this.getNetworkNode();
+            appeng.api.networking.IGrid grid = (node != null) ? node.getGrid() : null;
             if (com.github.aeddddd.ae2enhanced.util.compat.AssemblyAutoUploadHelper.tryUploadPattern(
-                    this.getPlayerInv().player.world, this.getPlayerInv().player, patternInSlot)) {
+                    this.getPlayerInv().player.world, this.getPlayerInv().player, patternInSlot, grid)) {
                 this.patternSlotOUT.putStack(ItemStack.EMPTY);
             }
         }

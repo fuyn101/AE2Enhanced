@@ -57,7 +57,9 @@ public class MixinPatternEncoder {
 
             if (player.world.isRemote) return;
 
-            if (AssemblyAutoUploadHelper.tryUploadPattern(player.world, player, pattern)) {
+            appeng.api.networking.IGridNode node = ((appeng.container.implementations.ContainerMEMonitorable) container).getNetworkNode();
+            appeng.api.networking.IGrid grid = (node != null) ? node.getGrid() : null;
+            if (AssemblyAutoUploadHelper.tryUploadPattern(player.world, player, pattern, grid)) {
                 patternSlotOUT.putStack(ItemStack.EMPTY);
             }
         } catch (Exception e) {

@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.util.compat;
 
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.entity.player.EntityPlayer;
@@ -8,6 +10,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.Constants;
 
 /**
@@ -26,36 +29,52 @@ public class AssemblyAutoUploadHelper {
     }
 
     /**
-     * 尝试将样板自动上传到玩家附近最近的、安装了自动上传升级的装配枢纽。
+     * 尝试将样板自动上传到最近的、安装了自动上传升级的装配枢纽。
+     * 搜索范围：所有已加载维度中同一 ME 网络内的装配枢纽。
+     *
+     * @param playerGrid 玩家当前所在的 ME 网格（通过终端获取），为 null 时不限制网络
      * @return true 如果上传成功
      */
-    public static boolean tryUploadPattern(World world, EntityPlayer player, ItemStack pattern) {
+    public static boolean tryUploadPattern(World world, EntityPlayer player, ItemStack pattern, IGrid playerGrid) {
         if (world.isRemote || pattern.isEmpty()) return false;
         if (!isCraftingPattern(pattern)) return false;
 
-        TileAssemblyController target = findTargetController(world, player, pattern);
+        TileAssemblyController target = findTargetController(player, pattern, playerGrid);
         if (target == null) return false;
 
         return target.tryAutoUploadPattern(pattern);
     }
 
-    private static TileAssemblyController findTargetController(World world, EntityPlayer player, ItemStack pattern) {
-        // 1. 先搜索玩家当前维度
-        TileAssemblyController target = findTargetControllerInWorld(world, player, pattern);
-        if (target != null) return target;
-
-        // 2. 当前维度找不到时，搜索主世界（维度 0）
-        if (world.provider.getDimension() != 0) {
-            World overworld = net.minecraftforge.common.DimensionManager.getWorld(0);
-            if (overworld != null) {
-                target = findTargetControllerInWorld(overworld, player, pattern);
-                if (target != null) return target;
-            }
-        }
-        return null;
+    /**
+     * 兼容旧调用：不限制 ME 网络。
+     */
+    public static boolean tryUploadPattern(World world, EntityPlayer player, ItemStack pattern) {
+        return tryUploadPattern(world, player, pattern, null);
     }
 
-    private static TileAssemblyController findTargetControllerInWorld(World world, EntityPlayer player, ItemStack pattern) {
+    private static TileAssemblyController findTargetController(EntityPlayer player, ItemStack pattern, IGrid playerGrid) {
+        TileAssemblyController best = null;
+        double bestDist = Double.MAX_VALUE;
+
+        // 遍历所有已加载维度
+        for (World w : DimensionManager.getWorlds()) {
+            if (w == null) continue;
+            TileAssemblyController candidate = findTargetControllerInWorld(w, player, pattern, playerGrid);
+            if (candidate != null) {
+                double dist = player.getDistanceSq(candidate.getPos().getX() + 0.5,
+                        candidate.getPos().getY() + 0.5,
+                        candidate.getPos().getZ() + 0.5);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = candidate;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static TileAssemblyController findTargetControllerInWorld(World world, EntityPlayer player,
+                                                                      ItemStack pattern, IGrid playerGrid) {
         ControllerIndex index = ControllerIndex.get(world);
         if (index == null) return null;
 
@@ -63,12 +82,21 @@ public class AssemblyAutoUploadHelper {
         double bestDist = Double.MAX_VALUE;
 
         for (BlockPos pos : index.getAll()) {
+            // 区块必须已加载（天然满足：ControllerIndex 只记录已加载区块中的控制器）
             TileEntity te = world.getTileEntity(pos);
             if (!(te instanceof TileAssemblyController)) continue;
             TileAssemblyController controller = (TileAssemblyController) te;
             if (!controller.isFormed()) continue;
             if (!controller.hasAutoUploadUpgrade()) continue;
             if (!controller.canAcceptPattern(pattern)) continue;
+
+            // 网络过滤：如果提供了 playerGrid，只匹配同一网络
+            if (playerGrid != null) {
+                IGrid controllerGrid = getControllerGrid(controller);
+                if (controllerGrid == null || controllerGrid != playerGrid) {
+                    continue;
+                }
+            }
 
             double dist = player.getDistanceSq(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
             if (dist < bestDist) {
@@ -77,5 +105,17 @@ public class AssemblyAutoUploadHelper {
             }
         }
         return best;
+    }
+
+    private static IGrid getControllerGrid(TileAssemblyController controller) {
+        try {
+            appeng.me.helpers.AENetworkProxy proxy = controller.getProxy();
+            if (proxy == null) return null;
+            IGridNode node = proxy.getNode();
+            if (node == null) return null;
+            return node.getGrid();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
