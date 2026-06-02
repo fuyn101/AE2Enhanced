@@ -21,6 +21,7 @@
     "ae2.MixinSlotRestrictedInput",
     "ae2.MixinTileIOPort",
     "ae2.MixinToolMatterCannon",
+    "ae2.MixinContainerMEMonitorable",
     "fluid.MixinGridStorageCacheFluid",
     "fluid.MixinNetworkInventoryHandlerFluid",
     "fluid.MixinNetworkMonitorFluid",
@@ -39,6 +40,8 @@
     "terminal.MixinGuiCraftingCPU",
     "terminal.MixinGuiMEMonitorableClick",
     "terminal.MixinGuiMEMonitorableTooltip",
+    "terminal.MixinGuiMEMonitorable",
+    "terminal.MixinItemRepo",
     "terminal.MixinGuiScreenHelper"
   ],
   "server": []
