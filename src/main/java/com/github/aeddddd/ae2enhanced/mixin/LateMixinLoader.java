@@ -1,7 +1,9 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
+import net.minecraftforge.fml.common.Loader;
 import zone.rong.mixinbooter.ILateMixinLoader;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -16,10 +18,17 @@ public class LateMixinLoader implements ILateMixinLoader {
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(
+        List<String> configs = new ArrayList<>(Arrays.asList(
                 "mixins.ae2enhanced.late.json",
                 "mixins.ae2enhanced.late.thaumic.json",
                 "mixins.ae2enhanced.late.gas.json"
-        );
+        ));
+        if (Loader.isModLoaded("functionalstoragelegacy")) {
+            configs.add("mixins.ae2enhanced.late.fsl.json");
+        }
+        if (Loader.isModLoaded("storagedrawers")) {
+            configs.add("mixins.ae2enhanced.late.sd.json");
+        }
+        return configs;
     }
 }
