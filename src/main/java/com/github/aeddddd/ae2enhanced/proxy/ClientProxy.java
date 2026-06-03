@@ -216,6 +216,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.CAUSAL_ANCHOR_CORE);
         registerBlockItemModel(BlockRegistry.SUPER_CRAFTING_INTERFACE);
         registerBlockItemModel(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
+        registerBlockItemModel(BlockRegistry.CHUNK_POWER_NODE);
         registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
         registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
         registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
