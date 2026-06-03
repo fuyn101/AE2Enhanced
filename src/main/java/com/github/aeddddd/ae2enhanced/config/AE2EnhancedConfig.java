@@ -71,6 +71,13 @@ public class AE2EnhancedConfig {
     })
     public static SmartPattern smartPattern = new SmartPattern();
 
+    @Config.Name("Energy")
+    @Config.Comment({
+        "RF energy bridge settings.",
+        "Controls the behavior of RF Access Node when adjacent to creative energy sources."
+    })
+    public static Energy energy = new Energy();
+
     @Config.Name("AdvancedPlatform")
     @Config.Comment({
         "Advanced Central Platform settings.",
@@ -282,6 +289,34 @@ public class AE2EnhancedConfig {
 
         public DamageMode getDamageMode() {
             return parseDamageMode(damageMode);
+        }
+    }
+
+    public static class Energy {
+        @Config.Comment({
+            "When enabled, RF Access Node adjacent to a Draconic Evolution Creative RF Source",
+            "will directly inject energy into the ME network as long, bypassing the int limit",
+            "of Forge Energy API (2.147B per tick).",
+            "Default: true"
+        })
+        public boolean creativeRfSourceBoostEnabled = true;
+
+        @Config.Comment({
+            "Amount of RF to inject per operation when adjacent to a creative RF source.",
+            "Supports scientific notation (e.g. '1.0E12' for 1 trillion, '2.5E9' for 2.5 billion).",
+            "Default: 1.0E12"
+        })
+        public String creativeRfSourceBoostAmount = "1.0E12";
+
+        public long getParsedBoostAmount() {
+            try {
+                double val = Double.parseDouble(creativeRfSourceBoostAmount.trim());
+                if (val <= 0) return 0;
+                if (val >= Long.MAX_VALUE) return Long.MAX_VALUE;
+                return (long) val;
+            } catch (NumberFormatException e) {
+                return 1_000_000_000_000L;
+            }
         }
     }
 

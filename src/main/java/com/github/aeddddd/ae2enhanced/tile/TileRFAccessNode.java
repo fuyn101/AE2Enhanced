@@ -13,14 +13,17 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.me.helpers.MachineSource;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
+import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -37,6 +40,7 @@ public class TileRFAccessNode extends TileAENetworkBase
         implements IGridTickable, IActionHost, IEnergyStorage, ITickable {
 
     private MachineSource machineSource;
+    private int creativeBoostCooldown = 0;
 
     // === TileAENetworkBase ===
 
@@ -80,6 +84,43 @@ public class TileRFAccessNode extends TileAENetworkBase
             this.clearNeedsReady();
             this.getProxy().onReady();
         }
+        if (!this.world.isRemote) {
+            doCreativeBoostTick();
+        }
+    }
+
+    private void doCreativeBoostTick() {
+        if (!AE2EnhancedConfig.energy.creativeRfSourceBoostEnabled) return;
+        if (creativeBoostCooldown-- > 0) return;
+        creativeBoostCooldown = 20;
+
+        if (!isAdjacentToCreativeRfSource()) return;
+
+        IMEMonitor<IAEEnergyStack> monitor = getEnergyMonitor();
+        if (monitor == null) return;
+
+        long amount = AE2EnhancedConfig.energy.getParsedBoostAmount();
+        if (amount <= 0) return;
+
+        // 先模拟注入看看能被接受多少
+        IAEEnergyStack rejected = monitor.injectItems(
+                AEEnergyStack.create(amount), Actionable.SIMULATE, getMachineSource());
+        long canAccept = amount - (rejected != null ? rejected.getStackSize() : 0);
+        if (canAccept <= 0) return;
+
+        monitor.injectItems(AEEnergyStack.create(canAccept), Actionable.MODULATE, getMachineSource());
+    }
+
+    private boolean isAdjacentToCreativeRfSource() {
+        Block creativeBlock = Block.getBlockFromName("draconicevolution:creative_rf_source");
+        if (creativeBlock == null) return false;
+        for (EnumFacing facing : EnumFacing.values()) {
+            BlockPos adjacent = this.pos.offset(facing);
+            if (this.world.isBlockLoaded(adjacent) && this.world.getBlockState(adjacent).getBlock() == creativeBlock) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // === IGridTickable ===
