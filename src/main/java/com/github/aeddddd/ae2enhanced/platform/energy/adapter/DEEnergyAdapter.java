@@ -6,24 +6,20 @@ import net.minecraftforge.energy.IEnergyStorage;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Draconic Evolution 专用能量适配器。
  *
- * <p>核心突破：对于 {@code TileEnergyStorageCore}，通过反射直接操作其内部
- * {@code ManagedLong energy.value} 字段，实现 {@code long} 级别的瞬间注入，
- * 完全 bypass 标准 Forge {@link IEnergyStorage#receiveEnergy(int, boolean)} 的
- * {@code int} 上限（2.1B）限制。</p>
+ * <p>核心突破：对于所有实现 {@code IExtendedRFStorage} 的龙研设备（包括
+ * {@code TileEnergyStorageCore}、{@code TileCraftingInjector} 等），通过反射
+ * 直接操作其内部 {@code ManagedLong energy.value} 字段，实现 {@code long} 级别的
+ * 瞬间注入，完全 bypass 标准 Forge {@link IEnergyStorage#receiveEnergy(int, boolean)}
+ * 的 {@code int} 上限（2.1B）以及设备自身的 tick 级限流（如 CraftingInjector 的
+ * {@code maxRFPerTick = cost / chargeSpeedModifier}）。</p>
  *
- * <p>龙研能量核心各级容量：</p>
- * <ul>
- *   <li>Tier 1 (Draconium): ~45.5M RF</li>
- *   <li>Tier 2 (Wyvern): ~2.9B RF</li>
- *   <li>Tier 3 (Draconic): ~45.5B RF</li>
- *   <li>Tier 4 (Chaotic): ~911B RF</li>
- * </ul>
- *
- * <p>对于其他龙研设备（能量水晶、能量注入器等），回退到标准 FE 多调用策略。</p>
+ * <p>对于不实现 {@code IExtendedRFStorage} 的龙研设备，回退到标准 FE 多调用策略。</p>
  */
 public class DEEnergyAdapter implements IEnergyAdapter {
 
@@ -31,35 +27,41 @@ public class DEEnergyAdapter implements IEnergyAdapter {
         "draconicevolution:"
     };
 
-    // TileEnergyStorageCore 反射缓存
-    private static Class<?> energyStorageCoreClass;
-    private static Field energyField; // ManagedLong energy
-    private static Field managedLongValueField; // long value
+    // IExtendedRFStorage 接口反射缓存
+    private static Class<?> extendedRFStorageClass;
     private static Method getExtendedStorageMethod;
     private static Method getExtendedCapacityMethod;
-    private static boolean coreReflectionReady = false;
+    private static Field managedLongValueField;
+    private static boolean interfaceReflectionReady = false;
+
+    // 各具体 Tile 类的 energy 字段缓存（key = tile class, value = declared Field("energy")）
+    private static final Map<Class<?>, Field> ENERGY_FIELD_CACHE = new HashMap<>();
 
     public DEEnergyAdapter() {
-        initCoreReflection();
+        initInterfaceReflection();
     }
 
-    private static synchronized void initCoreReflection() {
-        if (coreReflectionReady) {
+    private static synchronized void initInterfaceReflection() {
+        if (interfaceReflectionReady) {
             return;
         }
         try {
-            energyStorageCoreClass = Class.forName(
+            extendedRFStorageClass = Class.forName(
+                    "com.brandon3055.draconicevolution.api.IExtendedRFStorage");
+            getExtendedStorageMethod = extendedRFStorageClass.getMethod("getExtendedStorage");
+            getExtendedCapacityMethod = extendedRFStorageClass.getMethod("getExtendedCapacity");
+
+            // 预加载 TileEnergyStorageCore 的 energy 字段，用于推导 ManagedLong 类型
+            Class<?> coreClass = Class.forName(
                     "com.brandon3055.draconicevolution.blocks.tileentity.TileEnergyStorageCore");
-            energyField = energyStorageCoreClass.getField("energy");
+            Field coreEnergyField = coreClass.getDeclaredField("energy");
+            coreEnergyField.setAccessible(true);
+            ENERGY_FIELD_CACHE.put(coreClass, coreEnergyField);
 
-            // 在 ManagedLong 及其父类链中查找 public long value 字段
-            Class<?> managedLongClass = energyField.getType();
-            managedLongValueField = findLongValueField(managedLongClass);
+            // 在 ManagedLong 及其父类链中查找 long value 字段
+            managedLongValueField = findLongValueField(coreEnergyField.getType());
 
-            getExtendedStorageMethod = energyStorageCoreClass.getMethod("getExtendedStorage");
-            getExtendedCapacityMethod = energyStorageCoreClass.getMethod("getExtendedCapacity");
-
-            coreReflectionReady = true;
+            interfaceReflectionReady = true;
         } catch (Exception e) {
             // 反射失败，将完全回退到标准 Forge 策略
         }
@@ -81,6 +83,29 @@ public class DEEnergyAdapter implements IEnergyAdapter {
         return null;
     }
 
+    /**
+     * 获取（或缓存）指定 Tile 类的 energy 字段。
+     */
+    private static Field getEnergyField(TileEntity tile) {
+        if (tile == null) return null;
+        Class<?> clazz = tile.getClass();
+        Field f = ENERGY_FIELD_CACHE.get(clazz);
+        if (f != null) return f;
+
+        try {
+            f = clazz.getDeclaredField("energy");
+            if (f.getType().getSimpleName().equals("ManagedLong")) {
+                f.setAccessible(true);
+                ENERGY_FIELD_CACHE.put(clazz, f);
+                return f;
+            }
+        } catch (NoSuchFieldException e) {
+            // 该类没有 energy 字段
+        }
+        ENERGY_FIELD_CACHE.put(clazz, null);
+        return null;
+    }
+
     @Override
     public boolean canHandle(String blockId) {
         for (String pattern : BLOCK_PATTERNS) {
@@ -93,13 +118,21 @@ public class DEEnergyAdapter implements IEnergyAdapter {
 
     @Override
     public long getReceiveableEnergy(TileEntity tile, IEnergyStorage cap) {
-        if (coreReflectionReady && isEnergyStorageCore(tile)) {
-            try {
-                long stored = (Long) getExtendedStorageMethod.invoke(tile);
-                long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
-                return Math.max(0L, capacity - stored);
-            } catch (Exception e) {
-                // 反射失败，回退
+        if (interfaceReflectionReady && isExtendedRFStorage(tile)) {
+            Field energyField = getEnergyField(tile);
+            if (energyField != null && managedLongValueField != null) {
+                try {
+                    long stored = (Long) getExtendedStorageMethod.invoke(tile);
+                    long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
+                    // TileCraftingInjector 的 getExtendedCapacity() 因 bug 返回 0，
+                    // 此时视容量为 Long.MAX_VALUE，允许无限制注入
+                    if (capacity <= 0L) {
+                        capacity = Long.MAX_VALUE;
+                    }
+                    return Math.max(0L, capacity - stored);
+                } catch (Exception e) {
+                    // 反射失败，回退
+                }
             }
         }
         return fallbackReceiveable(cap);
@@ -110,29 +143,33 @@ public class DEEnergyAdapter implements IEnergyAdapter {
         if (amount <= 0) {
             return 0;
         }
-        if (coreReflectionReady && isEnergyStorageCore(tile)) {
-            try {
-                long stored = (Long) getExtendedStorageMethod.invoke(tile);
-                long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
-                long canAdd = Math.max(0L, capacity - stored);
-                long toAdd = Math.min(amount, canAdd);
-                if (toAdd > 0 && !simulate) {
-                    Object managedLong = energyField.get(tile);
-                    if (managedLongValueField != null) {
-                        managedLongValueField.setLong(managedLong, stored + toAdd);
+        if (interfaceReflectionReady && isExtendedRFStorage(tile)) {
+            Field energyField = getEnergyField(tile);
+            if (energyField != null && managedLongValueField != null) {
+                try {
+                    long stored = (Long) getExtendedStorageMethod.invoke(tile);
+                    long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
+                    if (capacity <= 0L) {
+                        capacity = Long.MAX_VALUE;
                     }
-                    tile.markDirty();
+                    long canAdd = Math.max(0L, capacity - stored);
+                    long toAdd = Math.min(amount, canAdd);
+                    if (toAdd > 0 && !simulate) {
+                        Object managedLong = energyField.get(tile);
+                        managedLongValueField.setLong(managedLong, stored + toAdd);
+                        tile.markDirty();
+                    }
+                    return toAdd;
+                } catch (Exception e) {
+                    // 反射失败，回退
                 }
-                return toAdd;
-            } catch (Exception e) {
-                // 反射失败，回退
             }
         }
         return fallbackInject(cap, amount, simulate);
     }
 
-    private boolean isEnergyStorageCore(TileEntity tile) {
-        return tile != null && energyStorageCoreClass.isInstance(tile);
+    private boolean isExtendedRFStorage(TileEntity tile) {
+        return tile != null && extendedRFStorageClass.isInstance(tile);
     }
 
     private static long fallbackReceiveable(IEnergyStorage cap) {
