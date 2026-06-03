@@ -39,9 +39,17 @@ public class JEISearchKeyHandler {
 
     /**
      * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏。
-     * 由 GuiOmniTerm.keyTyped() 调用，不再依赖全局 InputEvent。
+     * 由 GuiOmniTerm.keyTyped() 和 MixinGuiMEMonitorableKeyHandler 调用。
      */
-    public static void performSearch(GuiMEMonitorable gui, MEGuiTextField searchField) {
+    public static void performSearch(GuiMEMonitorable gui) {
+        MEGuiTextField searchField;
+        try {
+            Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
+            searchFieldField.setAccessible(true);
+            searchField = (MEGuiTextField) searchFieldField.get(gui);
+        } catch (Exception e) {
+            return;
+        }
         if (searchField == null) return;
         if (searchField.isFocused()) return; // 搜索栏已聚焦时不触发，避免打断输入
 

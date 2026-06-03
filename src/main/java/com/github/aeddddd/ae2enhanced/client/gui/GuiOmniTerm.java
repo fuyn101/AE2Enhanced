@@ -599,7 +599,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             if (searchField != null) {
                 // F 键 JEI 搜索（在 TOGGLE_FOCUS 和搜索栏输入之前处理）
                 if (key == Keyboard.KEY_F && !searchField.isFocused()) {
-                    JEISearchKeyHandler.performSearch(this, searchField);
+                    JEISearchKeyHandler.performSearch(this);
                     return;
                 }
 

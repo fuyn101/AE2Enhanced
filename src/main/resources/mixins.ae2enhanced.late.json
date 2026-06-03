@@ -41,6 +41,7 @@
     "terminal.MixinGuiMEMonitorableClick",
     "terminal.MixinGuiMEMonitorableTooltip",
     "terminal.MixinGuiMEMonitorable",
+    "terminal.MixinGuiMEMonitorableKeyHandler",
     "terminal.MixinItemRepo",
     "terminal.MixinGuiScreenHelper"
   ],
