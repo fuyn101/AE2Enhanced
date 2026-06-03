@@ -160,6 +160,8 @@ gui.ae2enhanced.umc.msg.clear_bindings=§a▸ Очищено §e%d§a привя
 
 tile.ae2enhanced.wireless_channel_transmitter.name=Генератор беспроводного канала
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников
+tile.ae2enhanced.chunk_power_node.name=Узел питания чанка
+tile.ae2enhanced.chunk_power_node.tooltip=§eУзел питания чанка §7— Питает все машины в чанке через RF-хранилище ME-сети
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Генератор беспроводного канала
 

@@ -167,6 +167,8 @@ item.ae2enhanced.channel_receiver_card.tooltip.unbound=§e未バインド §7—
 
 tile.ae2enhanced.wireless_channel_transmitter.name=無線チャネル発生器
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e無線チャネル発生器 §7— リモート受信機用に32チャネルを放送
+tile.ae2enhanced.chunk_power_node.name=チャンク給電ノード
+tile.ae2enhanced.chunk_power_node.tooltip=§eチャンク給電ノード §7— MEネットワークのRFストレージからチャンク内の機械に給電
 
 gui.ae2enhanced.wireless_channel_transmitter.title=無線チャネル発生器
 

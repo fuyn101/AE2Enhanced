@@ -176,6 +176,8 @@ item.ae2enhanced.channel_receiver_card.tooltip.unbound=§eUnbound §7— Insert 
 
 tile.ae2enhanced.wireless_channel_transmitter.name=Wireless Channel Transmitter
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eWireless Channel Transmitter §7— Broadcasts 32 channels for remote receivers
+tile.ae2enhanced.chunk_power_node.name=Chunk Power Node
+tile.ae2enhanced.chunk_power_node.tooltip=§eChunk Power Node §7— Powers all machines in the chunk via ME network RF storage
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 
