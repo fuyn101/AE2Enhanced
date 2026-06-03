@@ -173,8 +173,17 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
             TileEntity te = world.getTileEntity(targetPos);
             if (te == null || te.isInvalid()) continue;
 
-            IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, null);
-            if (cap == null || !cap.canReceive()) continue;
+            IEnergyStorage cap = null;
+            for (EnumFacing facing : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityEnergy.ENERGY, facing)) {
+                    IEnergyStorage c = te.getCapability(CapabilityEnergy.ENERGY, facing);
+                    if (c != null && c.canReceive()) {
+                        cap = c;
+                        break;
+                    }
+                }
+            }
+            if (cap == null) continue;
 
             String blockId = world.getBlockState(targetPos).getBlock().getRegistryName().toString();
             IEnergyAdapter adapter = EnergyAdapterRegistry.findAdapter(blockId);
@@ -198,6 +207,10 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
     /**
      * 扫描本区块内所有可接收能量的 TileEntity，缓存其位置。
+     *
+     * <p>某些模组（如 Mekanism）的 {@code IEnergyStorage} capability 只在特定朝向
+     * 上暴露为可接收（{@code canReceive() == true}）。因此需要遍历 6 个面查找有效输入面，
+     * 而非直接传 {@code null}。</p>
      */
     private void refreshTargetCache() {
         cachedTargets.clear();
@@ -211,10 +224,13 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
             BlockPos tp = te.getPos();
             if ((tp.getX() >> 4) != chunkX || (tp.getZ() >> 4) != chunkZ) continue;
 
-            if (te.hasCapability(CapabilityEnergy.ENERGY, null)) {
-                IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, null);
-                if (cap != null && cap.canReceive()) {
-                    cachedTargets.add(tp.toImmutable());
+            for (EnumFacing facing : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityEnergy.ENERGY, facing)) {
+                    IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, facing);
+                    if (cap != null && cap.canReceive()) {
+                        cachedTargets.add(tp.toImmutable());
+                        break;
+                    }
                 }
             }
         }

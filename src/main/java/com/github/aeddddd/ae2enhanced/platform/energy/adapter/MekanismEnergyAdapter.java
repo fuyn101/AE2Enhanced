@@ -62,7 +62,9 @@ public class MekanismEnergyAdapter implements IEnergyAdapter {
 
     @Override
     public boolean canHandle(String blockId) {
-        return blockId.startsWith("mekanism:");
+        return blockId.startsWith("mekanism:")
+            || blockId.startsWith("mekanismgenerators:")
+            || blockId.startsWith("mekanismtools:");
     }
 
     @Override
