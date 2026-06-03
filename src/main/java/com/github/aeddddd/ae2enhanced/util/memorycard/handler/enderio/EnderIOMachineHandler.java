@@ -44,6 +44,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
     private static final Method SET_IO_MODE;
     private static final Method GET_SLOT_DEFINITION;
     private static final Method GET_MACHINE_NAME;
+    private static final Method SET_INVENTORY_SLOT_CONTENTS;
 
     private static final Class<?> REDSTONE_CONTROL_MODE_CLASS;
     private static final Object[] REDSTONE_CONTROL_MODE_VALUES;
@@ -71,6 +72,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
         Method setIoMode = null;
         Method getSlotDefinition = null;
         Method getMachineName = null;
+        Method setInventorySlotContents = null;
 
         Class<?> redstoneControlModeClass = null;
         Object[] redstoneControlModeValues = null;
@@ -110,6 +112,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                 setIoMode = abstractMachineEntityClass.getMethod("setIoMode", EnumFacing.class, ioModeClass);
                 getSlotDefinition = abstractInventoryMachineEntityClass.getMethod("getSlotDefinition");
                 getMachineName = abstractMachineEntityClass.getMethod("getMachineName");
+                setInventorySlotContents = abstractInventoryMachineEntityClass.getMethod("setInventorySlotContents", int.class, ItemStack.class);
 
                 available = true;
             }
@@ -136,6 +139,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
         SET_IO_MODE = setIoMode;
         GET_SLOT_DEFINITION = getSlotDefinition;
         GET_MACHINE_NAME = getMachineName;
+        SET_INVENTORY_SLOT_CONTENTS = setInventorySlotContents;
 
         REDSTONE_CONTROL_MODE_CLASS = redstoneControlModeClass;
         REDSTONE_CONTROL_MODE_VALUES = redstoneControlModeValues;
@@ -223,6 +227,17 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
                     IUpgradeProvider provider = new ItemStackArrayUpgradeAdapter(inventory, minUpgradeSlot, count);
                     PasteResult result = MemoryCardUpgradeHelper.applyUpgrades(provider, needed, player);
                     if (result != PasteResult.SUCCESS) return result;
+
+                    // 通过 setInventorySlotContents 触发电容刷新
+                    // AbstractPoweredMachineEntity.setInventorySlotContents 会在升级槽位变更时
+                    // 调用 updateCapacitorFromSlot()，直接操作 inventory[] 数组会绕过此逻辑
+                    if (SET_INVENTORY_SLOT_CONTENTS != null) {
+                        for (int i = 0; i < count; i++) {
+                            int slot = minUpgradeSlot + i;
+                            ItemStack stack = inventory[slot];
+                            SET_INVENTORY_SLOT_CONTENTS.invoke(tile, slot, stack != null ? stack : ItemStack.EMPTY);
+                        }
+                    }
                 }
             }
 
