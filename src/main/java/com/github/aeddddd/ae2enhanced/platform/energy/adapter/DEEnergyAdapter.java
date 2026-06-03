@@ -19,6 +19,10 @@ import java.util.Map;
  * 的 {@code int} 上限（2.1B）以及设备自身的 tick 级限流（如 CraftingInjector 的
  * {@code maxRFPerTick = cost / chargeSpeedModifier}）。</p>
  *
+ * <p>对于 {@code TileCraftingInjector}，会额外检查 {@code currentCraftingInventory}
+ * 字段：只有在注入器处于活跃合成状态时（字段非 null）才注入能量；空闲时返回 0，
+ * 避免能量凭空消失。</p>
+ *
  * <p>对于不实现 {@code IExtendedRFStorage} 的龙研设备，回退到标准 FE 多调用策略。</p>
  */
 public class DEEnergyAdapter implements IEnergyAdapter {
@@ -34,11 +38,17 @@ public class DEEnergyAdapter implements IEnergyAdapter {
     private static Field managedLongValueField;
     private static boolean interfaceReflectionReady = false;
 
-    // 各具体 Tile 类的 energy 字段缓存（key = tile class, value = declared Field("energy")）
+    // IFusionCraftingInventory 接口反射缓存（用于 TileCraftingInjector）
+    private static Method getIngredientEnergyCostMethod;
+    private static boolean fusionInventoryReflectionReady = false;
+
+    // 各具体 Tile 类的字段缓存
     private static final Map<Class<?>, Field> ENERGY_FIELD_CACHE = new HashMap<>();
+    private static final Map<Class<?>, Field> CRAFTING_INV_FIELD_CACHE = new HashMap<>();
 
     public DEEnergyAdapter() {
         initInterfaceReflection();
+        initFusionInventoryReflection();
     }
 
     private static synchronized void initInterfaceReflection() {
@@ -51,19 +61,31 @@ public class DEEnergyAdapter implements IEnergyAdapter {
             getExtendedStorageMethod = extendedRFStorageClass.getMethod("getExtendedStorage");
             getExtendedCapacityMethod = extendedRFStorageClass.getMethod("getExtendedCapacity");
 
-            // 预加载 TileEnergyStorageCore 的 energy 字段，用于推导 ManagedLong 类型
             Class<?> coreClass = Class.forName(
                     "com.brandon3055.draconicevolution.blocks.tileentity.TileEnergyStorageCore");
             Field coreEnergyField = coreClass.getDeclaredField("energy");
             coreEnergyField.setAccessible(true);
             ENERGY_FIELD_CACHE.put(coreClass, coreEnergyField);
 
-            // 在 ManagedLong 及其父类链中查找 long value 字段
             managedLongValueField = findLongValueField(coreEnergyField.getType());
 
             interfaceReflectionReady = true;
         } catch (Exception e) {
             // 反射失败，将完全回退到标准 Forge 策略
+        }
+    }
+
+    private static synchronized void initFusionInventoryReflection() {
+        if (fusionInventoryReflectionReady) {
+            return;
+        }
+        try {
+            Class<?> fusionInvClass = Class.forName(
+                    "com.brandon3055.draconicevolution.api.fusioncrafting.IFusionCraftingInventory");
+            getIngredientEnergyCostMethod = fusionInvClass.getMethod("getIngredientEnergyCost");
+            fusionInventoryReflectionReady = true;
+        } catch (Exception e) {
+            // IFusionCraftingInventory 不可用（极不可能，因为 draconic evolution 已加载）
         }
     }
 
@@ -83,14 +105,12 @@ public class DEEnergyAdapter implements IEnergyAdapter {
         return null;
     }
 
-    /**
-     * 获取（或缓存）指定 Tile 类的 energy 字段。
-     */
     private static Field getEnergyField(TileEntity tile) {
         if (tile == null) return null;
         Class<?> clazz = tile.getClass();
         Field f = ENERGY_FIELD_CACHE.get(clazz);
         if (f != null) return f;
+        if (ENERGY_FIELD_CACHE.containsKey(clazz)) return null;
 
         try {
             f = clazz.getDeclaredField("energy");
@@ -104,6 +124,55 @@ public class DEEnergyAdapter implements IEnergyAdapter {
         }
         ENERGY_FIELD_CACHE.put(clazz, null);
         return null;
+    }
+
+    private static Field getCraftingInventoryField(Class<?> clazz) {
+        Field f = CRAFTING_INV_FIELD_CACHE.get(clazz);
+        if (f != null) return f;
+        if (CRAFTING_INV_FIELD_CACHE.containsKey(clazz)) return null;
+
+        try {
+            f = clazz.getDeclaredField("currentCraftingInventory");
+            f.setAccessible(true);
+            CRAFTING_INV_FIELD_CACHE.put(clazz, f);
+            return f;
+        } catch (NoSuchFieldException e) {
+            // 该类没有 currentCraftingInventory 字段
+        }
+        CRAFTING_INV_FIELD_CACHE.put(clazz, null);
+        return null;
+    }
+
+    /**
+     * 获取设备的有效容量。
+     *
+     * <p>正常设备使用 {@code getExtendedCapacity()}。对于 {@code TileCraftingInjector}，
+     * 其 {@code getExtendedCapacity()} 因实现 bug 返回 0，此时通过反射读取
+     * {@code currentCraftingInventory} 字段，若活跃则调用
+     * {@code IFusionCraftingInventory#getIngredientEnergyCost()} 获取真实容量；
+     * 若空闲则返回 0，阻止注入。</p>
+     */
+    private static long getEffectiveCapacity(TileEntity tile, long stored) {
+        try {
+            long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
+            if (capacity > stored) {
+                return capacity;
+            }
+            // capacity <= stored（包括 TileCraftingInjector 返回 0 的情况）
+            Field craftingInvField = getCraftingInventoryField(tile.getClass());
+            if (craftingInvField != null && fusionInventoryReflectionReady) {
+                Object craftingInv = craftingInvField.get(tile);
+                if (craftingInv != null) {
+                    return (Long) getIngredientEnergyCostMethod.invoke(craftingInv);
+                }
+                // currentCraftingInventory == null：注入器空闲，禁止注入
+                return 0L;
+            }
+            // 不是 CraftingInjector，且 capacity <= 0，视为无上限
+            return Long.MAX_VALUE;
+        } catch (Exception e) {
+            return Long.MAX_VALUE;
+        }
     }
 
     @Override
@@ -123,12 +192,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
             if (energyField != null && managedLongValueField != null) {
                 try {
                     long stored = (Long) getExtendedStorageMethod.invoke(tile);
-                    long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
-                    // TileCraftingInjector 的 getExtendedCapacity() 因 bug 返回 0，
-                    // 此时视容量为 Long.MAX_VALUE，允许无限制注入
-                    if (capacity <= 0L) {
-                        capacity = Long.MAX_VALUE;
-                    }
+                    long capacity = getEffectiveCapacity(tile, stored);
                     return Math.max(0L, capacity - stored);
                 } catch (Exception e) {
                     // 反射失败，回退
@@ -148,10 +212,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
             if (energyField != null && managedLongValueField != null) {
                 try {
                     long stored = (Long) getExtendedStorageMethod.invoke(tile);
-                    long capacity = (Long) getExtendedCapacityMethod.invoke(tile);
-                    if (capacity <= 0L) {
-                        capacity = Long.MAX_VALUE;
-                    }
+                    long capacity = getEffectiveCapacity(tile, stored);
                     long canAdd = Math.max(0L, capacity - stored);
                     long toAdd = Math.min(amount, canAdd);
                     if (toAdd > 0 && !simulate) {
