@@ -150,6 +150,66 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int maxActiveOrders = 8;
+
+        // ==================== Optimized Scheduler (v2.0) ====================
+
+        @Config.Comment({
+            "Enable the optimized crafting scheduler (core feature).",
+            "When enabled, executeCrafting uses key-path-first + affinity-aware",
+            "allocation instead of the native HashMap traversal.",
+            "Default: true"
+        })
+        public boolean schedulerEnabled = true;
+
+        @Config.Comment({
+            "Depth weight for task scoring. Smaller depth (closer to root) gets higher priority.",
+            "Range: 0 ~ 100000, Default: 1000"
+        })
+        @Config.RangeInt(min = 0, max = 100000)
+        public int schedulerDepthWeight = 1000;
+
+        @Config.Comment({
+            "Batch weight for task scoring. Larger remaining batches get higher priority.",
+            "Range: 0 ~ 1000, Default: 1"
+        })
+        @Config.RangeInt(min = 0, max = 1000)
+        public int schedulerBatchWeight = 1;
+
+        @Config.Comment({
+            "Wait weight for anti-starvation. Each tick a task waits adds this to its score.",
+            "Range: 0 ~ 1000, Default: 5"
+        })
+        @Config.RangeInt(min = 0, max = 1000)
+        public int schedulerWaitWeight = 5;
+
+        @Config.Comment({
+            "Machine affinity timeout in milliseconds. GT machines can take minutes to process.",
+            "Range: 1000 ~ 1800000, Default: 300000 (5 minutes)"
+        })
+        @Config.RangeInt(min = 1000, max = 1800000)
+        public int affinityTimeoutMs = 300_000;
+
+        @Config.Comment({
+            "Scheduler computation time limit per tick in milliseconds.",
+            "If exceeded, the scheduler falls back to native logic for this tick.",
+            "Range: 1 ~ 50, Default: 2"
+        })
+        @Config.RangeInt(min = 1, max = 50)
+        public int schedulerTimeLimitMs = 2;
+
+        @Config.Comment({
+            "Debug logging: log every scheduling decision.",
+            "Default: false"
+        })
+        public boolean schedulerDebugLog = false;
+
+        @Config.Comment({
+            "Enable automatic recipe amplification in planning (EXPERIMENTAL).",
+            "Only affects processing patterns (isCraftable=false). Workbench patterns are skipped.",
+            "If disabled or fails, planning falls back to native logic without side effects.",
+            "Default: false"
+        })
+        public boolean autoAmplification = false;
     }
 
     public static class Terminal {

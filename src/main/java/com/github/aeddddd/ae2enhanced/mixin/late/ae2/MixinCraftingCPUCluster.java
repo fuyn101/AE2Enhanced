@@ -13,6 +13,10 @@ import appeng.me.helpers.MachineSource;
 import appeng.tile.crafting.TileCraftingMonitorTile;
 import appeng.tile.crafting.TileCraftingTile;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.crafting.scheduler.OptimizedScheduler;
+import com.github.aeddddd.ae2enhanced.crafting.scheduler.PatternDepthRegistry;
+import com.github.aeddddd.ae2enhanced.crafting.scheduler.TaskProgressAccessor;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyMeInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
@@ -47,6 +51,12 @@ public class MixinCraftingCPUCluster {
     @Unique
     private TileComputationCore ae2enhanced$computationCore;
 
+    @Unique
+    private OptimizedScheduler ae2e$scheduler;
+
+    @Unique
+    private boolean ae2e$schedulerInitFailed = false;
+
     public void ae2enhanced$setComputationCore(TileComputationCore core) {
         this.ae2enhanced$computationCore = core;
     }
@@ -63,6 +73,9 @@ public class MixinCraftingCPUCluster {
 
     @Shadow
     private boolean isDestroyed;
+
+    @Shadow
+    private boolean somethingChanged;
 
     @Shadow
     private List<TileCraftingTile> tiles;
@@ -307,6 +320,11 @@ public class MixinCraftingCPUCluster {
                         finalOutputField.set(cpu, null);
                     }
                     updateCPU();
+                    // v2.0: clear per-job scheduling state
+                    PatternDepthRegistry.clear();
+                    if (ae2e$scheduler != null) {
+                        ae2e$scheduler.clearWaitMap();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -636,6 +654,48 @@ public class MixinCraftingCPUCluster {
                 batchFailCount++;
 
             }
+        }
+    }
+
+    // ==================== v2.0 Optimized Scheduler ====================
+
+    /**
+     * Executed AFTER batchProcessVirtualTasks (defined earlier in this class).
+     * If the scheduler successfully pushes any normal tasks, cancels native
+     * executeCrafting so the HashMap traversal is skipped entirely.
+     */
+    @Inject(method = "executeCrafting", at = @At("HEAD"), cancellable = true, remap = false)
+    private void ae2e$optimizedSchedule(IEnergyGrid eg, CraftingGridCache cc, CallbackInfo ci) {
+        if (ae2enhanced$computationCore != null) return;
+        if (!AE2EnhancedConfig.crafting.schedulerEnabled) return;
+        if (ae2e$schedulerInitFailed) return;
+        if (!TaskProgressAccessor.isReady()) return;
+
+        CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
+
+        if (ae2e$scheduler == null) {
+            ae2e$scheduler = new OptimizedScheduler();
+        }
+
+        try {
+            if (!reflectionReady) tryInitReflection();
+            if (!reflectionReady || tasksField == null || remOpsField == null) return;
+
+            @SuppressWarnings("unchecked")
+            Map<ICraftingPatternDetails, Object> tasks = (Map<ICraftingPatternDetails, Object>) tasksField.get(cpu);
+            long remainingOps = remOpsField.getLong(cpu);
+
+            if (tasks == null || tasks.isEmpty() || remainingOps <= 0) return;
+
+            int executed = ae2e$scheduler.executeTick(tasks, (int) remainingOps, cc, cpu, eg);
+            if (executed > 0) {
+                remOpsField.setLong(cpu, remainingOps - executed);
+                somethingChanged = true;
+                ci.cancel();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Optimized scheduler injection error: {}", e.toString());
+            ae2e$schedulerInitFailed = true;
         }
     }
 }
