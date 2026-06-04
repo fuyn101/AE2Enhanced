@@ -264,15 +264,8 @@ public class BotaniaHandler implements IRemoteHandler {
                 EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, single);
                 // 标记为中枢输入，使 revertMaterials 能区分未消耗输入与产物
                 entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
-                // pickupDelay 在 EntityItem 中为 private，需反射设置
-                // 100 < pickupDelay < 130 才能被 collideEntityItem 接受
-                try {
-                    net.minecraftforge.fml.relauncher.ReflectionHelper.setPrivateValue(
-                            EntityItem.class, entityItem, 110,
-                            "field_145804_b", "pickupDelay");
-                } catch (Exception e) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to set EntityItem pickupDelay", e);
-                }
+                // 注意：Botania TilePool.collideEntityItem 会拒绝 100 < pickupDelay < 130 的物品
+                // （视为玩家刚投掷的物品）。EntityItem 默认 pickupDelay=10，不在拒绝区间内。
                 entityItem.motionX = 0;
                 entityItem.motionY = 0;
                 entityItem.motionZ = 0;
