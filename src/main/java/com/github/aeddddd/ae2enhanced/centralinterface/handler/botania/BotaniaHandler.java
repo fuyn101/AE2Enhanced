@@ -253,6 +253,16 @@ public class BotaniaHandler implements IRemoteHandler {
 
     private boolean pushMaterialsPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
         AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool start at {}", pos);
+
+        // 清理 AABB 中已有的中枢输入标记实体，防止实体堆叠干扰 collideEntityItem
+        for (EntityItem existing : getEntityItemsInAABB(world, pos)) {
+            if (!existing.isDead && existing.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                existing.setDead();
+                AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool cleaned leftover input entity: {} at {}",
+                        existing.getItem(), pos);
+            }
+        }
+
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
@@ -261,6 +271,11 @@ public class BotaniaHandler implements IRemoteHandler {
             ItemStack remaining = stack.copy();
             while (!remaining.isEmpty()) {
                 ItemStack single = remaining.splitStack(1);
+                if (single.isEmpty()) {
+                    AE2Enhanced.LOGGER.warn("[AE2E-Botania] pushMaterialsPool: splitStack returned empty! remaining={} stack={}",
+                            remaining, stack);
+                    break;
+                }
                 EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, single);
                 // 标记为中枢输入，使 revertMaterials 能区分未消耗输入与产物
                 entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
@@ -269,13 +284,18 @@ public class BotaniaHandler implements IRemoteHandler {
                 entityItem.motionX = 0;
                 entityItem.motionY = 0;
                 entityItem.motionZ = 0;
+                world.spawnEntity(entityItem);  // 必须加入世界，否则产物不会出现在世界中
 
                 boolean consumed = pool.collideEntityItem(entityItem);
                 if (!consumed) {
-                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool failed: collideEntityItem refused {} at {} (mana={})",
-                            single, pos, pool.getCurrentMana());
-                    // mana 不足或其他原因未消耗：保留 EntityItem 在地上，
-                    // 由 revertMaterials 按 TAG_INPUT_FLAG 回收
+                    int actualPickupDelay = 10;
+                    try {
+                        actualPickupDelay = (Integer) net.minecraftforge.fml.relauncher.ReflectionHelper.getPrivateValue(
+                                EntityItem.class, entityItem, "field_145804_b", "pickupDelay");
+                    } catch (Exception ignored) {}
+                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool failed: collideEntityItem refused {} (item={} dead={} pickupDelay={}) at {} (mana={})",
+                            single, entityItem.getItem(), entityItem.isDead, actualPickupDelay, pos, pool.getCurrentMana());
+                    // entityItem 已加入世界，revertMaterials 会按 TAG_INPUT_FLAG 回收
                     return false;
                 }
                 // collideEntityItem 成功后：
