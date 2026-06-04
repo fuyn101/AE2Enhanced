@@ -214,12 +214,6 @@ public class ItemUniversalMemoryCard extends Item {
         stack.getTagCompound().setInteger(NBT_MODE, mode.ordinal());
     }
 
-    public static void cycleMode(ItemStack stack) {
-        Mode current = getMode(stack);
-        Mode next = Mode.values()[(current.ordinal() + 1) % Mode.values().length];
-        setMode(stack, next);
-    }
-
     public static boolean isUniversalMemoryCard(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof ItemUniversalMemoryCard;
     }
@@ -341,11 +335,6 @@ public class ItemUniversalMemoryCard extends Item {
                 break;
             case CLEAR_BINDINGS:
                 UMCSelectionService.handleClearBindings(player, message.getPos());
-                break;
-            case CYCLE_MODE:
-                cycleMode(stack);
-                Mode newMode = getMode(stack);
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.mode_changed", I18n.format("item.ae2enhanced.universal_memory_card.tooltip.mode." + newMode.name().toLowerCase())));
                 break;
         }
 

@@ -519,7 +519,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 origin.getX() - 2, origin.getY() - 2, origin.getZ() - 2,
                 origin.getX() + 3, origin.getY() + 3, origin.getZ() + 3
             );
-            if (AE2EnhancedConfig.blackHole.getDamageMode() != AE2EnhancedConfig.DamageMode.NONE) {
+            if (AE2EnhancedConfig.blackHole.getDamageMode() != AE2EnhancedConfig.BlackHole.DamageMode.NONE) {
                 DamageSource spacetime = new DamageSource("spacetime") {
                     @Override
                     public ITextComponent getDeathMessage(EntityLivingBase entityLivingBaseIn) {
@@ -529,7 +529,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 List<EntityLivingBase> inHorizon = world.getEntitiesWithinAABB(EntityLivingBase.class, eventHorizon);
                 for (EntityLivingBase entity : inHorizon) {
                     if (!entity.isEntityAlive()) continue;
-                    if (AE2EnhancedConfig.blackHole.getDamageMode() == AE2EnhancedConfig.DamageMode.NON_CREATIVE) {
+                    if (AE2EnhancedConfig.blackHole.getDamageMode() == AE2EnhancedConfig.BlackHole.DamageMode.NON_CREATIVE) {
                         if (entity instanceof EntityPlayer && ((EntityPlayer) entity).isCreative()) {
                             continue;
                         }

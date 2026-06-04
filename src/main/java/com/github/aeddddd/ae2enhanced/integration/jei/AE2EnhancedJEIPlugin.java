@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
@@ -52,7 +53,14 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         }
         if (ItemRegistry.GAS_DROP != null) {
             blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.GAS_DROP));
+        }
 
+        // 隐藏未完成的先进中枢平台相关物品
+        if (BlockRegistry.ADVANCED_PLATFORM_CONTROLLER != null) {
+            blacklist.addIngredientToBlacklist(new ItemStack(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER));
+        }
+        if (ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE != null) {
+            blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE));
         }
 
         // 必须将 BlackHoleRecipe 包装为 BlackHoleRecipeWrapper，与 IRecipeCategory 的泛型匹配

@@ -2,7 +2,7 @@
 
 AE2Enhanced is a late-game addon for **AE2 Unofficial Extended Life (AE2-UEL)** that introduces multiple massive multiblock structures and a series of utility items for the endgame:
 
-*Current version: 1.5.0*
+*Current version: 1.5.2*
 > New features and utility items are still under active development. A Release will be published once development is complete.
 
 [中文版本 (Chinese)](/README_zh.md)

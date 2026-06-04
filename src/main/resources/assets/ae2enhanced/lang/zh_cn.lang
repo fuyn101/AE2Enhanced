@@ -299,7 +299,6 @@ item.ae2enhanced.platform_development_license.name=平台开发许可
 message.ae2enhanced.platform.conflict=§c平台生成失败：检测到 %d 处冲突。
 
 key.ae2enhanced.rtsToggle=进入/退出 RTS 模式
-key.ae2enhanced.cycleUmcMode=切换内存卡模式
 
 item.ae2enhanced.universal_memory_card.tooltip.mode=§b▸ 模式: §f%s
 item.ae2enhanced.universal_memory_card.tooltip.mode.config_copy=配置复制

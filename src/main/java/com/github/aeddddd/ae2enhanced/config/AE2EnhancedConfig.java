@@ -44,12 +44,6 @@ public class AE2EnhancedConfig {
     })
     public static Crafting crafting = new Crafting();
 
-    @Config.Name("Client")
-    @Config.Comment({
-        "Client-side settings. Only processed on the client;",
-        "changing them on a dedicated server has no effect."
-    })
-    public static Client client = new Client();
 
     @Config.Name("WirelessChannel")
     @Config.Comment({
@@ -135,21 +129,6 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 8, max = Integer.MAX_VALUE)
         public int renderDistance = 64;
-    }
-
-    public enum DamageMode {
-        ALL,
-        NON_CREATIVE,
-        NONE
-    }
-
-    private static DamageMode parseDamageMode(String raw) {
-        if (raw == null) return DamageMode.ALL;
-        try {
-            return DamageMode.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return DamageMode.ALL;
-        }
     }
 
     public static class Crafting {
@@ -272,11 +251,21 @@ public class AE2EnhancedConfig {
         public int gcMaxAgeDays = 7;
     }
 
-    public static class Client {
-        // 客户端配置预留。键位绑定使用 Forge KeyBinding，在 ClientProxy 中注册。
-    }
-
     public static class BlackHole {
+        public enum DamageMode {
+            ALL,
+            NON_CREATIVE,
+            NONE
+        }
+
+        private static DamageMode parseDamageMode(String raw) {
+            if (raw == null) return DamageMode.ALL;
+            try {
+                return DamageMode.valueOf(raw.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return DamageMode.ALL;
+            }
+        }
         @Config.Comment({
             "Damage dealt by the Micro Singularity event horizon.",
             "  ALL          - All living entities are instantly killed, including creative-mode players.",

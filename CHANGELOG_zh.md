@@ -1,6 +1,6 @@
 # AE2Enhanced 更新日志
 
-## 1.5.2-dev
+## 1.5.2
 
 ### Feature
 
@@ -45,10 +45,18 @@
 - 频道卡
   - 自动重连支持
 
-### 
+### Improve
+
+- **中枢 ME 接口多目标回收修复**：将输入材料快照从单例 handler 迁移到每个中枢接口实例，按 `TargetBinding` 隔离，彻底修复多目标并行时产物被误判为残留输入而跳过收集的问题
+- **Botania 花药台处理重构**：自动填水、按顺序直接调用 `collideEntityItem`（非种子先、种子后），避免 AABB 扫描不确定性导致合成无法触发
+- **HEI 收藏栏 F 搜索修复**：解包 `BookmarkItem` 包装类以获取真实 `ItemStack`，修复收藏栏物品无法填入终端搜索栏的问题
+- **配置整理**：移除空的 `Client` 占位类别；将 `DamageMode` 枚举内聚到 `BlackHole` 内部
+- **JEI/HEI 隐藏**：先进中枢平台控制器与平台开发许可加入 JEI 黑名单（功能尚未完成，暂不展示）
+- **清理**：移除未使用的通用内存卡模式切换按键注册（`CYCLE_UMC_MODE_KEY`）及相关网络包/处理器代码
 
 ### Bug fix
 
+- 中枢 ME 接口多目标回收不全（`DefaultSingleBatchHandler` 单例状态覆盖）
 - ae2fc `FluidConvertingInventoryCrafting` 数组越界（MixinExtras）
 - 虚拟合成核心 `CraftingCPUCluster.getCore` 类型转换崩溃
 - 气体假物品检查隔离到 `GasFakeItemChecks`，避免可选模组缺失时 `NoClassDefFoundError`

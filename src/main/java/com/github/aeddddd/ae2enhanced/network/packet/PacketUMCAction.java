@@ -16,8 +16,7 @@ public class PacketUMCAction implements IMessage {
         COPY, PASTE, SELECT,
         CLEAR_CONFIG, CLEAR_SELECTIONS, REMOVE_SELECTION,
         OPEN_GUI,
-        BIND_SOURCE, BIND_TARGET, CLEAR_BINDINGS,
-        CYCLE_MODE
+        BIND_SOURCE, BIND_TARGET, CLEAR_BINDINGS
     }
 
     private ActionType type;

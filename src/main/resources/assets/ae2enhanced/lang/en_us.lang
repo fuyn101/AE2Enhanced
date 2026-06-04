@@ -301,7 +301,6 @@ item.ae2enhanced.platform_development_license.name=Platform Development License
 message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.
 
 key.ae2enhanced.rtsToggle=Enter/Exit RTS Mode
-key.ae2enhanced.cycleUmcMode=Cycle UMC Mode
 
 item.ae2enhanced.universal_memory_card.tooltip.mode=§b▸ Mode: §f%s
 item.ae2enhanced.universal_memory_card.tooltip.mode.config_copy=Config Copy

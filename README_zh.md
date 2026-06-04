@@ -5,7 +5,7 @@ AE2Enhanced 是 **AE2 Unofficial Extended Life (AE2-UEL)** 的终局扩展模组
 模组反馈和交流QQ群:529037440
 
 
-*当前发布版本:1.5.1*
+*当前发布版本:1.5.2*
 >目前关于修改和实用物品的添加仍处于dev开发中,当完成开发后会发布Release
 
 ## 核心物品
