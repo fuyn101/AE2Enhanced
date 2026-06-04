@@ -1,5 +1,68 @@
 # AE2Enhanced Changelog
 
+## 1.5.2
+
+### Features
+
+- **Advanced Central Platform**
+  - Controller block, generator, chunk loading, network packet system
+  - Allow players to define a selection area and bind it to the controller
+  - Six-direction independent I/O support per selection, with separate filtering for each side; supports main-network-area and subnet filtering (may be adjusted later)
+  - Specially optimized I/O processing
+  - Automatic power supply recognition for machines on the platform
+  - Per-mod power adapters supporting input-limit bypass (Ender IO, Thermal Expansion, Draconic Evolution)
+  - GUI support: main network area management, subnet creation, renaming, unbinding, deletion
+  - JEI/HEI support
+  - Per-chunk 15×15 white concrete + edge black concrete generation pattern, customizable
+  - No recipe added yet, as the feature is still being adjusted
+- **RF Access Node**
+  - New RF storage channel for the ME network; terminals display power directly
+  - Pure bridge mode with no local buffer
+  - New `ItemEnergyDrop` dummy item to prevent players from extracting RF directly
+  - Allows external input and extraction; current input limit is `int`, will be raised later
+
+### Improvements
+
+- **Terminal & Storage Performance**
+  - 500k+ item-type incremental sync: empty-bucket cleanup, pattern caching, parallelSort, client-side deferred rebuild
+  - `ItemRepo` empty-search fast path and parallel sorting
+  - Drawer-mod hash-index adapters (FSL / StorageDrawers), replacing O(N) iteration
+- **Hyperdimensional Storage Nexus**
+  - `HyperdimensionalStorageFile` refactored from NBT to custom binary format
+  - Supports millions or even tens of millions of complex-NBT items without any NBT issues
+  - Massively optimized storage, completely solving the NBT overflow problem during serialization/deserialization that plagues other infinite-storage solutions
+  - New `/ae2e testhd` stress-test command: supports specifying UUID, generating up to 100k item types at once from all registered tools/armor combined with all enchantments in random permutations, with quantities at `long` scale
+- **Assembly Hub & Remote Handlers**
+  - Cross-dimensional automatic upload: searches all loaded dimensions and filters by ME network
+  - Botania Pool/AlfPortal/TerraPlate item tossing: now uses `_ae2eInput` tag to distinguish inputs from products
+  - Botania Petal Apothecary: changed to EntityItem toss, handled by altar itself for water and items
+  - Assembly hub pattern slots added `isItemValidForSlot` validation to prevent illegal items from silently disappearing; also prevents non-pattern items from being inserted
+- **Central ME Interface**
+  - Fixed some dispatch issues
+  - Wireless channel reconnection validation
+  - Upgrade card NBT read/write alignment
+  - Supercausal structure requirement calculation fixes
+- **Channel Receiver Card**
+  - Automatic reconnection support
+
+### Improvements (continued)
+
+- **Central ME Interface multi-target collection fix**: moved input-material snapshots from the singleton handler into each Central Interface instance, keyed by `TargetBinding`. Completely fixed the issue where products were misidentified as residual inputs and skipped during multi-target parallel processing.
+- **HEI bookmark F-search fix**: unpack the `BookmarkItem` wrapper class to obtain the real `ItemStack`, fixing the issue where bookmark items could not be filled into the terminal search bar.
+- **Config cleanup**: removed empty `Client` placeholder category; moved `DamageMode` enum into `BlackHole` for better cohesion.
+- **JEI/HEI hiding**: added Advanced Platform Controller and Platform Development License to JEI blacklist (features not yet complete).
+- **Cleanup**: removed unused Universal Memory Card mode-cycling keybinding (`CYCLE_UMC_MODE_KEY`) and related network packet/handler code.
+
+### Bug Fixes
+
+- Central ME Interface multi-target incomplete collection (`DefaultSingleBatchHandler` singleton state overwrite)
+- ae2fc `FluidConvertingInventoryCrafting` array out of bounds (MixinExtras)
+- Virtual crafting core `CraftingCPUCluster.getCore` type-cast crash
+- Gas dummy-item checks isolated to `GasFakeItemChecks`, preventing `NoClassDefFoundError` when optional mods are missing
+- Build system: introduced fastutil 8.5.12
+
+---
+
 ## 1.5.1
 
 ### Architecture & Engineering

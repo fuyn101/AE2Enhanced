@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "IEI",
+    "ECE",
+    "IEI"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "E": {
+      "item": "appliedenergistics2:energy_acceptor"
+    },
+    "C": {
+      "item": "ae2enhanced:conformal_invariant_charge"
+    }
+  },
+  "result": {
+    "item": "ae2enhanced:rf_access_node",
+    "count": 2
+  }
+}
