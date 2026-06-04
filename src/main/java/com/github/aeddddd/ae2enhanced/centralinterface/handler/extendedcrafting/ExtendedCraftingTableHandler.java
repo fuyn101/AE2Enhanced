@@ -118,10 +118,15 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return false;
 
-        IRecipe recipe = findRecipeByOutput(expectedOutput, lineSize);
-        if (recipe == null) return false;
+        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
+        if (recipes.isEmpty()) return false;
 
-        return ingredientsMatch(recipe, ingredients);
+        for (IRecipe recipe : recipes) {
+            if (ingredientsMatch(recipe, ingredients)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -138,13 +143,16 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return products;
 
-        IRecipe recipe = findRecipeByOutput(expectedOutput, lineSize);
-        if (recipe == null) return products;
-
-        // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
-        for (IAEItemStack output : outputs) {
-            if (output != null) {
-                products.add(output.createItemStack());
+        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
+        for (IRecipe recipe : recipes) {
+            if (ingredientsMatch(recipe, ingredients)) {
+                // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
+                for (IAEItemStack output : outputs) {
+                    if (output != null) {
+                        products.add(output.createItemStack());
+                    }
+                }
+                return products;
             }
         }
         return products;
@@ -153,10 +161,11 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     // ---- 配方查找与匹配 ----
 
     @SuppressWarnings("unchecked")
-    private static IRecipe findRecipeByOutput(ItemStack output, int lineSize) {
+    private static List<IRecipe> findRecipesByOutput(ItemStack output, int lineSize) {
+        List<IRecipe> matches = new ArrayList<>();
         try {
             List<IRecipe> recipes = (List<IRecipe>) METHOD_GET_RECIPES.invoke(RECIPE_MANAGER_INSTANCE);
-            if (recipes == null) return null;
+            if (recipes == null) return matches;
 
             int gridTier = getTierFromGridSize(lineSize * lineSize);
 
@@ -165,13 +174,13 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
                 if (tier > 0 && tier != gridTier) continue;
 
                 if (outputsMatch(recipe.getRecipeOutput(), output)) {
-                    return recipe;
+                    matches.add(recipe);
                 }
             }
         } catch (Exception e) {
             // ignore
         }
-        return null;
+        return matches;
     }
 
     private static int getRecipeTier(IRecipe recipe) {
@@ -222,8 +231,8 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             }
         }
 
-        // 数量必须一致
-        if (required.size() != available.size()) return false;
+        // 输入物品数必须不少于配方需求数（AE2 提取时可能带入了网络中的多余物品）
+        if (available.size() < required.size()) return false;
 
         // 贪心匹配
         for (Ingredient ing : required) {
