@@ -32,6 +32,10 @@ public class EssentiaDescriptor implements Descriptor {
                 result = aeTemplate;
                 if (result == null) {
                     thaumicenergistics.api.EssentiaStack stack = new thaumicenergistics.api.EssentiaStack(aspectTag, 1);
+                    // 防御性检查：aspectTag 对应的 Aspect 可能已被移除或不存在
+                    if (stack.getAspect() == null) {
+                        return null;
+                    }
                     result = aeTemplate = thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(stack);
                 }
             }
