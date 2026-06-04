@@ -26,7 +26,17 @@ public class MixinGuiMEMonitorableKeyHandler {
     private void ae2enhanced$onKeyTyped(char character, int key, CallbackInfo ci) {
         if (key == Keyboard.KEY_F) {
             GuiMEMonitorable gui = (GuiMEMonitorable) (Object) this;
-            JEISearchKeyHandler.performSearch(gui);
+            int mouseX = 0, mouseY = 0;
+            try {
+                java.lang.reflect.Field fmx = GuiMEMonitorable.class.getDeclaredField("currentMouseX");
+                fmx.setAccessible(true);
+                mouseX = fmx.getInt(gui);
+                java.lang.reflect.Field fmy = GuiMEMonitorable.class.getDeclaredField("currentMouseY");
+                fmy.setAccessible(true);
+                mouseY = fmy.getInt(gui);
+            } catch (Exception ignored) {
+            }
+            JEISearchKeyHandler.performSearch(gui, mouseX, mouseY);
             ci.cancel();
         }
     }
