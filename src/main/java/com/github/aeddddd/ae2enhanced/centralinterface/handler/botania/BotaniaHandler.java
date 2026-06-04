@@ -146,7 +146,7 @@ public class BotaniaHandler implements IRemoteHandler {
         if (te instanceof TileRuneAltar) {
             result = collectProductsRuneAltar(world, pos, expectedOutputs);
         } else if (te instanceof TileAltar) {
-            result = collectMatchingEntityItems(world, pos, expectedOutputs);
+            result = collectProductsAltar(world, pos);
         } else {
             result = collectMatchingEntityItems(world, pos, expectedOutputs);
         }
@@ -180,7 +180,7 @@ public class BotaniaHandler implements IRemoteHandler {
                     if (!stack.isEmpty()) result.add(stack);
                 }
             }
-            // 同时回收 AABB 内尚未被 collideEntityItem 消耗的输入 EntityItem
+            // 兜底：回收 AABB 内可能残留的输入 EntityItem（正常不应存在）
             for (EntityItem item : getEntityItemsInAABB(world, pos)) {
                 if (!item.isDead && !item.getItem().isEmpty() && item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
                     result.add(item.getItem().copy());
@@ -531,46 +531,114 @@ public class BotaniaHandler implements IRemoteHandler {
 
     // ==================== Petal Apothecary (Altar) ====================
 
+    /** Botania 内部用于识别种子的正则，与 TileAltar.SEED_PATTERN 一致 */
+    private static final java.util.regex.Pattern SEED_PATTERN = java.util.regex.Pattern.compile(
+            "(?:(?:(?:[A-Z-_.:]|^)seed)|(?:(?:[a-z-_.:]|^)Seed))(?:[sA-Z-_.:]|$)"
+    );
+
+    private boolean isSeed(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        // 与 TileAltar.collideEntityItem 一致，使用 ItemStack.getTranslationKey() (func_77977_a)
+        String unlocalizedName = stack.getTranslationKey();
+        return SEED_PATTERN.matcher(unlocalizedName).find();
+    }
+
     private boolean canStartAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
-        // 不预置水/空状态；水、种子、花瓣等统一作为样板输入通过 EntityItem 推入，
-        // 由 altar 自身的 collideEntityItem 处理。
+        // 类似符文祭坛的严格前置检查
+        if (!altar.isEmpty()) return false;
+        if (altar.hasLava()) return false;
         return findMatchingRecipe(ingredients) != null;
     }
 
     private boolean pushMaterialsAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
+        // 自动填水：花药台合成必须有水，handler 自动保证
+        if (!altar.hasWater()) {
+            altar.setWater(true);
+            world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+        }
+
+        // 收集并分类材料：种子 vs 非种子
+        List<ItemStack> nonSeeds = new ArrayList<>();
+        ItemStack seedStack = ItemStack.EMPTY;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
-            EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, stack.copy());
+            if (isSeed(stack)) {
+                if (seedStack.isEmpty()) {
+                    seedStack = stack.copy();
+                } else {
+                    seedStack.grow(stack.getCount());
+                }
+            } else {
+                nonSeeds.add(stack.copy());
+            }
+        }
+
+        // 先推非种子材料（花瓣等），放入 itemHandler
+        for (ItemStack stack : nonSeeds) {
+            if (!pushItemToAltar(world, pos, altar, stack)) {
+                return false;
+            }
+        }
+
+        // 最后推种子，触发 collideEntityItem 中的配方匹配与合成
+        // Botania 只需要 1 个种子作为触发剂
+        if (!seedStack.isEmpty()) {
+            ItemStack singleSeed = seedStack.copy();
+            singleSeed.setCount(1);
+            if (!pushItemToAltar(world, pos, altar, singleSeed)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 将物品作为 EntityItem 直接送入花药台的 collideEntityItem。
+     * 这样可精确控制处理顺序（非种子先、种子后），避免 AABB 扫描的不确定性。
+     */
+    private boolean pushItemToAltar(World world, BlockPos pos, TileAltar altar, ItemStack stack) {
+        while (!stack.isEmpty()) {
+            ItemStack single = stack.splitStack(1);
+            EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, single);
             entityItem.setNoPickupDelay();
             entityItem.motionX = 0;
             entityItem.motionY = 0;
             entityItem.motionZ = 0;
             entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
-            world.spawnEntity(entityItem);
+
+            boolean consumed = altar.collideEntityItem(entityItem);
+            if (!consumed) {
+                entityItem.setDead();
+                return false;
+            }
+            // collideEntityItem 成功：非种子已放入 itemHandler，或种子已触发合成
+            // 若 stack 仍有残留（理论上不应发生），也视为异常
+            if (!entityItem.getItem().isEmpty()) {
+                entityItem.setDead();
+                return false;
+            }
+            entityItem.setDead();
         }
         return true;
     }
 
     private boolean startProcessAltar(World world, BlockPos pos, TileAltar altar) {
-        // 花药台通过 update() 自动扫描 AABB 内 EntityItem 并调用 collideEntityItem。
-        // collideEntityItem 会：
-        //   - 消耗水瓶/水桶并设置 hasWater()
-        //   - 把花瓣/种子放入 itemHandler
-        // 随后 update() 匹配 RecipePetals，成功后自动生成产物 EntityItem。
-        // 因此无需外部手动触发合成。
+        // 花药台通过 collideEntityItem 自动触发合成，无需外部手动激活。
+        // pushMaterialsAltar 中已按顺序调用 collideEntityItem，合成已即时完成。
         return true;
     }
 
     private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar) {
-        // 只把不带 _ae2eInput 的 EntityItem 视为产物；
-        // 带标记的是尚未被 collideEntityItem 消耗的输入。
+        // pushMaterialsAltar 已直接调用 collideEntityItem 并将输入 EntityItem setDead，
+        // 因此 AABB 中只会留下 Botania 生成的产物 EntityItem（标记为 ApothecarySpawned）。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            if (!item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
-                return true;
-            }
+            // 跳过尚未处理的输入（兜底，理论上不应存在）
+            if (item.getEntityData().getBoolean(TAG_INPUT_FLAG)) continue;
+            return true;
         }
         return false;
     }
@@ -603,6 +671,25 @@ public class BotaniaHandler implements IRemoteHandler {
     private List<EntityItem> getEntityItemsInAABB(World world, BlockPos pos) {
         return world.getEntitiesWithinAABB(EntityItem.class,
                 new AxisAlignedBB(pos, pos.add(1, 2, 1)));
+    }
+
+    /**
+     * 收集花药台 AABB 内的所有产物 EntityItem。
+     * pushMaterialsAltar 已直接调用 collideEntityItem 并清理输入 EntityItem，
+     * 因此 AABB 中遗留的 EntityItem 均可视为产物。
+     */
+    private List<ItemStack> collectProductsAltar(World world, BlockPos pos) {
+        List<EntityItem> items = getEntityItemsInAABB(world, pos);
+        List<ItemStack> collected = new ArrayList<>();
+        for (EntityItem entityItem : new ArrayList<>(items)) {
+            if (entityItem.isDead) continue;
+            if (entityItem.getEntityData().getBoolean(TAG_INPUT_FLAG)) continue;
+            ItemStack stack = entityItem.getItem();
+            if (stack.isEmpty()) continue;
+            collected.add(stack.copy());
+            entityItem.setDead();
+        }
+        return collected;
     }
 
     private List<ItemStack> collectMatchingEntityItems(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
