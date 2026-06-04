@@ -41,14 +41,15 @@ public class JEISearchKeyHandler {
      * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏。
      * 由 GuiOmniTerm.keyTyped() 和 MixinGuiMEMonitorableKeyHandler 调用。
      */
-    public static void performSearch(GuiMEMonitorable gui) {
-        performSearch(gui, 0, 0);
+    public static boolean performSearch(GuiMEMonitorable gui) {
+        return performSearch(gui, 0, 0);
     }
 
     /**
      * 执行 JEI 搜索，携带鼠标 GUI 坐标以支持 fallback 检测（HEI 收藏栏等）。
+     * @return true 表示成功设置了搜索文本并应拦截原按键事件；false 表示未执行搜索
      */
-    public static void performSearch(GuiMEMonitorable gui, int mouseX, int mouseY) {
+    public static boolean performSearch(GuiMEMonitorable gui, int mouseX, int mouseY) {
         MEGuiTextField searchField;
         try {
             Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
@@ -56,15 +57,15 @@ public class JEISearchKeyHandler {
             searchField = (MEGuiTextField) searchFieldField.get(gui);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.debug("[AE2E] Failed to get searchField via reflection", e);
-            return;
+            return false;
         }
-        if (searchField == null) return;
-        if (searchField.isFocused()) return; // 搜索栏已聚焦时不触发，避免打断输入
+        if (searchField == null) return false;
+        if (searchField.isFocused()) return false; // 搜索栏已聚焦时不触发，避免打断输入
 
         // 获取 JEI 悬停物品：先查物品列表，再查收藏栏
         if (jeiRuntime == null) {
             AE2Enhanced.LOGGER.debug("[AE2E] JEI runtime is null, skipping search");
-            return;
+            return false;
         }
         Object ingredient = null;
 
@@ -104,11 +105,11 @@ public class JEISearchKeyHandler {
         }
         if (ingredient == null) {
             AE2Enhanced.LOGGER.debug("[AE2E] No JEI ingredient found under mouse at ({}, {})", mouseX, mouseY);
-            return;
+            return false;
         }
 
         String searchText = extractSearchText(ingredient);
-        if (searchText == null || searchText.isEmpty()) return;
+        if (searchText == null || searchText.isEmpty()) return false;
 
         // 设置搜索栏文本并立即刷新 repo
         try {
@@ -135,7 +136,9 @@ public class JEISearchKeyHandler {
             AE2Enhanced.LOGGER.debug("[AE2E] JEI search key pressed: set terminal search to '{}'", searchText);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to set terminal search text from JEI hover", e);
+            return false;
         }
+        return true;
     }
 
     private static String extractSearchText(Object ingredient) {

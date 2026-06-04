@@ -36,8 +36,9 @@ public class MixinGuiMEMonitorableKeyHandler {
                 mouseY = fmy.getInt(gui);
             } catch (Exception ignored) {
             }
-            JEISearchKeyHandler.performSearch(gui, mouseX, mouseY);
-            ci.cancel();
+            if (JEISearchKeyHandler.performSearch(gui, mouseX, mouseY)) {
+                ci.cancel();
+            }
         }
     }
 }
