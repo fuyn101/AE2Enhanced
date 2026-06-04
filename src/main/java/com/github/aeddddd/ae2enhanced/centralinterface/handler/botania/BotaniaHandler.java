@@ -267,9 +267,9 @@ public class BotaniaHandler implements IRemoteHandler {
                 // pickupDelay 在 EntityItem 中为 private，需反射设置
                 // 100 < pickupDelay < 130 才能被 collideEntityItem 接受
                 try {
-                    java.lang.reflect.Field f = EntityItem.class.getDeclaredField("pickupDelay");
-                    f.setAccessible(true);
-                    f.setInt(entityItem, 110);
+                    net.minecraftforge.fml.relauncher.ReflectionHelper.setPrivateValue(
+                            EntityItem.class, entityItem, 110,
+                            "field_145804_b", "pickupDelay");
                 } catch (Exception e) {
                     AE2Enhanced.LOGGER.warn("[AE2E] Failed to set EntityItem pickupDelay", e);
                 }
