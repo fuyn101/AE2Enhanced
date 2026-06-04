@@ -161,6 +161,7 @@ public class BotaniaHandler implements IRemoteHandler {
         String k = key(world, pos);
         pushStates.remove(k);
         TileEntity te = world.getTileEntity(pos);
+        AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials at {} te={}", pos, te != null ? te.getClass().getSimpleName() : "null");
         if (te instanceof TileRuneAltar) {
             List<ItemStack> result = new ArrayList<>();
             IItemHandler handler = ((TileRuneAltar) te).getItemHandler();
@@ -170,6 +171,7 @@ public class BotaniaHandler implements IRemoteHandler {
                     if (!stack.isEmpty()) result.add(stack);
                 }
             }
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials RuneAltar: {} items at {}", result.size(), pos);
             return result;
         } else if (te instanceof TileAltar) {
             List<ItemStack> result = new ArrayList<>();
@@ -187,17 +189,22 @@ public class BotaniaHandler implements IRemoteHandler {
                     item.setDead();
                 }
             }
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials Altar: {} items at {}", result.size(), pos);
             return result;
         }
         // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备，
         // 只回收带 TAG_INPUT_FLAG 标记的未消耗输入，不回收产物
         List<ItemStack> fallback = new ArrayList<>();
         for (EntityItem item : getEntityItemsInAABB(world, pos)) {
-            if (!item.isDead && !item.getItem().isEmpty() && item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+            boolean isInput = item.getEntityData().getBoolean(TAG_INPUT_FLAG);
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials scan at {}: {} inputFlag={} dead={}",
+                    pos, item.getItem(), isInput, item.isDead);
+            if (!item.isDead && !item.getItem().isEmpty() && isInput) {
                 fallback.add(item.getItem().copy());
                 item.setDead();
             }
         }
+        AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials Pool/Portal/Terra: {} items at {}", fallback.size(), pos);
         return fallback;
     }
 
@@ -222,16 +229,30 @@ public class BotaniaHandler implements IRemoteHandler {
     // ==================== Pool ====================
 
     private boolean canStartPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
+        int totalManaNeeded = 0;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
             RecipeManaInfusion recipe = TilePool.getMatchingRecipe(stack, world.getBlockState(pos.down()));
-            if (recipe == null) return false;
+            if (recipe == null) {
+                AE2Enhanced.LOGGER.debug("[AE2E-Botania] canStartPool failed: no recipe for {} at {}", stack, pos);
+                return false;
+            }
+            totalManaNeeded += recipe.getManaToConsume() * stack.getCount();
         }
-        return true;
+        boolean manaOk = pool.getCurrentMana() >= totalManaNeeded;
+        if (!manaOk) {
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] canStartPool failed: need {} mana, pool has {} at {}",
+                    totalManaNeeded, pool.getCurrentMana(), pos);
+        } else {
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] canStartPool ok: need {} mana, pool has {} at {}",
+                    totalManaNeeded, pool.getCurrentMana(), pos);
+        }
+        return manaOk;
     }
 
     private boolean pushMaterialsPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
+        AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool start at {}", pos);
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
@@ -258,18 +279,27 @@ public class BotaniaHandler implements IRemoteHandler {
 
                 boolean consumed = pool.collideEntityItem(entityItem);
                 if (!consumed) {
+                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool failed: collideEntityItem refused {} at {} (mana={})",
+                            single, pos, pool.getCurrentMana());
                     // mana 不足或其他原因未消耗：保留 EntityItem 在地上，
                     // 由 revertMaterials 按 TAG_INPUT_FLAG 回收
                     return false;
                 }
-                // collideEntityItem 成功时如果 stack 被消耗完，entityItem.getItem() 为空
+                // collideEntityItem 成功后：
+                // - 无产物配方：entityItem.getItem() 为空，entityItem 已被 Botania setDead
+                // - 有产物配方：entityItem.getItem() 变为产物（Botania setItem），需移除 TAG_INPUT_FLAG
+                //   让 isIdle / collectProducts 正常识别为产物
                 if (!entityItem.getItem().isEmpty()) {
-                    // 异常情况，未完全消耗：保留在地上待回收
-                    return false;
+                    ItemStack product = entityItem.getItem();
+                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool product spawned: {} -> {} at {}",
+                            single, product, pos);
+                    entityItem.getEntityData().removeTag(TAG_INPUT_FLAG);
+                } else {
+                    entityItem.setDead();
                 }
-                entityItem.setDead();
             }
         }
+        AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool success at {}", pos);
         return true;
     }
 
@@ -277,13 +307,22 @@ public class BotaniaHandler implements IRemoteHandler {
         // 只把不带 TAG_INPUT_FLAG 的 EntityItem 视为产物；
         // 带标记的是未消耗的输入，不应视为产物
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
+        boolean hasProduct = false;
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            if (!item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
-                return true;
+            boolean isInput = item.getEntityData().getBoolean(TAG_INPUT_FLAG);
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool scan at {}: {} inputFlag={} dead={}",
+                    pos, item.getItem(), isInput, item.isDead);
+            if (!isInput) {
+                hasProduct = true;
             }
         }
-        return false;
+        if (hasProduct) {
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool -> true (product found) at {}", pos);
+        } else {
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool -> false (no product) at {}", pos);
+        }
+        return hasProduct;
     }
 
     // ==================== Alf Portal ====================
@@ -696,6 +735,7 @@ public class BotaniaHandler implements IRemoteHandler {
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         List<ItemStack> collected = new ArrayList<>();
         if (expectedOutputs == null || expectedOutputs.length == 0) {
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] collectMatchingEntityItems: no expectedOutputs at {}", pos);
             return collected;
         }
 
@@ -706,6 +746,7 @@ public class BotaniaHandler implements IRemoteHandler {
             ItemStack stack = entityItem.getItem();
             if (stack.isEmpty()) continue;
 
+            boolean matched = false;
             for (IAEItemStack expected : expectedOutputs) {
                 if (expected == null) continue;
                 ItemStack expectedStack = expected.createItemStack();
@@ -718,10 +759,17 @@ public class BotaniaHandler implements IRemoteHandler {
                         ItemStack taken = stack.splitStack(toCollect);
                         collected.add(taken);
                     }
+                    matched = true;
+                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] collectMatchingEntityItems matched: {} -> collect {} at {}",
+                            stack, toCollect, pos);
                     break;
                 }
             }
+            if (!matched) {
+                AE2Enhanced.LOGGER.debug("[AE2E-Botania] collectMatchingEntityItems unmatched: {} at {}", stack, pos);
+            }
         }
+        AE2Enhanced.LOGGER.debug("[AE2E-Botania] collectMatchingEntityItems result: {} items at {}", collected.size(), pos);
         return collected;
     }
 
