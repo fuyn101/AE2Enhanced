@@ -78,6 +78,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
     // 记录每个 PROCESSING 目标的推料开始时间，用于超时保护防止状态无限卡住
     private final Map<TargetBinding, Long> processingStartTimes = new HashMap<>();
+    // 记录每个 PROCESSING 目标的输入材料快照（用于 handler 区分产物与残留输入）
+    // 按 TargetBinding 隔离，避免多接口共享单例 handler 时的状态覆盖
+    private final Map<TargetBinding, List<ItemStack>> targetInputs = new HashMap<>();
     // 虚拟合成产物暂存队列（等待 waitingFor 注册后再注入网络）
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
@@ -98,6 +101,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingTargets.clear();
         this.pendingOutputs.clear();
         this.processingStartTimes.clear();
+        this.targetInputs.clear();
 
         this.config = new AppEngInternalAEInventory(this, NUMBER_OF_CONFIG_SLOTS, 512);
         this.patterns = new AppEngInternalInventory(this, NUMBER_OF_PATTERN_SLOTS, 1) {
@@ -274,6 +278,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             this.pendingOutputs.put(target, outputs);
         }
 
+        // 保存输入材料快照（在 pushFluidInputs 后 table 中已移除流体，剩余为物品材料）
+        List<ItemStack> inputSnapshot = new ArrayList<>();
+        for (int i = 0; i < table.getSizeInventory(); i++) {
+            ItemStack stack = table.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                inputSnapshot.add(stack.copy());
+            }
+        }
+        this.targetInputs.put(target, inputSnapshot);
+
         this.targetStates.put(target, TargetState.PROCESSING);
         this.processingTargets.add(target);
         this.processingStartTimes.put(target, world.getTotalWorldTime());
@@ -386,17 +400,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 this.targetStates.put(target, TargetState.IDLE);
                 this.pendingOutputs.remove(target);
                 this.processingStartTimes.remove(target);
+                this.targetInputs.remove(target);
                 it.remove();
                 continue;
             }
-            if (!handler.isIdle(world, target.pos)) {
+            List<ItemStack> inputs = this.targetInputs.get(target);
+            if (!handler.isIdle(world, target.pos, inputs)) {
                 // 对于需要条件启动的设备（如符文祭坛），在 tick 中尝试启动
                 handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
                 continue;
             }
 
             IAEItemStack[] expected = this.pendingOutputs.get(target);
-            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, new appeng.me.helpers.MachineSource(this.host));
+            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, inputs, new appeng.me.helpers.MachineSource(this.host));
 
             // 收集流体产物
             List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, expected);
@@ -408,6 +424,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 if (injectItemsToNetwork(proxy, world, products)) {
                     this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
+                    this.processingStartTimes.remove(target);
+                    this.targetInputs.remove(target);
                     it.remove();
                     didWork = true;
                 } else {
@@ -423,7 +441,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
                 if (elapsed > 600) {
                     // 超时：尝试兜底收集遗留产物，避免刷物品
-                    List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), new appeng.me.helpers.MachineSource(this.host));
+                    List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), inputs, new appeng.me.helpers.MachineSource(this.host));
                     List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, this.pendingOutputs.get(target));
                     if (!leftoverFluids.isEmpty()) {
                         leftover.addAll(leftoverFluids);
@@ -434,6 +452,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
                     this.processingStartTimes.remove(target);
+                    this.targetInputs.remove(target);
                     it.remove();
                 }
                 // 未超时：继续等待，不移除 processingTargets
@@ -744,6 +763,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingTargets.remove(binding);
         this.pendingOutputs.remove(binding);
         this.processingStartTimes.remove(binding);
+        this.targetInputs.remove(binding);
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
         }
@@ -756,6 +776,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingTargets.clear();
         this.pendingOutputs.clear();
         this.processingStartTimes.clear();
+        this.targetInputs.clear();
         this.boundBlockId = null;
         postPatternChangeEvent();
     }

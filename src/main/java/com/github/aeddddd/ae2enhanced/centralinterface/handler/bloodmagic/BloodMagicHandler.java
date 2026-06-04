@@ -85,7 +85,7 @@ public class BloodMagicHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileAlchemyTable) {
             return collectProductsAlchemyTable((TileAlchemyTable) te);
@@ -98,7 +98,7 @@ public class BloodMagicHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileAlchemyTable) {
             return ((TileAlchemyTable) te).getBurnTime() == 0;

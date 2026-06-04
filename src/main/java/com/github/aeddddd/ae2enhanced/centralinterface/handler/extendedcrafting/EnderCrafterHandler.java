@@ -188,7 +188,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
         initBaseReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -222,7 +222,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean isIdle(World world, BlockPos pos) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
         initBaseReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;

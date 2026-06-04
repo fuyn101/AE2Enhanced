@@ -90,10 +90,11 @@ public interface IRemoteHandler {
      * @param world           世界实例
      * @param pos             方块位置
      * @param expectedOutputs 配方预期产物列表，handler 应优先收集匹配物品
+     * @param inputs          该目标本次合成推送的输入材料快照（用于区分产物与残留输入）
      * @param source          AE 动作源
      * @return 实际收集到的物品列表；若无产物则返回空列表（非 null）
      */
-    List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source);
+    List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source);
 
     /**
      * 判断目标是否处于空闲 / 处理完成状态。
@@ -101,11 +102,12 @@ public interface IRemoteHandler {
      * <p>当此方法返回 {@code true} 时，{@link DualityCentralInterface}
      * 会调用 {@link #collectProducts} 尝试收集产物。</p>
      *
-     * @param world 世界实例
-     * @param pos   方块位置
+     * @param world  世界实例
+     * @param pos    方块位置
+     * @param inputs 该目标本次合成推送的输入材料快照（用于区分产物与残留输入）
      * @return true 表示目标已完成处理，可以收集产物
      */
-    boolean isIdle(World world, BlockPos pos);
+    boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs);
 
     /**
      * 当 {@code pushMaterials} 成功但 {@code startProcess} 失败时，

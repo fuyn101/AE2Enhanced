@@ -284,7 +284,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ALTAR.isInstance(te)) return false;
@@ -292,7 +292,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
 
