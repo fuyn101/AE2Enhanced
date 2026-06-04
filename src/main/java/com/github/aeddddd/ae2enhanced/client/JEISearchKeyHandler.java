@@ -140,21 +140,46 @@ public class JEISearchKeyHandler {
 
     private static String extractSearchText(Object ingredient) {
         String raw = null;
-        if (ingredient instanceof ItemStack) {
-            raw = ((ItemStack) ingredient).getDisplayName();
-        } else if (ingredient instanceof net.minecraftforge.fluids.FluidStack) {
-            raw = ((net.minecraftforge.fluids.FluidStack) ingredient).getLocalizedName();
+
+        // HEI 收藏栏返回的是 BookmarkItem 包装类，需要先解包出内部 ingredient
+        Object actual = unwrapBookmarkItem(ingredient);
+
+        if (actual instanceof ItemStack) {
+            raw = ((ItemStack) actual).getDisplayName();
+        } else if (actual instanceof net.minecraftforge.fluids.FluidStack) {
+            raw = ((net.minecraftforge.fluids.FluidStack) actual).getLocalizedName();
         } else {
             // 对未知类型尝试通用 getDisplayName
             try {
-                java.lang.reflect.Method m = ingredient.getClass().getMethod("getDisplayName");
-                Object result = m.invoke(ingredient);
+                java.lang.reflect.Method m = actual.getClass().getMethod("getDisplayName");
+                Object result = m.invoke(actual);
                 if (result instanceof String) raw = (String) result;
             } catch (Exception ignored) {
             }
         }
-        if (raw == null) return null;
+        if (raw == null) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Could not extract search text from ingredient type: {}",
+                    ingredient != null ? ingredient.getClass().getName() : "null");
+            return null;
+        }
         // 去除 Minecraft 颜色代码（§[0-9a-fk-or]）
         return TextFormatting.getTextWithoutFormattingCodes(raw);
+    }
+
+    /**
+     * 解包 HEI 的 BookmarkItem 包装类。HEI 收藏栏的 getIngredientUnderMouse()
+     * 返回的是 mezz.jei.bookmarks.BookmarkItem，其内部 ingredient 字段才是真正的 ItemStack。
+     */
+    private static Object unwrapBookmarkItem(Object ingredient) {
+        if (ingredient == null) return null;
+        if ("mezz.jei.bookmarks.BookmarkItem".equals(ingredient.getClass().getName())) {
+            try {
+                java.lang.reflect.Field field = ingredient.getClass().getField("ingredient");
+                return field.get(ingredient);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Failed to unwrap BookmarkItem", e);
+            }
+        }
+        return ingredient;
     }
 }
