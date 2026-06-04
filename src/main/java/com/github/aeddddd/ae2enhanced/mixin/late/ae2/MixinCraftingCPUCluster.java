@@ -15,6 +15,7 @@ import appeng.tile.crafting.TileCraftingTile;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.crafting.scheduler.OptimizedScheduler;
 import com.github.aeddddd.ae2enhanced.crafting.scheduler.PatternDepthRegistry;
+import com.github.aeddddd.ae2enhanced.crafting.scheduler.PlanAmplifiedPattern;
 import com.github.aeddddd.ae2enhanced.crafting.scheduler.TaskProgressAccessor;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
@@ -22,6 +23,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileAssemblyMeInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
@@ -654,6 +656,52 @@ public class MixinCraftingCPUCluster {
                 batchFailCount++;
 
             }
+        }
+    }
+
+    // ==================== v2.0 Recipe Amplification Persistence Guard ====================
+
+    /**
+     * Before NBT serialization, normalize any PlanAmplifiedPattern keys back to
+     * their original ICraftingPatternDetails and multiply TaskProgress.value.
+     * This ensures save/load compatibility and correct remaining batch counts.
+     */
+    @Inject(method = "writeToNBT", at = @At("HEAD"), remap = false)
+    private void ae2e$normalizeAmplifiedPatterns(NBTTagCompound data, CallbackInfo ci) {
+        if (reflectionFailed || tasksField == null || taskProgressValueField == null) return;
+        try {
+            if (!reflectionReady) tryInitReflection();
+            if (!reflectionReady) return;
+
+            CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
+            @SuppressWarnings("unchecked")
+            java.util.Map<ICraftingPatternDetails, Object> tasks =
+                (java.util.Map<ICraftingPatternDetails, Object>) tasksField.get(cpu);
+            if (tasks == null || tasks.isEmpty()) return;
+
+            java.util.Iterator<java.util.Map.Entry<ICraftingPatternDetails, Object>> it = tasks.entrySet().iterator();
+            while (it.hasNext()) {
+                java.util.Map.Entry<ICraftingPatternDetails, Object> e = it.next();
+                if (e.getKey() instanceof PlanAmplifiedPattern) {
+                    PlanAmplifiedPattern amp = (PlanAmplifiedPattern) e.getKey();
+                    ICraftingPatternDetails original = amp.getOriginal();
+                    long value = taskProgressValueField.getLong(e.getValue());
+                    long newValue = value * amp.getAmplification();
+
+                    it.remove();
+
+                    Object existing = tasks.get(original);
+                    if (existing != null) {
+                        long existingValue = taskProgressValueField.getLong(existing);
+                        taskProgressValueField.setLong(existing, existingValue + newValue);
+                    } else {
+                        taskProgressValueField.setLong(e.getValue(), newValue);
+                        tasks.put(original, e.getValue());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] writeToNBT normalization error: {}", e.toString());
         }
     }
 

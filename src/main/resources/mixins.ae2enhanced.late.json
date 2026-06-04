@@ -12,6 +12,7 @@
     "ae2.MixinContainerCraftConfirm",
     "ae2.MixinCraftingCPUCluster",
     "ae2.MixinCraftingJob",
+    "ae2.MixinCraftingTreeNode",
     "ae2.MixinDualityInterface",
     "ae2.MixinCraftingGridCache",
     "ae2.MixinCreativeCellInventory",
