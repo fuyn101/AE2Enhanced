@@ -296,7 +296,10 @@ public class BotaniaHandler implements IRemoteHandler {
                         entityItem.getItem(), System.identityHashCode(entityItem));
 
                 boolean consumed = pool.collideEntityItem(entityItem);
-                if (!consumed) {
+                // WORKAROUND: 某些整合包中 collideEntityItem 执行了成功路径（shrink+spawn产物）
+                // 但返回值被某个未知模组篡改为 false。以 entityItem.item 是否被 shrink 空作为成功判据。
+                boolean actuallyConsumed = consumed || entityItem.getItem().isEmpty();
+                if (!actuallyConsumed) {
                     int actualPickupDelay = 10;
                     try {
                         actualPickupDelay = (Integer) net.minecraftforge.fml.relauncher.ReflectionHelper.getPrivateValue(
@@ -311,12 +314,12 @@ public class BotaniaHandler implements IRemoteHandler {
                     return false;
                 }
                 // collideEntityItem 成功后：
-                // - 无产物配方：entityItem.getItem() 为空，entityItem 已被 Botania setDead
-                // - 有产物配方：entityItem.getItem() 变为产物（Botania setItem），需移除 TAG_INPUT_FLAG
-                //   让 isIdle / collectProducts 正常识别为产物
+                // Botania 标准行为：原 EntityItem 的 item 被 shrink(1) 清空，产物 spawn 到新 EntityItem
+                // 因此原 entityItem.getItem() 必然为空。直接 setDead 清理即可。
                 if (!entityItem.getItem().isEmpty()) {
+                    // 防御性处理：如果某个魔改版本把产物塞回了原 EntityItem
                     ItemStack product = entityItem.getItem();
-                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool product spawned: {} -> {} at {}",
+                    AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool product kept in original entity: {} -> {} at {}",
                             single, product, pos);
                     entityItem.getEntityData().removeTag(TAG_INPUT_FLAG);
                 } else {
