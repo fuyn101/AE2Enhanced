@@ -7,6 +7,7 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.CapabilityItemHandler;
+import appeng.api.implementations.ICraftingPatternItem;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -44,7 +45,12 @@ public class ContainerAssemblyPattern extends Container {
             int row = i / 16;
             int col = i % 16;
             this.addSlotToContainer(new Slot(patternInv, i,
-                PATTERN_X + col * 20, PATTERN_Y + row * 20));
+                PATTERN_X + col * 20, PATTERN_Y + row * 20) {
+                @Override
+                public boolean isItemValid(ItemStack stack) {
+                    return !stack.isEmpty() && stack.getItem() instanceof ICraftingPatternItem;
+                }
+            });
         }
 
         // 玩家背包 3行×9列
@@ -86,8 +92,12 @@ public class ContainerAssemblyPattern extends Container {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // 从玩家背包移到样板槽
-                if (!this.mergeItemStack(itemstack1, 0, patternEnd, false)) {
+                // 从玩家背包移到样板槽：显式过滤，只允许样板物品
+                if (!itemstack1.isEmpty() && itemstack1.getItem() instanceof ICraftingPatternItem) {
+                    if (!this.mergeItemStack(itemstack1, 0, patternEnd, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else {
                     return ItemStack.EMPTY;
                 }
             }
