@@ -265,15 +265,22 @@ public class BotaniaHandler implements IRemoteHandler {
 
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool slot {}: stack=[count={}, item={}, class={}, hash={}, empty={}]",
+                    i, stack.getCount(), stack.getItem(), stack.getClass().getName(), System.identityHashCode(stack), stack.isEmpty());
             if (stack.isEmpty()) continue;
 
             // 每次只推送 1 个，collideEntityItem 每次消耗 1 个
             ItemStack remaining = stack.copy();
+            AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool slot {}: remaining copy=[count={}, item={}, hash={}, empty={}]",
+                    i, remaining.getCount(), remaining.getItem(), System.identityHashCode(remaining), remaining.isEmpty());
             while (!remaining.isEmpty()) {
+                int countBefore = remaining.getCount();
                 ItemStack single = remaining.splitStack(1);
+                AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool slot {} split: beforeCount={}, afterCount={}, single=[count={}, item={}, hash={}, empty={}]",
+                        i, countBefore, remaining.getCount(), single.getCount(), single.getItem(), System.identityHashCode(single), single.isEmpty());
                 if (single.isEmpty()) {
-                    AE2Enhanced.LOGGER.warn("[AE2E-Botania] pushMaterialsPool: splitStack returned empty! remaining={} stack={}",
-                            remaining, stack);
+                    AE2Enhanced.LOGGER.warn("[AE2E-Botania] pushMaterialsPool: splitStack returned empty! Aborting slot. remainingCount={}, remainingItem={}",
+                            remaining.getCount(), remaining.getItem());
                     break;
                 }
                 EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, single);
@@ -285,6 +292,8 @@ public class BotaniaHandler implements IRemoteHandler {
                 entityItem.motionY = 0;
                 entityItem.motionZ = 0;
                 world.spawnEntity(entityItem);  // 必须加入世界，否则产物不会出现在世界中
+                AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool spawned entityItem: item={} hash={}",
+                        entityItem.getItem(), System.identityHashCode(entityItem));
 
                 boolean consumed = pool.collideEntityItem(entityItem);
                 if (!consumed) {
@@ -295,7 +304,10 @@ public class BotaniaHandler implements IRemoteHandler {
                     } catch (Exception ignored) {}
                     AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool failed: collideEntityItem refused {} (item={} dead={} pickupDelay={}) at {} (mana={})",
                             single, entityItem.getItem(), entityItem.isDead, actualPickupDelay, pos, pool.getCurrentMana());
-                    // entityItem 已加入世界，revertMaterials 会按 TAG_INPUT_FLAG 回收
+                    // 清理已 spawn 的实体，避免空实体堆积
+                    if (!entityItem.isDead) {
+                        entityItem.setDead();
+                    }
                     return false;
                 }
                 // collideEntityItem 成功后：
