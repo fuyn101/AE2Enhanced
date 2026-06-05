@@ -65,6 +65,10 @@ public class AE2EnhancedConfig {
     })
     public static SmartPattern smartPattern = new SmartPattern();
 
+    @Config.Name("Thaumcraft")
+    @Config.Comment("Thaumcraft automation settings for Central ME Interface")
+    public static Thaumcraft thaumcraft = new Thaumcraft();
+
     @Config.Name("Energy")
     @Config.Comment({
         "RF energy bridge settings.",
@@ -389,6 +393,22 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 50, max = 1000)
         public int scanBlocksPerTick = 400;
+    }
+
+    public static class Thaumcraft {
+        @Config.Comment({
+            "Automatically fill the crucible with water from the ME network if empty or low.",
+            "If false, the pattern must specify water in its fluid slots.",
+            "Default: true"
+        })
+        public boolean autoFillWater = true;
+
+        @Config.Comment({
+            "Clear crucible aspects and remaining water after each craft to prevent",
+            "cross-contamination between different recipes.",
+            "Default: true"
+        })
+        public boolean clearAfterCraft = true;
     }
 
     @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
