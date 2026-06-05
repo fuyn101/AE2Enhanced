@@ -54,8 +54,13 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             METHOD_ATTEMPT_SMELT = CLASS_TILE_CRUCIBLE.getMethod("attemptSmelt", ItemStack.class, String.class);
             METHOD_SPILL_REMNANTS = CLASS_TILE_CRUCIBLE.getMethod("spillRemnants");
 
-            // EntitySpecialItem 继承 EntityItem，getItem() 返回 ItemStack
-            METHOD_GET_ITEM = CLASS_ENTITY_SPECIAL_ITEM.getMethod("getItem");
+            // EntitySpecialItem 继承 EntityItem，getItem() 在开发环境为 getItem，
+            // 运行时 obfuscated 为 func_92059_d（SRG 名）
+            try {
+                METHOD_GET_ITEM = CLASS_ENTITY_SPECIAL_ITEM.getMethod("getItem");
+            } catch (NoSuchMethodException e) {
+                METHOD_GET_ITEM = CLASS_ENTITY_SPECIAL_ITEM.getMethod("func_92059_d");
+            }
 
             FIELD_HEAT = CLASS_TILE_CRUCIBLE.getField("heat");
             FIELD_TANK = CLASS_TILE_CRUCIBLE.getField("tank");
