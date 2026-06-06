@@ -397,13 +397,6 @@ public class AE2EnhancedConfig {
 
     public static class Thaumcraft {
         @Config.Comment({
-            "Automatically fill the crucible with water from the ME network if empty or low.",
-            "If false, the pattern must specify water in its fluid slots.",
-            "Default: true"
-        })
-        public boolean autoFillWater = true;
-
-        @Config.Comment({
             "Clear crucible aspects and remaining water after each craft to prevent",
             "cross-contamination between different recipes.",
             "Default: true"

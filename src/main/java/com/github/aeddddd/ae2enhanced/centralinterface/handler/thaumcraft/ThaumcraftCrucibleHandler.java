@@ -16,16 +16,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.fluids.FluidRegistry;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTank;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
 import thaumcraft.api.crafting.CrucibleRecipe;
 import thaumcraft.api.crafting.IThaumcraftRecipe;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -60,8 +56,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     private static Method METHOD_ATTEMPT_SMELT;
     private static Method METHOD_SPILL_REMNANTS;
     private static Method METHOD_GET_ITEM;
-    private static Field FIELD_HEAT;
-    private static Field FIELD_TANK;
     private static boolean reflectionReady = false;
 
     private static void initReflection() {
@@ -74,9 +68,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             METHOD_SPILL_REMNANTS = CLASS_TILE_CRUCIBLE.getMethod("spillRemnants");
             // EntityItem.getItem() 运行时 SRG 名为 func_92059_d
             METHOD_GET_ITEM = CLASS_ENTITY_SPECIAL_ITEM.getMethod("func_92059_d");
-
-            FIELD_HEAT = CLASS_TILE_CRUCIBLE.getField("heat");
-            FIELD_TANK = CLASS_TILE_CRUCIBLE.getField("tank");
 
             reflectionReady = true;
         } catch (Exception e) {
@@ -119,18 +110,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
         if (!CLASS_TILE_CRUCIBLE.isInstance(te)) return false;
 
         try {
-            // 热量检查（不足时返回 false，CPU 会在下次 tick 重试，实现热量等待）
-            short heat = (short) FIELD_HEAT.get(te);
-            if (heat <= 150) {
-                return false;
-            }
-
-            FluidTank tank = (FluidTank) FIELD_TANK.get(te);
-            if (tank == null) {
-                AE2Enhanced.LOGGER.error("[AE2E] Crucible tank is null at {}", pos);
-                return false;
-            }
-
             // 收集物品
             List<ItemStack> items = new ArrayList<>();
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -144,18 +123,8 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
 
-            // 处理物品，每次 attemptSmelt 前检查并补充水
+            // 处理物品
             for (ItemStack stack : items) {
-                if (tank.getFluidAmount() < 50) {
-                    if (AE2EnhancedConfig.thaumcraft.autoFillWater) {
-                        if (!autoFillWater(world, pos, te)) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-
                 ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, stack, username);
                 if (remaining == null) {
                     remaining = ItemStack.EMPTY;
@@ -230,45 +199,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             AE2Enhanced.LOGGER.error("[AE2E] collectSpecialItems failed at {}", pos, e);
         }
         return result;
-    }
-
-    private boolean autoFillWater(World world, BlockPos pos, TileEntity te) {
-        try {
-            FluidTank tank = (FluidTank) FIELD_TANK.get(te);
-            if (tank == null) {
-                AE2Enhanced.LOGGER.error("[AE2E] Crucible tank is null at {}", pos);
-                return false;
-            }
-
-            int needed = 1000 - tank.getFluidAmount();
-            if (needed <= 0) return true;
-            if (needed < 50) needed = 50;
-
-            int filled = tank.fill(new FluidStack(FluidRegistry.WATER, needed), true);
-            if (filled > 0) {
-                return true;
-            }
-
-            // tank.fill 返回 0 时的回退：直接设置 fluid 字段
-            AE2Enhanced.LOGGER.warn("[AE2E] tank.fill returned 0 at {}, trying direct field set", pos);
-            try {
-                Field fluidField = FluidTank.class.getDeclaredField("fluid");
-                fluidField.setAccessible(true);
-                FluidStack existing = (FluidStack) fluidField.get(tank);
-                if (existing == null) {
-                    fluidField.set(tank, new FluidStack(FluidRegistry.WATER, needed));
-                } else {
-                    existing.amount = Math.min(existing.amount + needed, tank.getCapacity());
-                }
-                return true;
-            } catch (Exception e2) {
-                AE2Enhanced.LOGGER.error("[AE2E] Direct field set failed at {}", pos, e2);
-                return false;
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Crucible auto-fill failed at {}", pos, e);
-            return false;
-        }
     }
 
     private static String ensureResearch(World world) {
