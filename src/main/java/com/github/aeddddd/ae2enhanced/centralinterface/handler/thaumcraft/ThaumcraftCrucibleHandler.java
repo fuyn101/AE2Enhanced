@@ -7,6 +7,7 @@ import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
@@ -25,7 +26,6 @@ import thaumcraft.api.crafting.IThaumcraftRecipe;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ import java.util.UUID;
  * <p>支持中枢 ME 接口对坩埚的自动化：
  * <ul>
  *   <li>智能发配顺序：自动遍历 CrucibleRecipe 识别催化剂，确保催化剂最后投入</li>
- *   <li>催化剂延迟：催化剂固定延迟 3 tick 投入，给源质分解留出时间</li>
+ *   <li>催化剂自然投掷：源质来源直接分解，催化剂以 EntityItem 形式从坩埚上方自然落下</li>
  *   <li>研究绕过：使用 FakePlayer 临时授予所有坩埚配方研究</li>
  *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空（可配置开关）</li>
  * </ul>
@@ -49,6 +49,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     private static final GameProfile CRUCIBLE_PROFILE = new GameProfile(
             UUID.nameUUIDFromBytes("ae2e-crucible".getBytes()), "[AE2E]");
     private static final Set<String> GRANTED_RESEARCH = new HashSet<>();
+    private static final String TAG_CATALYST = "ae2eCatalyst";
 
     private static Class<?> CLASS_TILE_CRUCIBLE;
     private static Class<?> CLASS_ENTITY_SPECIAL_ITEM;
@@ -56,25 +57,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     private static Method METHOD_SPILL_REMNANTS;
     private static Method METHOD_GET_ITEM;
     private static boolean reflectionReady = false;
-
-    // 延迟催化剂缓存：dimension -> (pos -> DelayedCatalyst)
-    private static final Map<Integer, Map<BlockPos, DelayedCatalyst>> DELAYED = new HashMap<>();
-
-    private static class DelayedCatalyst {
-        final ItemStack catalyst;
-        final long targetTick;
-        final String username;
-
-        DelayedCatalyst(ItemStack catalyst, long targetTick, String username) {
-            this.catalyst = catalyst;
-            this.targetTick = targetTick;
-            this.username = username;
-        }
-    }
-
-    private static Map<BlockPos, DelayedCatalyst> getDelayed(World world) {
-        return DELAYED.computeIfAbsent(world.provider.getDimension(), k -> new HashMap<>());
-    }
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -110,8 +92,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_CRUCIBLE.isInstance(te)) return false;
-        // 如果还有延迟催化剂未投入，不能开始新合成
-        if (getDelayed(world).containsKey(pos)) return false;
+        if (hasPendingCatalyst(world, pos)) return false;
 
         boolean hasItems = false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -162,7 +143,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
 
-            // 投入源质来源
+            // 投入源质来源（直接 attemptSmelt）
             for (ItemStack stack : sources) {
                 ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, stack, username);
                 if (remaining == null) {
@@ -170,10 +151,16 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 }
             }
 
-            // 缓存催化剂，固定延迟 3 tick 投入
+            // 催化剂以 EntityItem 形式从坩埚上方自然落下
             if (!catalyst.isEmpty()) {
-                getDelayed(world).put(pos, new DelayedCatalyst(catalyst.copy(),
-                        world.getTotalWorldTime() + 10, username));
+                EntityItem entityItem = new EntityItem(world,
+                        pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+                        catalyst.copy());
+                entityItem.getEntityData().setBoolean(TAG_CATALYST, true);
+                entityItem.motionX = 0;
+                entityItem.motionY = 0;
+                entityItem.motionZ = 0;
+                world.spawnEntity(entityItem);
             }
 
             return true;
@@ -191,33 +178,15 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     @Override
     public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
         initReflection();
-        Map<BlockPos, DelayedCatalyst> delayed = getDelayed(world);
-        DelayedCatalyst dc = delayed.get(pos);
-        if (dc != null) {
-            if (world.getTotalWorldTime() >= dc.targetTick) {
-                TileEntity te = world.getTileEntity(pos);
-                if (CLASS_TILE_CRUCIBLE.isInstance(te)) {
-                    try {
-                        ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, dc.catalyst, dc.username);
-                        if (remaining == null) remaining = ItemStack.EMPTY;
-                    } catch (Exception e) {
-                        AE2Enhanced.LOGGER.error("[AE2E] Delayed catalyst smelt failed at {}", pos, e);
-                    }
-                }
-                delayed.remove(pos);
-            } else {
-                return false; // 还在等待延迟
-            }
-        }
-        return true;
+        return !hasPendingCatalyst(world, pos);
     }
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
                                            List<ItemStack> inputs, IActionSource source) {
         initReflection();
-        // 如果还有未延迟投入的催化剂，不能收集产物
-        if (getDelayed(world).containsKey(pos)) {
+        // 如果还有未落下的催化剂，不能收集产物
+        if (hasPendingCatalyst(world, pos)) {
             return new ArrayList<>();
         }
 
@@ -240,13 +209,39 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
-        // 只收集已弹出的产物，不清空坩埚（避免失败时 aspects 被浪费）
+        // 杀死未落下的催化剂 EntityItem，收集已弹出的产物，不清空坩埚
         initReflection();
-        getDelayed(world).remove(pos);
+        killPendingCatalysts(world, pos);
         return collectSpecialItems(world, pos);
     }
 
     // ---- 内部方法 ----
+
+    private static boolean hasPendingCatalyst(World world, BlockPos pos) {
+        AxisAlignedBB aabb = new AxisAlignedBB(
+                pos.getX() - 0.5, pos.getY() - 0.5, pos.getZ() - 0.5,
+                pos.getX() + 1.5, pos.getY() + 5.0, pos.getZ() + 1.5
+        );
+        for (EntityItem entity : world.getEntitiesWithinAABB(EntityItem.class, aabb)) {
+            if (entity.isDead) continue;
+            if (entity.getEntityData().getBoolean(TAG_CATALYST)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void killPendingCatalysts(World world, BlockPos pos) {
+        AxisAlignedBB aabb = new AxisAlignedBB(
+                pos.getX() - 0.5, pos.getY() - 0.5, pos.getZ() - 0.5,
+                pos.getX() + 1.5, pos.getY() + 5.0, pos.getZ() + 1.5
+        );
+        for (EntityItem entity : world.getEntitiesWithinAABB(EntityItem.class, aabb)) {
+            if (entity.getEntityData().getBoolean(TAG_CATALYST)) {
+                entity.setDead();
+            }
+        }
+    }
 
     private List<ItemStack> collectSpecialItems(World world, BlockPos pos) {
         List<ItemStack> result = new ArrayList<>();
@@ -272,10 +267,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
         return result;
     }
 
-    /**
-     * 遍历所有 CrucibleRecipe，识别当前物品列表中的催化剂。
-     * 返回第一个匹配的催化剂 ItemStack（引用自 items 列表），找不到则返回 EMPTY。
-     */
     private static ItemStack identifyCatalyst(List<ItemStack> items) {
         Map<net.minecraft.util.ResourceLocation, IThaumcraftRecipe> recipes = ThaumcraftApi.getCraftingRecipes();
         for (IThaumcraftRecipe recipe : recipes.values()) {
