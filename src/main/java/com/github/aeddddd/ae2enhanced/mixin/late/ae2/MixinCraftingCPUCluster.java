@@ -269,6 +269,11 @@ public class MixinCraftingCPUCluster {
                 return node != null && node.isActive();
             }
         }
+        // 防御：某些情况下 getCore() 可能返回 null（如集群尚未完全初始化），
+        // 此时应视为 inactive，避免 NPE。
+        if (instance == null) {
+            return false;
+        }
         return instance.isActive();
     }
 
