@@ -25,6 +25,7 @@ import thaumcraft.api.crafting.IThaumcraftRecipe;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +38,10 @@ import java.util.UUID;
  * <p>支持中枢 ME 接口对坩埚的自动化：
  * <ul>
  *   <li>智能发配顺序：自动遍历 CrucibleRecipe 识别催化剂，确保催化剂最后投入</li>
+ *   <li>催化剂延迟：催化剂固定延迟 3 tick 投入，给源质分解留出时间</li>
  *   <li>研究绕过：使用 FakePlayer 临时授予所有坩埚配方研究</li>
  *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空（可配置开关）</li>
  * </ul>
- *
- * <p><b>重要</b>：坩埚合成是瞬时的，且对投入顺序敏感。
- * 如果样板中包含多个相同物品且该物品同时是某配方的催化剂，
- * 只有其中一个会被识别为催化剂并移至队尾，其余会提前被分解为源质。</p>
  */
 public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
@@ -58,6 +56,25 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     private static Method METHOD_SPILL_REMNANTS;
     private static Method METHOD_GET_ITEM;
     private static boolean reflectionReady = false;
+
+    // 延迟催化剂缓存：dimension -> (pos -> DelayedCatalyst)
+    private static final Map<Integer, Map<BlockPos, DelayedCatalyst>> DELAYED = new HashMap<>();
+
+    private static class DelayedCatalyst {
+        final ItemStack catalyst;
+        final long targetTick;
+        final String username;
+
+        DelayedCatalyst(ItemStack catalyst, long targetTick, String username) {
+            this.catalyst = catalyst;
+            this.targetTick = targetTick;
+            this.username = username;
+        }
+    }
+
+    private static Map<BlockPos, DelayedCatalyst> getDelayed(World world) {
+        return DELAYED.computeIfAbsent(world.provider.getDimension(), k -> new HashMap<>());
+    }
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -93,6 +110,8 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_CRUCIBLE.isInstance(te)) return false;
+        // 如果还有延迟催化剂未投入，不能开始新合成
+        if (getDelayed(world).containsKey(pos)) return false;
 
         boolean hasItems = false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -121,22 +140,42 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             }
             if (items.isEmpty()) return false;
 
-            // 智能识别催化剂并调整发配顺序
-            ItemStack catalyst = identifyCatalyst(items);
-            if (!catalyst.isEmpty()) {
-                items = reorderItems(items, catalyst);
+            // 识别催化剂
+            ItemStack identifiedCatalyst = identifyCatalyst(items);
+            ItemStack catalyst = ItemStack.EMPTY;
+            List<ItemStack> sources = new ArrayList<>();
+            if (!identifiedCatalyst.isEmpty()) {
+                boolean found = false;
+                for (ItemStack stack : items) {
+                    if (!found && ItemStack.areItemsEqual(stack, identifiedCatalyst)
+                            && ItemStack.areItemStackTagsEqual(stack, identifiedCatalyst)) {
+                        catalyst = stack;
+                        found = true;
+                    } else {
+                        sources.add(stack);
+                    }
+                }
+            } else {
+                sources.addAll(items);
             }
 
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
 
-            // 处理物品
-            for (ItemStack stack : items) {
+            // 投入源质来源
+            for (ItemStack stack : sources) {
                 ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, stack, username);
                 if (remaining == null) {
                     remaining = ItemStack.EMPTY;
                 }
             }
+
+            // 缓存催化剂，固定延迟 3 tick 投入
+            if (!catalyst.isEmpty()) {
+                getDelayed(world).put(pos, new DelayedCatalyst(catalyst.copy(),
+                        world.getTotalWorldTime() + 3, username));
+            }
+
             return true;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] ThaumcraftCrucibleHandler.pushMaterials failed at {}", pos, e);
@@ -151,6 +190,25 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
     @Override
     public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+        initReflection();
+        Map<BlockPos, DelayedCatalyst> delayed = getDelayed(world);
+        DelayedCatalyst dc = delayed.get(pos);
+        if (dc != null) {
+            if (world.getTotalWorldTime() >= dc.targetTick) {
+                TileEntity te = world.getTileEntity(pos);
+                if (CLASS_TILE_CRUCIBLE.isInstance(te)) {
+                    try {
+                        ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, dc.catalyst, dc.username);
+                        if (remaining == null) remaining = ItemStack.EMPTY;
+                    } catch (Exception e) {
+                        AE2Enhanced.LOGGER.error("[AE2E] Delayed catalyst smelt failed at {}", pos, e);
+                    }
+                }
+                delayed.remove(pos);
+            } else {
+                return false; // 还在等待延迟
+            }
+        }
         return true;
     }
 
@@ -158,6 +216,11 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
                                            List<ItemStack> inputs, IActionSource source) {
         initReflection();
+        // 如果还有未延迟投入的催化剂，不能收集产物
+        if (getDelayed(world).containsKey(pos)) {
+            return new ArrayList<>();
+        }
+
         List<ItemStack> result = collectSpecialItems(world, pos);
 
         // 只在成功收集到产物后才清空坩埚，避免失败/revert时误清空
@@ -179,6 +242,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
         // 只收集已弹出的产物，不清空坩埚（避免失败时 aspects 被浪费）
         initReflection();
+        getDelayed(world).remove(pos);
         return collectSpecialItems(world, pos);
     }
 
@@ -226,26 +290,6 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             }
         }
         return ItemStack.EMPTY;
-    }
-
-    /**
-     * 将识别出的催化剂移至队尾，确保先分解源质来源、后投入催化剂触发合成。
-     * 只移动第一个匹配的 stack，其余相同物品保留在前面。
-     */
-    private static List<ItemStack> reorderItems(List<ItemStack> items, ItemStack catalyst) {
-        List<ItemStack> result = new ArrayList<>();
-        boolean moved = false;
-        for (ItemStack stack : items) {
-            if (!moved && ItemStack.areItemsEqual(stack, catalyst) && ItemStack.areItemStackTagsEqual(stack, catalyst)) {
-                moved = true;
-                continue; // 跳过，稍后添加到队尾
-            }
-            result.add(stack);
-        }
-        if (moved) {
-            result.add(catalyst);
-        }
-        return result;
     }
 
     private static String ensureResearch(World world) {
