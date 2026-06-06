@@ -230,28 +230,8 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             if (needed <= 0) return true;
             if (needed < 50) needed = 50;
 
-            // 从相邻的 IFluidHandler 中抽取水，不从 ME 网络抽取
-            for (EnumFacing face : EnumFacing.values()) {
-                BlockPos neighborPos = pos.offset(face);
-                TileEntity neighborTe = world.getTileEntity(neighborPos);
-                if (neighborTe == null) continue;
-
-                IFluidHandler fh = neighborTe.getCapability(
-                        CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face.getOpposite());
-                if (fh == null) continue;
-
-                FluidStack water = new FluidStack(FluidRegistry.WATER, needed);
-                FluidStack drained = fh.drain(water, false);
-                if (drained != null && drained.amount > 0) {
-                    int actual = Math.min(drained.amount, needed);
-                    water.amount = actual;
-                    fh.drain(water, true);
-                    tank.fill(water, true);
-                    needed -= actual;
-                    if (needed <= 0) return true;
-                }
-            }
-            return tank.getFluidAmount() >= 50;
+            tank.fill(new FluidStack(FluidRegistry.WATER, needed), true);
+            return true;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Crucible auto-fill failed at {}", pos, e);
             return false;
