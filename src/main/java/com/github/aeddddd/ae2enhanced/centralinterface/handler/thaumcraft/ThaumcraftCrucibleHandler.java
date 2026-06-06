@@ -1,17 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IFluidStorageChannel;
-import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.fluids.util.AEFluidStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -20,6 +10,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -29,6 +20,8 @@ import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
@@ -140,7 +133,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             FluidTank tank = (FluidTank) FIELD_TANK.get(te);
             if (tank.getFluidAmount() < 50) {
                 if (AE2EnhancedConfig.thaumcraft.autoFillWater) {
-                    if (!autoFillWater(world, pos, te, source)) {
+                    if (!autoFillWater(world, pos, te)) {
                         return false;
                     }
                 } else {
@@ -230,42 +223,35 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
     // ---- 增强功能 ----
 
-    private boolean autoFillWater(World world, BlockPos pos, TileEntity te, IActionSource source) {
+    private boolean autoFillWater(World world, BlockPos pos, TileEntity te) {
         try {
             FluidTank tank = (FluidTank) FIELD_TANK.get(te);
-            int current = tank.getFluidAmount();
-            int capacity = tank.getCapacity();
-            int needed = capacity - current;
+            int needed = 1000 - tank.getFluidAmount();
             if (needed <= 0) return true;
             if (needed < 50) needed = 50;
 
-            Optional<IActionHost> hostOpt = source.machine();
-            if (!hostOpt.isPresent()) return false;
+            // 从相邻的 IFluidHandler 中抽取水，不从 ME 网络抽取
+            for (EnumFacing face : EnumFacing.values()) {
+                BlockPos neighborPos = pos.offset(face);
+                TileEntity neighborTe = world.getTileEntity(neighborPos);
+                if (neighborTe == null) continue;
 
-            IGridNode node = hostOpt.get().getActionableNode();
-            if (node == null) return false;
+                IFluidHandler fh = neighborTe.getCapability(
+                        CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face.getOpposite());
+                if (fh == null) continue;
 
-            IGrid grid = node.getGrid();
-            IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-            if (storageGrid == null) return false;
-
-            IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-            IMEMonitor<IAEFluidStack> fluidInv = storageGrid.getInventory(fluidChannel);
-
-            FluidStack water = new FluidStack(FluidRegistry.WATER, needed);
-            IAEFluidStack aeWater = AEFluidStack.fromFluidStack(water);
-            IAEFluidStack extracted = fluidInv.extractItems(aeWater, Actionable.SIMULATE, source);
-            if (extracted == null || extracted.getStackSize() <= 0) return false;
-
-            int actualAmount = (int) Math.min(extracted.getStackSize(), needed);
-            water.amount = actualAmount;
-            aeWater = AEFluidStack.fromFluidStack(water);
-
-            IAEFluidStack actual = fluidInv.extractItems(aeWater, Actionable.MODULATE, source);
-            if (actual == null || actual.getStackSize() <= 0) return false;
-
-            tank.fill(new FluidStack(FluidRegistry.WATER, (int) actual.getStackSize()), true);
-            return true;
+                FluidStack water = new FluidStack(FluidRegistry.WATER, needed);
+                FluidStack drained = fh.drain(water, false);
+                if (drained != null && drained.amount > 0) {
+                    int actual = Math.min(drained.amount, needed);
+                    water.amount = actual;
+                    fh.drain(water, true);
+                    tank.fill(water, true);
+                    needed -= actual;
+                    if (needed <= 0) return true;
+                }
+            }
+            return tank.getFluidAmount() >= 50;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Crucible auto-fill failed at {}", pos, e);
             return false;
