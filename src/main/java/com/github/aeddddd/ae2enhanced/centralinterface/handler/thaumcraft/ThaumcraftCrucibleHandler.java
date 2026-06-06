@@ -173,7 +173,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             // 缓存催化剂，固定延迟 3 tick 投入
             if (!catalyst.isEmpty()) {
                 getDelayed(world).put(pos, new DelayedCatalyst(catalyst.copy(),
-                        world.getTotalWorldTime() + 3, username));
+                        world.getTotalWorldTime() + 10, username));
             }
 
             return true;
