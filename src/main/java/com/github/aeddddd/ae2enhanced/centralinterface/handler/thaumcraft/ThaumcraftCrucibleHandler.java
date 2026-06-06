@@ -157,6 +157,9 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 EntityItem entityItem = new EntityItem(world,
                         pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
                         catalyst.copy());
+                // 必须设置 thrower，否则坩埚 attemptSmelt(EntityItem) 会传空字符串，
+                // 导致 getPlayerEntityByName 返回 null，配方匹配失败，催化剂被分解
+                entityItem.getEntityData().setString("thrower", username);
                 entityItem.getEntityData().setBoolean(TAG_CATALYST, true);
                 entityItem.motionX = 0;
                 entityItem.motionY = 0;
