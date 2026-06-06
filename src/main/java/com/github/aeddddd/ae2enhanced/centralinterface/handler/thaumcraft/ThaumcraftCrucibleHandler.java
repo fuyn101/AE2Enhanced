@@ -10,7 +10,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -20,8 +19,6 @@ import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
-import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandler;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
@@ -33,7 +30,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,10 +38,10 @@ import java.util.UUID;
  *
  * <p>支持中枢 ME 接口对坩埚的自动化：
  * <ul>
- *   <li>自动补水：水量不足时自动从 ME 网络抽取水注入坩埚（可配置开关）</li>
+ *   <li>自动补水：水量不足时直接凭空灌水（可配置开关）</li>
  *   <li>热量等待：热量不足时不硬失败，返回 false 让 CPU 下次 tick 重试</li>
  *   <li>研究绕过：使用 FakePlayer 临时授予所有坩埚配方研究</li>
- *   <li>源质残留管理：合成后自动调用 spillRemnants 清空（可配置开关）</li>
+ *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空（可配置开关）</li>
  * </ul>
  *
  * <p><b>重要</b>：坩埚合成是瞬时的，且对投入顺序敏感。
@@ -129,16 +125,10 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 return false;
             }
 
-            // 水量检查与自动补水
             FluidTank tank = (FluidTank) FIELD_TANK.get(te);
-            if (tank.getFluidAmount() < 50) {
-                if (AE2EnhancedConfig.thaumcraft.autoFillWater) {
-                    if (!autoFillWater(world, pos, te)) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
+            if (tank == null) {
+                AE2Enhanced.LOGGER.error("[AE2E] Crucible tank is null at {}", pos);
+                return false;
             }
 
             // 收集物品
@@ -154,8 +144,18 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
 
-            // 处理物品
+            // 处理物品，每次 attemptSmelt 前检查并补充水
             for (ItemStack stack : items) {
+                if (tank.getFluidAmount() < 50) {
+                    if (AE2EnhancedConfig.thaumcraft.autoFillWater) {
+                        if (!autoFillWater(world, pos, te)) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+
                 ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, stack, username);
                 if (remaining == null) {
                     remaining = ItemStack.EMPTY;
@@ -182,13 +182,38 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
                                            List<ItemStack> inputs, IActionSource source) {
         initReflection();
-        List<ItemStack> result = new ArrayList<>();
+        List<ItemStack> result = collectSpecialItems(world, pos);
 
+        // 只在成功收集到产物后才清空坩埚，避免失败/revert时误清空
+        if (!result.isEmpty() && AE2EnhancedConfig.thaumcraft.clearAfterCraft) {
+            try {
+                TileEntity te = world.getTileEntity(pos);
+                if (CLASS_TILE_CRUCIBLE.isInstance(te)) {
+                    METHOD_SPILL_REMNANTS.invoke(te);
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] spillRemnants failed at {}", pos, e);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+        // 只收集已弹出的产物，不清空坩埚（避免失败时 aspects 被浪费）
+        initReflection();
+        return collectSpecialItems(world, pos);
+    }
+
+    // ---- 内部方法 ----
+
+    private List<ItemStack> collectSpecialItems(World world, BlockPos pos) {
+        List<ItemStack> result = new ArrayList<>();
         AxisAlignedBB aabb = new AxisAlignedBB(
                 pos.getX() - 0.5, pos.getY() + 0.5, pos.getZ() - 0.5,
                 pos.getX() + 1.5, pos.getY() + 3.0, pos.getZ() + 1.5
         );
-
         try {
             @SuppressWarnings("unchecked")
             Class<? extends Entity> clazz = (Class<? extends Entity>) CLASS_ENTITY_SPECIAL_ITEM;
@@ -201,37 +226,45 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                     entity.setDead();
                 }
             }
-
-            // 源质残留管理
-            if (AE2EnhancedConfig.thaumcraft.clearAfterCraft) {
-                TileEntity te = world.getTileEntity(pos);
-                if (CLASS_TILE_CRUCIBLE.isInstance(te)) {
-                    METHOD_SPILL_REMNANTS.invoke(te);
-                }
-            }
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] ThaumcraftCrucibleHandler.collectProducts failed at {}", pos, e);
+            AE2Enhanced.LOGGER.error("[AE2E] collectSpecialItems failed at {}", pos, e);
         }
-
         return result;
     }
-
-    @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
-        return collectProducts(world, pos, null, null, source);
-    }
-
-    // ---- 增强功能 ----
 
     private boolean autoFillWater(World world, BlockPos pos, TileEntity te) {
         try {
             FluidTank tank = (FluidTank) FIELD_TANK.get(te);
+            if (tank == null) {
+                AE2Enhanced.LOGGER.error("[AE2E] Crucible tank is null at {}", pos);
+                return false;
+            }
+
             int needed = 1000 - tank.getFluidAmount();
             if (needed <= 0) return true;
             if (needed < 50) needed = 50;
 
-            tank.fill(new FluidStack(FluidRegistry.WATER, needed), true);
-            return true;
+            int filled = tank.fill(new FluidStack(FluidRegistry.WATER, needed), true);
+            if (filled > 0) {
+                return true;
+            }
+
+            // tank.fill 返回 0 时的回退：直接设置 fluid 字段
+            AE2Enhanced.LOGGER.warn("[AE2E] tank.fill returned 0 at {}, trying direct field set", pos);
+            try {
+                Field fluidField = FluidTank.class.getDeclaredField("fluid");
+                fluidField.setAccessible(true);
+                FluidStack existing = (FluidStack) fluidField.get(tank);
+                if (existing == null) {
+                    fluidField.set(tank, new FluidStack(FluidRegistry.WATER, needed));
+                } else {
+                    existing.amount = Math.min(existing.amount + needed, tank.getCapacity());
+                }
+                return true;
+            } catch (Exception e2) {
+                AE2Enhanced.LOGGER.error("[AE2E] Direct field set failed at {}", pos, e2);
+                return false;
+            }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Crucible auto-fill failed at {}", pos, e);
             return false;
