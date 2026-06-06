@@ -51,6 +51,7 @@ public class MemoryCardHandlerRegistry {
         tryLoad("enderio", "com.github.aeddddd.ae2enhanced.util.memorycard.handler.enderio.EnderIOMachineHandler");
         tryLoad("enderio", "com.github.aeddddd.ae2enhanced.util.memorycard.handler.enderio.EnderIOConduitHandler");
         tryLoad("thermalexpansion", "com.github.aeddddd.ae2enhanced.util.memorycard.handler.thermalexpansion.ThermalExpansionMachineHandler");
+        tryLoad("nuclearcraft", "com.github.aeddddd.ae2enhanced.util.memorycard.handler.nuclearcraft.NuclearCraftMachineHandler");
     }
 
     private static void tryLoad(String modId, String className) {
