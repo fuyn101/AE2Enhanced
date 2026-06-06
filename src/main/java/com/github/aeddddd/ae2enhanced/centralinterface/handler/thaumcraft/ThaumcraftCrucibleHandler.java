@@ -9,6 +9,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.Entity;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,15 +36,14 @@ import java.util.UUID;
  *
  * <p>支持中枢 ME 接口对坩埚的自动化：
  * <ul>
- *   <li>自动补水：水量不足时直接凭空灌水（可配置开关）</li>
- *   <li>热量等待：热量不足时不硬失败，返回 false 让 CPU 下次 tick 重试</li>
+ *   <li>智能发配顺序：自动遍历 CrucibleRecipe 识别催化剂，确保催化剂最后投入</li>
  *   <li>研究绕过：使用 FakePlayer 临时授予所有坩埚配方研究</li>
  *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空（可配置开关）</li>
  * </ul>
  *
  * <p><b>重要</b>：坩埚合成是瞬时的，且对投入顺序敏感。
- * 玩家制作样板时必须按正确顺序放置物品：先源质来源（被分解成 aspects），
- * 后催化剂（触发合成）。如果顺序颠倒，催化剂会在 aspects 不足时被分解，导致合成失败。</p>
+ * 如果样板中包含多个相同物品且该物品同时是某配方的催化剂，
+ * 只有其中一个会被识别为催化剂并移至队尾，其余会提前被分解为源质。</p>
  */
 public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
@@ -119,6 +120,12 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 }
             }
             if (items.isEmpty()) return false;
+
+            // 智能识别催化剂并调整发配顺序
+            ItemStack catalyst = identifyCatalyst(items);
+            if (!catalyst.isEmpty()) {
+                items = reorderItems(items, catalyst);
+            }
 
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
@@ -197,6 +204,46 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] collectSpecialItems failed at {}", pos, e);
+        }
+        return result;
+    }
+
+    /**
+     * 遍历所有 CrucibleRecipe，识别当前物品列表中的催化剂。
+     * 返回第一个匹配的催化剂 ItemStack（引用自 items 列表），找不到则返回 EMPTY。
+     */
+    private static ItemStack identifyCatalyst(List<ItemStack> items) {
+        Map<net.minecraft.util.ResourceLocation, IThaumcraftRecipe> recipes = ThaumcraftApi.getCraftingRecipes();
+        for (IThaumcraftRecipe recipe : recipes.values()) {
+            if (!(recipe instanceof CrucibleRecipe)) continue;
+            CrucibleRecipe cr = (CrucibleRecipe) recipe;
+            Ingredient catalyst = cr.getCatalyst();
+            if (catalyst == null) continue;
+            for (ItemStack item : items) {
+                if (catalyst.apply(item)) {
+                    return item;
+                }
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
+     * 将识别出的催化剂移至队尾，确保先分解源质来源、后投入催化剂触发合成。
+     * 只移动第一个匹配的 stack，其余相同物品保留在前面。
+     */
+    private static List<ItemStack> reorderItems(List<ItemStack> items, ItemStack catalyst) {
+        List<ItemStack> result = new ArrayList<>();
+        boolean moved = false;
+        for (ItemStack stack : items) {
+            if (!moved && ItemStack.areItemsEqual(stack, catalyst) && ItemStack.areItemStackTagsEqual(stack, catalyst)) {
+                moved = true;
+                continue; // 跳过，稍后添加到队尾
+            }
+            result.add(stack);
+        }
+        if (moved) {
+            result.add(catalyst);
         }
         return result;
     }
