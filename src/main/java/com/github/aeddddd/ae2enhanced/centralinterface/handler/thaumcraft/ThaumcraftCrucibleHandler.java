@@ -49,6 +49,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     private static final GameProfile CRUCIBLE_PROFILE = new GameProfile(
             UUID.nameUUIDFromBytes("ae2e-crucible".getBytes()), "[AE2E]");
     private static final Set<String> GRANTED_RESEARCH = new HashSet<>();
+    private static boolean researchGrantAttempted = false;
     private static final String TAG_CATALYST = "ae2eCatalyst";
 
     private static Class<?> CLASS_TILE_CRUCIBLE;
@@ -288,16 +289,25 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
         FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world, CRUCIBLE_PROFILE);
         IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
-        if (knowledge != null && GRANTED_RESEARCH.isEmpty()) {
+        if (knowledge != null && !researchGrantAttempted) {
+            researchGrantAttempted = true;
             for (IThaumcraftRecipe recipe : ThaumcraftApi.getCraftingRecipes().values()) {
                 if (recipe instanceof CrucibleRecipe) {
                     String research = ((CrucibleRecipe) recipe).getResearch();
-                    if (research != null && !research.isEmpty() && !knowledge.isResearchKnown(research)) {
+                    if (research != null && !research.isEmpty()) {
+                        // addResearch 只把研究标记为“已知”，默认 stage=0，
+                        // 但坩埚配方检查用的是 isResearchComplete，需要 stage > stages.length。
+                        // 因此这里额外 setResearchStage 到一个足够大的值。
                         knowledge.addResearch(research);
+                        knowledge.setResearchStage(research, 100);
                         GRANTED_RESEARCH.add(research);
                     }
                 }
             }
+            // 同步给 FakePlayer，确保后续 attemptSmelt 中 knowsResearchStrict 能命中
+            knowledge.sync(fakePlayer);
+            AE2Enhanced.LOGGER.info("[AE2E] Granted {} crucible researches to FakePlayer [{}]",
+                    GRANTED_RESEARCH.size(), fakePlayer.getName());
         }
         return fakePlayer.getName();
     }
