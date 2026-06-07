@@ -239,10 +239,8 @@ public class JEIRecipeHelper {
             IAEItemStack[] inputs = inputList.toArray(new IAEItemStack[0]);
             IAEItemStack[] outputs = outputList.toArray(new IAEItemStack[0]);
 
-            // 判断是否是 crafting 配方(简单启发式：UID 包含 "crafting")
-            boolean isCrafting = category.getUid().toLowerCase().contains("crafting");
-
-            return new SmartRecipe(inputs, outputs, isCrafting);
+            // 智能样板统一作为 processing 配方处理，不区分 crafting/processing
+            return new SmartRecipe(inputs, outputs, false);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to convert JEI recipe wrapper for category: {}",
                     category.getUid(), e);
