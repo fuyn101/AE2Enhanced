@@ -144,8 +144,10 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         }
 
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+        boolean hasProducts = false;
 
-        // 检查是否存在非输入材料的可抽取物品(即产物)
+        // 先检查是否还有未处理完的输入材料；只要还有输入材料就继续等待，
+        // 防止机器一次只能处理一份时，过早收集导致剩余材料和后续产物丢失。
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
@@ -154,12 +156,15 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 if (inSlot.isEmpty()) continue;
                 ItemStack simulated = handler.extractItem(slot, 1, true);
                 if (simulated.isEmpty()) continue;
-                if (!isInputMaterial(inSlot, inputsSafe)) {
-                    return true; // 发现产物,允许收集
+                if (isInputMaterial(inSlot, inputsSafe)) {
+                    return false; // 还有输入材料未消耗完，继续等待
+                } else {
+                    hasProducts = true; // 发现可抽取的非输入物品（产物）
                 }
             }
         }
-        return false; // 仍在处理中,继续等待
+        // 所有输入材料都已消耗完，如果还有产物则允许收集
+        return hasProducts;
     }
 
     // ---- Internal helpers ----
