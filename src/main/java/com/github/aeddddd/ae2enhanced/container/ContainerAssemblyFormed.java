@@ -15,9 +15,9 @@ public class ContainerAssemblyFormed extends Container {
 
     private static final int UPGRADE_X = 8;
     private static final int UPGRADE_Y = 8;
-    private static final int INV_X = 7;
-    private static final int INV_Y = 83;
-    private static final int HOTBAR_Y = 141;
+    private static final int INV_X = 8;
+    private static final int INV_Y = 84;
+    private static final int HOTBAR_Y = 142;
 
     private final TileAssemblyController tile;
 

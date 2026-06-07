@@ -17,9 +17,9 @@ public class ContainerAssemblyPattern extends Container {
 
     private static final int PATTERN_X = 8;
     private static final int PATTERN_Y = 25;
-    private static final int INV_X = 79;
-    private static final int INV_Y = 144;
-    private static final int HOTBAR_Y = 202;
+    private static final int INV_X = 80;
+    private static final int INV_Y = 145;
+    private static final int HOTBAR_Y = 203;
 
     private final TileAssemblyController tile;
     private final int page;
