@@ -22,13 +22,16 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
     private static final ResourceLocation TEXTURE =
         new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/2.png");
 
+    /** 深色字体,在 2.png 浅灰背景上提高对比度 */
+    private static final int TEXT_DARK = 0xFF222222;
+
     private final TileHyperdimensionalController tile;
 
     public GuiHyperdimensionalNexus(InventoryPlayer playerInv, TileHyperdimensionalController tile) {
         super(new ContainerHyperdimensionalNexus(playerInv));
         this.tile = tile;
         this.xSize = 176;
-        this.ySize = 166;
+        this.ySize = 190;
     }
 
     @Override
@@ -54,7 +57,7 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
         // 标题 (缩放后坐标需除以 0.85)
         String title = I18n.format("gui.ae2enhanced.nexus.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (int)((xSize - titleWidth) * invScale / 2), 10, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(title, (int)((xSize - titleWidth) * invScale / 2), 10, TEXT_DARK);
 
         // 分隔线
         int sepY = (int)(22 * invScale);
@@ -87,21 +90,21 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
         String formedStr = tile.isFormed()
                 ? I18n.format("gui.ae2enhanced.nexus.structure.formed")
                 : I18n.format("gui.ae2enhanced.nexus.structure.unformed");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.structure", formedStr), x, y, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.structure", formedStr), x, y, TEXT_DARK);
         y += lineHeight;
 
         // 网络状态
         String networkStr = tile.isNetworkActive()
                 ? I18n.format("gui.ae2enhanced.nexus.network.online")
                 : I18n.format("gui.ae2enhanced.nexus.network.offline");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.network", networkStr), x, y, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.network", networkStr), x, y, TEXT_DARK);
         y += lineHeight;
 
         // 能源状态
         String powerStr = tile.isNetworkPowered()
                 ? I18n.format("gui.ae2enhanced.nexus.power.ok")
                 : I18n.format("gui.ae2enhanced.nexus.power.none");
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.power", powerStr), x, y, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.power", powerStr), x, y, TEXT_DARK);
         y += lineHeight;
 
         // Nexus ID
@@ -112,7 +115,7 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
         } else {
             nexusLabel = I18n.format("gui.ae2enhanced.nexus.label.nexus_id", I18n.format("gui.ae2enhanced.nexus.nexus_id.none"));
         }
-        fontRenderer.drawString(nexusLabel, x, y, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(nexusLabel, x, y, TEXT_DARK);
         y += lineHeight;
 
         // 存储统计
@@ -124,12 +127,12 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
                     new java.math.BigInteger(tile.getClientStorageTotalRaw()));
         }
         if (types > 0) {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.storage_types", types), x, y, GuiColors.TEXT_MAIN);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.storage_types", types), x, y, TEXT_DARK);
             y += lineHeight;
             String totalLine = I18n.format("gui.ae2enhanced.nexus.label.storage_total", total);
-            fontRenderer.drawString(totalLine, x, y, GuiColors.TEXT_MAIN);
+            fontRenderer.drawString(totalLine, x, y, TEXT_DARK);
         } else {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, GuiColors.TEXT_MAIN);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, TEXT_DARK);
         }
 
         GlStateManager.popMatrix();

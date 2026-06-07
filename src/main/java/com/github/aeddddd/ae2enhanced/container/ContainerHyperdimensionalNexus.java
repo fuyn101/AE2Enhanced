@@ -12,8 +12,8 @@ import net.minecraft.inventory.Slot;
 public class ContainerHyperdimensionalNexus extends Container {
 
     private static final int INV_X = 7;
-    private static final int INV_Y = 84;
-    private static final int HOTBAR_Y = 142;
+    private static final int INV_Y = 107;
+    private static final int HOTBAR_Y = 165;
 
     public ContainerHyperdimensionalNexus(IInventory playerInv) {
         // 玩家背包 3行×9列
