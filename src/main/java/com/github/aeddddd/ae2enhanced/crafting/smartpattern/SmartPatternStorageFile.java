@@ -42,7 +42,8 @@ public class SmartPatternStorageFile {
      * @return 若文件不存在或损坏,返回 null
      */
     @Nullable
-    public static SmartPatternData load(@Nonnull World world, @Nonnull UUID patternDataId) {
+    public static SmartPatternData load(@Nullable World world, @Nonnull UUID patternDataId) {
+        if (world == null) return null;
         File file = getFile(world, patternDataId);
         if (!file.exists()) {
             return null;
@@ -77,7 +78,8 @@ public class SmartPatternStorageFile {
      *
      * @return 是否保存成功
      */
-    public static boolean save(@Nonnull World world, @Nonnull SmartPatternData data) {
+    public static boolean save(@Nullable World world, @Nonnull SmartPatternData data) {
+        if (world == null) return false;
         File file = getFile(world, data.getPatternDataId());
         NBTTagCompound root = data.toNBT();
         root.setInteger("version", CURRENT_VERSION);
@@ -99,7 +101,8 @@ public class SmartPatternStorageFile {
     /**
      * 删除指定 UUID 的智能样板文件.
      */
-    public static boolean delete(@Nonnull World world, @Nonnull UUID patternDataId) {
+    public static boolean delete(@Nullable World world, @Nonnull UUID patternDataId) {
+        if (world == null) return false;
         File file = getFile(world, patternDataId);
         if (file.exists()) {
             return file.delete();
@@ -108,13 +111,19 @@ public class SmartPatternStorageFile {
     }
 
     @Nonnull
-    private static File getFile(@Nonnull World world, @Nonnull UUID patternDataId) {
+    private static File getFile(@Nullable World world, @Nonnull UUID patternDataId) {
         File storageDir = getStorageDir(world);
         return new File(storageDir, FILE_PREFIX + patternDataId.toString() + ".dat");
     }
 
     @Nonnull
-    static File getStorageDir(@Nonnull World world) {
+    static File getStorageDir(@Nullable World world) {
+        if (world == null) {
+            // Fallback: use the server overworld when world is not available (e.g. during TileEntity.readFromNBT)
+            File fallback = getStorageDir();
+            if (fallback != null) return fallback;
+            throw new IllegalStateException("Cannot determine storage directory: world is null and server is not available");
+        }
         File worldDir = world.getSaveHandler().getWorldDirectory();
         File storageDir = new File(worldDir, "ae2enhanced/storage");
         if (!storageDir.exists() && !storageDir.mkdirs()) {

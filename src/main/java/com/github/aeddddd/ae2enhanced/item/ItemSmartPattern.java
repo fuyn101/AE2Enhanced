@@ -127,7 +127,11 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
      * 由 Mixin 调用.
      */
     @Nonnull
-    public static List<SmartPatternSubDetails> expandPatterns(@Nonnull ItemStack stack, @Nonnull World world) {
+    public static List<SmartPatternSubDetails> expandPatterns(@Nonnull ItemStack stack, @Nullable World world) {
+        if (world == null) {
+            // TileEntity.readFromNBT 时 world 字段尚未设置,延迟到 initialize() 再展开
+            return Collections.emptyList();
+        }
         UUID dataId = getPatternDataId(stack);
         if (dataId == null) {
             return Collections.emptyList();
