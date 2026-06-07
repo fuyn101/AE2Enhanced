@@ -3,10 +3,10 @@ package com.github.aeddddd.ae2enhanced.client.gui.util;
 import net.minecraft.util.ResourceLocation;
 
 /**
- * GUI 纹理资源缓存。
+ * GUI 纹理资源缓存.
  * <p>
- * 避免在 drawBG 等每帧调用中重复创建 {@link ResourceLocation} 对象。
- * 所有常用纹理在此以 static final 常量形式常驻。
+ * 避免在 drawBG 等每帧调用中重复创建 {@link ResourceLocation} 对象.
+ * 所有常用纹理在此以 static final 常量形式常驻.
  */
 public final class GuiResourceCache {
 

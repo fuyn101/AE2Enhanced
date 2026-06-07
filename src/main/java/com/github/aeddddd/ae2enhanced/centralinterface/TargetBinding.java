@@ -4,7 +4,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * 远程绑定目标的数据结构。
+ * 远程绑定目标的数据结构.
  */
 public class TargetBinding {
 

@@ -7,17 +7,17 @@ import net.minecraftforge.energy.IEnergyStorage;
 import java.lang.reflect.Method;
 
 /**
- * Thermal Expansion 专用能量适配器。
+ * Thermal Expansion 专用能量适配器.
  *
- * <p>TE 的能量单元（TileCell）和机器（TileMachineBase）都继承自
- * {@code cofh.core.block.TilePowered}，其 {@code receiveEnergy} 受
- * {@code amountRecv} 或 {@code energyConfig.maxPower} 限制。</p>
+ * <p>TE 的能量单元(TileCell)和机器(TileMachineBase)都继承自
+ * {@code cofh.core.block.TilePowered},其 {@code receiveEnergy} 受
+ * {@code amountRecv} 或 {@code energyConfig.maxPower} 限制.</p>
  *
- * <p>此适配器通过反射直接调用 {@code TilePowered.setEnergyStored(int)}，
- * 该方法直接设置底层 {@code EnergyStorage} 的能量值，完全 bypass
- * 所有接收速率限制。注入后显式调用 {@code tile.markDirty()} 确保数据持久化。</p>
+ * <p>此适配器通过反射直接调用 {@code TilePowered.setEnergyStored(int)},
+ * 该方法直接设置底层 {@code EnergyStorage} 的能量值,完全 bypass
+ * 所有接收速率限制.注入后显式调用 {@code tile.markDirty()} 确保数据持久化.</p>
  *
- * <p>安全回退：反射失败时自动回退到 {@link ForgeEnergyAdapter}。</p>
+ * <p>安全回退：反射失败时自动回退到 {@link ForgeEnergyAdapter}.</p>
  */
 public class TEEnergyAdapter extends ForgeEnergyAdapter {
 
@@ -38,7 +38,7 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
             setEnergyStoredMethod = tilePoweredClass.getMethod("setEnergyStored", int.class);
             reflectionReady = true;
         } catch (Exception e) {
-            // 反射失败，将完全回退到 ForgeEnergyAdapter
+            // 反射失败,将完全回退到 ForgeEnergyAdapter
         }
     }
 
@@ -55,7 +55,7 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
                 int max = cap != null ? cap.getMaxEnergyStored() : 0;
                 return Math.max(0L, (long) max - current);
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return super.getReceiveableEnergy(tile, cap);
@@ -79,7 +79,7 @@ public class TEEnergyAdapter extends ForgeEnergyAdapter {
                 }
                 return toAdd;
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return super.injectEnergy(tile, cap, amount, simulate);

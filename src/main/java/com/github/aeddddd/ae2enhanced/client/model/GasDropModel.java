@@ -31,10 +31,10 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * 气体假物品的 IModel / ICustomModelLoader 实现。
- * 通过 ItemOverrideList 根据 ItemStack 的 NBT 动态返回带正确气体纹理的 BakedModel。
+ * 气体假物品的 IModel / ICustomModelLoader 实现.
+ * 通过 ItemOverrideList 根据 ItemStack 的 NBT 动态返回带正确气体纹理的 BakedModel.
  *
- * 设计参考 ae2fc 的 GasPacketModel。
+ * 设计参考 ae2fc 的 GasPacketModel.
  */
 public class GasDropModel extends FluidDropModel {
 

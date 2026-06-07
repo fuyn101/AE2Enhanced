@@ -5,7 +5,7 @@ import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import net.minecraft.entity.player.InventoryPlayer;
 
 /**
- * E1a：通用输入总线的 GUI。
+ * E1a：通用输入总线的 GUI.
  */
 public class GuiUniversalImportBus extends GuiUniversalBus {
 

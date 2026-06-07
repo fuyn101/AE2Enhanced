@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 简单的 IMEMonitor 实现，包装 ItemStorageAdapter。
- * 提供事件监听能力，用于 AE2 网络集成。
+ * 简单的 IMEMonitor 实现,包装 ItemStorageAdapter.
+ * 提供事件监听能力,用于 AE2 网络集成.
  */
 public class SimpleMEMonitor implements IMEMonitor<IAEItemStack> {
 
@@ -110,9 +110,9 @@ public class SimpleMEMonitor implements IMEMonitor<IAEItemStack> {
     }
 
     /**
-     * 通知所有监听器存储发生变化。
-     * 【预留】当前未被 getCellArray() 使用（直接返回 adapter），但若未来网络集成需要
-     * IMEMonitor 包装，此类已准备就绪。CopyOnWriteArrayList 避免并发修改异常。
+     * 通知所有监听器存储发生变化.
+     * 【预留】当前未被 getCellArray() 使用(直接返回 adapter),但若未来网络集成需要
+     * IMEMonitor 包装,此类已准备就绪.CopyOnWriteArrayList 避免并发修改异常.
      */
     public void notifyPostChange(Iterable<IAEItemStack> changes, IActionSource src) {
         for (IMEMonitorHandlerReceiver<IAEItemStack> listener : listeners) {

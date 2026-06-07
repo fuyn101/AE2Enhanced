@@ -41,13 +41,13 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 超因果计算核心 TileEntity。
+ * 超因果计算核心 TileEntity.
  *
- * <p>设计定位：网络中的超级 Crafting CPU。不再实现自定义合成引擎，而是直接创建并管理
- * 原生的 {@link CraftingCPUCluster} 实例，通过 Mixin 将其行为重定向到本 TileEntity。</p>
+ * <p>设计定位：网络中的超级 Crafting CPU.不再实现自定义合成引擎,而是直接创建并管理
+ * 原生的 {@link CraftingCPUCluster} 实例,通过 Mixin 将其行为重定向到本 TileEntity.</p>
  *
- * <p>每个计算核心维护一个 {@code cpuPool}，其中索引 0 为常驻集群，其余为动态生成的额外集群。
- * 当多个订单并发时，终端会自动看到多个 CPU；订单完成后空闲的额外集群会被自动回收。</p>
+ * <p>每个计算核心维护一个 {@code cpuPool},其中索引 0 为常驻集群,其余为动态生成的额外集群.
+ * 当多个订单并发时,终端会自动看到多个 CPU；订单完成后空闲的额外集群会被自动回收.</p>
  */
 public class TileComputationCore extends TileAENetworkBase implements IActionHost, ITickable {
 
@@ -60,7 +60,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
 
 
-    // CPU 集群池：索引 0 为常驻集群，>0 为动态集群
+    // CPU 集群池：索引 0 为常驻集群,>0 为动态集群
     private final List<CraftingCPUCluster> cpuPool = new ArrayList<>();
 
     // ---------- 状态访问 ----------
@@ -78,7 +78,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     }
 
     /**
-     * 返回当前活跃的合成订单数量（即处于忙碌状态的 CPU 集群数）。
+     * 返回当前活跃的合成订单数量(即处于忙碌状态的 CPU 集群数).
      */
     public int getActiveOrderCount() {
         int count = 0;
@@ -180,7 +180,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             if (!cpu.isBusy()) idleCount++;
         }
 
-        // 清理空闲的额外集群，但始终保留至少 1 个空闲 CPU
+        // 清理空闲的额外集群,但始终保留至少 1 个空闲 CPU
         Iterator<CraftingCPUCluster> it = cpuPool.iterator();
         boolean changed = false;
         while (it.hasNext()) {
@@ -194,7 +194,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             }
         }
 
-        // 如果所有集群都忙碌，立即创建一个备用空闲集群
+        // 如果所有集群都忙碌,立即创建一个备用空闲集群
         if (idleCount == 0) {
             CraftingCPUCluster standby = createCluster();
             cpuPool.add(standby);
@@ -213,7 +213,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     // ---------- Job Submission ----------
 
     /**
-     * 尝试提交合成任务。先检查现有空闲集群，若全部忙碌则动态创建新集群。
+     * 尝试提交合成任务.先检查现有空闲集群,若全部忙碌则动态创建新集群.
      */
     public ICraftingLink trySpawnAndSubmitJob(IGrid grid, ICraftingJob job,
                                                appeng.api.networking.security.IActionSource src,
@@ -233,7 +233,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         CraftingCPUCluster newCpu = createCluster();
         cpuPool.add(newCpu);
 
-        // 立即注入到 CraftingGridCache，确保终端立即可见
+        // 立即注入到 CraftingGridCache,确保终端立即可见
         injectCpuPoolIntoCraftingGridCache();
 
         // 触发 CraftingGridCache 重建以注册新集群
@@ -256,7 +256,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             IBlockState state = world.getBlockState(interfacePos);
             if (state.getBlock() instanceof BlockSuperCraftingInterface && !state.getValue(BlockSuperCraftingInterface.FORMED)) {
                 world.setBlockState(interfacePos, state.withProperty(BlockSuperCraftingInterface.FORMED, true));
-                // setBlockState 可能在某些情况下重新创建 TileEntity，需要重新获取
+                // setBlockState 可能在某些情况下重新创建 TileEntity,需要重新获取
                 te = world.getTileEntity(interfacePos);
             }
             if (te instanceof TileSuperCraftingInterface) {
@@ -325,7 +325,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         );
 
         try {
-            // 设置 machineSrc 指向本 TileEntity（IActionHost）
+            // 设置 machineSrc 指向本 TileEntity(IActionHost)
             Field machineSrcField = CraftingCPUCluster.class.getDeclaredField("machineSrc");
             machineSrcField.setAccessible(true);
             machineSrcField.set(cluster, new MachineSource(this));
@@ -345,13 +345,13 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
             myNameField.setAccessible(true);
             myNameField.set(cluster, DEFAULT_NAME);
 
-            // 设置 Mixin 字段，标记该集群属于本计算核心
+            // 设置 Mixin 字段,标记该集群属于本计算核心
             Field mixinCoreField = CraftingCPUCluster.class.getDeclaredField("ae2enhanced$computationCore");
             mixinCoreField.setAccessible(true);
             mixinCoreField.set(cluster, this);
 
-            // CrazyAE 兼容：初始化任何未初始化的集合字段（CrazyAE 通过 ASM 添加的字段
-            // 可能未在构造函数中初始化，虚拟集群会导致 NPE）
+            // CrazyAE 兼容：初始化任何未初始化的集合字段(CrazyAE 通过 ASM 添加的字段
+            // 可能未在构造函数中初始化,虚拟集群会导致 NPE)
             if (CRAZYAE_LOADED) {
                 for (Field f : CraftingCPUCluster.class.getDeclaredFields()) {
                     f.setAccessible(true);
@@ -485,7 +485,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         double cx = pos.getX() + 0.5 + structureDir.getXOffset() * 9.0;
         double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5 + structureDir.getZOffset() * 9.0;
-        double r = 12.0; // 覆盖戴森球全部渲染范围（半径约 10，留余量）
+        double r = 12.0; // 覆盖戴森球全部渲染范围(半径约 10,留余量)
         return new AxisAlignedBB(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r);
     }
 

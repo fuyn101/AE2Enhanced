@@ -10,10 +10,10 @@ import net.minecraft.util.EnumFacing;
 import org.lwjgl.opengl.GL11;
 
 /**
- * 装配枢纽控制器中心黑洞的 TESR。
+ * 装配枢纽控制器中心黑洞的 TESR.
  *
- * GL 状态恢复策略：不使用 pushAttrib/popAttrib（Kirino 不兼容底层 glPushAttrib），
- * 所有修改的状态在 finally 中显式恢复。
+ * GL 状态恢复策略：不使用 pushAttrib/popAttrib(Kirino 不兼容底层 glPushAttrib),
+ * 所有修改的状态在 finally 中显式恢复.
  */
 public class RenderBlackHole extends TileEntitySpecialRenderer<TileAssemblyController> {
 

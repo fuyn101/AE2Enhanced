@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 先进中枢平台控制器二级菜单 GUI 的 Container。
+ * 先进中枢平台控制器二级菜单 GUI 的 Container.
  *
  * <p>槽位布局：</p>
  * <ul>

@@ -20,8 +20,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 先进中枢平台控制器二级菜单 GUI。
- * 严格遵循 docs/planning/GUI_Design.md 的 UV 坐标。
+ * 先进中枢平台控制器二级菜单 GUI.
+ * 严格遵循 docs/planning/GUI_Design.md 的 UV 坐标.
  */
 public class GuiAdvancedPlatformSubmenu extends GuiContainer {
 
@@ -283,7 +283,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     private FaceIoConfig.IoMode getFaceMode(EnumFacing face) {
         if (selectedZoneId <= 0 || face == null) return FaceIoConfig.IoMode.NONE;
 
-        // 从 ClientPlatformState 读取（不再依赖客户端 tile.getZoneRegistry()）
+        // 从 ClientPlatformState 读取(不再依赖客户端 tile.getZoneRegistry())
         ClientPlatformState.PlatformInitData init = ClientPlatformState.getPlatformInit(tile.getPos());
         if (init != null) {
             for (ClientPlatformState.ZoneSummary zone : init.zones) {
@@ -309,7 +309,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
         int nameX = NAME_BAR_X + (NAME_BAR_W - nameW) / 2;
         this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
 
-        // 当前选中方向的 mode 文字（名称栏和输入按钮之间）
+        // 当前选中方向的 mode 文字(名称栏和输入按钮之间)
         if (selectedFace != null) {
             FaceIoConfig.IoMode mode = getFaceMode(selectedFace);
             String modeText = I18n.format("gui.ae2enhanced.advanced_platform.io_mode." + mode.name().toLowerCase());
@@ -410,7 +410,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
             return;
         }
 
-        // 方向槽位点击 — 已选中则循环模式，否则选中
+        // 方向槽位点击 — 已选中则循环模式,否则选中
         EnumFacing clickedFace = getFaceAt(relX, relY);
         if (clickedFace != null) {
             if (clickedFace == selectedFace && selectedZoneId > 0) {
@@ -442,7 +442,7 @@ public class GuiAdvancedPlatformSubmenu extends GuiContainer {
     }
 
     private void updateCurrentFaceMode() {
-        // 服务端同步后自动更新，此处无需本地状态缓存
+        // 服务端同步后自动更新,此处无需本地状态缓存
     }
 
     private void returnToMainGui() {

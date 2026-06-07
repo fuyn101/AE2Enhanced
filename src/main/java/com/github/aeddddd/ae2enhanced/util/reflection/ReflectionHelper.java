@@ -4,8 +4,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * 公共反射辅助工具。
- * 统一处理 hierarchy walk 和 setAccessible，避免各 handler 重复实现。
+ * 公共反射辅助工具.
+ * 统一处理 hierarchy walk 和 setAccessible,避免各 handler 重复实现.
  */
 public final class ReflectionHelper {
 

@@ -4,12 +4,12 @@ import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * GUI 反射字段缓存工具。
+ * GUI 反射字段缓存工具.
  * <p>
  * 避免在 drawBG / initGui / getJEIExclusionArea 等高频/重复调用路径中
- * 每次重新执行 {@link Class#getDeclaredField(String)}。
+ * 每次重新执行 {@link Class#getDeclaredField(String)}.
  * <p>
- * 用法：在 GUI 类中声明 static final 字段，通过本类一次性获取并缓存。
+ * 用法：在 GUI 类中声明 static final 字段,通过本类一次性获取并缓存.
  */
 public final class GuiReflectionCache {
 
@@ -18,7 +18,7 @@ public final class GuiReflectionCache {
     private GuiReflectionCache() {}
 
     /**
-     * 获取并缓存指定类的字段。首次调用后结果常驻内存。
+     * 获取并缓存指定类的字段.首次调用后结果常驻内存.
      */
     public static Field getField(Class<?> clazz, String fieldName) {
         String key = clazz.getName() + "." + fieldName;

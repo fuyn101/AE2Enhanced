@@ -10,15 +10,15 @@ import net.minecraftforge.fluids.FluidStack;
 import java.util.Objects;
 
 /**
- * 流体描述符，用于在内存中作为存储 Map 的 Key。
- * 基于 Fluid registryName + NBT 内容做 equals/hashCode。
+ * 流体描述符,用于在内存中作为存储 Map 的 Key.
+ * 基于 Fluid registryName + NBT 内容做 equals/hashCode.
  */
 public class FluidDescriptor implements Descriptor {
 
     private final Fluid fluid;
     private final NBTTagCompound nbt;
     private final int hash;
-    // 缓存 AE2 的 IAEFluidStack 模板，避免终端刷新时重复创建
+    // 缓存 AE2 的 IAEFluidStack 模板,避免终端刷新时重复创建
     private transient volatile IAEFluidStack aeTemplate;
 
     public FluidDescriptor(FluidStack stack) {
@@ -44,7 +44,7 @@ public class FluidDescriptor implements Descriptor {
     }
 
     /**
-     * 供自定义二进制 Codec 使用的工厂方法。
+     * 供自定义二进制 Codec 使用的工厂方法.
      */
     public static FluidDescriptor fromRaw(Fluid fluid, NBTTagCompound nbt) {
         return new FluidDescriptor(fluid, nbt);
@@ -78,8 +78,8 @@ public class FluidDescriptor implements Descriptor {
     }
 
     /**
-     * 获取缓存的 IAEFluidStack 模板（stackSize=1）。
-     * 首次调用时通过 channel 创建，后续直接复用。
+     * 获取缓存的 IAEFluidStack 模板(stackSize=1).
+     * 首次调用时通过 channel 创建,后续直接复用.
      */
     public IAEFluidStack getAETemplate(IFluidStorageChannel channel) {
         IAEFluidStack result = aeTemplate;
@@ -117,7 +117,7 @@ public class FluidDescriptor implements Descriptor {
 
     @Override
     public int hashCode() {
-        // hashCode 不依赖 NBT 内容，避免 HashMap 迭代顺序导致的查找失败
+        // hashCode 不依赖 NBT 内容,避免 HashMap 迭代顺序导致的查找失败
         return Objects.hash(fluid != null ? fluid.getName() : null);
     }
 }

@@ -11,13 +11,13 @@ import javax.annotation.Nonnull;
 import java.util.*;
 
 /**
- * 智能样板展开后的单个配方详情。
- * 实现 {@link ICraftingPatternDetails}，使 AE2 网络将其视为独立的普通样板。
+ * 智能样板展开后的单个配方详情.
+ * 实现 {@link ICraftingPatternDetails},使 AE2 网络将其视为独立的普通样板.
  *
  * <p>关键设计点：</p>
  * <ul>
- *   <li>{@link #getPattern()} 返回 parent 智能样板 ItemStack（用于 DualityInterface 的 identity 验证）</li>
- *   <li>{@link #equals(Object)} / {@link #hashCode()} 基于配方内容，确保 Set 中不重复</li>
+ *   <li>{@link #getPattern()} 返回 parent 智能样板 ItemStack(用于 DualityInterface 的 identity 验证)</li>
+ *   <li>{@link #equals(Object)} / {@link #hashCode()} 基于配方内容,确保 Set 中不重复</li>
  *   <li>processing 配方：{@link #isCraftable()} = false, {@link #canSubstitute()} = false</li>
  * </ul>
  */
@@ -50,7 +50,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
         if (!recipe.isCrafting()) {
             return false;
         }
-        // 对于 crafting 配方，检查 slotIndex 位置的输入是否匹配
+        // 对于 crafting 配方,检查 slotIndex 位置的输入是否匹配
         IAEItemStack[] inputs = recipe.getInputs();
         if (slotIndex < 0 || slotIndex >= inputs.length) {
             return false;
@@ -109,7 +109,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
         if (!recipe.isCrafting()) {
             return ItemStack.EMPTY;
         }
-        // crafting 配方：返回主要输出（AE2 内部通常只在 crafting grid 验证后调用）
+        // crafting 配方：返回主要输出(AE2 内部通常只在 crafting grid 验证后调用)
         IAEItemStack primary = recipe.getPrimaryOutput();
         return primary != null ? primary.createItemStack() : ItemStack.EMPTY;
     }
@@ -130,7 +130,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
     }
 
     /**
-     * 压缩 IAEItemStack 数组：合并相同的物品，累加数量。
+     * 压缩 IAEItemStack 数组：合并相同的物品,累加数量.
      */
     @Nonnull
     private static IAEItemStack[] condenseStacks(@Nonnull IAEItemStack[] stacks) {

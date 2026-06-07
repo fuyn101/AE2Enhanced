@@ -5,7 +5,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import java.util.Objects;
 
 /**
- * 气体描述符，作为 Map 的 Key。基于 Mekanism Gas 名称。
+ * 气体描述符,作为 Map 的 Key.基于 Mekanism Gas 名称.
  */
 public class GasDescriptor implements Descriptor {
     private final String gasName;
@@ -24,7 +24,7 @@ public class GasDescriptor implements Descriptor {
     }
 
     /**
-     * 根据存储的 gasName 重建 IAEGasStack 模板（stackSize=1）。
+     * 根据存储的 gasName 重建 IAEGasStack 模板(stackSize=1).
      */
     public com.mekeng.github.common.me.data.IAEGasStack getAETemplate() {
         com.mekeng.github.common.me.data.IAEGasStack result = aeTemplate;

@@ -19,13 +19,13 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 /**
- * 所有涉及 thaumcraft / thaumicenergistics 的 Essentia 逻辑集中在此处。
- * 此类只在运行时通过 Class.forName 加载，避免在 Part 类加载时触发
- * thaumicenergistics 类缺失导致的 NoClassDefFoundError。
+ * 所有涉及 thaumcraft / thaumicenergistics 的 Essentia 逻辑集中在此处.
+ * 此类只在运行时通过 Class.forName 加载,避免在 Part 类加载时触发
+ * thaumicenergistics 类缺失导致的 NoClassDefFoundError.
  */
 public class EssentiaBusHelper {
 
-    // region FakeEssentias 功能（供 Mixin / Helper 自身使用）
+    // region FakeEssentias 功能(供 Mixin / Helper 自身使用)
 
     public static IAEItemStack packEssentia(IAEEssentiaStack essentiaStack) {
         return FakeItemRegister.packAEStack(essentiaStack, ItemRegistry.ESSENTIA_DROP);

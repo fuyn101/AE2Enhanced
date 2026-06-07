@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * E2a：在奥术终端中渲染流体/气体/源质假物品的 tooltip。
- * 本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中，条件加载。
+ * E2a：在奥术终端中渲染流体/气体/源质假物品的 tooltip.
+ * 本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中,条件加载.
  */
 @Mixin(value = GuiArcaneTerminal.class, remap = false)
 public class MixinGuiArcaneTerminal {

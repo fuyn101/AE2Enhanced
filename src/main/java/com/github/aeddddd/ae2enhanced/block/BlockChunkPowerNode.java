@@ -22,10 +22,10 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 
 /**
- * 区块供电节点方块。
+ * 区块供电节点方块.
  *
- * <p>外观与无线频道发生器一致（红色指示灯），消耗 1 个 AE 频道。
- * 从连接的 ME 网络 RF 存储通道提取能量，向所在区块内所有可接收能量的设备供能。</p>
+ * <p>外观与无线频道发生器一致(红色指示灯),消耗 1 个 AE 频道.
+ * 从连接的 ME 网络 RF 存储通道提取能量,向所在区块内所有可接收能量的设备供能.</p>
  */
 public class BlockChunkPowerNode extends Block {
 

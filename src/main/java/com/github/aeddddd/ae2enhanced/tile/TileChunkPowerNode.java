@@ -40,15 +40,15 @@ import java.util.EnumSet;
 import java.util.List;
 
 /**
- * 区块供电节点的 TileEntity。
+ * 区块供电节点的 TileEntity.
  *
- * <p>消耗 1 个 AE 频道，从连接的 ME 网络 RF 存储通道提取能量，
- * 向所在区块（16×16）内所有可接收 Forge Energy 的设备供能。</p>
+ * <p>消耗 1 个 AE 频道,从连接的 ME 网络 RF 存储通道提取能量,
+ * 向所在区块(16×16)内所有可接收 Forge Energy 的设备供能.</p>
  *
  * <p>供能策略：</p>
  * <ul>
  *   <li>每 {@link #CACHE_REFRESH_INTERVAL} tick 重新扫描本区块目标设备并缓存位置</li>
- *   <li>每 tick 遍历缓存，按需从 ME 网络提取并注入（支持 {@link IEnergyAdapter} 模组优化）</li>
+ *   <li>每 tick 遍历缓存,按需从 ME 网络提取并注入(支持 {@link IEnergyAdapter} 模组优化)</li>
  *   <li>未用完的能量立即返还 ME 网络</li>
  * </ul>
  */
@@ -59,7 +59,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     private EnumFacing forward = EnumFacing.NORTH;
     private MachineSource machineSource;
 
-    // 目标设备缓存（只存 BlockPos，每 tick 重新获取 TE 和 cap）
+    // 目标设备缓存(只存 BlockPos,每 tick 重新获取 TE 和 cap)
     private final List<BlockPos> cachedTargets = new ArrayList<>();
     private int cacheRefreshCooldown = 0;
 
@@ -206,11 +206,11 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     }
 
     /**
-     * 扫描本区块内所有可接收能量的 TileEntity，缓存其位置。
+     * 扫描本区块内所有可接收能量的 TileEntity,缓存其位置.
      *
-     * <p>某些模组（如 Mekanism）的 {@code IEnergyStorage} capability 只在特定朝向
-     * 上暴露为可接收（{@code canReceive() == true}）。因此需要遍历 6 个面查找有效输入面，
-     * 而非直接传 {@code null}。</p>
+     * <p>某些模组(如 Mekanism)的 {@code IEnergyStorage} capability 只在特定朝向
+     * 上暴露为可接收({@code canReceive() == true}).因此需要遍历 6 个面查找有效输入面,
+     * 而非直接传 {@code null}.</p>
      */
     private void refreshTargetCache() {
         cachedTargets.clear();
@@ -307,7 +307,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
         super.readFromNBT(compound);
         this.forward = EnumFacing.byIndex(compound.getInteger("forward"));
         this.clientFlags = compound.getInteger("clientFlags");
-        // cachedTargets 不持久化，重新扫描即可
+        // cachedTargets 不持久化,重新扫描即可
     }
 
     @Override

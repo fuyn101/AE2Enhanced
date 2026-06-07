@@ -13,10 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.List;
 
 /**
- * E2c: 合成计划缺少物品置顶。
- * AE2-UEL 原生的 GuiCraftConfirm 中，visual 列表按服务端推送顺序排列，
- * 缺少的物品虽然标红，但可能夹在中间不易发现。
- * 此 Mixin 在 postUpdate 末尾对 visual 列表重新排序，将 missing > 0 的项置顶。
+ * E2c: 合成计划缺少物品置顶.
+ * AE2-UEL 原生的 GuiCraftConfirm 中,visual 列表按服务端推送顺序排列,
+ * 缺少的物品虽然标红,但可能夹在中间不易发现.
+ * 此 Mixin 在 postUpdate 末尾对 visual 列表重新排序,将 missing > 0 的项置顶.
  */
 @Mixin(value = GuiCraftConfirm.class, remap = false)
 public class MixinGuiCraftConfirm {

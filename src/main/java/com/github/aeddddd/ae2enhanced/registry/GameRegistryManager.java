@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 
 /**
- * 游戏注册管理器 —— 统一处理 Block、Item、TileEntity 的注册。
+ * 游戏注册管理器 —— 统一处理 Block、Item、TileEntity 的注册.
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
 public final class GameRegistryManager {
@@ -24,7 +24,7 @@ public final class GameRegistryManager {
     private GameRegistryManager() {}
 
     /**
-     * 在 preInit 阶段实例化所有 Item（必须在 FakeFluids.init() 等之前调用）。
+     * 在 preInit 阶段实例化所有 Item(必须在 FakeFluids.init() 等之前调用).
      */
     public static void initItems() {
         ItemRegistry.UPGRADE_CARD = new ItemUpgradeCard();

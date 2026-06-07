@@ -49,9 +49,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 多方块结构缺失方块幽灵投影渲染器。
- * 当玩家位于已放置的控制器 32 格范围内时，自动渲染该控制器对应结构中
- * 所有缺失方块的半透明缩小模型，帮助玩家补全建造。
+ * 多方块结构缺失方块幽灵投影渲染器.
+ * 当玩家位于已放置的控制器 32 格范围内时,自动渲染该控制器对应结构中
+ * 所有缺失方块的半透明缩小模型,帮助玩家补全建造.
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
 public class StructurePlacementPreview {
@@ -156,7 +156,7 @@ public class StructurePlacementPreview {
         double maxDistSq = MAX_PREVIEW_DISTANCE * MAX_PREVIEW_DISTANCE;
         net.minecraft.world.World world = player.world;
 
-        // 复制列表避免 ConcurrentModificationException（区块加载/卸载时 loadedTileEntityList 会被修改）
+        // 复制列表避免 ConcurrentModificationException(区块加载/卸载时 loadedTileEntityList 会被修改)
         List<TileEntity> snapshot = new ArrayList<>(world.loadedTileEntityList);
         for (TileEntity te : snapshot) {
             if (te.isInvalid()) continue;
@@ -253,7 +253,7 @@ public class StructurePlacementPreview {
     }
 
     /**
-     * 代表一个待渲染的幽灵方块。
+     * 代表一个待渲染的幽灵方块.
      */
     private static class GhostBlock {
         final BlockPos pos;
@@ -268,7 +268,7 @@ public class StructurePlacementPreview {
     }
 
     /**
-     * 缩放 BakedModel：将所有 quad 顶点向方块中心 (0.5, 0.5, 0.5) 收缩。
+     * 缩放 BakedModel：将所有 quad 顶点向方块中心 (0.5, 0.5, 0.5) 收缩.
      */
     private static class ScaledBakedModel implements IBakedModel {
         private final IBakedModel original;
@@ -314,8 +314,8 @@ public class StructurePlacementPreview {
     }
 
     /**
-     * 伪 IBlockAccess，用于幽灵方块渲染。
-     * 所有位置返回空气（不触发面剔除）与全亮光照。
+     * 伪 IBlockAccess,用于幽灵方块渲染.
+     * 所有位置返回空气(不触发面剔除)与全亮光照.
      */
     private static class GhostBlockAccess implements IBlockAccess {
         @Override

@@ -15,11 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.lang.reflect.Field;
 
 /**
- * 替换 FunctionalStorageLegacy 的 ControllerMEItemHandler 为 Hash 索引优化版本。
+ * 替换 FunctionalStorageLegacy 的 ControllerMEItemHandler 为 Hash 索引优化版本.
  *
- * <p>在 {@link AE2CapabilityHelper#createAccessor} 返回后，通过反射替换
- * DrawerStorageAccessor 中 DrawerMEMonitor 的 handler 字段，
- * 将原生的 ControllerMEItemHandler 替换为 {@link FSLAdapter}。</p>
+ * <p>在 {@link AE2CapabilityHelper#createAccessor} 返回后,通过反射替换
+ * DrawerStorageAccessor 中 DrawerMEMonitor 的 handler 字段,
+ * 将原生的 ControllerMEItemHandler 替换为 {@link FSLAdapter}.</p>
  */
 @Mixin(value = AE2CapabilityHelper.class, remap = false)
 public class MixinAE2CapabilityHelper {
@@ -40,7 +40,7 @@ public class MixinAE2CapabilityHelper {
                 return;
             }
 
-            // 获取 handler 字段（DrawerMEMonitor.handler 是 private final IMEInventoryHandler<T>）
+            // 获取 handler 字段(DrawerMEMonitor.handler 是 private final IMEInventoryHandler<T>)
             Field handlerField = itemMonitor.getClass().getDeclaredField("handler");
             handlerField.setAccessible(true);
             Object oldHandler = handlerField.get(itemMonitor);

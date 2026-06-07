@@ -152,8 +152,8 @@ public class MixinCraftingCPUCluster {
 
     /**
      * 将 CraftingCPUCluster.executeCrafting 中 processing pattern 的 InventoryCrafting 尺寸
-     * 从 4×4 扩展为 10×10，以支持超过 16 个输入的 processing pattern。
-     * 使用 MixinExtras 的 @ModifyExpressionValue 修改字面量 4，避免与 ae2fc 的 @WrapOperation 在 NEW 上冲突。
+     * 从 4×4 扩展为 10×10,以支持超过 16 个输入的 processing pattern.
+     * 使用 MixinExtras 的 @ModifyExpressionValue 修改字面量 4,避免与 ae2fc 的 @WrapOperation 在 NEW 上冲突.
      */
     @ModifyExpressionValue(
         method = "executeCrafting",
@@ -263,14 +263,14 @@ public class MixinCraftingCPUCluster {
     )
     private boolean redirectIsActive(TileCraftingTile instance) {
         if (ae2enhanced$computationCore != null) {
-            // CrazyAE 兼容：保留默认行为，避免干扰其修改后的 isActive 逻辑。
+            // CrazyAE 兼容：保留默认行为,避免干扰其修改后的 isActive 逻辑.
             if (!CRAZYAE_LOADED) {
                 IGridNode node = ae2enhanced$computationCore.getActionableNode();
                 return node != null && node.isActive();
             }
         }
-        // 防御：某些情况下 getCore() 可能返回 null（如集群尚未完全初始化），
-        // 此时应视为 inactive，避免 NPE。
+        // 防御：某些情况下 getCore() 可能返回 null(如集群尚未完全初始化),
+        // 此时应视为 inactive,避免 NPE.
         if (instance == null) {
             return false;
         }
@@ -279,8 +279,8 @@ public class MixinCraftingCPUCluster {
 
     @Inject(method = "updateCraftingLogic", at = @At("HEAD"))
     private void onUpdateCraftingLogicHead(IGrid grid, IEnergyGrid eg, CraftingGridCache cache, CallbackInfo ci) {
-        // CrazyAE 通过 ASM 大幅修改了 CraftingCPUCluster，虚拟集群的字段初始化
-        // 与其状态机不兼容；跳过我们的 HEAD 注入以避免干扰 CrazyAE 逻辑。
+        // CrazyAE 通过 ASM 大幅修改了 CraftingCPUCluster,虚拟集群的字段初始化
+        // 与其状态机不兼容；跳过我们的 HEAD 注入以避免干扰 CrazyAE 逻辑.
         if (ae2enhanced$computationCore != null && CRAZYAE_LOADED) return;
         if (reflectionFailed) return;
         try {
@@ -306,7 +306,7 @@ public class MixinCraftingCPUCluster {
                 }
                 if (waitingForEmpty) {
                     completeJobMethod.invoke(cpu);
-                    // 修复：completeJob() 不重置 finalOutput 也不调用 updateCPU()，
+                    // 修复：completeJob() 不重置 finalOutput 也不调用 updateCPU(),
                     // 导致 Crafting Monitor 在任务完成后不清空
                     if (finalOutputField != null) {
                         finalOutputField.set(cpu, null);
@@ -321,7 +321,7 @@ public class MixinCraftingCPUCluster {
 
     @Inject(method = "executeCrafting", at = @At("HEAD"))
     private void batchProcessVirtualTasks(IEnergyGrid energy, CraftingGridCache cache, CallbackInfo ci) {
-        // CrazyAE 兼容：跳过批量合成注入，避免与其修改后的 executeCrafting 冲突。
+        // CrazyAE 兼容：跳过批量合成注入,避免与其修改后的 executeCrafting 冲突.
         if (ae2enhanced$computationCore != null && CRAZYAE_LOADED) return;
         if (reflectionFailed) return;
 

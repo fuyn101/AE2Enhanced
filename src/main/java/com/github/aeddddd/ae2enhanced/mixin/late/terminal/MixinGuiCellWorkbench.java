@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Collections;
 
 /**
- * E2a：在 Cell Workbench 中渲染流体/气体/源质假物品的 tooltip。
+ * E2a：在 Cell Workbench 中渲染流体/气体/源质假物品的 tooltip.
  */
 @Mixin(value = GuiCellWorkbench.class, remap = false)
 public class MixinGuiCellWorkbench {

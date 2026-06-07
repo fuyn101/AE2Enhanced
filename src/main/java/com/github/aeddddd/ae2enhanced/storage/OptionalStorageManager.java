@@ -15,16 +15,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
 /**
- * 可选存储管理器：条件加载 Mekanism 气体、Thaumcraft 源质等第三方存储适配器。
- * 同时提供扩展注册接口，允许其他 Mod 通过 API 注册自定义存储适配器。
+ * 可选存储管理器：条件加载 Mekanism 气体、Thaumcraft 源质等第三方存储适配器.
+ * 同时提供扩展注册接口,允许其他 Mod 通过 API 注册自定义存储适配器.
  *
- * 设计原则：本类<strong>不</strong>直接引用可选 Mod 的类，所有适配器实例通过
- * {@link Class#forName} 延迟加载，字段类型为 {@link Object}，方法调用通过反射完成。
+ * 设计原则：本类<strong>不</strong>直接引用可选 Mod 的类,所有适配器实例通过
+ * {@link Class#forName} 延迟加载,字段类型为 {@link Object},方法调用通过反射完成.
  */
 public class OptionalStorageManager {
 
     /**
-     * 封装一个可选适配器的实例、对应 channel 类型，以及反射方法缓存。
+     * 封装一个可选适配器的实例、对应 channel 类型,以及反射方法缓存.
      */
     private static class OptionalAdapterWrapper {
         final Object adapter;
@@ -93,12 +93,12 @@ public class OptionalStorageManager {
     private final List<OptionalAdapterWrapper> optionalAdapters = new CopyOnWriteArrayList<>();
 
     /**
-     * 外部扩展注册表。其他 Mod 可通过 {@link #registerExternalAdapter} 注册自定义 IMEMonitor。
+     * 外部扩展注册表.其他 Mod 可通过 {@link #registerExternalAdapter} 注册自定义 IMEMonitor.
      */
     private final List<Object> externalAdapters = new CopyOnWriteArrayList<>();
 
     /**
-     * 反射方法缓存，避免每次 getHandlers() 都重复 getMethod()。
+     * 反射方法缓存,避免每次 getHandlers() 都重复 getMethod().
      */
     private final java.util.concurrent.ConcurrentHashMap<Class<?>, Method[]> methodCache =
             new java.util.concurrent.ConcurrentHashMap<>();
@@ -141,7 +141,7 @@ public class OptionalStorageManager {
     }
 
     /**
-     * 设置回调。通过反射调用适配器的 setOnChangeCallback / setPostChangeCallback。
+     * 设置回调.通过反射调用适配器的 setOnChangeCallback / setPostChangeCallback.
      */
     @SuppressWarnings("unchecked")
     public void setCallbacks(Runnable changeCallback,
@@ -152,7 +152,7 @@ public class OptionalStorageManager {
     }
 
     /**
-     * 根据 IStorageChannel 返回对应的 IMEInventoryHandler。
+     * 根据 IStorageChannel 返回对应的 IMEInventoryHandler.
      */
     @SuppressWarnings("unchecked")
     public List<IMEInventoryHandler> getHandlers(IStorageChannel<?> channel) {
@@ -204,7 +204,7 @@ public class OptionalStorageManager {
     }
 
     /**
-     * 刷新所有可选 monitor（反射强制 NetworkMonitor 更新）。
+     * 刷新所有可选 monitor(反射强制 NetworkMonitor 更新).
      */
     public void refreshMonitors(java.util.function.Consumer<Object> refresher) {
         for (OptionalAdapterWrapper wrapper : optionalAdapters) {
@@ -213,7 +213,7 @@ public class OptionalStorageManager {
     }
 
     /**
-     * 注册外部存储适配器。其他 Mod 可通过 API 调用此方法注册自定义存储通道。
+     * 注册外部存储适配器.其他 Mod 可通过 API 调用此方法注册自定义存储通道.
      */
     public void registerExternalAdapter(Object adapter) {
         if (adapter != null) {

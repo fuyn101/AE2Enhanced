@@ -14,15 +14,15 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * F7：在 AE2 终端打开时，对 JEI 物品列表或收藏栏中的物品按下配置键位，
- * 自动将该物品的显示名称填入终端搜索栏。
+ * F7：在 AE2 终端打开时,对 JEI 物品列表或收藏栏中的物品按下配置键位,
+ * 自动将该物品的显示名称填入终端搜索栏.
  *
  * <p>扩展设计：
  * <ul>
- *   <li>支持 GuiMEMonitorable 及其所有子类（合成终端、无线终端等）</li>
- *   <li>同时检测 JEI 物品列表和收藏栏（Bookmark Overlay）</li>
- *   <li>键位通过 Forge KeyBinding 注册，可在 Controls 菜单修改</li>
- *   <li>默认不自动聚焦搜索栏，避免打断用户浏览物品</li>
+ *   <li>支持 GuiMEMonitorable 及其所有子类(合成终端、无线终端等)</li>
+ *   <li>同时检测 JEI 物品列表和收藏栏(Bookmark Overlay)</li>
+ *   <li>键位通过 Forge KeyBinding 注册,可在 Controls 菜单修改</li>
+ *   <li>默认不自动聚焦搜索栏,避免打断用户浏览物品</li>
  * </ul>
  */
 public class JEISearchKeyHandler {
@@ -38,15 +38,15 @@ public class JEISearchKeyHandler {
     }
 
     /**
-     * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏。
-     * 由 GuiOmniTerm.keyTyped() 和 MixinGuiMEMonitorableKeyHandler 调用。
+     * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏.
+     * 由 GuiOmniTerm.keyTyped() 和 MixinGuiMEMonitorableKeyHandler 调用.
      */
     public static boolean performSearch(GuiMEMonitorable gui) {
         return performSearch(gui, 0, 0);
     }
 
     /**
-     * 执行 JEI 搜索，携带鼠标 GUI 坐标以支持 fallback 检测（HEI 收藏栏等）。
+     * 执行 JEI 搜索,携带鼠标 GUI 坐标以支持 fallback 检测(HEI 收藏栏等).
      * @return true 表示成功设置了搜索文本并应拦截原按键事件；false 表示未执行搜索
      */
     public static boolean performSearch(GuiMEMonitorable gui, int mouseX, int mouseY) {
@@ -60,9 +60,9 @@ public class JEISearchKeyHandler {
             return false;
         }
         if (searchField == null) return false;
-        if (searchField.isFocused()) return false; // 搜索栏已聚焦时不触发，避免打断输入
+        if (searchField.isFocused()) return false; // 搜索栏已聚焦时不触发,避免打断输入
 
-        // 获取 JEI 悬停物品：先查物品列表，再查收藏栏
+        // 获取 JEI 悬停物品：先查物品列表,再查收藏栏
         if (jeiRuntime == null) {
             AE2Enhanced.LOGGER.debug("[AE2E] JEI runtime is null, skipping search");
             return false;
@@ -83,7 +83,7 @@ public class JEISearchKeyHandler {
                 if (ingredient != null) {
                     AE2Enhanced.LOGGER.debug("[AE2E] Found ingredient in BookmarkOverlay (no-arg)");
                 } else if (mouseX != 0 || mouseY != 0) {
-                    // Fallback: HEI 的 BookmarkOverlay 在某些情况下无参方法返回 null，
+                    // Fallback: HEI 的 BookmarkOverlay 在某些情况下无参方法返回 null,
                     // 但 getIngredientUnderMouse(int, int) 可以正常工作
                     try {
                         java.lang.reflect.Method method = bookmarkOverlay.getClass()
@@ -115,7 +115,7 @@ public class JEISearchKeyHandler {
         try {
             searchField.setText(searchText);
 
-            // 更新 repo 搜索字符串（立即生效，无需等待 drawScreen）
+            // 更新 repo 搜索字符串(立即生效,无需等待 drawScreen)
             Field repoField = GuiMEMonitorable.class.getDeclaredField("repo");
             repoField.setAccessible(true);
             ItemRepo repo = (ItemRepo) repoField.get(gui);
@@ -123,7 +123,7 @@ public class JEISearchKeyHandler {
                 repo.setSearchString(searchText);
             }
 
-            // 更新 static memoryText（使关闭再打开 GUI 时保留搜索词）
+            // 更新 static memoryText(使关闭再打开 GUI 时保留搜索词)
             Field memoryTextField = GuiMEMonitorable.class.getDeclaredField("memoryText");
             memoryTextField.setAccessible(true);
             memoryTextField.set(null, searchText);
@@ -144,7 +144,7 @@ public class JEISearchKeyHandler {
     private static String extractSearchText(Object ingredient) {
         String raw = null;
 
-        // HEI 收藏栏返回的是 BookmarkItem 包装类，需要先解包出内部 ingredient
+        // HEI 收藏栏返回的是 BookmarkItem 包装类,需要先解包出内部 ingredient
         Object actual = unwrapBookmarkItem(ingredient);
 
         if (actual instanceof ItemStack) {
@@ -165,13 +165,13 @@ public class JEISearchKeyHandler {
                     ingredient != null ? ingredient.getClass().getName() : "null");
             return null;
         }
-        // 去除 Minecraft 颜色代码（§[0-9a-fk-or]）
+        // 去除 Minecraft 颜色代码(§[0-9a-fk-or])
         return TextFormatting.getTextWithoutFormattingCodes(raw);
     }
 
     /**
-     * 解包 HEI 的 BookmarkItem 包装类。HEI 收藏栏的 getIngredientUnderMouse()
-     * 返回的是 mezz.jei.bookmarks.BookmarkItem，其内部 ingredient 字段才是真正的 ItemStack。
+     * 解包 HEI 的 BookmarkItem 包装类.HEI 收藏栏的 getIngredientUnderMouse()
+     * 返回的是 mezz.jei.bookmarks.BookmarkItem,其内部 ingredient 字段才是真正的 ItemStack.
      */
     private static Object unwrapBookmarkItem(Object ingredient) {
         if (ingredient == null) return null;

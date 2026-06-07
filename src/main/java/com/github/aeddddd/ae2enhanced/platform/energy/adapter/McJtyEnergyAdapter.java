@@ -7,15 +7,15 @@ import net.minecraftforge.energy.IEnergyStorage;
 import java.lang.reflect.Method;
 
 /**
- * mcjtylib（RFTools / XNet 等）专用能量适配器。
+ * mcjtylib(RFTools / XNet 等)专用能量适配器.
  *
  * <p>mcjtylib 的 {@link mcjty.lib.tileentity.McJtyEnergyStorage} 在
- * {@code receiveEnergy()} 中受 {@code maxReceive} 字段限制，导致标准 Forge
- * {@link IEnergyStorage#receiveEnergy} 单次/tick 注入量被 capped。</p>
+ * {@code receiveEnergy()} 中受 {@code maxReceive} 字段限制,导致标准 Forge
+ * {@link IEnergyStorage#receiveEnergy} 单次/tick 注入量被 capped.</p>
  *
  * <p>此适配器通过反射直接调用 {@code GenericEnergyStorageTileEntity.modifyEnergyStored(long)}
- * 和 {@code getStoredPower() / getCapacity()}，完全 bypass {@code maxReceive} 限制，
- * 只受机器内部能量容量上限约束。</p>
+ * 和 {@code getStoredPower() / getCapacity()},完全 bypass {@code maxReceive} 限制,
+ * 只受机器内部能量容量上限约束.</p>
  */
 public class McJtyEnergyAdapter implements IEnergyAdapter {
 
@@ -50,7 +50,7 @@ public class McJtyEnergyAdapter implements IEnergyAdapter {
             modifyEnergyStoredMethod = genericEnergyTileClass.getMethod("modifyEnergyStored", long.class);
             reflectionReady = true;
         } catch (Exception e) {
-            // 反射失败，将完全回退到标准 Forge 策略
+            // 反射失败,将完全回退到标准 Forge 策略
         }
     }
 
@@ -72,7 +72,7 @@ public class McJtyEnergyAdapter implements IEnergyAdapter {
                 long max = (Long) getCapacityMethod.invoke(tile);
                 return Math.max(0L, max - current);
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackReceiveable(cap);
@@ -94,7 +94,7 @@ public class McJtyEnergyAdapter implements IEnergyAdapter {
                 }
                 return toAdd;
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackInject(cap, amount, simulate);

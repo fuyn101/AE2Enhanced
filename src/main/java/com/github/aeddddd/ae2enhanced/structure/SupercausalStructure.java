@@ -12,7 +12,7 @@ import java.util.*;
 
 /**
  * 超因果计算核心的多方块结构验证系统
- * 坐标原点为控制器位置 (0,0,0)，对应 JSON 中的 (0,0,6)。
+ * 坐标原点为控制器位置 (0,0,0),对应 JSON 中的 (0,0,6).
  */
 public class SupercausalStructure {
 
@@ -922,8 +922,8 @@ public class SupercausalStructure {
     }
 
     /**
-     * 验证结构完整性。
-     * @return 验证结果，包含是否通过、缺失方块统计、因果锚定核心数量和计算出的并行上限。
+     * 验证结构完整性.
+     * @return 验证结果,包含是否通过、缺失方块统计、因果锚定核心数量和计算出的并行上限.
      */
     public static ValidationResult validate(World world, BlockPos controllerPos) {
         EnumFacing facing = getControllerFacing(world, controllerPos);
@@ -935,7 +935,7 @@ public class SupercausalStructure {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != BlockRegistry.CONSTANT_TENSOR_FIELD_CASING) {
-                if (actual.equals(controllerPos)) continue; // 控制器位置由核心方块占用，跳过
+                if (actual.equals(controllerPos)) continue; // 控制器位置由核心方块占用,跳过
                 missing.put(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, missing.getOrDefault(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING, 0) + 1);
             }
         }
@@ -977,7 +977,7 @@ public class SupercausalStructure {
     }
 
     /**
-     * 返回配置的并行合成上限（默认 16384）。
+     * 返回配置的并行合成上限(默认 16384).
      */
     public static int computeParallel() {
         return AE2EnhancedConfig.crafting.maxParallel;

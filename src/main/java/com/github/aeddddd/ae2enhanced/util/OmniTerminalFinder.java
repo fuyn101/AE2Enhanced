@@ -7,8 +7,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 
 /**
- * 在玩家身上查找 Omni Terminal 的共享工具类。
- * 搜索顺序：主手 → 副手 → 物品栏 → Baubles（反射，避免硬引用）。
+ * 在玩家身上查找 Omni Terminal 的共享工具类.
+ * 搜索顺序：主手 → 副手 → 物品栏 → Baubles(反射,避免硬引用).
  */
 public class OmniTerminalFinder {
 

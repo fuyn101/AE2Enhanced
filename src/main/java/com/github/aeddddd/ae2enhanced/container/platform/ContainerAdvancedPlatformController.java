@@ -15,7 +15,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 先进中枢平台控制器主 GUI 的 Container。
+ * 先进中枢平台控制器主 GUI 的 Container.
  *
  * <p>槽位布局：</p>
  * <ul>
@@ -122,7 +122,7 @@ public class ContainerAdvancedPlatformController extends AEBaseContainer {
     }
 
     private void updateTileFromSlots() {
-        // 主网过滤槽禁用，不保存任何数据
+        // 主网过滤槽禁用,不保存任何数据
         if (this.selectedSubnetId == 0) {
             return;
         }

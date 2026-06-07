@@ -8,16 +8,16 @@ import net.minecraftforge.energy.IEnergyStorage;
 import java.lang.reflect.Method;
 
 /**
- * Mekanism 专用能量适配器。
+ * Mekanism 专用能量适配器.
  *
  * <p>Mekanism 的 Forge Energy 兼容性层 {@code ForgeEnergyIntegration} 在
- * {@code IEnergyStorage#receiveEnergy} 中会将 RF → Joules → RF 进行转换，
- * 且 {@code toRF(double)} 返回值被 {@code clampToInt} 截断为 {@code int}。
- * 对于大容量设备（如 Elite/Ultimate 能量立方、感应矩阵端口），这会导致
- * 单次注入上限被隐式限制在 {@code Integer.MAX_VALUE} RF 附近。</p>
+ * {@code IEnergyStorage#receiveEnergy} 中会将 RF → Joules → RF 进行转换,
+ * 且 {@code toRF(double)} 返回值被 {@code clampToInt} 截断为 {@code int}.
+ * 对于大容量设备(如 Elite/Ultimate 能量立方、感应矩阵端口),这会导致
+ * 单次注入上限被隐式限制在 {@code Integer.MAX_VALUE} RF 附近.</p>
  *
- * <p>此适配器通过反射直接调用 {@code IEnergyWrapper#setEnergy(double)}，
- * 完全绕过 FE 包装层，实现 {@code double}（Joules）级别的瞬间注入。</p>
+ * <p>此适配器通过反射直接调用 {@code IEnergyWrapper#setEnergy(double)},
+ * 完全绕过 FE 包装层,实现 {@code double}(Joules)级别的瞬间注入.</p>
  */
 public class MekanismEnergyAdapter implements IEnergyAdapter {
 
@@ -33,7 +33,7 @@ public class MekanismEnergyAdapter implements IEnergyAdapter {
     private static Method getMaxEnergyMethod;
     private static boolean reflectionReady = false;
 
-    // 缓存 1 RF 对应的 Joules 数量（默认 Mekanism 0.4），避免每次重复反射调用
+    // 缓存 1 RF 对应的 Joules 数量(默认 Mekanism 0.4),避免每次重复反射调用
     private static double joulesPerRF = Double.NaN;
 
     public MekanismEnergyAdapter() {
@@ -56,7 +56,7 @@ public class MekanismEnergyAdapter implements IEnergyAdapter {
 
             reflectionReady = true;
         } catch (Exception e) {
-            // 反射失败，将完全回退到标准 Forge 策略
+            // 反射失败,将完全回退到标准 Forge 策略
         }
     }
 
@@ -78,7 +78,7 @@ public class MekanismEnergyAdapter implements IEnergyAdapter {
                     return toRF(canAddJoules);
                 }
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackReceiveable(cap);
@@ -105,7 +105,7 @@ public class MekanismEnergyAdapter implements IEnergyAdapter {
                 }
                 return toRF(toAdd);
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackInject(cap, amount, simulate);

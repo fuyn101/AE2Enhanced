@@ -3,15 +3,15 @@ package com.github.aeddddd.ae2enhanced.crafting;
 import java.math.BigInteger;
 
 /**
- * 批次管理器：将超大订单（> Long.MAX_VALUE 或超出并行限制）拆分为可处理的子批次。
- * P1 骨架 —— 大数字拆分逻辑已可用，与 AE2-UEL 的 long 接口桥接将在 P1 完善。
+ * 批次管理器：将超大订单(> Long.MAX_VALUE 或超出并行限制)拆分为可处理的子批次.
+ * P1 骨架 —— 大数字拆分逻辑已可用,与 AE2-UEL 的 long 接口桥接将在 P1 完善.
  */
 public class BatchManager {
 
     private BatchManager() {}
 
     /**
-     * 将 BigInteger 总量拆分为每个不超过 Long.MAX_VALUE 的批次。
+     * 将 BigInteger 总量拆分为每个不超过 Long.MAX_VALUE 的批次.
      */
     public static long[] splitToLongBatches(BigInteger amount) {
         if (amount == null || amount.compareTo(BigInteger.ZERO) <= 0) {
@@ -40,7 +40,7 @@ public class BatchManager {
     }
 
     /**
-     * 将 BigInteger 总量拆分为每个不超过 parallelLimit 的批次。
+     * 将 BigInteger 总量拆分为每个不超过 parallelLimit 的批次.
      */
     public static long[] splitToParallelBatches(BigInteger amount, int parallelLimit) {
         if (amount == null || amount.compareTo(BigInteger.ZERO) <= 0 || parallelLimit <= 0) {

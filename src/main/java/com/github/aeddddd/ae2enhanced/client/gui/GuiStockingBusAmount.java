@@ -11,8 +11,8 @@ import org.lwjgl.input.Keyboard;
 import java.io.IOException;
 
 /**
- * StockingBus 的数量快速输入 GUI。
- * 中键点击 config slot 时弹出，支持直接输入数字或数学表达式（如 64*4）。
+ * StockingBus 的数量快速输入 GUI.
+ * 中键点击 config slot 时弹出,支持直接输入数字或数学表达式(如 64*4).
  */
 public class GuiStockingBusAmount extends GuiScreen {
 
@@ -116,8 +116,8 @@ public class GuiStockingBusAmount extends GuiScreen {
     }
 
     /**
-     * 解析输入文本。优先尝试 AE2 的 MathExpressionParser（支持 64*4+1 等表达式），
-     * 失败时回退到纯 Long 解析。
+     * 解析输入文本.优先尝试 AE2 的 MathExpressionParser(支持 64*4+1 等表达式),
+     * 失败时回退到纯 Long 解析.
      */
     private static long parseAmount(String text) {
         try {

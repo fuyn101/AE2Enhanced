@@ -4,7 +4,7 @@ import com.github.aeddddd.ae2enhanced.item.*;
 import net.minecraft.item.Item;
 
 /**
- * 物品注册表 —— 仅声明普通 Item 实例字段（不含 Part）。
+ * 物品注册表 —— 仅声明普通 Item 实例字段(不含 Part).
  */
 public final class ItemRegistry {
 

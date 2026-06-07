@@ -44,12 +44,12 @@ import javax.annotation.Nonnull;
 import java.util.*;
 
 /**
- * 中枢 ME 接口的核心逻辑类，复刻 AE2 {@link appeng.helpers.DualityInterface} 的结构。
+ * 中枢 ME 接口的核心逻辑类,复刻 AE2 {@link appeng.helpers.DualityInterface} 的结构.
  *
  * P1 阶段实现：
  * - 样板存储与 CraftingProvider 注册
  * - 远程目标绑定管理
- * - 单份材料发配（默认 fallback）：推送材料到目标 IItemHandler，tick 时收集产物
+ * - 单份材料发配(默认 fallback)：推送材料到目标 IItemHandler,tick 时收集产物
  */
 public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInventory {
 
@@ -72,16 +72,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final List<TargetBinding> bindings = new ArrayList<>();
     private String boundBlockId = null;
     private final Map<TargetBinding, TargetState> targetStates = new HashMap<>();
-    // 只跟踪 PROCESSING 状态的目标，避免 tickingRequest 遍历全部 targetStates
+    // 只跟踪 PROCESSING 状态的目标,避免 tickingRequest 遍历全部 targetStates
     private final Set<TargetBinding> processingTargets = new HashSet<>();
-    // 记录每个目标当前正在合成的产物列表，用于 tick 收集时匹配
+    // 记录每个目标当前正在合成的产物列表,用于 tick 收集时匹配
     private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
-    // 记录每个 PROCESSING 目标的推料开始时间，用于超时保护防止状态无限卡住
+    // 记录每个 PROCESSING 目标的推料开始时间,用于超时保护防止状态无限卡住
     private final Map<TargetBinding, Long> processingStartTimes = new HashMap<>();
-    // 记录每个 PROCESSING 目标的输入材料快照（用于 handler 区分产物与残留输入）
-    // 按 TargetBinding 隔离，避免多接口共享单例 handler 时的状态覆盖
+    // 记录每个 PROCESSING 目标的输入材料快照(用于 handler 区分产物与残留输入)
+    // 按 TargetBinding 隔离,避免多接口共享单例 handler 时的状态覆盖
     private final Map<TargetBinding, List<ItemStack>> targetInputs = new HashMap<>();
-    // 虚拟合成产物暂存队列（等待 waitingFor 注册后再注入网络）
+    // 虚拟合成产物暂存队列(等待 waitingFor 注册后再注入网络)
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
     public DualityCentralInterface(ICentralInterfaceHost host) {
@@ -164,7 +164,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public LockCraftingMode getCraftingLockedReason() {
-        // 当前未实现红石状态检测和 unlockEvent 追踪，默认返回 NONE
+        // 当前未实现红石状态检测和 unlockEvent 追踪,默认返回 NONE
         return LockCraftingMode.NONE;
     }
 
@@ -175,7 +175,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (proxy.isActive() && this.craftingList != null && !this.bindings.isEmpty()) {
             for (ICraftingPatternDetails details : this.craftingList) {
                 details.setPriority(this.priority);
-                // 每个 binding 注册一次，使 AE2 网络能并行调度多个相同配方
+                // 每个 binding 注册一次,使 AE2 网络能并行调度多个相同配方
                 for (int i = 0; i < this.bindings.size(); i++) {
                     craftingTracker.addCraftingOption(this.host, details);
                 }
@@ -192,43 +192,39 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         TargetBinding target = findIdleTarget();
         if (target == null) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: no idle target");
             return false;
         }
 
         World world = this.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: dimension mismatch target={}", target);
             return false;
         }
 
         IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
         if (handler == null) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: no handler for blockId={}", target.blockId);
             return false;
         }
         if (!handler.isValidTarget(world, target.pos)) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: invalid target at {}", target.pos);
             this.targetStates.put(target, TargetState.UNAVAILABLE);
             this.processingTargets.remove(target);
             return false;
         }
 
-        // P7: 虚拟合成路径（Extended Crafting 工作台等）
+        // 虚拟合成路径(Extended Crafting 工作台等)
         if (handler instanceof IVirtualCraftingHandler) {
             IVirtualCraftingHandler vh = (IVirtualCraftingHandler) handler;
             IAEItemStack[] outputs = patternDetails.getOutputs();
             if (vh.canCraftVirtually(world, target.pos, table, outputs)) {
                 List<ItemStack> products = vh.virtualCraft(world, target.pos, table, outputs, new appeng.me.helpers.MachineSource(this.host));
                 if (!products.isEmpty()) {
-                    // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
+                    // 使用 pattern 定义的精确输出
                     for (IAEItemStack output : outputs) {
                         if (output != null) {
                             this.pendingVirtualProducts.add(output.createItemStack());
                         }
                     }
                 }
-                // 虚拟合成不占用物理设备，target 保持 IDLE，可立即复用
+                // 虚拟合成不占用物理设备,target 保持 IDLE,可立即复用
                 try {
                     appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
                     if (tm != null) {
@@ -242,27 +238,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        // 推送流体输入（如果配方包含流体），并从 table 中移除已推送的流体假物品
+        // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
         List<FluidStack> pushedFluids = new ArrayList<>();
         if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: fluid push failed at {}", target.pos);
             return false;
         }
 
         // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: canStart=false at {}", target.pos);
             revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
 
         boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: pushMaterials=false at {}", target.pos);
-            // 回退已推入的材料（handler 可能已部分推入）
+            // 回退已推入的材料(handler 可能已部分推入)
             List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
             if (!reverted.isEmpty()) {
-//                 AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: revertMaterials returned {} items at {}", reverted.size(), target.pos);
                 injectItemsToNetwork(proxy, world, reverted);
             }
             revertPushedFluids(world, target.pos, pushedFluids);
@@ -271,11 +263,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         boolean started = handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
         if (!started) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: startProcess=false at {}", target.pos);
             // 回退已推送的材料
             List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
             if (!reverted.isEmpty()) {
-//                 AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: revertMaterials returned {} items after startProcess fail at {}", reverted.size(), target.pos);
                 injectItemsToNetwork(proxy, world, reverted);
             }
             // 回退已推送的流体
@@ -283,14 +273,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-//         AE2Enhanced.LOGGER.debug("[AE2E-DCI] pushPattern: success at {} target={}", target.pos, target);
-
         IAEItemStack[] outputs = patternDetails.getOutputs();
         if (outputs != null && outputs.length > 0) {
             this.pendingOutputs.put(target, outputs);
         }
 
-        // 保存输入材料快照（在 pushFluidInputs 后 table 中已移除流体，剩余为物品材料）
+        // 保存输入材料快照(在 pushFluidInputs 后 table 中已移除流体,剩余为物品材料)
         List<ItemStack> inputSnapshot = new ArrayList<>();
         for (int i = 0; i < table.getSizeInventory(); i++) {
             ItemStack stack = table.getStackInSlot(i);
@@ -317,7 +305,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
-     * 将物品列表注入 AE 网络，溢出部分先进入 storage slots，再溢出则掉落。
+     * 将物品列表注入 AE 网络,溢出部分先进入 storage slots,再溢出则掉落.
      */
     private boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
         try {
@@ -332,7 +320,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                         new appeng.me.helpers.MachineSource(this.host));
                 if (remaining != null && remaining.getStackSize() > 0) {
                     ItemStack leftover = remaining.createItemStack();
-//                     AE2Enhanced.LOGGER.debug("[AE2E-DCI] injectItemsToNetwork: {} remaining {} after network insert", product, leftover);
                     for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
                         leftover = this.storage.insertItem(s, leftover, false);
                     }
@@ -351,7 +338,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
-     * 将物品暂存到 storage slots，溢出则掉落。
+     * 将物品暂存到 storage slots,溢出则掉落.
      */
     private void stashItemsToStorage(World world, List<ItemStack> items) {
         for (ItemStack item : items) {
@@ -393,7 +380,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return TickRateModulation.SLEEP;
         }
 
-        // 检查 PROCESSING 目标，收集产物
+        // 检查 PROCESSING 目标,收集产物
         boolean didWork = false;
         Iterator<TargetBinding> it = this.processingTargets.iterator();
         while (it.hasNext()) {
@@ -419,9 +406,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
             List<ItemStack> inputs = this.targetInputs.get(target);
             boolean idle = handler.isIdle(world, target.pos, inputs);
-//             AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: target={} idle={}", target.pos, idle);
             if (!idle) {
-                // 对于需要条件启动的设备（如符文祭坛），在 tick 中尝试启动
+                // 对于需要条件启动的设备(如符文祭坛),在 tick 中尝试启动
                 handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
                 continue;
             }
@@ -436,7 +422,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
 
             if (!products.isEmpty()) {
-//                 AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: collected {} products from {}", products.size(), target.pos);
                 if (injectItemsToNetwork(proxy, world, products)) {
                     this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
@@ -445,27 +430,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     it.remove();
                     didWork = true;
                 } else {
-                    // 注入失败（网络断开等），产物暂存到 storage slots，避免丢失
-//                     AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: inject failed, stashing {} products from {}", products.size(), target.pos);
+                    // 注入失败(网络断开等),产物暂存到 storage slots,避免丢失
                     stashItemsToStorage(world, products);
                     this.targetStates.put(target, TargetState.IDLE);
                     this.pendingOutputs.remove(target);
                     it.remove();
                 }
             } else {
-                // 设备 idle 但未收集到产物，检查是否超时（600 ticks = 30 秒）
+                // 设备 idle 但未收集到产物,检查是否超时(600 ticks = 30 秒)
                 Long startTime = this.processingStartTimes.get(target);
                 long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
                 if (elapsed > 600) {
-//                     AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: timeout after {} ticks at {}", elapsed, target.pos);
-                    // 超时：尝试兜底收集遗留产物，避免刷物品
+                    // 超时：尝试兜底收集遗留产物,避免刷物品
                     List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), inputs, new appeng.me.helpers.MachineSource(this.host));
                     List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, this.pendingOutputs.get(target));
                     if (!leftoverFluids.isEmpty()) {
                         leftover.addAll(leftoverFluids);
                     }
                     if (!leftover.isEmpty()) {
-//                         AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: timeout leftover {} items from {}", leftover.size(), target.pos);
                         stashItemsToStorage(world, leftover);
                     }
                     this.targetStates.put(target, TargetState.IDLE);
@@ -474,25 +456,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     this.targetInputs.remove(target);
                     it.remove();
                 } else {
-//                     AE2Enhanced.LOGGER.debug("[AE2E-DCI] tick: idle but no products yet, elapsed={}/600 at {}", elapsed, target.pos);
                 }
-                // 未超时：继续等待，不移除 processingTargets
+                // 未超时：继续等待,不移除 processingTargets
             }
         }
 
-        // 注入待处理的虚拟合成产物（waitingFor 已注册，此时注入可被 CPU cluster 识别）
+        // 注入待处理的虚拟合成产物(waitingFor 已注册,此时注入可被 CPU cluster 识别)
         if (!this.pendingVirtualProducts.isEmpty()) {
             List<ItemStack> toInject = new ArrayList<>(this.pendingVirtualProducts);
             this.pendingVirtualProducts.clear();
             if (injectItemsToNetwork(proxy, this.host.getTileEntity().getWorld(), toInject)) {
                 didWork = true;
             } else {
-                // 注入失败，暂存到 storage slots
+                // 注入失败,暂存到 storage slots
                 stashItemsToStorage(this.host.getTileEntity().getWorld(), toInject);
             }
         }
 
-        // 将 storage slots 中的物品推入网络（如果有空间）
+        // 将 storage slots 中的物品推入网络(如果有空间)
         pushStorageToNetwork(proxy);
 
         return hasWorkToDo()
@@ -522,16 +503,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 }
             }
         } catch (appeng.me.GridAccessException e) {
-            // 网络未连接，保持 storage 中
+            // 网络未连接,保持 storage 中
         }
     }
 
     // ---- 流体支持 ----
 
     /**
-     * 将 table 中的流体假物品推送到目标的 IFluidHandler。
-     * CPU 已事先将物品提取到 table 中，此处只做转换与推送，不再从网络提取。
-     * 推送成功后，将对应槽位从 table 中清空，防止后续 handler.pushMaterials 再次处理。
+     * 将 table 中的流体假物品推送到目标的 IFluidHandler.
+     * CPU 已事先将物品提取到 table 中,此处只做转换与推送,不再从网络提取.
+     * 推送成功后,将对应槽位从 table 中清空,防止后续 handler.pushMaterials 再次处理.
      */
     private boolean pushFluidInputs(World world, BlockPos pos, InventoryCrafting table, List<FluidStack> pushedFluids) {
         TileEntity te = world.getTileEntity(pos);
@@ -554,7 +535,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
             if (fluid == null) continue;
 
-            // 尝试推送到目标的 IFluidHandler（先 simulate 再实际填充）
+            // 尝试推送到目标的 IFluidHandler(先 simulate 再实际填充)
             boolean pushed = false;
             for (EnumFacing face : EnumFacing.values()) {
                 if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
@@ -575,14 +556,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 return false;
             }
 
-            // 从 table 中移除已推送的流体，避免 handler.pushMaterials 再次尝试插入 ItemFluidDrop
+            // 从 table 中移除已推送的流体,避免 handler.pushMaterials 再次尝试插入 ItemFluidDrop
             table.setInventorySlotContents(i, ItemStack.EMPTY);
         }
         return true;
     }
 
     /**
-     * 回退已推送到目标 IFluidHandler 的流体。
+     * 回退已推送到目标 IFluidHandler 的流体.
      */
     private void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
         if (fluids.isEmpty()) return;
@@ -602,7 +583,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
-     * 从目标的 IFluidHandler 收集流体产物。
+     * 从目标的 IFluidHandler 收集流体产物.
      */
     private List<ItemStack> collectFluidProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
         List<ItemStack> fluids = new ArrayList<>();
@@ -920,7 +901,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public void onStackReturnedToNetwork(IAEItemStack stack) {
-        // 空实现，备用
+        // 空实现,备用
     }
 
     public IConfigManager getConfigManager() {

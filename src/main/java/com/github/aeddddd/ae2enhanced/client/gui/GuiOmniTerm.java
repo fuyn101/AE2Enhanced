@@ -50,7 +50,7 @@ import java.awt.Rectangle;
  */
 public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredients {
 
-    // 反射字段缓存（一次性查找，终身复用）
+    // 反射字段缓存(一次性查找,终身复用)
     private static final java.lang.reflect.Field REPO_FIELD =
             GuiReflectionCache.getField(GuiMEMonitorable.class, "repo");
     private static final java.lang.reflect.Field VIEW_CELL_FIELD =
@@ -102,7 +102,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     private int currentMouseX;
     private int currentMouseY;
 
-    // 搜索框缓存（避免 keyTyped 中重复反射）
+    // 搜索框缓存(避免 keyTyped 中重复反射)
     private MEGuiTextField omniSearchField;
 
     // View Cell 缓存
@@ -117,7 +117,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         this.container = (ContainerOmniTerm) this.inventorySlots;
         this.xSize = 357;
 
-        // 通过反射将 final repo 替换为 OmniItemRepo（支持合成置顶）
+        // 通过反射将 final repo 替换为 OmniItemRepo(支持合成置顶)
         try {
             REPO_FIELD.set(this, new com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo(this.getScrollBar(), this));
             this.isOmniRepo = true;
@@ -130,7 +130,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     public void initGui() {
         this.repo.setRowSize(18);
 
-        // 计算行数：SMALL 固定 5 行，TALL 根据屏幕高度动态
+        // 计算行数：SMALL 固定 5 行,TALL 根据屏幕高度动态
         TerminalStyle style = (TerminalStyle) AEConfig.instance().getConfigManager().getSetting(Settings.TERMINAL_STYLE);
         if (style == TerminalStyle.SMALL) {
             this.omniRows = 5;
@@ -148,7 +148,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         final int oldGuiTop = this.guiTop;
         final int oldGuiLeft = this.guiLeft;
 
-        // super.initGui() 会覆盖 xSize/ySize，导致 JEI 错误识别 GUI 区域，必须恢复
+        // super.initGui() 会覆盖 xSize/ySize,导致 JEI 错误识别 GUI 区域,必须恢复
         this.xSize = 357;
         this.ySize = desiredYSize;
         this.guiLeft = (this.width - 357) / 2;
@@ -161,7 +161,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 this.extraHeight,
                 s -> !this.container.isViewCellSlot(s) && s.yPos >= 86);
 
-        // 2. 移除 super 创建的 SlotME，重新创建 18 列 × omniRows 行
+        // 2. 移除 super 创建的 SlotME,重新创建 18 列 × omniRows 行
         this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
         this.getMeSlots().clear();
         for (int row = 0; row < this.omniRows; row++) {
@@ -173,7 +173,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             this.inventorySlots.inventorySlots.add(new SlotME(me));
         }
 
-        // 4. 重新定位 AE2 标准按钮（使用相对于旧 guiLeft/guiTop 的偏移，保持原始布局比例）
+        // 4. 重新定位 AE2 标准按钮(使用相对于旧 guiLeft/guiTop 的偏移,保持原始布局比例)
         for (GuiButton btn : this.buttonList) {
             if (btn instanceof GuiImgButton) {
                 GuiImgButton imgBtn = (GuiImgButton) btn;
@@ -222,7 +222,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             this.updateItemScrollRange();
         }
 
-        // 7. 添加合成计划按钮（先移除 super.initGui() 在 viewCell=true 时创建的中间位置旧按钮）
+        // 7. 添加合成计划按钮(先移除 super.initGui() 在 viewCell=true 时创建的中间位置旧按钮)
         try {
             GuiTabButton oldBtn = (GuiTabButton) CRAFTING_STATUS_BTN_FIELD.get(this);
             if (oldBtn != null) {
@@ -255,7 +255,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             e.printStackTrace();
         }
 
-        // 缓存 viewCell 状态，避免 drawBG / getJEIExclusionArea 每帧反射
+        // 缓存 viewCell 状态,避免 drawBG / getJEIExclusionArea 每帧反射
         try {
             this.cachedHasViewCell = VIEW_CELL_FIELD.getBoolean(this);
         } catch (Exception e) {
@@ -276,7 +276,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     private void setupPatternButtons() {
         int gl = this.guiLeft;
         int gt = this.guiTop;
-        int fy = gt + this.extraHeight; // 固定区域基准 y（随物品库行数增加而下移）
+        int fy = gt + this.extraHeight; // 固定区域基准 y(随物品库行数增加而下移)
 
         // 切换 Crafting/Processing 模式按钮 — 位于编码区右上角
         this.tabCraftButton = new GuiTabButton(gl + 335, fy + 74, new ItemStack(Blocks.CRAFTING_TABLE), "Crafting", this.itemRender);
@@ -298,12 +298,12 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         this.clearBtn.setHalfSize(true);
         this.buttonList.add(this.clearBtn);
 
-        // 编码区清空按钮 — 位于处理模式九宫格右上角右侧，间隔1像素
+        // 编码区清空按钮 — 位于处理模式九宫格右上角右侧,间隔1像素
         this.clearPatternBtn = new GuiImgButton(gl + 251, fy + 92, Settings.ACTIONS, ActionItems.CLOSE);
         this.clearPatternBtn.setHalfSize(true);
         this.buttonList.add(this.clearPatternBtn);
 
-        // 编码区快捷操作按钮（位于编码区右侧，避免与合成区重叠）
+        // 编码区快捷操作按钮(位于编码区右侧,避免与合成区重叠)
         this.x3Btn = new GuiImgButton(gl + 180, fy + 157, Settings.ACTIONS, ActionItems.MULTIPLY_BY_THREE);
         this.x3Btn.setHalfSize(true);
         this.buttonList.add(this.x3Btn);
@@ -369,7 +369,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 AE2Enhanced.network.sendToServer(new PacketOmniTermAction(action, value));
             }
             
-            // 让 AE2 标准按钮（SortDir/ViewMode/TerminalStyle 等）也能正常工作
+            // 让 AE2 标准按钮(SortDir/ViewMode/TerminalStyle 等)也能正常工作
             super.actionPerformed(btn);
         } catch (Exception e) {
             e.printStackTrace();
@@ -382,11 +382,11 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         this.mc.getTextureManager().bindTexture(GuiResourceCache.OMNI_BG);
         // 顶部固定 18 像素
         Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY, 0, 0, 357, 18, 512, 512);
-        // 物品库可重复行（纹理 y=36~54 为可重复的一行）
+        // 物品库可重复行(纹理 y=36~54 为可重复的一行)
         for (int i = 0; i < this.omniRows; i++) {
             Gui.drawModalRectWithCustomSizedTexture(offsetX, offsetY + 18 + i * 18, 0, 36, 357, 18, 512, 512);
         }
-        // 底部固定区域（纹理 y=72~251）
+        // 底部固定区域(纹理 y=72~251)
         int bottomY = offsetY + 18 + this.omniRows * 18;
         Gui.drawModalRectWithCustomSizedTexture(offsetX, bottomY, 0, 72, 357, 251 - 72, 512, 512);
 
@@ -395,7 +395,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         int modeY = this.container.isPatternCraftMode() ? 0 : 66;
         this.drawTexturedModalRect(offsetX + 180, offsetY + 86 + this.extraHeight, 0, modeY, 124, 66);
 
-        // 合成置顶：第一行高亮背景（crafting.png 只有 9 格，需平铺两次覆盖 18 格）
+        // 合成置顶：第一行高亮背景(crafting.png 只有 9 格,需平铺两次覆盖 18 格)
         java.util.List<CraftingStatus> activeCrafting = this.container.getClientActiveCrafting();
         if (!activeCrafting.isEmpty()) {
             this.mc.getTextureManager().bindTexture(GuiResourceCache.CRAFTING_HIGHLIGHT);
@@ -411,7 +411,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 CraftingStatus status = activeCrafting.get(i);
                 int borderColor = this.getCraftingBorderColor(status, time);
                 if ((borderColor >>> 24) == 0) {
-                    continue; // 已完成（alpha=0），跳过描边
+                    continue; // 已完成(alpha=0),跳过描边
                 }
                 int slotLeft = hlLeft + i * 18;
                 int slotRight = slotLeft + 18;
@@ -422,12 +422,12 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             }
         }
 
-        // 手动绘制搜索框（因为 super.drawBG 被覆盖）
+        // 手动绘制搜索框(因为 super.drawBG 被覆盖)
         if (this.omniSearchField != null) {
             this.omniSearchField.drawTextBox();
         }
 
-        // View Cell 侧栏背景（AE2 标准终端纹理）
+        // View Cell 侧栏背景(AE2 标准终端纹理)
         if (this.cachedHasViewCell) {
             this.mc.getTextureManager().bindTexture(GuiResourceCache.AE2_TERMINAL);
             this.drawTexturedModalRect(offsetX + 357, offsetY + this.jeiOffset, 197, 0, 46, 128);
@@ -456,7 +456,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     @Override
     public List<Rectangle> getJEIExclusionArea() {
         ArrayList<Rectangle> exclusionArea = new ArrayList<>();
-        // 左侧设置按钮（SortDir/ViewMode/TerminalStyle 等）
+        // 左侧设置按钮(SortDir/ViewMode/TerminalStyle 等)
         int yOffset = this.guiTop + 8;
         int visibleButtons = 0;
         for (GuiButton btn : this.buttonList) {
@@ -467,7 +467,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         if (visibleButtons > 0) {
             exclusionArea.add(new Rectangle(this.guiLeft - 18, yOffset, 20, visibleButtons * 20 + visibleButtons - 2));
         }
-        // viewCell 侧栏区域（GUI 右侧外部）
+        // viewCell 侧栏区域(GUI 右侧外部)
         if (this.cachedHasViewCell) {
             exclusionArea.add(new Rectangle(this.guiLeft + 357, this.guiTop + this.jeiOffset, 46, 19 * 5));
         }
@@ -525,9 +525,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     }
 
     /**
-     * 根据合成进度计算动态描边颜色。
-     * 进度从高（刚开始）到低（快完成）：橙色 → 绿色，同时带呼吸脉冲效果。
-     * 已完成（remaining <= 0）时返回完全透明。
+     * 根据合成进度计算动态描边颜色.
+     * 进度从高(刚开始)到低(快完成)：橙色 → 绿色,同时带呼吸脉冲效果.
+     * 已完成(remaining <= 0)时返回完全透明.
      */
     private int getCraftingBorderColor(CraftingStatus status, long time) {
         if (status.isDone()) {
@@ -538,7 +538,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         int r = (int) (255 * ratio);
         int g = (int) (255 - 119 * ratio);
         int b = 0;
-        // 呼吸脉冲：频率随进度加快（快完成时闪烁更快）
+        // 呼吸脉冲：频率随进度加快(快完成时闪烁更快)
         double pulse = Math.sin(time / (200.0 + 300.0 * ratio)) * 0.5 + 0.5;
         int alpha = (int) (120 + pulse * 80 + (1.0f - ratio) * 40);
         if (alpha > 255) alpha = 255;
@@ -554,7 +554,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         }
 
         super.updateScreen();
-        // 修复物品库滚动条位置和范围（super.updateScreen 中的 setScrollBar 会重置它们）
+        // 修复物品库滚动条位置和范围(super.updateScreen 中的 setScrollBar 会重置它们)
         GuiScrollbar bar = this.getScrollBar();
         if (bar != null) {
             bar.setLeft(335).setTop(18).setHeight(this.omniRows * 18);
@@ -597,7 +597,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         if (!this.checkHotbarKeys(key)) {
             MEGuiTextField searchField = this.omniSearchField;
             if (searchField != null) {
-                // F 键 JEI 搜索（在 TOGGLE_FOCUS 和搜索栏输入之前处理）
+                // F 键 JEI 搜索(在 TOGGLE_FOCUS 和搜索栏输入之前处理)
                 if (key == Keyboard.KEY_F && !searchField.isFocused()) {
                     JEISearchKeyHandler.performSearch(this);
                     return;
@@ -660,7 +660,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                     && mx >= this.guiLeft + 180 && mx <= this.guiLeft + 316
                     && my >= this.guiTop + 88 + this.extraHeight && my <= this.guiTop + 154 + this.extraHeight;
             if (inPatternArea) {
-                // 编码区滚轮独立处理，阻止 super 同时滚动物品库
+                // 编码区滚轮独立处理,阻止 super 同时滚动物品库
                 this.patternScrollBar.wheel(delta);
                 int newOffset = this.patternScrollBar.getCurrentScroll();
                 if (newOffset != this.container.getScrollOffset()) {

@@ -23,17 +23,17 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 编码后的智能样板。
- * 实现 {@link ICraftingPatternItem}，但 {@link #getPatternForItem} 返回 null，
- * 实际展开逻辑由 Mixin 注入 {@code DualityInterface.addToCraftingList} 处理。
+ * 编码后的智能样板.
+ * 实现 {@link ICraftingPatternItem},但 {@link #getPatternForItem} 返回 null,
+ * 实际展开逻辑由 Mixin 注入 {@code DualityInterface.addToCraftingList} 处理.
  *
- * <p>NBT 结构（最小化）：</p>
+ * <p>NBT 结构(最小化)：</p>
  * <pre>
  * {
  *   patternDataId: UUID
  *   disabledMask: String (Base64 BitSet)
  *   recipeCount: int
- *   targetBlockId: String (诊断信息，可选)
+ *   targetBlockId: String (诊断信息,可选)
  * }
  * </pre>
  */
@@ -52,7 +52,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 创建编码后的智能样板 ItemStack。
+     * 创建编码后的智能样板 ItemStack.
      */
     @Nonnull
     public static ItemStack createPattern(@Nonnull UUID patternDataId,
@@ -70,7 +70,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取 patternDataId。
+     * 从 ItemStack 中提取 patternDataId.
      */
     @Nullable
     public static UUID getPatternDataId(@Nonnull ItemStack stack) {
@@ -85,7 +85,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取禁用掩码。
+     * 从 ItemStack 中提取禁用掩码.
      */
     @Nonnull
     public static BitSet getDisabledMask(@Nonnull ItemStack stack) {
@@ -100,7 +100,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取配方数量（诊断信息）。
+     * 从 ItemStack 中提取配方数量(诊断信息).
      */
     public static int getRecipeCount(@Nonnull ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemSmartPattern)) {
@@ -111,7 +111,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取目标方块 ID（诊断信息）。
+     * 从 ItemStack 中提取目标方块 ID(诊断信息).
      */
     @Nonnull
     public static String getTargetBlockId(@Nonnull ItemStack stack) {
@@ -123,8 +123,8 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 将智能样板展开为多个 {@link ICraftingPatternDetails}。
-     * 由 Mixin 调用。
+     * 将智能样板展开为多个 {@link ICraftingPatternDetails}.
+     * 由 Mixin 调用.
      */
     @Nonnull
     public static List<SmartPatternSubDetails> expandPatterns(@Nonnull ItemStack stack, @Nonnull World world) {
@@ -149,7 +149,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
 
     @Override
     public ICraftingPatternDetails getPatternForItem(@Nonnull ItemStack stack, @Nonnull World world) {
-        // 返回 null，由 Mixin 在 addToCraftingList 中拦截并展开
+        // 返回 null,由 Mixin 在 addToCraftingList 中拦截并展开
         return null;
     }
 

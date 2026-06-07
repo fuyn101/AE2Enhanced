@@ -6,10 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 黑洞合成配方。
- * 物品被投入黑洞事件视界后，若累计数量满足输入，则转化为输出产物。
+ * 黑洞合成配方.
+ * 物品被投入黑洞事件视界后,若累计数量满足输入,则转化为输出产物.
  *
- * 输入 key 格式："registryName:meta"，支持同一 Item 的不同 metadata 区分。
+ * 输入 key 格式："registryName:meta",支持同一 Item 的不同 metadata 区分.
  */
 public class BlackHoleRecipe {
 
@@ -36,7 +36,7 @@ public class BlackHoleRecipe {
     }
 
     /**
-     * 检查 found 中是否包含所有输入且数量足够。
+     * 检查 found 中是否包含所有输入且数量足够.
      */
     public boolean matches(Map<String, Integer> found) {
         for (Map.Entry<String, Integer> entry : inputs.entrySet()) {

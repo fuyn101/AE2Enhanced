@@ -14,13 +14,13 @@ import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.Constants;
 
 /**
- * 装配枢纽自动上传功能的辅助类。
- * 被 MixinPatternEncoder 和 ContainerOmniTerm 共用。
+ * 装配枢纽自动上传功能的辅助类.
+ * 被 MixinPatternEncoder 和 ContainerOmniTerm 共用.
  */
 public class AssemblyAutoUploadHelper {
 
     /**
-     * 检查样板是否为合成样板（crafting=1），而非处理样板。
+     * 检查样板是否为合成样板(crafting=1),而非处理样板.
      */
     public static boolean isCraftingPattern(ItemStack pattern) {
         if (!pattern.hasTagCompound()) return false;
@@ -29,10 +29,10 @@ public class AssemblyAutoUploadHelper {
     }
 
     /**
-     * 尝试将样板自动上传到最近的、安装了自动上传升级的装配枢纽。
-     * 搜索范围：所有已加载维度中同一 ME 网络内的装配枢纽。
+     * 尝试将样板自动上传到最近的、安装了自动上传升级的装配枢纽.
+     * 搜索范围：所有已加载维度中同一 ME 网络内的装配枢纽.
      *
-     * @param playerGrid 玩家当前所在的 ME 网格（通过终端获取），为 null 时不限制网络
+     * @param playerGrid 玩家当前所在的 ME 网格(通过终端获取),为 null 时不限制网络
      * @return true 如果上传成功
      */
     public static boolean tryUploadPattern(World world, EntityPlayer player, ItemStack pattern, IGrid playerGrid) {
@@ -46,7 +46,7 @@ public class AssemblyAutoUploadHelper {
     }
 
     /**
-     * 兼容旧调用：不限制 ME 网络。
+     * 兼容旧调用：不限制 ME 网络.
      */
     public static boolean tryUploadPattern(World world, EntityPlayer player, ItemStack pattern) {
         return tryUploadPattern(world, player, pattern, null);
@@ -82,7 +82,7 @@ public class AssemblyAutoUploadHelper {
         double bestDist = Double.MAX_VALUE;
 
         for (BlockPos pos : index.getAll()) {
-            // 区块必须已加载（天然满足：ControllerIndex 只记录已加载区块中的控制器）
+            // 区块必须已加载(天然满足：ControllerIndex 只记录已加载区块中的控制器)
             TileEntity te = world.getTileEntity(pos);
             if (!(te instanceof TileAssemblyController)) continue;
             TileAssemblyController controller = (TileAssemblyController) te;
@@ -90,7 +90,7 @@ public class AssemblyAutoUploadHelper {
             if (!controller.hasAutoUploadUpgrade()) continue;
             if (!controller.canAcceptPattern(pattern)) continue;
 
-            // 网络过滤：如果提供了 playerGrid，只匹配同一网络
+            // 网络过滤：如果提供了 playerGrid,只匹配同一网络
             if (playerGrid != null) {
                 IGrid controllerGrid = getControllerGrid(controller);
                 if (controllerGrid == null || controllerGrid != playerGrid) {

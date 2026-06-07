@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * E2a：GridStorageCache 实时联动——气体通道变化通知物品通道。
- * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中，条件加载。
+ * E2a：GridStorageCache 实时联动——气体通道变化通知物品通道.
+ * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中,条件加载.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
@@ -77,7 +77,7 @@ public class MixinGridStorageCacheGas {
 
             MixinReflectionHelper.postChange(itemMonitor, true, fakeChanges, src);
         } catch (Exception e) {
-            // 反射调用失败，静默处理
+            // 反射调用失败,静默处理
         }
     }
 }

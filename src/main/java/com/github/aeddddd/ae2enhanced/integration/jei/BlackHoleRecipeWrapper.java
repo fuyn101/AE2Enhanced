@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * JEI 黑洞合成配方包装器。
+ * JEI 黑洞合成配方包装器.
  */
 public class BlackHoleRecipeWrapper implements IRecipeWrapper {
 

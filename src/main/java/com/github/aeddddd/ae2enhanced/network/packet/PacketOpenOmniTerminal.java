@@ -10,8 +10,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 客户端按键打开 Omni Terminal 的请求包。
- * 服务端收到后，在玩家物品栏和 Baubles 饰品槽中查找 Omni Terminal 并打开 GUI。
+ * 客户端按键打开 Omni Terminal 的请求包.
+ * 服务端收到后,在玩家物品栏和 Baubles 饰品槽中查找 Omni Terminal 并打开 GUI.
  */
 public class PacketOpenOmniTerminal implements IMessage {
 

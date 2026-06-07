@@ -17,11 +17,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 多方块结构未成型状态 GUI 抽象基类。
+ * 多方块结构未成型状态 GUI 抽象基类.
  *
- * 统一缺失材料检测、组装按钮状态、材料列表渲染等逻辑，
+ * 统一缺失材料检测、组装按钮状态、材料列表渲染等逻辑,
  * 消除 GuiAssemblyUnformed / GuiHyperdimensionalUnformed / GuiComputationUnformed
- * 中各自重复的 ~90 行代码。
+ * 中各自重复的 ~90 行代码.
  */
 public abstract class GuiStructureUnformed extends GuiTechPanel {
 
@@ -30,7 +30,7 @@ public abstract class GuiStructureUnformed extends GuiTechPanel {
     protected Map<Block, Integer> missingMap = new HashMap<>();
     protected int refreshTicks = 0;
 
-    // 布局参数（相对 guiTop 或绝对坐标）
+    // 布局参数(相对 guiTop 或绝对坐标)
     private final int buttonYOffset;
     private final int innerPanelBottom;
     private final int statusYOffset;
@@ -72,7 +72,7 @@ public abstract class GuiStructureUnformed extends GuiTechPanel {
     /** 子类提供副标题本地化键 */
     protected abstract String getSubtitleKey();
 
-    /** 子类检测结构是否已成型（用于关闭 GUI） */
+    /** 子类检测结构是否已成型(用于关闭 GUI) */
     protected abstract boolean isTileFormed();
 
     @Override

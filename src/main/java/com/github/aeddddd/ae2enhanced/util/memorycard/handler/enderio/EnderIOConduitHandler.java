@@ -13,8 +13,8 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 
 /**
- * Ender IO 导管的配置复制粘贴 Handler。
- * 整根复制：遍历 bundle 中所有 conduit 的所有 6 个面的连接设置。
+ * Ender IO 导管的配置复制粘贴 Handler.
+ * 整根复制：遍历 bundle 中所有 conduit 的所有 6 个面的连接设置.
  */
 public class EnderIOConduitHandler implements IMemoryCardHandler {
 
@@ -95,7 +95,7 @@ public class EnderIOConduitHandler implements IMemoryCardHandler {
                 }
 
                 if (hasData) {
-                    // 使用 conduit 类名作为 key，避免不同类型 conduit 冲突
+                    // 使用 conduit 类名作为 key,避免不同类型 conduit 冲突
                     String conduitKey = conduit.getClass().getName() + "_" + conduitIndex;
                     output.setTag(conduitKey, conduitNbt);
                 }
@@ -132,7 +132,7 @@ public class EnderIOConduitHandler implements IMemoryCardHandler {
             for (String key : data.getKeySet()) {
                 Object conduit = conduitMap.get(key);
                 if (conduit == null) {
-                    // 尝试按类名前缀匹配（处理注册顺序变化）
+                    // 尝试按类名前缀匹配(处理注册顺序变化)
                     String className = key.substring(0, key.lastIndexOf('_'));
                     for (Object c : conduits) {
                         if (c.getClass().getName().equals(className)) {

@@ -21,8 +21,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * E1a：通用输入总线的物品形态。
- * 实现 IPartItem，放置到 AE2 线缆总线上。
+ * E1a：通用输入总线的物品形态.
+ * 实现 IPartItem,放置到 AE2 线缆总线上.
  */
 public class ItemPartUniversalImportBus extends Item implements IPartItem<PartUniversalImportBus> {
 

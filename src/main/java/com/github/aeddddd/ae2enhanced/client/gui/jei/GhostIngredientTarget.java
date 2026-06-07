@@ -20,8 +20,8 @@ import java.awt.Rectangle;
 import java.io.IOException;
 
 /**
- * E1a：通用输入总线的 JEI Ghost Ingredient Target。
- * 支持 ItemStack（含流体/气体容器）、FluidStack、GasStack（反射）的拖放。
+ * E1a：通用输入总线的 JEI Ghost Ingredient Target.
+ * 支持 ItemStack(含流体/气体容器)、FluidStack、GasStack(反射)的拖放.
  */
 public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Object> {
 
@@ -83,11 +83,11 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
             }
         }
 
-        // 气体物品（反射调用 FakeGases）
+        // 气体物品(反射调用 FakeGases)
         IAEItemStack gasStack = tryResolveGasFromItem(is);
         if (gasStack != null) return gasStack;
 
-        // 源质容器（反射调用 FakeEssentias）
+        // 源质容器(反射调用 FakeEssentias)
         ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(is);
         if (essentiaFake != null && !essentiaFake.isEmpty()) {
             return AEItemStack.fromItemStack(essentiaFake);

@@ -67,7 +67,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_ADVANCED_PLATFORM_CONTROLLER = 24;
     public static final int GUI_ADVANCED_PLATFORM_SUBMENU = 25;
 
-    /** 编码二级菜单 GUI ID：低8位为 base ID，bit8-31为子网 ID */
+    /** 编码二级菜单 GUI ID：低8位为 base ID,bit8-31为子网 ID */
     public static int encodeSubmenuId(int subnetId) {
         return GUI_ADVANCED_PLATFORM_SUBMENU | (subnetId << 8);
     }
@@ -76,7 +76,7 @@ public class GuiHandler implements IGuiHandler {
         return (id >> 8) & 0xFFFFFF;
     }
 
-    /** 编码页码到 GUI ID：低4位为 base ID，bit8-15为页码，bit16-20为 patternPages */
+    /** 编码页码到 GUI ID：低4位为 base ID,bit8-15为页码,bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
         return GUI_ASSEMBLY_PATTERN | (page << 8) | (patternPages << 16);
     }
@@ -93,7 +93,7 @@ public class GuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-        // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
+        // Omni 终端是无线物品 GUI,不依赖 TileEntity,优先处理避免与 (0,0,0) 处 TileEntity 冲突
         if (ID == GUI_OMNI_TERMINAL) {
             ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
@@ -221,7 +221,7 @@ public class GuiHandler implements IGuiHandler {
 
     @Override
     public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-        // Omni 终端是无线物品 GUI，不依赖 TileEntity，优先处理避免与 (0,0,0) 处 TileEntity 冲突
+        // Omni 终端是无线物品 GUI,不依赖 TileEntity,优先处理避免与 (0,0,0) 处 TileEntity 冲突
         if (ID == GUI_OMNI_TERMINAL) {
             ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
@@ -334,8 +334,8 @@ public class GuiHandler implements IGuiHandler {
     }
 
     /**
-     * 根据 GUI 参数查找 Omni Terminal ItemStack。
-     * y == 1 表示从 Baubles 饰品槽位读取（x 为 Baubles 槽位索引）。
+     * 根据 GUI 参数查找 Omni Terminal ItemStack.
+     * y == 1 表示从 Baubles 饰品槽位读取(x 为 Baubles 槽位索引).
      */
     private static ItemStack findOmniTerminalStack(EntityPlayer player, int x, int y) {
         if (y == 1 && net.minecraftforge.fml.common.Loader.isModLoaded("baubles")) {

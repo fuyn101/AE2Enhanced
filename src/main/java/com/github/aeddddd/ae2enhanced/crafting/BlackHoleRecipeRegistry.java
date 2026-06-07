@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 黑洞合成配方注册表。
+ * 黑洞合成配方注册表.
  */
 public class BlackHoleRecipeRegistry {
 
@@ -21,7 +21,7 @@ public class BlackHoleRecipeRegistry {
     }
 
     /**
-     * 在 found 中寻找第一个匹配的配方。
+     * 在 found 中寻找第一个匹配的配方.
      */
     public static BlackHoleRecipe findMatching(Map<String, Integer> found) {
         for (BlackHoleRecipe recipe : RECIPES) {

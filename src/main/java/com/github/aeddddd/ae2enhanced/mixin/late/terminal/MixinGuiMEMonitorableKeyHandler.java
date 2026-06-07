@@ -9,11 +9,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 为所有 AE2 标准终端（GuiMEMonitorable 及其子类，不含覆盖 keyTyped 的 GuiOmniTerm）
- * 添加 F 键 JEI 搜索支持。
+ * 为所有 AE2 标准终端(GuiMEMonitorable 及其子类,不含覆盖 keyTyped 的 GuiOmniTerm)
+ * 添加 F 键 JEI 搜索支持.
  *
- * <p>当用户在终端 GUI 中按下 F 键，且搜索栏未聚焦时，将 JEI 悬停物品（物品列表
- * 或收藏栏）的名称填入终端搜索栏并立即刷新。</p>
+ * <p>当用户在终端 GUI 中按下 F 键,且搜索栏未聚焦时,将 JEI 悬停物品(物品列表
+ * 或收藏栏)的名称填入终端搜索栏并立即刷新.</p>
  */
 @Mixin(value = GuiMEMonitorable.class, remap = false)
 public class MixinGuiMEMonitorableKeyHandler {

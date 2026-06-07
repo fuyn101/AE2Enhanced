@@ -24,9 +24,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * E2a：GridStorageCache 实时联动——RF 能量通道变化通知物品通道。
- * 当 RF 能量网络中的存储发生实时变化时，将变化转换为假物品并 postChange 到物品 monitor，
- * 使终端自动刷新能量显示。
+ * E2a：GridStorageCache 实时联动——RF 能量通道变化通知物品通道.
+ * 当 RF 能量网络中的存储发生实时变化时,将变化转换为假物品并 postChange 到物品 monitor,
+ * 使终端自动刷新能量显示.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
@@ -80,7 +80,7 @@ public class MixinGridStorageCacheEnergy {
 
             MixinReflectionHelper.postChange(itemMonitor, add, fakeChanges, src);
         } catch (Exception e) {
-            // 反射调用失败，静默处理
+            // 反射调用失败,静默处理
         }
     }
 }

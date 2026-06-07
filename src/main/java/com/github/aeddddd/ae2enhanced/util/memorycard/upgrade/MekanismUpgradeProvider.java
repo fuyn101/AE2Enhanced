@@ -5,11 +5,11 @@ import net.minecraft.item.ItemStack;
 import java.lang.reflect.Method;
 
 /**
- * 将 Mekanism 的 TileComponentUpgrade 适配为 IUpgradeProvider。
+ * 将 Mekanism 的 TileComponentUpgrade 适配为 IUpgradeProvider.
  *
- * Mekanism 的升级系统是基于 Upgrade 枚举的 map（类型 → 数量），
- * 每个 Upgrade 类型对应一个 ItemStack。
- * 我们通过 IUpgradeProvider 的 slot 索引映射到 Upgrade 类型数组的索引。
+ * Mekanism 的升级系统是基于 Upgrade 枚举的 map(类型 → 数量),
+ * 每个 Upgrade 类型对应一个 ItemStack.
+ * 我们通过 IUpgradeProvider 的 slot 索引映射到 Upgrade 类型数组的索引.
  */
 public class MekanismUpgradeProvider implements IUpgradeProvider {
 

@@ -33,14 +33,14 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Thaumcraft 6 坩埚远程处理器。
+ * Thaumcraft 6 坩埚远程处理器.
  *
  * <p>支持中枢 ME 接口对坩埚的自动化：
  * <ul>
- *   <li>智能发配顺序：自动遍历 CrucibleRecipe 识别催化剂，确保催化剂最后投入</li>
- *   <li>催化剂自然投掷：源质来源直接分解，催化剂以 EntityItem 形式从坩埚上方自然落下</li>
+ *   <li>智能发配顺序：自动遍历 CrucibleRecipe 识别催化剂,确保催化剂最后投入</li>
+ *   <li>催化剂自然投掷：源质来源直接分解,催化剂以 EntityItem 形式从坩埚上方自然落下</li>
  *   <li>研究绕过：使用 FakePlayer 临时授予所有坩埚配方研究</li>
- *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空（可配置开关）</li>
+ *   <li>源质残留管理：成功收集产物后才调用 spillRemnants 清空(可配置开关)</li>
  * </ul>
  */
 public class ThaumcraftCrucibleHandler implements IRemoteHandler {
@@ -144,7 +144,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             // FakePlayer 研究绕过
             String username = ensureResearch(world);
 
-            // 投入源质来源（直接 attemptSmelt）
+            // 投入源质来源(直接 attemptSmelt)
             for (ItemStack stack : sources) {
                 ItemStack remaining = (ItemStack) METHOD_ATTEMPT_SMELT.invoke(te, stack, username);
                 if (remaining == null) {
@@ -157,8 +157,8 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 EntityItem entityItem = new EntityItem(world,
                         pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
                         catalyst.copy());
-                // 必须设置 thrower，否则坩埚 attemptSmelt(EntityItem) 会传空字符串，
-                // 导致 getPlayerEntityByName 返回 null，配方匹配失败，催化剂被分解
+                // 必须设置 thrower,否则坩埚 attemptSmelt(EntityItem) 会传空字符串,
+                // 导致 getPlayerEntityByName 返回 null,配方匹配失败,催化剂被分解
                 entityItem.getEntityData().setString("thrower", username);
                 entityItem.getEntityData().setBoolean(TAG_CATALYST, true);
                 entityItem.motionX = 0;
@@ -189,14 +189,14 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
                                            List<ItemStack> inputs, IActionSource source) {
         initReflection();
-        // 如果还有未落下的催化剂，不能收集产物
+        // 如果还有未落下的催化剂,不能收集产物
         if (hasPendingCatalyst(world, pos)) {
             return new ArrayList<>();
         }
 
         List<ItemStack> result = collectSpecialItems(world, pos);
 
-        // 只在成功收集到产物后才清空坩埚，避免失败/revert时误清空
+        // 只在成功收集到产物后才清空坩埚,避免失败/revert时误清空
         if (!result.isEmpty() && AE2EnhancedConfig.thaumcraft.clearAfterCraft) {
             try {
                 TileEntity te = world.getTileEntity(pos);
@@ -213,7 +213,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
-        // 杀死未落下的催化剂 EntityItem，收集已弹出的产物，不清空坩埚
+        // 杀死未落下的催化剂 EntityItem,收集已弹出的产物,不清空坩埚
         initReflection();
         killPendingCatalysts(world, pos);
         return collectSpecialItems(world, pos);
@@ -298,16 +298,16 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 if (recipe instanceof CrucibleRecipe) {
                     String research = ((CrucibleRecipe) recipe).getResearch();
                     if (research != null && !research.isEmpty()) {
-                        // addResearch 只把研究标记为“已知”，默认 stage=0，
-                        // 但坩埚配方检查用的是 isResearchComplete，需要 stage > stages.length。
-                        // 因此这里额外 setResearchStage 到一个足够大的值。
+                        // addResearch 只把研究标记为“已知”,默认 stage=0,
+                        // 但坩埚配方检查用的是 isResearchComplete,需要 stage > stages.length.
+                        // 因此这里额外 setResearchStage 到一个足够大的值.
                         knowledge.addResearch(research);
                         knowledge.setResearchStage(research, 100);
                         GRANTED_RESEARCH.add(research);
                     }
                 }
             }
-            // 同步给 FakePlayer，确保后续 attemptSmelt 中 knowsResearchStrict 能命中
+            // 同步给 FakePlayer,确保后续 attemptSmelt 中 knowsResearchStrict 能命中
             knowledge.sync(fakePlayer);
             AE2Enhanced.LOGGER.info("[AE2E] Granted {} crucible researches to FakePlayer [{}]",
                     GRANTED_RESEARCH.size(), fakePlayer.getName());

@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 智能样板的聚合配方数据。
- * 包含全部配方列表、冲突掩码、禁用掩码等元数据。
- * 实际持久化由 {@link SmartPatternStorageFile} 管理。
+ * 智能样板的聚合配方数据.
+ * 包含全部配方列表、冲突掩码、禁用掩码等元数据.
+ * 实际持久化由 {@link SmartPatternStorageFile} 管理.
  */
 public class SmartPatternData {
 
@@ -24,7 +24,7 @@ public class SmartPatternData {
     private final BitSet conflictMask;
     private BitSet disabledMask;
     private final long createdAt;
-    private int[] displayOrder; // 排序后的配方原始索引（冲突在前）
+    private int[] displayOrder; // 排序后的配方原始索引(冲突在前)
 
     public SmartPatternData(@Nonnull UUID patternDataId, @Nonnull String targetBlockId,
                             @Nonnull List<SmartRecipe> recipes) {
@@ -87,8 +87,8 @@ public class SmartPatternData {
     }
 
     /**
-     * 检测冲突：若两个配方的主要输出相同，则标记为冲突。
-     * 冲突配方在 GUI 中置顶显示，且禁止编码。
+     * 检测冲突：若两个配方的主要输出相同,则标记为冲突.
+     * 冲突配方在 GUI 中置顶显示,且禁止编码.
      */
     public void detectConflicts() {
         conflictMask.clear();
@@ -107,7 +107,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 重新生成 displayOrder：冲突配方排在最前面，其余保持原始顺序。
+     * 重新生成 displayOrder：冲突配方排在最前面,其余保持原始顺序.
      */
     private void rebuildDisplayOrder() {
         if (recipes.isEmpty()) {
@@ -127,7 +127,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 根据排序后的索引获取原始配方索引。
+     * 根据排序后的索引获取原始配方索引.
      */
     public int getDisplayIndex(int sortedIndex) {
         if (displayOrder == null || sortedIndex < 0 || sortedIndex >= displayOrder.length) return -1;
@@ -135,14 +135,14 @@ public class SmartPatternData {
     }
 
     /**
-     * 检查是否存在冲突。
+     * 检查是否存在冲突.
      */
     public boolean hasConflicts() {
         return !conflictMask.isEmpty();
     }
 
     /**
-     * 获取指定排序索引的配方是否被禁用。
+     * 获取指定排序索引的配方是否被禁用.
      */
     public boolean isDisabled(int sortedIndex) {
         int original = getDisplayIndex(sortedIndex);
@@ -150,7 +150,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 获取指定排序索引的配方是否存在冲突。
+     * 获取指定排序索引的配方是否存在冲突.
      */
     public boolean isConflict(int sortedIndex) {
         int original = getDisplayIndex(sortedIndex);
@@ -158,7 +158,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 获取指定排序索引的配方。
+     * 获取指定排序索引的配方.
      */
     @Nullable
     public SmartRecipe getRecipe(int sortedIndex) {
@@ -167,15 +167,15 @@ public class SmartPatternData {
     }
 
     /**
-     * 获取启用的配方数量（用于显示）。
+     * 获取启用的配方数量(用于显示).
      */
     public int getEnabledCount() {
         return recipes.size() - disabledMask.cardinality();
     }
 
     /**
-     * 对指定排序索引的配方执行修改操作。
-     * 操作后会立刻重新检测冲突并刷新显示顺序。
+     * 对指定排序索引的配方执行修改操作.
+     * 操作后会立刻重新检测冲突并刷新显示顺序.
      */
     public void modifyRecipe(int sortedIndex, @Nonnull String action) {
         int original = getDisplayIndex(sortedIndex);
@@ -193,8 +193,8 @@ public class SmartPatternData {
     }
 
     /**
-     * 删除所有已禁用的配方。
-     * 返回被删除的配方数量。
+     * 删除所有已禁用的配方.
+     * 返回被删除的配方数量.
      */
     public int deleteDisabledRecipes() {
         List<SmartRecipe> newRecipes = new ArrayList<>();
@@ -214,8 +214,8 @@ public class SmartPatternData {
     }
 
     /**
-     * 在所有配方的输入输出中替换物品类型（保持数量不变）。
-     * 如果 to 为 null，则清除所有匹配的输入输出。
+     * 在所有配方的输入输出中替换物品类型(保持数量不变).
+     * 如果 to 为 null,则清除所有匹配的输入输出.
      */
     public void replaceInAllRecipes(@Nonnull appeng.api.storage.data.IAEItemStack from,
                                     @Nullable appeng.api.storage.data.IAEItemStack to) {
@@ -249,7 +249,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 将 BitSet 序列化为 Base64 字符串（用于压缩 NBT）。
+     * 将 BitSet 序列化为 Base64 字符串(用于压缩 NBT).
      */
     @Nonnull
     public static String bitSetToBase64(@Nonnull BitSet bitSet) {
@@ -258,7 +258,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 从 Base64 字符串反序列化 BitSet。
+     * 从 Base64 字符串反序列化 BitSet.
      */
     @Nonnull
     public static BitSet bitSetFromBase64(@Nonnull String base64) {
@@ -271,7 +271,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 序列化为 NBT。
+     * 序列化为 NBT.
      */
     public NBTTagCompound toNBT() {
         NBTTagCompound tag = new NBTTagCompound();
@@ -291,7 +291,7 @@ public class SmartPatternData {
     }
 
     /**
-     * 从 NBT 反序列化。
+     * 从 NBT 反序列化.
      */
     @Nullable
     public static SmartPatternData fromNBT(NBTTagCompound tag) {

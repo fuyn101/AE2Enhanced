@@ -18,20 +18,20 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 默认单批次处理器（通用 Fallback）。
+ * 默认单批次处理器(通用 Fallback).
  *
- * <p>当没有特定 {@link IRemoteHandler} 匹配目标方块类型时，使用此处理器。
+ * <p>当没有特定 {@link IRemoteHandler} 匹配目标方块类型时,使用此处理器.
  * 适用场景：熔炉、通用加工机器等具备 {@link IItemHandler} 能力、
- * 物品插入后自动开始处理、处理完成后产物留在输出槽的设备。</p>
+ * 物品插入后自动开始处理、处理完成后产物留在输出槽的设备.</p>
  *
- * <p>多目标隔离：输入材料快照由 {@link DualityCentralInterface} 按 TargetBinding 维护，
- * 通过 {@code inputs} 参数传入，避免多个中枢接口共享单例 handler 时的状态覆盖。</p>
+ * <p>多目标隔离：输入材料快照由 {@link DualityCentralInterface} 按 TargetBinding 维护,
+ * 通过 {@code inputs} 参数传入,避免多个中枢接口共享单例 handler 时的状态覆盖.</p>
  */
 public class DefaultSingleBatchHandler implements IRemoteHandler {
 
     @Override
     public boolean canHandle(String blockId) {
-        return false; // 不主动匹配任何 blockId，由 HandlerRegistry 作为兜底 fallback
+        return false; // 不主动匹配任何 blockId,由 HandlerRegistry 作为兜底 fallback
     }
 
     @Override
@@ -117,7 +117,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         List<ItemStack> collected = new ArrayList<>();
         Set<String> visitedSlots = new HashSet<>();
 
-        // 阶段 1：优先收集匹配预期产物的物品（NBT 放宽）
+        // 阶段 1：优先收集匹配预期产物的物品(NBT 放宽)
         if (expectedOutputs != null && expectedOutputs.length > 0) {
             for (IAEItemStack expected : expectedOutputs) {
                 if (expected == null) continue;
@@ -129,7 +129,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
             }
         }
 
-        // 阶段 2：收集所有其他非输入材料的可抽取物品（副产物、残余、容器物品等）
+        // 阶段 2：收集所有其他非输入材料的可抽取物品(副产物、残余、容器物品等)
         List<ItemStack> extras = collectAllNonInputItems(te, inputsSafe, visitedSlots);
         collected.addAll(extras);
 
@@ -145,7 +145,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
 
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
-        // 检查是否存在非输入材料的可抽取物品（即产物）
+        // 检查是否存在非输入材料的可抽取物品(即产物)
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
@@ -155,11 +155,11 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 ItemStack simulated = handler.extractItem(slot, 1, true);
                 if (simulated.isEmpty()) continue;
                 if (!isInputMaterial(inSlot, inputsSafe)) {
-                    return true; // 发现产物，允许收集
+                    return true; // 发现产物,允许收集
                 }
             }
         }
-        return false; // 仍在处理中，继续等待
+        return false; // 仍在处理中,继续等待
     }
 
     // ---- Internal helpers ----
@@ -210,7 +210,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                     }
                     remainingAmount -= extracted.getCount();
 
-                    // 只有当槽位被完全清空时才标记为已访问，
+                    // 只有当槽位被完全清空时才标记为已访问,
                     // 否则剩余物品应由 collectAllNonInputItems 继续回收
                     ItemStack afterExtract = handler.getStackInSlot(slot);
                     if (afterExtract.isEmpty()) {

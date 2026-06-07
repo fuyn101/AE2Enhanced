@@ -28,32 +28,32 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * JEI/HEI 配方查询助手。
+ * JEI/HEI 配方查询助手.
  *
- * <p>通过 JEI 的 RecipeRegistry 查询目标方块对应的所有配方。</p>
+ * <p>通过 JEI 的 RecipeRegistry 查询目标方块对应的所有配方.</p>
  * <p>查询策略：</p>
  * <ol>
- *   <li><b>催化剂匹配</b>：遍历所有 RecipeCategory，检查其催化剂列表中是否包含目标方块</li>
- *   <li><b>IFocus 回退</b>：创建 OUTPUT 焦点，查询与目标方块作为输出相关的类别</li>
+ *   <li><b>催化剂匹配</b>：遍历所有 RecipeCategory,检查其催化剂列表中是否包含目标方块</li>
+ *   <li><b>IFocus 回退</b>：创建 OUTPUT 焦点,查询与目标方块作为输出相关的类别</li>
  * </ol>
  *
- * <p>注意：JEI 是纯客户端模组，此类必须在客户端调用。</p>
+ * <p>注意：JEI 是纯客户端模组,此类必须在客户端调用.</p>
  */
 @SideOnly(Side.CLIENT)
 public class JEIRecipeHelper {
 
     /**
-     * 检查 JEI/HEI 是否可用。
+     * 检查 JEI/HEI 是否可用.
      */
     public static boolean isJeiAvailable() {
         return JEISearchKeyHandler.getJeiRuntime() != null;
     }
 
     /**
-     * 查询指定方块对应的所有 JEI 配方。
+     * 查询指定方块对应的所有 JEI 配方.
      *
-     * @param blockRegistryName 方块 registry name（如 "minecraft:furnace"）
-     * @return 转换后的 SmartRecipe 列表，若 JEI 不可用或找不到配方则返回空列表
+     * @param blockRegistryName 方块 registry name(如 "minecraft:furnace")
+     * @return 转换后的 SmartRecipe 列表,若 JEI 不可用或找不到配方则返回空列表
      */
     @Nonnull
     public static List<SmartRecipe> getRecipesForBlock(@Nonnull String blockRegistryName) {
@@ -113,7 +113,7 @@ public class JEIRecipeHelper {
     }
 
     /**
-     * 检查目标方块是否在黑名单中。
+     * 检查目标方块是否在黑名单中.
      */
     public static boolean isBlacklisted(@Nonnull String blockRegistryName) {
         for (String entry : AE2EnhancedConfig.smartPattern.blacklist) {
@@ -184,7 +184,7 @@ public class JEIRecipeHelper {
     }
 
     /**
-     * 将 JEI 的 IRecipeWrapper 转换为 SmartRecipe。
+     * 将 JEI 的 IRecipeWrapper 转换为 SmartRecipe.
      */
     @Nullable
     @SuppressWarnings("unchecked")
@@ -196,7 +196,7 @@ public class JEIRecipeHelper {
             List<List<ItemStack>> inputLists = ingredients.getInputs(VanillaTypes.ITEM);
             List<List<ItemStack>> outputLists = ingredients.getOutputs(VanillaTypes.ITEM);
 
-            // 收集所有输入（物品 + 流体）
+            // 收集所有输入(物品 + 流体)
             List<IAEItemStack> inputList = new ArrayList<>();
             for (List<ItemStack> slotInputs : inputLists) {
                 if (!slotInputs.isEmpty()) {
@@ -216,7 +216,7 @@ public class JEIRecipeHelper {
                 }
             }
 
-            // 收集所有输出（物品 + 流体），支持多输出
+            // 收集所有输出(物品 + 流体),支持多输出
             List<IAEItemStack> outputList = new ArrayList<>();
             for (List<ItemStack> slotOutputs : outputLists) {
                 if (!slotOutputs.isEmpty()) {
@@ -239,7 +239,7 @@ public class JEIRecipeHelper {
             IAEItemStack[] inputs = inputList.toArray(new IAEItemStack[0]);
             IAEItemStack[] outputs = outputList.toArray(new IAEItemStack[0]);
 
-            // 判断是否是 crafting 配方（简单启发式：UID 包含 "crafting"）
+            // 判断是否是 crafting 配方(简单启发式：UID 包含 "crafting")
             boolean isCrafting = category.getUid().toLowerCase().contains("crafting");
 
             return new SmartRecipe(inputs, outputs, isCrafting);

@@ -22,9 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * E2a：GridStorageCache 实时联动——流体通道变化通知物品通道。
- * 当流体网络中的存储发生实时变化时，将变化转换为假物品并 postChange 到物品 monitor，
- * 使终端自动刷新流体显示。
+ * E2a：GridStorageCache 实时联动——流体通道变化通知物品通道.
+ * 当流体网络中的存储发生实时变化时,将变化转换为假物品并 postChange 到物品 monitor,
+ * 使终端自动刷新流体显示.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
@@ -78,7 +78,7 @@ public class MixinGridStorageCacheFluid {
 
             MixinReflectionHelper.postChange(itemMonitor, true, fakeChanges, src);
         } catch (Exception e) {
-            // 反射调用失败，静默处理
+            // 反射调用失败,静默处理
         }
     }
 }

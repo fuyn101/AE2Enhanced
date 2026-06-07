@@ -22,17 +22,17 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 终端 Tooltip 桥接类 —— 处理流体/气体/源质假物品的 tooltip 渲染。
- * 由 MixinGuiMEMonitorableTooltip 在 @Inject 点调用。
+ * 终端 Tooltip 桥接类 —— 处理流体/气体/源质假物品的 tooltip 渲染.
+ * 由 MixinGuiMEMonitorableTooltip 在 @Inject 点调用.
  */
 public final class TerminalTooltipBridge {
 
     private TerminalTooltipBridge() {}
 
     /**
-     * 在 {@code GuiMEMonitorable.func_191948_b} 的 HEAD 处调用。
+     * 在 {@code GuiMEMonitorable.func_191948_b} 的 HEAD 处调用.
      *
-     * @return true 表示已处理 tooltip，Mixin 应 cancel 原方法
+     * @return true 表示已处理 tooltip,Mixin 应 cancel 原方法
      */
     public static boolean onRenderHoveredToolTip(GuiContainer gui, Slot slot, int mouseX, int mouseY) {
         if (!(slot instanceof SlotME) || !((SlotME) slot).isEnabled()) {

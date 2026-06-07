@@ -20,7 +20,7 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * UMC 选取与绑定逻辑服务。
+ * UMC 选取与绑定逻辑服务.
  */
 public class UMCSelectionService {
 

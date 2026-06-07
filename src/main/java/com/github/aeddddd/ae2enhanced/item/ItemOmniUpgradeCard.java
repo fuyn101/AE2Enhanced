@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Omni Terminal 专用升级卡。
+ * Omni Terminal 专用升级卡.
  */
 public class ItemOmniUpgradeCard extends Item {
 

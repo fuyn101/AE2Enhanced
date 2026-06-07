@@ -6,11 +6,11 @@ import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import org.lwjgl.opengl.GL11;
 
 /**
- * 微型奇点的 TESR。
- * 比正式黑洞更小、更致密、旋转更快，仅 2 层光晕。
+ * 微型奇点的 TESR.
+ * 比正式黑洞更小、更致密、旋转更快,仅 2 层光晕.
  *
- * GL 状态恢复策略：不使用 pushAttrib/popAttrib（Kirino 不兼容底层 glPushAttrib），
- * 所有修改的状态在 finally 中显式恢复。
+ * GL 状态恢复策略：不使用 pushAttrib/popAttrib(Kirino 不兼容底层 glPushAttrib),
+ * 所有修改的状态在 finally 中显式恢复.
  */
 public class RenderMicroSingularity extends TileEntitySpecialRenderer<TileMicroSingularity> {
 

@@ -12,9 +12,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.SlotItemHandler;
 
 /**
- * 智能样板接口的 Container。
+ * 智能样板接口的 Container.
  *
- * <p>槽位布局（v4 - 81 输入 + 滚动条）：</p>
+ * <p>槽位布局(v4 - 81 输入 + 滚动条)：</p>
  * <ul>
  *   <li>0~44:   配方显示槽位 (9列 x 5行, SlotFake)</li>
  *   <li>45:     空白样板输入槽 (116, 20)</li>
@@ -128,7 +128,7 @@ public class ContainerSmartPatternInterface extends Container {
     }
 
     /**
-     * 设置 MiniGUI 滚动偏移，控制哪一组输入/输出可见。
+     * 设置 MiniGUI 滚动偏移,控制哪一组输入/输出可见.
      */
     public void setScrollOffset(int offset) {
         offset = Math.max(0, Math.min(8, offset));
@@ -153,7 +153,7 @@ public class ContainerSmartPatternInterface extends Container {
             if (tile.getLockedRecipeIndex() < 0) {
                 return player.inventory.getItemStack();
             }
-            // 覆盖 SlotFake 的默认交互，确保能正常编辑
+            // 覆盖 SlotFake 的默认交互,确保能正常编辑
             if (clickTypeIn == ClickType.PICKUP) {
                 Slot slot = this.inventorySlots.get(slotId);
                 ItemStack held = player.inventory.getItemStack();

@@ -13,8 +13,8 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 
 /**
- * RF 访问节点方块。
- * 作为 ME 网络与外部 RF 能量网络之间的通用桥梁，独立于先进中枢平台系统。
+ * RF 访问节点方块.
+ * 作为 ME 网络与外部 RF 能量网络之间的通用桥梁,独立于先进中枢平台系统.
  */
 public class BlockRFAccessNode extends Block {
 

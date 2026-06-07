@@ -22,19 +22,19 @@ import java.util.BitSet;
 import java.util.UUID;
 
 /**
- * 智能样板接口的 TileEntity。
+ * 智能样板接口的 TileEntity.
  *
  * <p>功能：</p>
  * <ul>
- *   <li>存储绑定目标方块信息（boundPos / boundDim / boundBlockId）</li>
- *   <li>管理 SmartPatternData（配方列表、冲突/禁用掩码）</li>
- *   <li>提供样板输入槽和输出槽（通过 ItemStackHandler）</li>
- *   <li>处理编码逻辑（空白样板 → 编码后样板）</li>
+ *   <li>存储绑定目标方块信息(boundPos / boundDim / boundBlockId)</li>
+ *   <li>管理 SmartPatternData(配方列表、冲突/禁用掩码)</li>
+ *   <li>提供样板输入槽和输出槽(通过 ItemStackHandler)</li>
+ *   <li>处理编码逻辑(空白样板 → 编码后样板)</li>
  *   <li>MiniGUI 编辑：锁定配方后可修改输入输出</li>
  *   <li>批量替换：底部槽位在所有配方中替换物品</li>
  * </ul>
  *
- * <p>注意：不接入 ME 网络，纯手动配置终端。</p>
+ * <p>注意：不接入 ME 网络,纯手动配置终端.</p>
  */
 public class TileSmartPatternInterface extends TileEntity {
 
@@ -50,14 +50,14 @@ public class TileSmartPatternInterface extends TileEntity {
     @Nonnull
     private String boundBlockId = "";
 
-    // 当前的 SmartPatternData（编码前/编码后都可能存在）
+    // 当前的 SmartPatternData(编码前/编码后都可能存在)
     @Nullable
     private SmartPatternData patternData;
 
-    // 配方显示页码（0 = 第1页，每页45个配方）
+    // 配方显示页码(0 = 第1页,每页45个配方)
     private int scrollOffset = 0;
 
-    // 锁定配方的排序索引（-1 = 未锁定）
+    // 锁定配方的排序索引(-1 = 未锁定)
     private int lockedRecipeIndex = -1;
 
     // MiniGUI 滚动偏移 (0-8, 对应 9 组输入/输出)
@@ -66,7 +66,7 @@ public class TileSmartPatternInterface extends TileEntity {
     // 防止 onContentsChanged 递归
     private boolean isUpdatingMiniGui = false;
 
-    // MiniGUI 物品栏：前81=输入（9组 x 3x3），后9=输出（1组 x 3x3）
+    // MiniGUI 物品栏：前81=输入(9组 x 3x3),后9=输出(1组 x 3x3)
     private final ItemStackHandler miniGuiInventory = new ItemStackHandler(90) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -91,11 +91,11 @@ public class TileSmartPatternInterface extends TileEntity {
         }
     };
 
-    // 配方显示槽位：45槽 (9列 x 5行)，用于GUI展示配方输出
+    // 配方显示槽位：45槽 (9列 x 5行),用于GUI展示配方输出
     private final ItemStackHandler recipeDisplayInventory = new ItemStackHandler(45) {
         @Override
         protected void onContentsChanged(int slot) {
-            // 配方显示槽位变化不需要 markDirty（内容由patternData动态计算）
+            // 配方显示槽位变化不需要 markDirty(内容由patternData动态计算)
         }
 
         @Override
@@ -205,7 +205,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 编码：将输入槽的空白样板转换为编码后的智能样板，放入输出槽。
+     * 编码：将输入槽的空白样板转换为编码后的智能样板,放入输出槽.
      *
      * @return 是否编码成功
      */
@@ -235,7 +235,7 @@ public class TileSmartPatternInterface extends TileEntity {
                 patternData.getTargetBlockId()
         );
 
-        // 消耗一个空白样板，输出编码样板
+        // 消耗一个空白样板,输出编码样板
         input.shrink(1);
         if (input.isEmpty()) {
             inventory.setStackInSlot(0, ItemStack.EMPTY);
@@ -246,7 +246,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 从已编码样板反向读取配方数据并加载。
+     * 从已编码样板反向读取配方数据并加载.
      */
     private void reloadPatternFromStack(@Nonnull ItemStack stack) {
         NBTTagCompound tag = stack.getTagCompound();
@@ -396,7 +396,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 删除所有已禁用的配方。
+     * 删除所有已禁用的配方.
      */
     public void deleteDisabledRecipes() {
         if (patternData == null) return;
@@ -413,7 +413,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 在所有配方中替换物品。如果 to 为空，则清除匹配的输入输出。
+     * 在所有配方中替换物品.如果 to 为空,则清除匹配的输入输出.
      */
     public void replaceInAllRecipes(@Nonnull ItemStack from, @Nonnull ItemStack to) {
         if (patternData == null || from.isEmpty()) return;
@@ -508,7 +508,7 @@ public class TileSmartPatternInterface extends TileEntity {
     // ---- 配方显示 ----
 
     /**
-     * 根据当前 scrollOffset（页码）和 patternData 更新配方显示槽位。
+     * 根据当前 scrollOffset(页码)和 patternData 更新配方显示槽位.
      */
     public void updateRecipeDisplay() {
         if (patternData == null) {
@@ -536,7 +536,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 切换指定配方索引的禁用/启用状态。
+     * 切换指定配方索引的禁用/启用状态.
      */
     public void toggleRecipe(int sortedRecipeIndex) {
         if (patternData == null) return;
@@ -549,7 +549,7 @@ public class TileSmartPatternInterface extends TileEntity {
     }
 
     /**
-     * 破坏时掉落所有内容物。
+     * 破坏时掉落所有内容物.
      */
     public void dropAllContents() {
         if (world == null || world.isRemote) return;
@@ -593,7 +593,7 @@ public class TileSmartPatternInterface extends TileEntity {
         if (compound.hasKey("replaceInventory")) {
             replaceInventory.deserializeNBT(compound.getCompoundTag("replaceInventory"));
         }
-        // patternData 优先直接反序列化（支持客户端同步），回退到文件加载
+        // patternData 优先直接反序列化(支持客户端同步),回退到文件加载
         if (compound.hasKey("patternData")) {
             patternData = SmartPatternData.fromNBT(compound.getCompoundTag("patternData"));
         } else if (compound.hasKey(NBT_PATTERN_DATA_ID + "Most")) {

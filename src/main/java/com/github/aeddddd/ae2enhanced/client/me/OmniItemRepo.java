@@ -11,8 +11,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 支持合成置顶的 ItemRepo。
- * activeCrafting 物品独占第一行（不受滚动影响），其余物品从第二行开始。
+ * 支持合成置顶的 ItemRepo.
+ * activeCrafting 物品独占第一行(不受滚动影响),其余物品从第二行开始.
  */
 public class OmniItemRepo extends ItemRepo {
 
@@ -87,7 +87,7 @@ public class OmniItemRepo extends ItemRepo {
         int row = idx / rowSize;
         int col = idx % rowSize;
 
-        // 第一行：只显示 activeCrafting（不受 scroll 影响）
+        // 第一行：只显示 activeCrafting(不受 scroll 影响)
         if (row == 0) {
             if (col < this.activeCrafting.size()) {
                 return this.activeCrafting.get(col).output;

@@ -35,17 +35,17 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * E2a：直接容器提取/注入网络包。
- * 客户端发送 IAEItemStack.getDefinition() 的完整 NBT，服务器端用 FakeItemRegister 解析。
+ * E2a：直接容器提取/注入网络包.
+ * 客户端发送 IAEItemStack.getDefinition() 的完整 NBT,服务器端用 FakeItemRegister 解析.
  *
- * 设计参考 ae2fc CpacketMEMonitorableAction。
+ * 设计参考 ae2fc CpacketMEMonitorableAction.
  */
 public class PacketMEMonitorableAction implements IMessage {
 
-    public static final byte FLUID_WORK = 0;       // 手持流体容器点击槽位（填充/排空）
-    public static final byte GAS_WORK = 1;         // 手持气体容器点击槽位（填充/排空）
-    public static final byte FLUID_OPERATE = 2;    // 空手点击流体槽位（获取装满的桶）
-    public static final byte GAS_OPERATE = 3;      // 空手点击气体槽位（获取装满的气体容器）
+    public static final byte FLUID_WORK = 0;       // 手持流体容器点击槽位(填充/排空)
+    public static final byte GAS_WORK = 1;         // 手持气体容器点击槽位(填充/排空)
+    public static final byte FLUID_OPERATE = 2;    // 空手点击流体槽位(获取装满的桶)
+    public static final byte GAS_OPERATE = 3;      // 空手点击气体槽位(获取装满的气体容器)
 
     private byte type;
     private NBTTagCompound nbt;
@@ -178,7 +178,7 @@ public class PacketMEMonitorableAction implements IMessage {
                 fh.fill(extracted.getFluidStack(), true);
             }
 
-            // 处理手持多个物品的情况（复现 ae2fc 逻辑：placeItemBackInInventory）
+            // 处理手持多个物品的情况(复现 ae2fc 逻辑：placeItemBackInInventory)
             if (actualHeld.getCount() > 1) {
                 actualHeld.shrink(1);
                 ItemStack result = fh.getContainer();

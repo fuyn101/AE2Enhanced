@@ -10,15 +10,15 @@ import net.minecraft.util.ResourceLocation;
 import java.util.Objects;
 
 /**
- * 物品描述符，用于在内存中作为存储 Map 的 Key。
- * 基于 Item registryName + meta + NBT 内容做 equals/hashCode，不依赖 NBTTagCompound 的引用相等。
+ * 物品描述符,用于在内存中作为存储 Map 的 Key.
+ * 基于 Item registryName + meta + NBT 内容做 equals/hashCode,不依赖 NBTTagCompound 的引用相等.
  */
 public class ItemDescriptor implements Descriptor {
 
     private final Item item;
     private final int meta;
     private final NBTTagCompound nbt;
-    // 缓存 AE2 的 IAEItemStack 模板，避免终端刷新时重复创建
+    // 缓存 AE2 的 IAEItemStack 模板,避免终端刷新时重复创建
     private transient volatile IAEItemStack aeTemplate;
 
     public ItemDescriptor(ItemStack stack) {
@@ -34,7 +34,7 @@ public class ItemDescriptor implements Descriptor {
     }
 
     /**
-     * 供自定义二进制 Codec 使用的工厂方法。
+     * 供自定义二进制 Codec 使用的工厂方法.
      */
     public static ItemDescriptor fromRaw(Item item, int meta, NBTTagCompound nbt) {
         return new ItemDescriptor(item, meta, nbt);
@@ -70,8 +70,8 @@ public class ItemDescriptor implements Descriptor {
     }
 
     /**
-     * 获取缓存的 IAEItemStack 模板（stackSize=1）。
-     * 首次调用时通过 channel 创建，后续直接复用。
+     * 获取缓存的 IAEItemStack 模板(stackSize=1).
+     * 首次调用时通过 channel 创建,后续直接复用.
      */
     public IAEItemStack getAETemplate(IItemStorageChannel channel) {
         IAEItemStack result = aeTemplate;
@@ -112,8 +112,8 @@ public class ItemDescriptor implements Descriptor {
 
     @Override
     public int hashCode() {
-        // hashCode 不依赖 NBT 内容，避免 HashMap 迭代顺序导致的查找失败
-        // 相同 item+meta 的不同 NBT 会落在同一 bucket，由 equals() 精确区分
+        // hashCode 不依赖 NBT 内容,避免 HashMap 迭代顺序导致的查找失败
+        // 相同 item+meta 的不同 NBT 会落在同一 bucket,由 equals() 精确区分
         return Objects.hash(
             item != null ? item.getRegistryName() : null,
             meta

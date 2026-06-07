@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 通用总线（Export / Import）的抽象基类。
+ * 通用总线(Export / Import)的抽象基类.
  *
  * 提取了两个总线之间重复的外壳逻辑：
  * - BusMode / 槽位排序
@@ -50,7 +50,7 @@ import java.util.Random;
  * - doBusWork 骨架
  * - NBT / Model / Collision
  *
- * 子类只需实现具体的 processXxxSlot / processXxxUnfiltered 方法。
+ * 子类只需实现具体的 processXxxSlot / processXxxUnfiltered 方法.
  */
 public abstract class PartUniversalBusBase extends PartUpgradeable implements IGridTickable {
 

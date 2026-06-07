@@ -24,12 +24,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * StorageDrawers Hash 索引适配器。
+ * StorageDrawers Hash 索引适配器.
  *
- * <p>包装 {@link IItemRepository}，对 TileEntityController 利用其内置的
- * drawerPrimaryLookup Hash 索引加速 {@link #getAvailableItems}，跳过空槽位遍历。</p>
+ * <p>包装 {@link IItemRepository},对 TileEntityController 利用其内置的
+ * drawerPrimaryLookup Hash 索引加速 {@link #getAvailableItems},跳过空槽位遍历.</p>
  *
- * <p>所有反射和类加载风险全部封装在本类内部，外部调用者无需考虑 NPE。</p>
+ * <p>所有反射和类加载风险全部封装在本类内部,外部调用者无需考虑 NPE.</p>
  */
 public class StorageDrawersAdapter implements IDrawerIndexAdapter {
 
@@ -152,7 +152,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                 }
                 return out;
             } catch (Exception ignored) {
-                // 反射失败，回退到默认路径
+                // 反射失败,回退到默认路径
             }
         }
 

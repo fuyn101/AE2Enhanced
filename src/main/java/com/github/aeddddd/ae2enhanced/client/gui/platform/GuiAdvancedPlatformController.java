@@ -18,8 +18,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 先进中枢平台控制器主 GUI。
- * 严格遵循 docs/planning/GUI_Design.md 的 UV 坐标。
+ * 先进中枢平台控制器主 GUI.
+ * 严格遵循 docs/planning/GUI_Design.md 的 UV 坐标.
  */
 public class GuiAdvancedPlatformController extends GuiContainer {
 
@@ -304,7 +304,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
         int relX = mouseX - this.guiLeft;
         int relY = mouseY - this.guiTop;
 
-        // 名称栏文本（居中），编辑时不显示（被输入框覆盖）
+        // 名称栏文本(居中),编辑时不显示(被输入框覆盖)
         if (!isEditing) {
             String name = getSelectedSubnetName();
             int nameW = this.fontRenderer.getStringWidth(name);
@@ -312,7 +312,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.fontRenderer.drawString(name, nameX, NAME_BAR_Y + 2, 0x404040);
         }
 
-        // 当前模式文字（名称栏和输入按钮之间）
+        // 当前模式文字(名称栏和输入按钮之间)
         String modeText = inputMode
                 ? I18n.format("gui.ae2enhanced.advanced_platform.io_mode.input")
                 : I18n.format("gui.ae2enhanced.advanced_platform.io_mode.output");
@@ -336,7 +336,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             }
             this.fontRenderer.drawString(text, LEFT_PANEL_X + 4, drawY + 4, 0x404040);
 
-            // 删除按钮（主网除外）
+            // 删除按钮(主网除外)
             if (idx > 0) {
                 int delX = LEFT_PANEL_X + LIST_ITEM_W - DELETE_BTN_SIZE + 1;
                 int delY = drawY + 4;
@@ -371,7 +371,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             this.fontRenderer.drawString(text, ZONE_LIST_X + 2, itemY + 3, textColor);
         }
 
-        // 绘制名称输入框（缩小字体）
+        // 绘制名称输入框(缩小字体)
         if (this.isEditing && this.nameField != null) {
             GlStateManager.pushMatrix();
             float scale = 0.75f;
@@ -447,7 +447,7 @@ public class GuiAdvancedPlatformController extends GuiContainer {
             return;
         }
 
-        // 子网列表点击（含删除按钮和创建条目）
+        // 子网列表点击(含删除按钮和创建条目)
         int subnetClick = getSubnetAt(relX, relY);
         if (subnetClick >= 0) {
             int idx = subnetClick + subnetScrollOffset;

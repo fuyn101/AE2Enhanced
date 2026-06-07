@@ -7,7 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * EssentiaDescriptor 自定义二进制编解码器。
+ * EssentiaDescriptor 自定义二进制编解码器.
  */
 public class EssentiaDescriptorCodec implements DescriptorCodec<EssentiaDescriptor> {
 

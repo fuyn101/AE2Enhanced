@@ -8,9 +8,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：更新 MiniGUI 的滚动偏移。
+ * 智能样板接口：更新 MiniGUI 的滚动偏移.
  *
- * <p>客户端发送新的 miniGuiScrollOffset，服务端更新并同步到 Container。</p>
+ * <p>客户端发送新的 miniGuiScrollOffset,服务端更新并同步到 Container.</p>
  */
 public class PacketSmartPatternMiniGuiScroll implements IMessage {
 

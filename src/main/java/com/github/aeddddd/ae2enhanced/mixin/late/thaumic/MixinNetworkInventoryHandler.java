@@ -22,8 +22,8 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.api.storage.IEssentiaStorageChannel;
 
 /**
- * E2a：在 NetworkInventoryHandler 层面拦截源质假物品。
- * 本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中，条件加载。
+ * E2a：在 NetworkInventoryHandler 层面拦截源质假物品.
+ * 本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中,条件加载.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkInventoryHandler.class, remap = false, priority = 1100)

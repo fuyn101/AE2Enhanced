@@ -32,9 +32,9 @@ import appeng.api.networking.storage.IStorageGrid;
 import appeng.me.GridAccessException;
 
 /**
- * RF 访问节点 TileEntity。
- * 纯桥接器：将外部 RF 网络（Forge Energy）接入 AE2 ME 网络的 RF 存储通道。
- * 本身不保留任何本地缓存，所有 RF 直接进出 ME 网络。
+ * RF 访问节点 TileEntity.
+ * 纯桥接器：将外部 RF 网络(Forge Energy)接入 AE2 ME 网络的 RF 存储通道.
+ * 本身不保留任何本地缓存,所有 RF 直接进出 ME 网络.
  */
 public class TileRFAccessNode extends TileAENetworkBase
         implements IGridTickable, IActionHost, IEnergyStorage, ITickable {
@@ -61,7 +61,7 @@ public class TileRFAccessNode extends TileAENetworkBase
 
     @Override
     public void disassemble() {
-        // RF 节点不参与多方块结构，无需解体逻辑
+        // RF 节点不参与多方块结构,无需解体逻辑
     }
 
     @Override
@@ -76,7 +76,7 @@ public class TileRFAccessNode extends TileAENetworkBase
         return this.getProxy().getNode();
     }
 
-    // === ITickable (原版 tick，用于初始化 AE 网络代理) ===
+    // === ITickable (原版 tick,用于初始化 AE 网络代理) ===
 
     @Override
     public void update() {
@@ -177,7 +177,7 @@ public class TileRFAccessNode extends TileAENetworkBase
 
     @Override
     public int getMaxEnergyStored() {
-        // ME 网络中无固定容量上限（超维度存储为无限），返回极大值
+        // ME 网络中无固定容量上限(超维度存储为无限),返回极大值
         return Integer.MAX_VALUE;
     }
 
@@ -242,6 +242,6 @@ public class TileRFAccessNode extends TileAENetworkBase
     }
 
     public void onBreak() {
-        // 破坏时清理（如有必要）
+        // 破坏时清理(如有必要)
     }
 }

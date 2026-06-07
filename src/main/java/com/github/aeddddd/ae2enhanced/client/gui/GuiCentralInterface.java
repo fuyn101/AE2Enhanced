@@ -6,9 +6,9 @@ import com.github.aeddddd.ae2enhanced.container.ContainerCentralInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import net.minecraft.entity.player.InventoryPlayer;
 /**
- * 中枢 ME 接口的 GUI。
+ * 中枢 ME 接口的 GUI.
  *
- * 复刻 AE2 GuiInterface 的布局和外观。
+ * 复刻 AE2 GuiInterface 的布局和外观.
  */
 public class GuiCentralInterface extends GuiUpgradeable {
 
@@ -19,7 +19,7 @@ public class GuiCentralInterface extends GuiUpgradeable {
 
     @Override
     protected void addButtons() {
-        // 中枢 ME 接口模式固定，不显示任何配置按钮
+        // 中枢 ME 接口模式固定,不显示任何配置按钮
     }
 
     @Override

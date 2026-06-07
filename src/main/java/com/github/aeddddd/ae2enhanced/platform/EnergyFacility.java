@@ -5,16 +5,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.energy.IEnergyStorage;
 
 /**
- * 平台范围内检测到的能量设施封装。
+ * 平台范围内检测到的能量设施封装.
  * 缓存 BlockPos 用于可视化、TOP 展示及故障定位；
- * 缓存 blockId 和 adapter 用于多模组能量注入优化。
+ * 缓存 blockId 和 adapter 用于多模组能量注入优化.
  */
 public class EnergyFacility {
 
     public enum Type {
         /** 默认模式：从 ME 网络接收能量 */
         RECEIVER,
-        /** 特殊标记模式：向 ME 网络输出能量（暂不启用，预留扩展） */
+        /** 特殊标记模式：向 ME 网络输出能量(暂不启用,预留扩展) */
         PROVIDER
     }
 

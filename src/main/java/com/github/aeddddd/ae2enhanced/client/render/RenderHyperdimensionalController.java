@@ -13,15 +13,15 @@ import net.minecraft.util.EnumFacing;
 import org.lwjgl.opengl.GL11;
 
 /**
- * 超维度仓储中枢控制器的 TESR：超立方体全息投影。
- * 绘制一个缓慢旋转的线框超立方体（双立方体 + 连接边 + 顶点发光 + 旋转光环），
- * 带有青色发光效果和脉冲呼吸动画。
+ * 超维度仓储中枢控制器的 TESR：超立方体全息投影.
+ * 绘制一个缓慢旋转的线框超立方体(双立方体 + 连接边 + 顶点发光 + 旋转光环),
+ * 带有青色发光效果和脉冲呼吸动画.
  *
- * GL 状态恢复策略：所有修改的状态在 finally 中显式恢复。
+ * GL 状态恢复策略：所有修改的状态在 finally 中显式恢复.
  */
 public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<TileHyperdimensionalController> {
 
-    // 外立方体半对角线长度（从中心到顶点）
+    // 外立方体半对角线长度(从中心到顶点)
     private static final float OUTER_SIZE = 3.2f;
     // 内立方体半对角线长度
     private static final float INNER_SIZE = 1.6f;
@@ -53,8 +53,8 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
         float pulse = 0.5f + 0.5f * (float) Math.sin((te.getWorld().getTotalWorldTime() + partialTicks) * PULSE_SPEED);
         float ringTime = (te.getWorld().getTotalWorldTime() + partialTicks) * RING_SPEED;
 
-        // 结构几何中心（相对于控制器）
-        // 结构范围：x∈[-2,2], z∈[0,4]，中心在 (0,0,2)
+        // 结构几何中心(相对于控制器)
+        // 结构范围：x∈[-2,2], z∈[0,4],中心在 (0,0,2)
         EnumFacing facing = EnumFacing.NORTH;
         if (te.getWorld() != null) {
             facing = te.getWorld().getBlockState(te.getPos()).getValue(BlockHyperdimensionalController.FACING);
@@ -89,7 +89,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
         boolean alphaTestWasEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         boolean colorMaterialWasEnabled = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
 
-        // 保存并禁用光照纹理单元（单元1），防止其调制顶点颜色为黑色
+        // 保存并禁用光照纹理单元(单元1),防止其调制顶点颜色为黑色
         GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
         boolean lightmapTexWasEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
         if (lightmapTexWasEnabled) {
@@ -103,7 +103,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
             GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
             GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO
         );
-        // 强制禁用底层 OpenGL 状态，防止 GlStateManager 状态跟踪不同步（其他代码可能直接调用了 GL11.glEnable）
+        // 强制禁用底层 OpenGL 状态,防止 GlStateManager 状态跟踪不同步(其他代码可能直接调用了 GL11.glEnable)
         GL11.glDisable(GL11.GL_LIGHTING);
         GlStateManager.disableLighting();
         GlStateManager.disableTexture2D();
@@ -128,17 +128,17 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
             drawVertexGlows(OUTER_SIZE, COLOR_VERTEX, 0.75f + 0.2f * pulse, 0.10f);
             GlStateManager.popMatrix();
 
-            // 内立方体线框（反向旋转）
+            // 内立方体线框(反向旋转)
             GlStateManager.pushMatrix();
             GlStateManager.rotate(innerTime, 0, 1, 0);
             GlStateManager.rotate(innerTime * 0.4f, 0, 0, 1);
             drawCubeWireframe(INNER_SIZE, COLOR_INNER, 0.35f + 0.20f * pulse, 2.0f);
             GlStateManager.popMatrix();
 
-            // 连接内外立方体对应顶点的边（超立方体特征）
+            // 连接内外立方体对应顶点的边(超立方体特征)
             drawConnectionLines(time, innerTime, OUTER_SIZE, INNER_SIZE, COLOR_CONNECT, 0.20f + 0.14f * pulse, 2.0f);
 
-            // 对角交叉支撑（增强超立方体感）
+            // 对角交叉支撑(增强超立方体感)
             drawDiagonalBraces(time, innerTime, OUTER_SIZE, INNER_SIZE, COLOR_DIAGONAL, 0.12f + 0.08f * pulse, 1.2f);
 
             // 水平旋转光环
@@ -154,7 +154,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
             drawRing(INNER_SIZE * 1.2f, COLOR_RING, 0.18f + 0.12f * pulse, 1.8f);
             GlStateManager.popMatrix();
 
-            // 中心核心点（小光球）
+            // 中心核心点(小光球)
             drawCenterCore(pulse);
 
         } finally {
@@ -205,9 +205,9 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 绘制一个轴对齐立方体的线框。
-     * size 是从中心到每个顶点的距离（即半对角线长度 = sqrt(3) * 半边长）。
-     * 半边长 = size / sqrt(3)。
+     * 绘制一个轴对齐立方体的线框.
+     * size 是从中心到每个顶点的距离(即半对角线长度 = sqrt(3) * 半边长).
+     * 半边长 = size / sqrt(3).
      */
     private void drawCubeWireframe(float size, int color, float alpha, float lineWidth) {
         if (alpha <= 0.01f) return;
@@ -230,7 +230,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
             {-half,  half,  half},
         };
 
-        // 12 条边（每对顶点索引）
+        // 12 条边(每对顶点索引)
         int[][] edges = {
             {0,1},{1,2},{2,3},{3,0}, // 后面
             {4,5},{5,6},{6,7},{7,4}, // 前面
@@ -253,7 +253,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 在立方体 8 个顶点处绘制发光小立方体。
+     * 在立方体 8 个顶点处绘制发光小立方体.
      */
     private void drawVertexGlows(float size, int color, float alpha, float glowSize) {
         if (alpha <= 0.01f) return;
@@ -287,7 +287,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     private void drawSmallCube(BufferBuilder buf, float cx, float cy, float cz, float s, float r, float g, float b, float a) {
-        // 6 个面，每个面 4 个顶点
+        // 6 个面,每个面 4 个顶点
         // 底面
         buf.pos(cx-s, cy-s, cz-s).color(r, g, b, a).endVertex();
         buf.pos(cx+s, cy-s, cz-s).color(r, g, b, a).endVertex();
@@ -321,8 +321,8 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 绘制连接内外立方体对应顶点的 8 条线。
-     * 这是超立方体（Tesseract）在 3D 投影中的核心特征。
+     * 绘制连接内外立方体对应顶点的 8 条线.
+     * 这是超立方体(Tesseract)在 3D 投影中的核心特征.
      */
     private void drawConnectionLines(float outerTime, float innerTime,
                                      float outerSize, float innerSize,
@@ -336,7 +336,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
         float outerHalf = outerSize / 1.73205f;
         float innerHalf = innerSize / 1.73205f;
 
-        // 8 个顶点方向（归一化的角方向）
+        // 8 个顶点方向(归一化的角方向)
         float[][] dirs = {
             {-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1},
             {-1, -1,  1}, {1, -1,  1}, {1, 1,  1}, {-1, 1,  1},
@@ -351,12 +351,12 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
         float[] ov = new float[3];
         float[] iv = new float[3];
         for (float[] dir : dirs) {
-            // 外顶点（应用外旋转）
+            // 外顶点(应用外旋转)
             rotatePoint(
                 dir[0] * outerHalf, dir[1] * outerHalf, dir[2] * outerHalf,
                 outerTime, outerTime * 0.3f, 0, ov
             );
-            // 内顶点（应用内旋转）
+            // 内顶点(应用内旋转)
             rotatePoint(
                 dir[0] * innerHalf, dir[1] * innerHalf, dir[2] * innerHalf,
                 0, 0, innerTime, iv
@@ -371,8 +371,8 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 绘制内外立方体之间的对角交叉支撑线。
-     * 每个外顶点连接到相邻的两个内顶点，形成 X 形支撑。
+     * 绘制内外立方体之间的对角交叉支撑线.
+     * 每个外顶点连接到相邻的两个内顶点,形成 X 形支撑.
      */
     private void drawDiagonalBraces(float outerTime, float innerTime,
                                     float outerSize, float innerSize,
@@ -391,7 +391,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
             {-1, -1,  1}, {1, -1,  1}, {1, 1,  1}, {-1, 1,  1},
         };
 
-        // 对角连接映射：每个外顶点连接到两个相邻的内顶点（索引偏移）
+        // 对角连接映射：每个外顶点连接到两个相邻的内顶点(索引偏移)
         int[][] diagMap = {
             {1, 4}, {0, 5}, {3, 6}, {2, 7},
             {0, 5}, {1, 4}, {3, 6}, {2, 7},
@@ -425,7 +425,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 绘制一个水平圆环（由线段近似）。
+     * 绘制一个水平圆环(由线段近似).
      */
     private void drawRing(float radius, int color, float alpha, float lineWidth) {
         if (alpha <= 0.01f) return;
@@ -454,7 +454,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 简单旋转：先绕 Y 轴旋转 ry，再绕 X 轴旋转 rx，再绕 Z 轴旋转 rz。
+     * 简单旋转：先绕 Y 轴旋转 ry,再绕 X 轴旋转 rx,再绕 Z 轴旋转 rz.
      */
     private void rotatePoint(float x, float y, float z, float ry, float rx, float rz, float[] out) {
         // 绕 Y 轴
@@ -480,7 +480,7 @@ public class RenderHyperdimensionalController extends TileEntitySpecialRenderer<
     }
 
     /**
-     * 中心核心：一个微小的旋转八面体，表示奇点。
+     * 中心核心：一个微小的旋转八面体,表示奇点.
      */
     private void drawCenterCore(float pulse) {
         float alpha = 0.35f + 0.35f * pulse;

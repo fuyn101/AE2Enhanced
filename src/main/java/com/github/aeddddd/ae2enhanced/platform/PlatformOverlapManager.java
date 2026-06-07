@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 平台重叠管理器 —— WorldSavedData，管理世界中所有平台占用的区块索引。
+ * 平台重叠管理器 —— WorldSavedData,管理世界中所有平台占用的区块索引.
  */
 public class PlatformOverlapManager extends WorldSavedData {
 

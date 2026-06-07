@@ -7,14 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 远程处理器反射隔离注册表。
+ * 远程处理器反射隔离注册表.
  *
- * 无条件加载，内部通过 {@link Class#forName(String)} 懒加载具体 handler 类。
- * 未安装的 mod 对应的 handler 类永远不会被触碰，避免 {@link NoClassDefFoundError}。
+ * 无条件加载,内部通过 {@link Class#forName(String)} 懒加载具体 handler 类.
+ * 未安装的 mod 对应的 handler 类永远不会被触碰,避免 {@link NoClassDefFoundError}.
  *
- * <p>注册顺序：通用 fallback 最先注册，mod-specific handlers 随后通过反射加载。
- * {@link #findHandler(String)} 按注册顺序匹配 {@link IRemoteHandler#canHandle(String)}，
- * 未匹配到时返回默认 fallback（{@link DefaultSingleBatchHandler}）。</p>
+ * <p>注册顺序：通用 fallback 最先注册,mod-specific handlers 随后通过反射加载.
+ * {@link #findHandler(String)} 按注册顺序匹配 {@link IRemoteHandler#canHandle(String)},
+ * 未匹配到时返回默认 fallback({@link DefaultSingleBatchHandler}).</p>
  */
 public class HandlerRegistry {
 
@@ -22,7 +22,7 @@ public class HandlerRegistry {
     private static boolean initialized = false;
 
     /**
-     * 初始化注册表。线程安全，重复调用无效果。
+     * 初始化注册表.线程安全,重复调用无效果.
      */
     public static synchronized void init() {
         if (initialized) {
@@ -30,10 +30,10 @@ public class HandlerRegistry {
         }
         initialized = true;
 
-        // 1. 通用 fallback 必须最先注册（作为默认匹配）
+        // 1. 通用 fallback 必须最先注册(作为默认匹配)
         HANDLERS.add(new DefaultSingleBatchHandler());
 
-        // 2. Mod-specific handlers（反射隔离加载）
+        // 2. Mod-specific handlers(反射隔离加载)
         // P4 - Botania
         tryLoad("botania", "com.github.aeddddd.ae2enhanced.centralinterface.handler.botania.BotaniaHandler");
         // P5 - Blood Magic
@@ -67,10 +67,10 @@ public class HandlerRegistry {
     }
 
     /**
-     * 根据方块 ID 查找匹配的处理器。
+     * 根据方块 ID 查找匹配的处理器.
      *
-     * @param blockId 方块注册 ID（如 "minecraft:furnace"）
-     * @return 匹配的 handler；若无可匹配者，返回默认 fallback
+     * @param blockId 方块注册 ID(如 "minecraft:furnace")
+     * @return 匹配的 handler；若无可匹配者,返回默认 fallback
      */
     public static IRemoteHandler findHandler(String blockId) {
         init();
@@ -83,7 +83,7 @@ public class HandlerRegistry {
     }
 
     /**
-     * 获取所有已注册的处理器副本（用于调试或列表展示）。
+     * 获取所有已注册的处理器副本(用于调试或列表展示).
      */
     public static List<IRemoteHandler> getHandlers() {
         init();

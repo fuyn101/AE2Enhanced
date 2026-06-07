@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * F1b-fix：在 Part 加载到世界时（addToWorld），自动检查升级槽中的频道接收卡，
- * 并尝试建立无线网格连接。解决退出重进游戏后连接丢失的问题。
+ * F1b-fix：在 Part 加载到世界时(addToWorld),自动检查升级槽中的频道接收卡,
+ * 并尝试建立无线网格连接.解决退出重进游戏后连接丢失的问题.
  */
 @Mixin(value = AEBasePart.class, remap = false)
 public class MixinAEBasePart {

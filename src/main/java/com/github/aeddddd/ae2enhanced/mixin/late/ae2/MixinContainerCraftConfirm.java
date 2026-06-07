@@ -15,8 +15,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * 合成确认 GUI 提交任务后，自动返回原终端。
- * 当原终端是 Omni Terminal 时，拦截返回标准无线终端的逻辑，改为打开 Omni Terminal。
+ * 合成确认 GUI 提交任务后,自动返回原终端.
+ * 当原终端是 Omni Terminal 时,拦截返回标准无线终端的逻辑,改为打开 Omni Terminal.
  */
 @Mixin(value = ContainerCraftConfirm.class, remap = false)
 public class MixinContainerCraftConfirm {

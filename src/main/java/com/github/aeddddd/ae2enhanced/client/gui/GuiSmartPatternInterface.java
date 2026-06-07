@@ -27,11 +27,11 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 智能样板接口的客户端 GUI v3。
+ * 智能样板接口的客户端 GUI v3.
  *
  * <p>核心变更：</p>
  * <ul>
- *   <li>右侧面板扩展至 223 高，新增顶部 16 个配置按钮 + 底部替换操作区</li>
+ *   <li>右侧面板扩展至 223 高,新增顶部 16 个配置按钮 + 底部替换操作区</li>
  *   <li>顶部 8×2 小按钮：×2/×3/×4/×5, /2//3//4//5, +1/-1, 轮换/清除输入输出, 堆叠/展开</li>
  *   <li>底部操作区：左侧当前物品槽 + → 替换按钮 + 右侧目标槽 + X 保留主产物</li>
  * </ul>
@@ -50,7 +50,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
     private static final int BTN_ENCODE_Y = 20;
     private static final int BTN_SIZE = 16;
 
-    // 翻页按钮（纹理中已有图标，高度12）
+    // 翻页按钮(纹理中已有图标,高度12)
     private static final int BTN_PREV_X = 116;
     private static final int BTN_PREV_Y = 126;
     private static final int BTN_NEXT_X = 152;
@@ -194,16 +194,16 @@ public class GuiSmartPatternInterface extends GuiContainer {
         // 点击闪烁
         drawFlashEffect();
 
-        // 顶部小按钮（从纹理绘制）
+        // 顶部小按钮(从纹理绘制)
         drawSmallButtons(relX, relY);
 
-        // 翻页按钮（从纹理绘制）
+        // 翻页按钮(从纹理绘制)
         drawPageButtons(relX, relY);
 
         // 删除禁用按钮
         drawDeleteDisabledButton(relX, relY);
 
-        // 底部操作区（从纹理绘制）
+        // 底部操作区(从纹理绘制)
         drawBottomArea(relX, relY);
     }
 
@@ -257,7 +257,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         SmartPatternData data = tile.getPatternData();
         boolean hasDisabled = data != null && data.getRecipeCount() > data.getEnabledCount();
         if (!hasDisabled) return;
-        // 按钮图形已在 GUI 纹理中绘制，无需额外代码绘制
+        // 按钮图形已在 GUI 纹理中绘制,无需额外代码绘制
     }
 
     private void drawBottomArea(int relX, int relY) {
@@ -271,7 +271,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F);
         // 右侧槽位背景
         this.drawTexturedModalRect(SLOT_REPLACE_R_X, SLOT_REPLACE_R_Y, SLOT_REPLACE_R_X, SLOT_REPLACE_R_Y, 16, 16);
-        // X 按钮（只保留主产物）
+        // X 按钮(只保留主产物)
         int keepColor = isInKeepButton(relX, relY) ? 0xFFCCCCCC : 0xFFFFFFFF;
         GlStateManager.color((keepColor >> 16 & 255) / 255.0F, (keepColor >> 8 & 255) / 255.0F, (keepColor & 255) / 255.0F);
         this.drawTexturedModalRect(BTN_KEEP_X, BTN_KEEP_Y, BTN_KEEP_X, BTN_KEEP_Y, BTN_KEEP_W, BTN_KEEP_H);
@@ -439,7 +439,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
             return;
         }
 
-        // 配方槽位状态 tooltip（仅当 slot 为空时）
+        // 配方槽位状态 tooltip(仅当 slot 为空时)
         int slot = getRecipeSlotAt(relX, relY);
         if (slot >= 0) {
             Slot recipeSlot = this.inventorySlots.getSlot(slot);

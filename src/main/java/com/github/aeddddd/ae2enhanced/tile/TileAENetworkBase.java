@@ -13,15 +13,15 @@ import javax.annotation.Nonnull;
 import java.util.EnumSet;
 
 /**
- * 拥有独立 AE 网络代理的控制器 TileEntity 基类。
+ * 拥有独立 AE 网络代理的控制器 TileEntity 基类.
  *
- * 统一封装 proxy 生命周期（create/get/validate/invalidate/onChunkUnload），
+ * 统一封装 proxy 生命周期(create/get/validate/invalidate/onChunkUnload),
  * 消除 TileAssemblyController / TileHyperdimensionalController / TileComputationCore
- * 中各自重复的 ~40 行代理样板代码。
+ * 中各自重复的 ~40 行代理样板代码.
  *
  * 子类只需提供：
  * - {@link #getProxyName()}        代理标识名
- * - {@link #getProxyRepresentation()} 代理代表物品（用于 AE 网络显示）
+ * - {@link #getProxyRepresentation()} 代理代表物品(用于 AE 网络显示)
  */
 public abstract class TileAENetworkBase extends TileEntity implements IGridProxyable {
 
@@ -37,14 +37,14 @@ public abstract class TileAENetworkBase extends TileEntity implements IGridProxy
     // ---- 可选覆盖 ----
 
     /**
-     * proxy invalidate 时的额外清理回调。
-     * TileHyperdimensionalController 覆盖此方法调用 closeStorage()。
+     * proxy invalidate 时的额外清理回调.
+     * TileHyperdimensionalController 覆盖此方法调用 closeStorage().
      */
     protected void onProxyInvalidate() {
     }
 
     /**
-     * proxy chunk unload 时的额外清理回调。
+     * proxy chunk unload 时的额外清理回调.
      */
     protected void onProxyChunkUnload() {
     }

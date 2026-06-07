@@ -18,7 +18,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.List;
 
 /**
- * 通用内存卡选取方块的客户端边框高亮渲染。
+ * 通用内存卡选取方块的客户端边框高亮渲染.
  */
 @SideOnly(Side.CLIENT)
 public class SelectionBoxRenderer {

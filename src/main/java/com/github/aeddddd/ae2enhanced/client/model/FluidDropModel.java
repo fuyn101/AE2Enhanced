@@ -38,10 +38,10 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * 流体假物品的 IModel / ICustomModelLoader 实现。
- * 通过 ItemOverrideList 根据 ItemStack 的 NBT 动态返回带正确流体纹理的 BakedModel。
+ * 流体假物品的 IModel / ICustomModelLoader 实现.
+ * 通过 ItemOverrideList 根据 ItemStack 的 NBT 动态返回带正确流体纹理的 BakedModel.
  *
- * 设计参考 ae2fc 的 FluidPacketModel。
+ * 设计参考 ae2fc 的 FluidPacketModel.
  */
 public class FluidDropModel implements IModel {
 
@@ -175,7 +175,7 @@ public class FluidDropModel implements IModel {
             if (fluid.getStill(fluidStack) != null) {
                 sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(fluid.getStill(fluidStack).toString());
             }
-            // fallback: 如果 still texture 缺失，尝试 flowing texture
+            // fallback: 如果 still texture 缺失,尝试 flowing texture
             if (sprite == null || "missingno".equals(sprite.getIconName())) {
                 if (fluid.getFlowing(fluidStack) != null) {
                     TextureAtlasSprite flowing = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(fluid.getFlowing(fluidStack).toString());

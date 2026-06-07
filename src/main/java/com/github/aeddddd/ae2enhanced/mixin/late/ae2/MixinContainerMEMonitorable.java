@@ -16,14 +16,14 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * 优化 ContainerMEMonitorable 的终端同步：在 func_75142_b 发送完成后清理 items 中的空 bucket，
- * 防止 ItemList 永久膨胀导致后续 tick 的 isEmpty() / 迭代产生不必要的开销。
+ * 优化 ContainerMEMonitorable 的终端同步：在 func_75142_b 发送完成后清理 items 中的空 bucket,
+ * 防止 ItemList 永久膨胀导致后续 tick 的 isEmpty() / 迭代产生不必要的开销.
  *
- * AE2-UEL 的 ItemList 依赖 MeaningfulItemIterator 在迭代时自动清理 !isMeaningful() 的条目，
- * 但空的 ItemVariantList 仍留在 ItemList.records 中。本 Mixin 在 resetStatus() 后彻底移除
- * 这些空 bucket，使后续 tick 的 isEmpty() 和迭代更快返回。
+ * AE2-UEL 的 ItemList 依赖 MeaningfulItemIterator 在迭代时自动清理 !isMeaningful() 的条目,
+ * 但空的 ItemVariantList 仍留在 ItemList.records 中.本 Mixin 在 resetStatus() 后彻底移除
+ * 这些空 bucket,使后续 tick 的 isEmpty() 和迭代更快返回.
  *
- * 注意：ItemVariantList 是 package-private，因此本 Mixin 通过反射操作，避免直接引用。
+ * 注意：ItemVariantList 是 package-private,因此本 Mixin 通过反射操作,避免直接引用.
  */
 @Mixin(value = ContainerMEMonitorable.class, remap = false)
 public class MixinContainerMEMonitorable {

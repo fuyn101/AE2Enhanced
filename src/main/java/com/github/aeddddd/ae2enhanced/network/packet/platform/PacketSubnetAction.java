@@ -149,7 +149,7 @@ public class PacketSubnetAction implements IMessage {
                             }
                             break;
                         case UPDATE_FILTER:
-                            // 主网过滤已禁用，subnetId==0 时忽略
+                            // 主网过滤已禁用,subnetId==0 时忽略
                             if (message.subnetId == 0) {
                                 break;
                             }

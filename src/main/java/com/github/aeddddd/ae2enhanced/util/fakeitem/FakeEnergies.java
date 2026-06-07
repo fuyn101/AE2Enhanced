@@ -9,9 +9,9 @@ import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
 import net.minecraft.item.ItemStack;
 
 /**
- * RF 能量假物品的 FakeItemHandler 实现与工具方法。
+ * RF 能量假物品的 FakeItemHandler 实现与工具方法.
  *
- * 在模组初始化时调用 FakeEnergies.init() 注册 handler。
+ * 在模组初始化时调用 FakeEnergies.init() 注册 handler.
  */
 public final class FakeEnergies {
 

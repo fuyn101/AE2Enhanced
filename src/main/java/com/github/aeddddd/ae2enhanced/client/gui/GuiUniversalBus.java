@@ -21,10 +21,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 通用总线（输入/输出）GUI 抽象基类。
+ * 通用总线(输入/输出)GUI 抽象基类.
  *
  * 消除 GuiUniversalExportBus / GuiUniversalImportBus 中
- * 各自重复的 ~130 行代码。
+ * 各自重复的 ~130 行代码.
  */
 public abstract class GuiUniversalBus extends GuiUpgradeable {
 
@@ -37,13 +37,13 @@ public abstract class GuiUniversalBus extends GuiUpgradeable {
         this.ySize = 251;
     }
 
-    /** 子类提供显示名称，如 "Universal Export Bus"。 */
+    /** 子类提供显示名称,如 "Universal Export Bus". */
     protected abstract String getBusDisplayName();
 
     @Override
     protected void addButtons() {
         super.addButtons();
-        // 移除 AE2 原生调度模式按钮，通用总线使用自己的 BusMode
+        // 移除 AE2 原生调度模式按钮,通用总线使用自己的 BusMode
         if (this.schedulingMode != null) {
             this.buttonList.remove(this.schedulingMode);
             this.schedulingMode = null;

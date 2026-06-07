@@ -12,7 +12,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * ItemDescriptor 自定义二进制编解码器。
+ * ItemDescriptor 自定义二进制编解码器.
  */
 public class ItemDescriptorCodec implements DescriptorCodec<ItemDescriptor> {
 

@@ -15,14 +15,14 @@ public class GuiButtonTech extends GuiButton {
 
         this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
 
-        // 背景色：默认深蓝，悬停变亮，禁用变暗
+        // 背景色：默认深蓝,悬停变亮,禁用变暗
         int bgColor = this.enabled ? 0xFF0d1b2a : 0xFF1a1a2e;
         if (this.hovered && this.enabled) {
             bgColor = 0xFF1b3a5a;
         }
         drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
 
-        // 边框：启用时青色，禁用时灰色
+        // 边框：启用时青色,禁用时灰色
         int borderColor = this.enabled ? 0xFF00d4ff : 0xFF555555;
         if (this.hovered && this.enabled) {
             borderColor = 0xFF66e5ff;

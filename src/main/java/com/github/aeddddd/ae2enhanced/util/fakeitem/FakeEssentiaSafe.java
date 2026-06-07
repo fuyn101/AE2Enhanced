@@ -3,25 +3,25 @@ package com.github.aeddddd.ae2enhanced.util.fakeitem;
 import net.minecraft.item.ItemStack;
 
 /**
- * 源质假物品的安全工具类，不含任何 Thaumic Energistics 硬引用。
+ * 源质假物品的安全工具类,不含任何 Thaumic Energistics 硬引用.
  *
- * <p>此类可被无条件加载的类（如终端 Mixin、Part 类）安全导入，
- * 因为所有方法均使用字符串比较与反射，不会在 Thaumic Energistics
- * 缺失时触发 {@link NoClassDefFoundError}。</p>
+ * <p>此类可被无条件加载的类(如终端 Mixin、Part 类)安全导入,
+ * 因为所有方法均使用字符串比较与反射,不会在 Thaumic Energistics
+ * 缺失时触发 {@link NoClassDefFoundError}.</p>
  */
 public class FakeEssentiaSafe {
 
     private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
 
     /**
-     * 判断 ItemStack 是否是源质假物品（ItemEssentiaDrop）。
+     * 判断 ItemStack 是否是源质假物品(ItemEssentiaDrop).
      */
     public static boolean isEssentiaFakeItem(ItemStack stack) {
         return !stack.isEmpty() && ESSENTIA_DROP_CLASS.equals(stack.getItem().getClass().getName());
     }
 
     /**
-     * 安全获取源质假物品的 aspect 标签。
+     * 安全获取源质假物品的 aspect 标签.
      */
     public static String tryGetAspectTag(ItemStack stack) {
         if (!isEssentiaFakeItem(stack)) return null;
@@ -34,8 +34,8 @@ public class FakeEssentiaSafe {
     }
 
     /**
-     * 反射方法：从源质容器（IEssentiaContainerItem）转换为 ItemEssentiaDrop。
-     * 供 Container / GhostIngredientTarget 调用，避免硬引用 Thaumcraft API。
+     * 反射方法：从源质容器(IEssentiaContainerItem)转换为 ItemEssentiaDrop.
+     * 供 Container / GhostIngredientTarget 调用,避免硬引用 Thaumcraft API.
      */
     public static ItemStack tryConvertContainerToFake(ItemStack held) {
         if (held == null || held.isEmpty()) return null;

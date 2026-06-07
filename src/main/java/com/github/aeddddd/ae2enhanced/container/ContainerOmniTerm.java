@@ -115,21 +115,21 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private int craftingUpdateCooldown = 0;
     private List<CraftingStatus> clientActiveCrafting = Collections.emptyList();
 
-    // === 编码区布局常量（可扩展） ===
+    // === 编码区布局常量(可扩展) ===
     public static final int CRAFTING_GRID_BASE_X = 187;
     public static final int PROCESSING_GRID_BASE_X = 196;
     public static final int GRID_Y = 93;
     public static final int GRID_COL_SPACING = 18;
     public static final int GRID_ROW_SPACING = 18;
 
-    // === NBT Keys（ItemStack 中仅存 craftingMode / substitute / scrollOffset）===
+    // === NBT Keys(ItemStack 中仅存 craftingMode / substitute / scrollOffset)===
     private static final String NBT_CRAFTING_MODE = "omni_crafting_mode";
     private static final String NBT_SUBSTITUTE = "omni_substitute";
     private static final String NBT_SCROLL_OFFSET = "omni_scroll_offset";
 
     public ContainerOmniTerm(InventoryPlayer ip, ITerminalHost host) {
-        // AE2-UEL 在运行时为 WirelessTerminalGuiObject 添加了 IGuiItemObject 实现。
-        // 与标准无线终端容器 ContainerMEPortableTerminal 保持一致，直接传入 host。
+        // AE2-UEL 在运行时为 WirelessTerminalGuiObject 添加了 IGuiItemObject 实现.
+        // 与标准无线终端容器 ContainerMEPortableTerminal 保持一致,直接传入 host.
         super(ip, host, (appeng.api.implementations.guiobjects.IGuiItemObject) (Object) host, false);
         this.terminalHost = host;
         this.wirelessObject = host instanceof WirelessTerminalGuiObject ? (WirelessTerminalGuiObject) host : null;
@@ -141,7 +141,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.omniData = OmniTerminalData.get(ip.player.world);
             this.omniStorage = this.omniData.getOrCreate(storageId);
         } else {
-            // 非无线终端回退：使用临时存储（不持久化）
+            // 非无线终端回退：使用临时存储(不持久化)
             this.omniData = null;
             this.omniStorage = new OmniTerminalStorage();
         }
@@ -153,7 +153,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.setupPatternArea(ip, host);
         this.setupRightStorage();
 
-        // 设置 openContext，使 PacketSwitchGuis 能正确打开合成计划 GUI
+        // 设置 openContext,使 PacketSwitchGuis 能正确打开合成计划 GUI
         if (host instanceof WirelessTerminalGuiObject) {
             WirelessTerminalGuiObject wt = (WirelessTerminalGuiObject) host;
             ContainerOpenContext ctx = new ContainerOpenContext(wt);
@@ -182,12 +182,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         this.addCustomPlayerInventory(ip, 8, 167, 225);
 
-        // 重新定位 view cell 槽位到 GUI 右侧外部（模仿标准终端侧栏）
-        // yPos 保持 ContainerMEMonitorable 原始值（8 + jeiOffset + i * 18），
+        // 重新定位 view cell 槽位到 GUI 右侧外部(模仿标准终端侧栏)
+        // yPos 保持 ContainerMEMonitorable 原始值(8 + jeiOffset + i * 18),
         // 因为 GuiOmniTerm.initGui 中会通过 AppEngSlot.getY() 恢复为 defY
         for (int i = 0; i < this.cellView.length; i++) {
             if (this.cellView[i] != null) {
-                this.cellView[i].xPos = 366; // 357 + 9，位于侧栏面板内部
+                this.cellView[i].xPos = 366; // 357 + 9,位于侧栏面板内部
             }
         }
 
@@ -222,7 +222,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.patternCraftingInv = this.omniStorage.getPatternInputInventory();
         this.patternOutputInv = this.omniStorage.getPatternOutputInventory();
 
-        // 设置变更回调，使 patternCraftMode 时自动更新配方预览
+        // 设置变更回调,使 patternCraftMode 时自动更新配方预览
         this.patternCraftingInv.setOnContentsChangedCallback(() -> {
             if (this.patternCraftMode) {
                 this.fixPatternCraftingRecipes();
@@ -428,9 +428,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
-     * 当编码输出槽（patternSlotOUT，patternInv 第 1 槽）内容变化时调用。
-     * 如果放入的是已编码样板，自动读取其内容并加载到输入/输出格。
-     * 复刻 AE2 原版 AbstractPartEncoder.onChangeInventory 的逻辑。
+     * 当编码输出槽(patternSlotOUT,patternInv 第 1 槽)内容变化时调用.
+     * 如果放入的是已编码样板,自动读取其内容并加载到输入/输出格.
+     * 复刻 AE2 原版 AbstractPartEncoder.onChangeInventory 的逻辑.
      */
     private void onPatternOutputChanged() {
         ItemStack stack = this.patternInv.getStackInSlot(1);
@@ -638,7 +638,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.patternSlotOUT.putStack(output);
         }
 
-        // 装配枢纽自动上传：如果 patternSlotOUT 中有合成样板，尝试上传到同一 ME 网络中的装配枢纽
+        // 装配枢纽自动上传：如果 patternSlotOUT 中有合成样板,尝试上传到同一 ME 网络中的装配枢纽
         ItemStack patternInSlot = this.patternSlotOUT.getStack();
         if (!patternInSlot.isEmpty() && this.getPlayerInv().player != null
                 && !this.getPlayerInv().player.world.isRemote) {
@@ -878,17 +878,17 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (isCrafting) {
             // Crafting recipe: 可以填充左边合成台和右边编码区
 
-            // 1. 填充左边真实合成台（mode=0 或 mode=2），只支持 3x3
+            // 1. 填充左边真实合成台(mode=0 或 mode=2),只支持 3x3
             if (mode == 0 || mode == 2) {
                 this.fillCraftingGridFromJEI(inputs);
             }
 
-            // 2. 填充右边编码区（mode=0 或 mode=1）
+            // 2. 填充右边编码区(mode=0 或 mode=1)
             if (mode == 0 || mode == 1) {
                 if (!this.patternCraftMode) {
                     this.setPatternCraftMode(true);
                 }
-                // 清空所有 crafting slots（支持 Extended Crafting 大 grid）
+                // 清空所有 crafting slots(支持 Extended Crafting 大 grid)
                 int maxSlots = gridSize * gridSize;
                 for (int i = 0; i < 81; i++) {
                     this.patternCraftingInv.setStackInSlot(i, ItemStack.EMPTY);
@@ -908,7 +908,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         } else {
             // Processing recipe
             if (mode == 2) {
-                // Alt: processing → 从网络提取 inputs 放入右侧 27 槽样板存储区（自动堆叠）
+                // Alt: processing → 从网络提取 inputs 放入右侧 27 槽样板存储区(自动堆叠)
                 for (int i = 0; i < this.rightPatternStorage.getSlots(); i++) {
                     this.rightPatternStorage.setStackInSlot(i, ItemStack.EMPTY);
                 }
@@ -924,7 +924,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                             ItemStack result = extracted.createItemStack();
                             ItemStack remainder = net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(
                                     this.rightPatternStorage, result, false);
-                            // 槽位满了仍有剩余，返还网络
+                            // 槽位满了仍有剩余,返还网络
                             if (!remainder.isEmpty()) {
                                 IAEItemStack toReturn = channel.createStack(remainder);
                                 if (toReturn != null) {
@@ -939,7 +939,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 if (this.patternCraftMode) {
                     this.setPatternCraftMode(false);
                 }
-                // 计算需要显示的 group 范围，清空相关 slots
+                // 计算需要显示的 group 范围,清空相关 slots
                 int maxSlot = 0;
                 for (int slot : inputs.keySet()) {
                     if (slot > maxSlot) maxSlot = slot;
@@ -977,7 +977,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
-     * 从 JEI 配方填充左侧真实合成台。先尝试从网络提取物品，网络中没有则从玩家背包移动。
+     * 从 JEI 配方填充左侧真实合成台.先尝试从网络提取物品,网络中没有则从玩家背包移动.
      */
     private void fillCraftingGridFromJEI(java.util.Map<Integer, ItemStack> inputs) {
         // 1. 清空现有物品并返还网络/背包
@@ -1014,19 +1014,19 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
             if (filled) continue;
 
-            // 网络没有，尝试从玩家背包移动
+            // 网络没有,尝试从玩家背包移动
             if (this.moveFromPlayerToCrafting(slot, needed)) {
                 continue;
             }
 
-            // 都没有，slot 保持为空
+            // 都没有,slot 保持为空
         }
 
         this.updateRealCraftingRecipe();
     }
 
     /**
-     * 从玩家背包寻找匹配物品并移动到 craftingInv 的指定 slot。
+     * 从玩家背包寻找匹配物品并移动到 craftingInv 的指定 slot.
      */
     private boolean moveFromPlayerToCrafting(int craftingSlot, ItemStack needed) {
         for (int i = 0; i < this.getPlayerInv().getSizeInventory(); i++) {
@@ -1097,7 +1097,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
     }
 
-    // ================== ItemStack NBT 状态持久化（仅存 craftingMode / substitute / scrollOffset） ==================
+    // ================== ItemStack NBT 状态持久化(仅存 craftingMode / substitute / scrollOffset) ==================
 
     private void loadStateFromItemNBT() {
         if (!(this.terminalHost instanceof WirelessTerminalGuiObject)) return;
@@ -1254,9 +1254,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
-     * 覆盖 mergeItemStack 以突破 ItemStack.getMaxStackSize() 的 64 上限。
+     * 覆盖 mergeItemStack 以突破 ItemStack.getMaxStackSize() 的 64 上限.
      * 原版 Container.mergeItemStack 使用 Math.min(slot.getSlotStackLimit(), stack.getMaxStackSize())
-     * 计算最大合并数量，导致即使 slot 支持 4096，shift+点击仍被截断为 64。
+     * 计算最大合并数量,导致即使 slot 支持 4096,shift+点击仍被截断为 64.
      */
     @Override
     protected boolean mergeItemStack(ItemStack stack, int startIndex, int endIndex, boolean reverseDirection) {
@@ -1283,7 +1283,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                         && ItemStack.areItemStackTagsEqual(stack, itemstack)) {
                     int j = itemstack.getCount() + stack.getCount();
                     // 原版这里用 Math.min(slot.getSlotStackLimit(), stack.getMaxStackSize())
-                    // 我们直接取 slot 的上限，不再被 ItemStack.getMaxStackSize() 截断
+                    // 我们直接取 slot 的上限,不再被 ItemStack.getMaxStackSize() 截断
                     int maxSize = slot.getSlotStackLimit();
 
                     if (j <= maxSize) {
@@ -1349,7 +1349,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // ================== 合成置顶：active crafting 采集与同步 ==================
 
     /**
-     * 每 20 ticks 检查一次 Crafting CPU 中的正在合成物品，变化时发送网络包到客户端。
+     * 每 20 ticks 检查一次 Crafting CPU 中的正在合成物品,变化时发送网络包到客户端.
      */
     @Override
     public void detectAndSendChanges() {
@@ -1425,8 +1425,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
-     * 仅收集当前正在 Crafting CPU 中执行的合成任务。
-     * 如果某个物品正在重新合成，将其从 completedCraftingCache 中移除。
+     * 仅收集当前正在 Crafting CPU 中执行的合成任务.
+     * 如果某个物品正在重新合成,将其从 completedCraftingCache 中移除.
      */
     private List<CraftingStatus> collectActiveCraftingOnly() {
         List<CraftingStatus> result = new ArrayList<>();
@@ -1442,7 +1442,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 long remaining = cpu.getRemainingItemCount();
                 long start = cpu.getStartItemCount();
                 result.add(new CraftingStatus(output, remaining, start));
-                // 该物品正在重新合成，从已完成缓存中移除
+                // 该物品正在重新合成,从已完成缓存中移除
                 this.completedCraftingCache.removeIf(c -> c.equals(output));
             }
         }
@@ -1470,7 +1470,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
-     * 检查 Omni Terminal 升级槽中是否装有选取交互卡。
+     * 检查 Omni Terminal 升级槽中是否装有选取交互卡.
      */
     public boolean hasPickerUpgrade() {
         for (int i = 0; i < this.rightUpgradeStorage.getSlots(); i++) {

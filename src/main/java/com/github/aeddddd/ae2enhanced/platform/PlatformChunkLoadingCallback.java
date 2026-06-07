@@ -8,7 +8,7 @@ import net.minecraftforge.common.ForgeChunkManager;
 import java.util.List;
 
 /**
- * ForgeChunkManager 加载回调 —— 世界加载时重新绑定平台控制器的 chunk 票证。
+ * ForgeChunkManager 加载回调 —— 世界加载时重新绑定平台控制器的 chunk 票证.
  */
 public class PlatformChunkLoadingCallback implements ForgeChunkManager.LoadingCallback {
 

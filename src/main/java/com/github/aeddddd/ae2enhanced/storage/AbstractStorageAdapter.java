@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- * 超维度仓储中枢的泛型存储适配器基类。
+ * 超维度仓储中枢的泛型存储适配器基类.
  *
  * 统一物品/流体/气体/源质四种存储类型的公共逻辑：
  * - injectItems / extractItems 的 SIMULATE/MODULATE 事务
@@ -30,11 +30,11 @@ import java.util.function.BiConsumer;
  * 子类只需实现：
  * - {@link #createDescriptor(T)}：从 AE 堆叠构造描述符
  * - {@link #createResult(T, BigInteger)}：从请求堆叠 + 提取量构造结果
- * - {@link #getAETemplate(D)}：从描述符获取 AE 模板（stackSize=1）
+ * - {@link #getAETemplate(D)}：从描述符获取 AE 模板(stackSize=1)
  * - {@link #getChannel()}：返回对应的 IStorageChannel
  *
- * @param <T> AE 堆叠类型，如 IAEItemStack / IAEFluidStack / IAEGasStack / IAEEssentiaStack
- * @param <D> 描述符类型，如 ItemDescriptor / FluidDescriptor / GasDescriptor / EssentiaDescriptor
+ * @param <T> AE 堆叠类型,如 IAEItemStack / IAEFluidStack / IAEGasStack / IAEEssentiaStack
+ * @param <D> 描述符类型,如 ItemDescriptor / FluidDescriptor / GasDescriptor / EssentiaDescriptor
  */
 public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends Descriptor>
         implements IMEMonitor<T>, IMEInventoryHandler<T> {
@@ -54,12 +54,12 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     // ---- 子类必须实现 ----
 
     /**
-     * 从输入 AE 堆叠构造描述符，用于 Map 的 Key。
+     * 从输入 AE 堆叠构造描述符,用于 Map 的 Key.
      */
     protected abstract D createDescriptor(T input);
 
     /**
-     * 从请求堆叠和实际提取量构造结果堆叠。
+     * 从请求堆叠和实际提取量构造结果堆叠.
      * 实现方式因类型而异：
      * - 物品/流体：通常通过 channel.createStack(...) 创建后设置 size
      * - 气体/源质：通常直接 request.copy() 后设置 size
@@ -67,14 +67,14 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     protected abstract T createResult(T request, BigInteger amount);
 
     /**
-     * 从描述符获取缓存的 AE 模板（stackSize=1）。
+     * 从描述符获取缓存的 AE 模板(stackSize=1).
      */
     protected abstract T getAETemplate(D descriptor);
 
     @Override
     public abstract IStorageChannel<T> getChannel();
 
-    // ---- 核心存储操作（通用实现） ----
+    // ---- 核心存储操作(通用实现) ----
 
     @Override
     public T injectItems(T input, Actionable type, IActionSource src) {
@@ -90,9 +90,9 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             totalCount.updateAndGet(t -> t.add(amount));
             file.markDirty();
             notifyPostChange(input.copy(), src);
-            return null; // 无限容量，全部接受
+            return null; // 无限容量,全部接受
         }
-        // SIMULATE: 无限容量，全部接受
+        // SIMULATE: 无限容量,全部接受
         return null;
     }
 
@@ -154,7 +154,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         return out;
     }
 
-    // ---- 状态查询（通用实现） ----
+    // ---- 状态查询(通用实现) ----
 
     protected void recalcTotal() {
         BigInteger sum = BigInteger.ZERO;

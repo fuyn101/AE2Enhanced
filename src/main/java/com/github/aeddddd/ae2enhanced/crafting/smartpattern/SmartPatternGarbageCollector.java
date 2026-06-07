@@ -28,16 +28,16 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 智能样板文件的垃圾回收器。
+ * 智能样板文件的垃圾回收器.
  *
  * <p>复合策略：</p>
  * <ul>
- *   <li>基础：文件最后访问时间过期（{@link SmartPatternStorageFile#load} 时更新 mtime）</li>
- *   <li>白名单：扫描所有加载的 ME 接口（AE2 原版、流体接口、ae2fc 二合一/三合一、本模组中枢接口），
+ *   <li>基础：文件最后访问时间过期({@link SmartPatternStorageFile#load} 时更新 mtime)</li>
+ *   <li>白名单：扫描所有加载的 ME 接口(AE2 原版、流体接口、ae2fc 二合一/三合一、本模组中枢接口),
  *       其中存放的 {@link ItemSmartPattern} 对应的 UUID 不受过期删除影响</li>
  * </ul>
  *
- * <p>扫描周期和过期天数由 {@link AE2EnhancedConfig.SmartPattern} 配置。</p>
+ * <p>扫描周期和过期天数由 {@link AE2EnhancedConfig.SmartPattern} 配置.</p>
  */
 public class SmartPatternGarbageCollector {
 
@@ -46,7 +46,7 @@ public class SmartPatternGarbageCollector {
     private static final String AE2FC_DUAL_PART = "com.glodblock.github.common.part.PartDualInterface";
     private static final String AE2FC_TRIO_PART = "com.glodblock.github.common.part.PartTrioInterface";
 
-    // ae2fc 反射缓存（可能不存在，延迟初始化）
+    // ae2fc 反射缓存(可能不存在,延迟初始化)
     private static Class<?> ae2fcDualTileClass;
     private static Class<?> ae2fcTrioTileClass;
     private static Class<?> ae2fcDualPartClass;
@@ -91,7 +91,7 @@ public class SmartPatternGarbageCollector {
     }
 
     /**
-     * 手动触发一次垃圾回收，返回删除的文件数量。
+     * 手动触发一次垃圾回收,返回删除的文件数量.
      */
     public static int runManualGC() {
         try {
@@ -108,7 +108,7 @@ public class SmartPatternGarbageCollector {
     }
 
     /**
-     * 遍历所有已加载维度的 TileEntity，收集 ME 接口中存放的智能样板 UUID。
+     * 遍历所有已加载维度的 TileEntity,收集 ME 接口中存放的智能样板 UUID.
      */
     @Nonnull
     private static Set<UUID> collectReferencedIds() {
@@ -123,7 +123,7 @@ public class SmartPatternGarbageCollector {
                     scanHandler(ids, ((TileInterface) te).getInterfaceDuality().getPatterns());
                     continue;
                 }
-                // 2. AE2 原版 TileCableBus（扫描其中的 Part）
+                // 2. AE2 原版 TileCableBus(扫描其中的 Part)
                 if (te instanceof TileCableBus) {
                     scanCableBus(ids, (TileCableBus) te);
                     continue;
@@ -133,7 +133,7 @@ public class SmartPatternGarbageCollector {
                     scanHandler(ids, ((TileSmartPatternInterface) te).getInventory());
                     continue;
                 }
-                // 4. ae2fc TileDualInterface / TileTrioInterface（反射）
+                // 4. ae2fc TileDualInterface / TileTrioInterface(反射)
                 if (isAe2fcTileInterface(te)) {
                     scanAe2fcInterface(ids, te);
                 }
@@ -153,7 +153,7 @@ public class SmartPatternGarbageCollector {
                 scanHandler(ids, ((PartInterface) part).getInterfaceDuality().getPatterns());
                 continue;
             }
-            // ae2fc PartDualInterface / PartTrioInterface（反射）
+            // ae2fc PartDualInterface / PartTrioInterface(反射)
             if (isAe2fcPartInterface(part)) {
                 scanAe2fcPart(ids, part);
             }

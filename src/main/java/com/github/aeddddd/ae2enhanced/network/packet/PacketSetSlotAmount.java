@@ -8,7 +8,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 设置编码区 ghost slot 的数量（中键二级 GUI 用）
+ * 设置编码区 ghost slot 的数量(中键二级 GUI 用)
  */
 public class PacketSetSlotAmount implements IMessage {
 

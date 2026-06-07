@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * RF 能量的存储适配器。
- * 直接实现 IMEMonitor，内部以 long 维护储量与容量（能量无子类型，无需 Map 结构）。
+ * RF 能量的存储适配器.
+ * 直接实现 IMEMonitor,内部以 long 维护储量与容量(能量无子类型,无需 Map 结构).
  */
 public class EnergyStorageAdapter implements IMEMonitor<IAEEnergyStack> {
 

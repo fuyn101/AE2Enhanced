@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * F1b：在任意 {@link UpgradeInventory} 内容变化时，如果其 parent 是 {@link appeng.parts.automation.PartUpgradeable}，
- * 且其中包含绑定的频道接收卡，则自动创建/销毁到对应无线频道发生器的远程 {@link appeng.api.networking.IGridConnection}。
+ * F1b：在任意 {@link UpgradeInventory} 内容变化时,如果其 parent 是 {@link appeng.parts.automation.PartUpgradeable},
+ * 且其中包含绑定的频道接收卡,则自动创建/销毁到对应无线频道发生器的远程 {@link appeng.api.networking.IGridConnection}.
  *
- * <p>直接注入 {@link UpgradeInventory#onChangeInventory} 的 TAIL，而不是
- * {@link appeng.parts.automation.PartUpgradeable#onChangeInventory}，因为后者在大量子类中被覆盖且不调用 super，
- * 导致注入 {@code PartUpgradeable.onChangeInventory} 的 Mixin 实际上永远不会执行。</p>
+ * <p>直接注入 {@link UpgradeInventory#onChangeInventory} 的 TAIL,而不是
+ * {@link appeng.parts.automation.PartUpgradeable#onChangeInventory},因为后者在大量子类中被覆盖且不调用 super,
+ * 导致注入 {@code PartUpgradeable.onChangeInventory} 的 Mixin 实际上永远不会执行.</p>
  */
 @Mixin(value = UpgradeInventory.class, remap = false)
 public class MixinUpgradeInventory {

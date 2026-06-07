@@ -5,7 +5,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import java.util.Objects;
 
 /**
- * 源质描述符，作为 Map 的 Key。基于 Thaumcraft Aspect tag。
+ * 源质描述符,作为 Map 的 Key.基于 Thaumcraft Aspect tag.
  */
 public class EssentiaDescriptor implements Descriptor {
     private final String aspectTag;
@@ -23,7 +23,7 @@ public class EssentiaDescriptor implements Descriptor {
     }
 
     /**
-     * 根据存储的 aspectTag 重建 IAEEssentiaStack 模板（stackSize=1）。
+     * 根据存储的 aspectTag 重建 IAEEssentiaStack 模板(stackSize=1).
      */
     public thaumicenergistics.api.storage.IAEEssentiaStack getAETemplate() {
         thaumicenergistics.api.storage.IAEEssentiaStack result = aeTemplate;

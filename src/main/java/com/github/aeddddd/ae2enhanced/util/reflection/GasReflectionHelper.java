@@ -13,11 +13,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * Mekanism 气体系统的反射缓存助手。
+ * Mekanism 气体系统的反射缓存助手.
  *
- * 在类加载时一次性完成所有反射（Class / Method / Field / Capability），
- * 后续调用直接复用缓存对象，消除每次 tick 的重复反射开销。
- * 若 Mekanism / MekanismEnergistics 未安装，所有字段为 null，AVAILABLE = false。
+ * 在类加载时一次性完成所有反射(Class / Method / Field / Capability),
+ * 后续调用直接复用缓存对象,消除每次 tick 的重复反射开销.
+ * 若 Mekanism / MekanismEnergistics 未安装,所有字段为 null,AVAILABLE = false.
  */
 public final class GasReflectionHelper {
 
@@ -71,7 +71,7 @@ public final class GasReflectionHelper {
                 available = true;
             }
         } catch (Exception e) {
-            // 气体系统不可用，所有字段保持 null
+            // 气体系统不可用,所有字段保持 null
         }
 
         AVAILABLE = available;

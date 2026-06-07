@@ -4,9 +4,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.Constants;
 
 /**
- * 单个 Omni Terminal 的全部持久化数据。
+ * 单个 Omni Terminal 的全部持久化数据.
  * 包含：合成栏 9 格、pattern 输入 81 格、pattern 输出 27 格、右侧扩展存储 36 格、
- * 以及跨会话保留的已完成合成物品列表。
+ * 以及跨会话保留的已完成合成物品列表.
  */
 public class OmniTerminalStorage {
 

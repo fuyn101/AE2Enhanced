@@ -7,9 +7,9 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Coremod 空壳。
- * ILateMixinLoader 功能已迁移到 {@link LateMixinLoader}，避免 coremod 过早加载
- * 导致 CleanroomMC ActualClassLoader 将 JEI 内部类标记为 invalid。
+ * Coremod 空壳.
+ * ILateMixinLoader 功能已迁移到 {@link LateMixinLoader},避免 coremod 过早加载
+ * 导致 CleanroomMC ActualClassLoader 将 JEI 内部类标记为 invalid.
  */
 @IFMLLoadingPlugin.MCVersion(ForgeVersion.mcVersion)
 @IFMLLoadingPlugin.Name("AE2EnhancedMixinPlugin")

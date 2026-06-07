@@ -8,8 +8,8 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 
 /**
- * E1a：通用总线模式切换按钮。
- * 使用 AE2 states.png 纹理风格，点击循环切换。
+ * E1a：通用总线模式切换按钮.
+ * 使用 AE2 states.png 纹理风格,点击循环切换.
  */
 public class GuiBusModeButton extends GuiButton implements ITooltip {
 

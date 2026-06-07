@@ -14,11 +14,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 替换 StorageDrawers 的 ItemRepositoryAdapter 为 Hash 索引优化版本。
+ * 替换 StorageDrawers 的 ItemRepositoryAdapter 为 Hash 索引优化版本.
  *
- * <p>在 {@link PartStorageBus#getInventoryWrapper} 返回 ItemRepositoryAdapter 时，
- * 使用 {@link StorageDrawersAdapter} + {@link DrawerMonitorWrapper} 替代，
- * 使 getAvailableItems() 利用 TileEntityController.drawerPrimaryLookup Hash 索引。</p>
+ * <p>在 {@link PartStorageBus#getInventoryWrapper} 返回 ItemRepositoryAdapter 时,
+ * 使用 {@link StorageDrawersAdapter} + {@link DrawerMonitorWrapper} 替代,
+ * 使 getAvailableItems() 利用 TileEntityController.drawerPrimaryLookup Hash 索引.</p>
  */
 @Mixin(value = PartStorageBus.class, remap = false)
 public class MixinPartStorageBus {

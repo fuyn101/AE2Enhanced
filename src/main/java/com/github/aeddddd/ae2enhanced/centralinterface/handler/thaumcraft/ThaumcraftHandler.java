@@ -31,18 +31,18 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Thaumcraft 注魔矩阵远程处理器。
+ * Thaumcraft 注魔矩阵远程处理器.
  *
- * <p>配方匹配策略：在 {@code canStart} 中通过输入物品种类+数量遍历注魔配方列表，
+ * <p>配方匹配策略：在 {@code canStart} 中通过输入物品种类+数量遍历注魔配方列表,
  * 找到匹配后缓存；{@code pushMaterials} 将主材放入矩阵正下方基座、辅材放入周围基座；
- * {@code startProcess} 使用 {@code FakePlayer} 调用 {@code craftingStart} 并临时授予研究，
- * 以跳过进度检查。</p>
+ * {@code startProcess} 使用 {@code FakePlayer} 调用 {@code craftingStart} 并临时授予研究,
+ * 以跳过进度检查.</p>
  */
 public class ThaumcraftHandler implements IRemoteHandler {
 
     private static final String BLOCK_ID = "thaumcraft:infusion_matrix";
 
-    // Thaumcraft 内部类反射（API 类直接引用，内部类反射隔离）
+    // Thaumcraft 内部类反射(API 类直接引用,内部类反射隔离)
     private static Class<?> CLASS_TILE_INFUSION_MATRIX;
     private static Class<?> CLASS_TILE_PEDESTAL;
     private static Method METHOD_CRAFTING_START;
@@ -68,7 +68,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
     private static Field FIELD_CHECK_SURROUNDINGS;
     private static boolean reflectionReady = false;
 
-    // 配方缓存：BlockPos → InfusionRecipe（仅在 startProcess 中使用，用于 FakePlayer research 和回退）
+    // 配方缓存：BlockPos → InfusionRecipe(仅在 startProcess 中使用,用于 FakePlayer research 和回退)
     private final Map<BlockPos, InfusionRecipe> recipeCache = new ConcurrentHashMap<>();
 
     private static void initReflection() {
@@ -139,7 +139,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
         if (!validLocation(te)) return false;
         if (!clearAndCheckPedestals(world, pos, te)) return false;
 
-        // AE 样板约定：第一个非空槽位 = 主材，其余 = 辅材
+        // AE 样板约定：第一个非空槽位 = 主材,其余 = 辅材
         boolean hasItems = false;
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             if (!ingredients.getStackInSlot(i).isEmpty()) {
@@ -157,7 +157,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
         clearAllPedestals(world, pos, te);
 
-        // 按 AE 样板槽位顺序收集：第一个非空 = 主材，其余 = 辅材
+        // 按 AE 样板槽位顺序收集：第一个非空 = 主材,其余 = 辅材
         List<ItemStack> stacks = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -167,7 +167,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
         }
         if (stacks.isEmpty()) return false;
 
-        // 放入主材基座（矩阵正下方 2 格）
+        // 放入主材基座(矩阵正下方 2 格)
         ItemStack mainItem = stacks.remove(0);
         BlockPos mainPos = pos.down(2);
         TileEntity mainTe = world.getTileEntity(mainPos);
@@ -178,7 +178,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
             return false;
         }
 
-        // 放入辅材（按 pedestals 列表顺序，逐个基座放剩余物品）
+        // 放入辅材(按 pedestals 列表顺序,逐个基座放剩余物品)
         try {
             METHOD_GET_SURROUNDINGS.invoke(te);
             @SuppressWarnings("unchecked")
@@ -205,13 +205,13 @@ public class ThaumcraftHandler implements IRemoteHandler {
         if (isCrafting(te)) return true;
 
         // 先尝试让矩阵自己走正常流程：craftingStart 内部会查找配方、检查研究、吸收源质
-        // 注意：craftingStart 返回 void，不能读取 boolean 返回值
+        // 注意：craftingStart 返回 void,不能读取 boolean 返回值
         if (world instanceof WorldServer) {
             try {
                 FakePlayer fakePlayer = FakePlayerFactory.get((WorldServer) world,
                     new GameProfile(UUID.randomUUID(), "[AE2E]"));
 
-                // 确保矩阵已激活（active 是电源开关，craftingStart 不检查它，但 craftCycle 需要 active=true）
+                // 确保矩阵已激活(active 是电源开关,craftingStart 不检查它,但 craftCycle 需要 active=true)
                 if (!isActive(te)) {
                     FIELD_ACTIVE.setBoolean(te, true);
                     METHOD_MARK_DIRTY.invoke(te);
@@ -224,7 +224,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
                     return true;
                 }
 
-                // 未启动，可能是研究不足。从基座反查配方，临时授予研究后重试
+                // 未启动,可能是研究不足.从基座反查配方,临时授予研究后重试
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
                     IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(fakePlayer);
@@ -241,7 +241,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
                         recipeCache.remove(pos);
                         return true;
                     }
-                    // 仍然失败（可能是源质不足等），回退到强制完成
+                    // 仍然失败(可能是源质不足等),回退到强制完成
                     recipeCache.put(pos, recipe);
                     return forceStartCrafting(world, pos, te, recipe);
                 }
@@ -259,8 +259,8 @@ public class ThaumcraftHandler implements IRemoteHandler {
     }
 
     /**
-     * FakePlayer 方案失败时的回退：直接设置矩阵字段并立即完成合成。
-     * 这会跳过注魔过程（源质吸收、稳定性波动等），直接产出结果。
+     * FakePlayer 方案失败时的回退：直接设置矩阵字段并立即完成合成.
+     * 这会跳过注魔过程(源质吸收、稳定性波动等),直接产出结果.
      */
     private boolean forceStartCrafting(World world, BlockPos pos, TileEntity te, InfusionRecipe recipe) {
         try {
@@ -276,7 +276,7 @@ public class ThaumcraftHandler implements IRemoteHandler {
             if (output instanceof ItemStack) {
                 ItemStack result = ((ItemStack) output).copy();
 
-                // 消耗主材（如果有耐久则减 1，否则清空）
+                // 消耗主材(如果有耐久则减 1,否则清空)
                 if (mainItem.isItemStackDamageable()) {
                     mainItem.setItemDamage(mainItem.getItemDamage() + 1);
                     if (mainItem.getItemDamage() >= mainItem.getMaxDamage()) {
@@ -417,11 +417,11 @@ public class ThaumcraftHandler implements IRemoteHandler {
         return result;
     }
 
-    // ---- 配方查找（仅在 startProcess 回退路径中使用） ----
+    // ---- 配方查找(仅在 startProcess 回退路径中使用) ----
 
     /**
-     * 从已放置到基座的物品反查注魔配方。
-     * 用于 craftingStart 失败后的 FakePlayer research 授予和强制回退。
+     * 从已放置到基座的物品反查注魔配方.
+     * 用于 craftingStart 失败后的 FakePlayer research 授予和强制回退.
      */
     private static InfusionRecipe findRecipeFromPedestals(World world, BlockPos pos, TileEntity te) {
         // 读取主材

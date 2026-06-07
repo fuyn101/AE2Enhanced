@@ -9,12 +9,12 @@ import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.ItemStackHandler;
 
 /**
- * 支持单槽位 Integer.MAX_VALUE 堆叠的 ItemStackHandler。
- * 用于 Omni Terminal 的 pattern 存储区与右侧扩展存储，
- * 彻底绕过 ItemStack.getMaxStackSize() 的 64 限制。
+ * 支持单槽位 Integer.MAX_VALUE 堆叠的 ItemStackHandler.
+ * 用于 Omni Terminal 的 pattern 存储区与右侧扩展存储,
+ * 彻底绕过 ItemStack.getMaxStackSize() 的 64 限制.
  *
- * <p>序列化时使用自定义 NBT 格式（Count 存为 Integer），
- * 避免 Minecraft 1.12.2 中 ItemStack.writeToNBT 使用 byte 导致 >127 溢出的问题。</p>
+ * <p>序列化时使用自定义 NBT 格式(Count 存为 Integer),
+ * 避免 Minecraft 1.12.2 中 ItemStack.writeToNBT 使用 byte 导致 >127 溢出的问题.</p>
  */
 public class OmniTerminalInventory extends ItemStackHandler {
 
@@ -42,7 +42,7 @@ public class OmniTerminalInventory extends ItemStackHandler {
     }
 
     /**
-     * 重写 insertItem：合并时忽略 getMaxStackSize()，只受 int 上限限制。
+     * 重写 insertItem：合并时忽略 getMaxStackSize(),只受 int 上限限制.
      */
     @Override
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
@@ -80,7 +80,7 @@ public class OmniTerminalInventory extends ItemStackHandler {
     }
 
     /**
-     * 自定义序列化：使用 Integer 存储 Count，绕过 byte 限制。
+     * 自定义序列化：使用 Integer 存储 Count,绕过 byte 限制.
      */
     @Override
     public NBTTagCompound serializeNBT() {
@@ -106,7 +106,7 @@ public class OmniTerminalInventory extends ItemStackHandler {
     }
 
     /**
-     * 自定义反序列化：从 Integer Count 读取，支持任意数量。
+     * 自定义反序列化：从 Integer Count 读取,支持任意数量.
      */
     @Override
     public void deserializeNBT(NBTTagCompound nbt) {

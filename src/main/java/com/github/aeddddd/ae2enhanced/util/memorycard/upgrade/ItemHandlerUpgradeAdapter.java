@@ -4,8 +4,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
 /**
- * 将 Forge IItemHandler 适配为 IUpgradeProvider。
- * 用于 AE2 升级槽等基于 IItemHandler 的实现。
+ * 将 Forge IItemHandler 适配为 IUpgradeProvider.
+ * 用于 AE2 升级槽等基于 IItemHandler 的实现.
  */
 public class ItemHandlerUpgradeAdapter implements IUpgradeProvider {
 

@@ -14,8 +14,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 选取交互卡的中键提取请求。
- * 客户端发送目标物品的序列化数据，服务器执行 SHIFT_CLICK 等效提取。
+ * 选取交互卡的中键提取请求.
+ * 客户端发送目标物品的序列化数据,服务器执行 SHIFT_CLICK 等效提取.
  */
 public class PacketPickerAction implements IMessage {
 

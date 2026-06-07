@@ -391,7 +391,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 将默认朝向（北）的相对坐标按控制器朝向旋转。
+     * 将默认朝向(北)的相对坐标按控制器朝向旋转.
      */
     public static BlockPos rotate(BlockPos rel, EnumFacing facing) {
         if (facing == EnumFacing.NORTH) return rel;
@@ -422,7 +422,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 验证结构完整性（优先检查 core 与 part1）
+     * 验证结构完整性(优先检查 core 与 part1)
      */
     public static boolean validate(World world, BlockPos controllerPos) {
         EnumFacing facing = getControllerFacing(world, controllerPos);
@@ -433,7 +433,7 @@ public class AssemblyStructure {
             return false;
         }
 
-        // 优先检查 part1（ME 接口，结构完整性关键）
+        // 优先检查 part1(ME 接口,结构完整性关键)
         if (!checkBlock(world, origin, PART1_SET, BlockRegistry.ASSEMBLY_ME_INTERFACE, facing)) {
             return false;
         }
@@ -455,7 +455,7 @@ public class AssemblyStructure {
         for (BlockPos rel : relativeSet) {
             BlockPos actual = origin.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) {
-                continue; // chunk 未加载，保持当前状态，不判定为缺失
+                continue; // chunk 未加载,保持当前状态,不判定为缺失
             }
             if (world.getBlockState(actual).getBlock() != expected) {
                 return false;
@@ -465,7 +465,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 获取缺失方块清单（用于未组装 GUI 显示）
+     * 获取缺失方块清单(用于未组装 GUI 显示)
      */
     public static Map<Block, Integer> getMissingMap(World world, BlockPos controllerPos) {
         EnumFacing facing = getControllerFacing(world, controllerPos);
@@ -484,7 +484,7 @@ public class AssemblyStructure {
         for (BlockPos rel : relativeSet) {
             BlockPos actual = origin.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) {
-                continue; // chunk 未加载，不计入缺失
+                continue; // chunk 未加载,不计入缺失
             }
             if (world.getBlockState(actual).getBlock() != expected) {
                 missing.put(expected, missing.getOrDefault(expected, 0) + 1);
@@ -493,7 +493,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 组装：通知 TileEntity 进入已组装状态，并更新 ME 接口 blockstate
+     * 组装：通知 TileEntity 进入已组装状态,并更新 ME 接口 blockstate
      */
     public static void assemble(World world, BlockPos controllerPos) {
         if (world.isRemote) return;
@@ -507,7 +507,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 解散：通知 TileEntity 进入未组装状态，并更新 ME 接口 blockstate
+     * 解散：通知 TileEntity 进入未组装状态,并更新 ME 接口 blockstate
      */
     public static void disassemble(World world, BlockPos controllerPos) {
         if (world.isRemote) return;
@@ -537,7 +537,7 @@ public class AssemblyStructure {
     }
 
     private static TileAssemblyController getControllerTile(World world, BlockPos pos) {
-        // 注意：控制器在 origin + (0,0,-7)，也就是 controllerPos 参数本身就是控制器位置
+        // 注意：控制器在 origin + (0,0,-7),也就是 controllerPos 参数本身就是控制器位置
         net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
         return te instanceof TileAssemblyController ? (TileAssemblyController) te : null;
     }
@@ -555,7 +555,7 @@ public class AssemblyStructure {
         placeBlocks(world, origin, PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, facing);
         placeBlocks(world, origin, PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, facing);
 
-        // 立即触发组装（跳过 20 tick 等待）
+        // 立即触发组装(跳过 20 tick 等待)
         assemble(world, controllerPos);
     }
 
@@ -569,7 +569,7 @@ public class AssemblyStructure {
     }
 
     /**
-     * 生存模式：检查背包材料，足够则扣除并放置
+     * 生存模式：检查背包材料,足够则扣除并放置
      * @return 是否成功
      */
     public static boolean tryConsumeAndPlace(World world, BlockPos controllerPos, net.minecraft.entity.player.EntityPlayer player) {

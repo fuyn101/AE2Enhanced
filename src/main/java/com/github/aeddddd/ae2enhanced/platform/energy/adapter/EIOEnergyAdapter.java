@@ -7,14 +7,14 @@ import net.minecraftforge.energy.IEnergyStorage;
 import java.lang.reflect.Method;
 
 /**
- * Ender IO 专用能量适配器。
+ * Ender IO 专用能量适配器.
  *
  * <p>EIO 的 {@code LimitingRecieverTileCapabilityProvider} 在 Forge {@link IEnergyStorage}
- * 包装层做了 tick 级限流（每 tick 累计不超过 {@code getMaxEnergyRecieved()}）。
- * 此适配器通过反射直接访问 EIO 机器底层的 {@code ILegacyPoweredTile} 接口，
- * 调用 {@code setEnergyStored()} 直接设置能量值，完全 bypass 包装层限流。</p>
+ * 包装层做了 tick 级限流(每 tick 累计不超过 {@code getMaxEnergyRecieved()}).
+ * 此适配器通过反射直接访问 EIO 机器底层的 {@code ILegacyPoweredTile} 接口,
+ * 调用 {@code setEnergyStored()} 直接设置能量值,完全 bypass 包装层限流.</p>
  *
- * <p>安全回退：反射失败时自动回退到 {@link ForgeEnergyAdapter} 的多调用策略。</p>
+ * <p>安全回退：反射失败时自动回退到 {@link ForgeEnergyAdapter} 的多调用策略.</p>
  */
 public class EIOEnergyAdapter implements IEnergyAdapter {
 
@@ -44,7 +44,7 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
             setEnergyStoredMethod = legacyTileClass.getMethod("setEnergyStored", int.class);
             reflectionReady = true;
         } catch (Exception e) {
-            // 反射失败，将完全回退到标准 Forge 策略
+            // 反射失败,将完全回退到标准 Forge 策略
         }
     }
 
@@ -66,7 +66,7 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
                 int max = (Integer) getMaxEnergyStoredMethod.invoke(tile);
                 return Math.max(0L, (long) max - current);
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackReceiveable(cap);
@@ -89,7 +89,7 @@ public class EIOEnergyAdapter implements IEnergyAdapter {
                 }
                 return toAdd;
             } catch (Exception e) {
-                // 反射失败，回退
+                // 反射失败,回退
             }
         }
         return fallbackInject(cap, amount, simulate);

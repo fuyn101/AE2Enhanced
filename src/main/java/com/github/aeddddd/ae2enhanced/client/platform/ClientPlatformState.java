@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * P0 客户端平台状态缓存 —— 缓存能量同步数据、子网/选区列表、状态数据，供 TESR/GUI 使用。
+ * P0 客户端平台状态缓存 —— 缓存能量同步数据、子网/选区列表、状态数据,供 TESR/GUI 使用.
  */
 public class ClientPlatformState {
 

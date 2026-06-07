@@ -25,10 +25,10 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 
 /**
- * F1a：无线频道发生器方块。
+ * F1a：无线频道发生器方块.
  *
- * <p>类似 AE2 无线访问节点的 TileEntity 模式。具有朝向，仅背面连接线缆，
- * 提供 32 密集频道。右键打开 GUI，可将空白频道卡写入自身坐标。</p>
+ * <p>类似 AE2 无线访问节点的 TileEntity 模式.具有朝向,仅背面连接线缆,
+ * 提供 32 密集频道.右键打开 GUI,可将空白频道卡写入自身坐标.</p>
  */
 public class BlockWirelessChannelTransmitter extends Block {
 

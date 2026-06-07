@@ -11,8 +11,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import java.io.IOException;
 
 /**
- * AE2 能量堆叠的具体实现。
- * 每个实例代表一定数量的 RF（Redstone Flux）。
+ * AE2 能量堆叠的具体实现.
+ * 每个实例代表一定数量的 RF(Redstone Flux).
  */
 public final class AEEnergyStack extends AEStack<IAEEnergyStack> implements IAEEnergyStack {
 

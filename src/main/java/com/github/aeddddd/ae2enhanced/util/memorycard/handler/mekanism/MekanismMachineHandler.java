@@ -22,8 +22,8 @@ import java.util.Map;
 import static com.github.aeddddd.ae2enhanced.util.memorycard.handler.mekanism.MekanismReflectionHelper.*;
 
 /**
- * Mekanism 机器的配置复制粘贴 Handler。
- * 使用反射访问 Mekanism API，避免硬依赖。
+ * Mekanism 机器的配置复制粘贴 Handler.
+ * 使用反射访问 Mekanism API,避免硬依赖.
  */
 public class MekanismMachineHandler implements IMemoryCardHandler {
 
@@ -31,7 +31,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     public boolean canHandle(Object target) {
         if (!AVAILABLE || !(target instanceof TileEntity)) return false;
         try {
-            // 延迟获取 capability（Forge @CapabilityInject 可能在 init 之后才注入）
+            // 延迟获取 capability(Forge @CapabilityInject 可能在 init 之后才注入)
             if (CONFIG_CARD_CAPABILITY == null) {
                 Class<?> capabilitiesClass = Class.forName("mekanism.common.capabilities.Capabilities");
                 CONFIG_CARD_CAPABILITY = capabilitiesClass.getField("CONFIG_CARD_CAPABILITY").get(null);
@@ -85,7 +85,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 String dataType = (String) getDataType.invoke(special);
                 output.setString("dataType", dataType);
             } else {
-                // 没有特殊配置数据，使用 block registry name + fullName
+                // 没有特殊配置数据,使用 block registry name + fullName
                 if (TILE_ENTITY_CONTAINER_BLOCK_CLASS.isInstance(tile)) {
                     String fullName = (String) CONTAINER_BLOCK_FULL_NAME.get(tile);
                     String blockName = tile.getWorld().getBlockState(tile.getPos()).getBlock().getRegistryName().toString();
@@ -101,7 +101,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 if (!upgradeNbt.isEmpty()) {
                     output.setTag("mekanism:upgrades", upgradeNbt);
 
-                    // 同时存储 ae2e:upgrades 格式，供 MISSING_UPGRADES 消息显示
+                    // 同时存储 ae2e:upgrades 格式,供 MISSING_UPGRADES 消息显示
                     NBTTagList ae2eUpgrades = new NBTTagList();
                     @SuppressWarnings("unchecked")
                     Map<Object, Integer> upgrades = (Map<Object, Integer>) UPGRADE_BUILD_MAP.invoke(null, upgradeNbt);
@@ -134,7 +134,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 return PasteResult.INVALID_MACHINE;
             }
 
-            // 0. 处理工厂 tier 升级（需要在其他配置之前）
+            // 0. 处理工厂 tier 升级(需要在其他配置之前)
             PasteResult tierResult = applyTierUpgrade(tile, data, player);
             if (tierResult == PasteResult.INVALID_MACHINE || tierResult == PasteResult.FAILED) {
                 return tierResult;
@@ -143,7 +143,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 return tierResult;
             }
             if (tierResult == PasteResult.SUCCESS) {
-                // upgrade 可能替换了 tile，重新获取
+                // upgrade 可能替换了 tile,重新获取
                 TileEntity newTile = player.world.getTileEntity(tile.getPos());
                 if (newTile != null) {
                     tile = newTile;
@@ -163,7 +163,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 Object config = SIDE_CONFIG_GET_CONFIG.invoke(tile);
                 Object ejector = SIDE_CONFIG_GET_EJECTOR.invoke(tile);
                 NBTTagCompound configData = data.copy();
-                // 移除非配置键，避免误写入
+                // 移除非配置键,避免误写入
                 configData.removeTag("dataType");
                 configData.removeTag("mekanism:upgrades");
                 configData.removeTag("ae2e:upgrades");
@@ -183,7 +183,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 setConfigurationData.invoke(special, specialData);
             }
 
-            // 4. 升级处理（通过 IUpgradeProvider 统一流程）
+            // 4. 升级处理(通过 IUpgradeProvider 统一流程)
             if (data.hasKey("mekanism:upgrades") && UPGRADE_TILE_CLASS.isInstance(tile)) {
                 Object component = UPGRADE_TILE_GET_COMPONENT.invoke(tile);
                 Object[] allTypes = UPGRADE_CLASS.getEnumConstants();
@@ -213,7 +213,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 if (result != PasteResult.SUCCESS) return result;
             }
 
-            // 5. 显式处理 sorting 字段（双重保险）
+            // 5. 显式处理 sorting 字段(双重保险)
             if (data.hasKey("sorting")) {
                 applySorting(tile, data.getBoolean("sorting"));
             }
@@ -240,7 +240,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * 尝试应用工厂 tier 升级。如果不是工厂或不需要升级，返回 SUCCESS。
+     * 尝试应用工厂 tier 升级.如果不是工厂或不需要升级,返回 SUCCESS.
      */
     private PasteResult applyTierUpgrade(TileEntity tile, NBTTagCompound data, EntityPlayer player) {
         if (TIER_UPGRADEABLE_CLASS == null || BASE_TIER_VALUES == null) {
@@ -255,7 +255,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 return PasteResult.SUCCESS;
             }
 
-            // 提取 tier（普通机器 tier 视为 -1）
+            // 提取 tier(普通机器 tier 视为 -1)
             Object sourceTier = extractBaseTier(sourceDataType);
             int sourceOrdinal = sourceTier != null ? ((Enum<?>) sourceTier).ordinal() : -1;
             if (sourceOrdinal < 0) {
@@ -273,7 +273,7 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 return PasteResult.INVALID_MACHINE;
             }
 
-            // 逐级升级（从 targetOrdinal+1 到 sourceOrdinal）
+            // 逐级升级(从 targetOrdinal+1 到 sourceOrdinal)
             for (int tierOrd = targetOrdinal + 1; tierOrd <= sourceOrdinal; tierOrd++) {
                 Object tier = BASE_TIER_VALUES[tierOrd];
                 ItemStack installer = getTierInstaller(tierOrd);
@@ -292,15 +292,15 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
                 MemoryCardUpgradeHelper.consumeFromInventory(player, installer);
                 Object upgradeResult = TIER_UPGRADEABLE_UPGRADE.invoke(tile, tier);
                 if (!(upgradeResult instanceof Boolean) || !(Boolean) upgradeResult) {
-                    // 升级失败，返还 installer
+                    // 升级失败,返还 installer
                     if (!player.addItemStackToInventory(installer.copy())) {
                         player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, installer.copy()));
                     }
                     return PasteResult.FAILED;
                 }
 
-                // 升级后 block 被替换，重新获取 tile
-                // 注意：TileEntityFactory 没有显式实现 ITierUpgradeable，因此不能检查 isInstance
+                // 升级后 block 被替换,重新获取 tile
+                // 注意：TileEntityFactory 没有显式实现 ITierUpgradeable,因此不能检查 isInstance
                 TileEntity newTile = player.world.getTileEntity(tile.getPos());
                 if (newTile == null) {
                     return PasteResult.FAILED;
@@ -383,8 +383,8 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * 验证源机器和目标机器是否兼容。
-     * 允许工厂跨 tier 粘贴（如 Basic Factory → Elite Factory）。
+     * 验证源机器和目标机器是否兼容.
+     * 允许工厂跨 tier 粘贴(如 Basic Factory → Elite Factory).
      */
     private boolean isCompatible(String sourceType, String targetType) {
         if (sourceType.equals(targetType)) return true;
@@ -394,8 +394,8 @@ public class MekanismMachineHandler implements IMemoryCardHandler {
             return recipeTypesMatch(sourceType, targetType);
         }
 
-        // 源或目标是工厂：允许跨类型粘贴（普通机器 ↔ 工厂）
-        // 升级由 applyTierUpgrade 处理，配置由 paste 处理
+        // 源或目标是工厂：允许跨类型粘贴(普通机器 ↔ 工厂)
+        // 升级由 applyTierUpgrade 处理,配置由 paste 处理
         if (sourceType.contains("Factory") || targetType.contains("Factory")) {
             return true;
         }

@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * CraftTweaker 集成：允许通过 ZenScript 添加/移除黑洞合成配方。
+ * CraftTweaker 集成：允许通过 ZenScript 添加/移除黑洞合成配方.
  *
  * 用法示例：
  * <pre>
@@ -76,8 +76,8 @@ public class BlackHoleCraftTweaker {
 
         @Override
         public void apply() {
-            // CraftTweaker 可能在 init() 之前执行，此时配方尚未注册。
-            // 加入延迟队列，由 AE2Enhanced.init() 注册完成后统一移除。
+            // CraftTweaker 可能在 init() 之前执行,此时配方尚未注册.
+            // 加入延迟队列,由 AE2Enhanced.init() 注册完成后统一移除.
             BlackHoleRecipeRegistry.queueRemoval(id);
         }
 

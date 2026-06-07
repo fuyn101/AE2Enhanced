@@ -17,9 +17,9 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraftforge.items.IItemHandler;
 
 /**
- * 中枢 ME 接口的 Container。
+ * 中枢 ME 接口的 Container.
  *
- * 复刻 AE2 ContainerInterface 的槽位布局。
+ * 复刻 AE2 ContainerInterface 的槽位布局.
  */
 public class ContainerCentralInterface extends ContainerUpgradeable implements IOptionalSlotHost {
 
@@ -90,8 +90,8 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
 
     @Override
     public boolean isSlotEnabled(int idx) {
-        // idx 是 groupNum，即 pattern 行号 (0-3)
-        // 第 0 行始终可见，其余需要 Pattern Expansion 升级
+        // idx 是 groupNum,即 pattern 行号 (0-3)
+        // 第 0 行始终可见,其余需要 Pattern Expansion 升级
         if (idx <= 0) return true;
         int expansions = this.tile.getInstalledUpgrades(Upgrades.PATTERN_EXPANSION);
         return expansions >= idx;
@@ -118,7 +118,7 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
 
     @Override
     protected void loadSettingsFromHost(appeng.api.util.IConfigManager cm) {
-        // 中枢 ME 接口模式固定，不需要从 ConfigManager 同步设置到 GUI 按钮
+        // 中枢 ME 接口模式固定,不需要从 ConfigManager 同步设置到 GUI 按钮
     }
 
     @Override

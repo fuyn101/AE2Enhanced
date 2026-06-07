@@ -15,9 +15,9 @@ import java.util.List;
 
 /**
  * 修改 Crafting CPU 状态界面中物品列表的排序：
- * 1. 合成中（active > 0）
- * 2. 计划合成（pending > 0）
- * 3. 现存（storage only）
+ * 1. 合成中(active > 0)
+ * 2. 计划合成(pending > 0)
+ * 3. 现存(storage only)
  */
 @Mixin(value = GuiCraftingCPU.class, remap = false)
 public class MixinGuiCraftingCPU {

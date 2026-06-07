@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 单个配方的数据结构，可被序列化为 NBT。
- * 用于智能样板接口的配方聚合与虚拟展开。
+ * 单个配方的数据结构,可被序列化为 NBT.
+ * 用于智能样板接口的配方聚合与虚拟展开.
  */
 public class SmartRecipe {
 
@@ -43,7 +43,7 @@ public class SmartRecipe {
     }
 
     /**
-     * 获取主要输出（第一个非空输出）。
+     * 获取主要输出(第一个非空输出).
      */
     @Nullable
     public IAEItemStack getPrimaryOutput() {
@@ -72,7 +72,7 @@ public class SmartRecipe {
     }
 
     /**
-     * 只保留主输出，清空其他输出。
+     * 只保留主输出,清空其他输出.
      */
     public void keepPrimary() {
         IAEItemStack primary = getPrimaryOutput();
@@ -86,7 +86,7 @@ public class SmartRecipe {
     }
 
     /**
-     * 所有输入输出数量翻倍，上限 Integer.MAX_VALUE。
+     * 所有输入输出数量翻倍,上限 Integer.MAX_VALUE.
      */
     public void doubleAmounts() {
         for (int i = 0; i < inputs.length; i++) {
@@ -184,7 +184,7 @@ public class SmartRecipe {
     // ---- 堆叠 / 展开 ----
 
     /**
-     * 将多个槽位中的同类输入合并到前面的槽位。
+     * 将多个槽位中的同类输入合并到前面的槽位.
      */
     public void stackInputs() {
         Map<IAEItemStack, Long> merged = new HashMap<>();
@@ -209,7 +209,7 @@ public class SmartRecipe {
     }
 
     /**
-     * 将大堆叠的输入拆分到空槽位中（尽可能平均分配）。
+     * 将大堆叠的输入拆分到空槽位中(尽可能平均分配).
      */
     public void unstackInputs() {
         List<Integer> nonEmpty = new ArrayList<>();
@@ -220,7 +220,7 @@ public class SmartRecipe {
         }
         if (nonEmpty.isEmpty() || empty.isEmpty()) return;
 
-        // 对每个非空槽位，如果有空槽位，将数量平均分配
+        // 对每个非空槽位,如果有空槽位,将数量平均分配
         for (int srcIdx : nonEmpty) {
             if (empty.isEmpty()) break;
             IAEItemStack src = inputs[srcIdx];

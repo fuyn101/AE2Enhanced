@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 黑洞合成配方注册表。
+ * 黑洞合成配方注册表.
  */
 public class SingularityRecipeRegistry {
 
@@ -18,7 +18,7 @@ public class SingularityRecipeRegistry {
     }
 
     /**
-     * 在以 center 为中心的 5×5×5 区域内寻找第一个匹配的配方。
+     * 在以 center 为中心的 5×5×5 区域内寻找第一个匹配的配方.
      */
     public static SingularityRecipe findMatching(World world, BlockPos center) {
         for (SingularityRecipe recipe : RECIPES) {

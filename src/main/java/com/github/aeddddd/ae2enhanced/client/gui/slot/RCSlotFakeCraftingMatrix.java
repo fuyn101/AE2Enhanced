@@ -4,7 +4,7 @@ import appeng.container.slot.SlotFakeCraftingMatrix;
 import net.minecraftforge.items.IItemHandler;
 
 /**
- * 支持 visible 切换的假合成矩阵槽位（81槽位编码终端用）
+ * 支持 visible 切换的假合成矩阵槽位(81槽位编码终端用)
  */
 public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
 

@@ -11,10 +11,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * Mekanism 反射隔离助手。
+ * Mekanism 反射隔离助手.
  *
- * <p>所有对 Mekanism 类的反射访问集中于此，handler 通过 static import 使用。
- * 当 Mekanism 未安装时，所有字段为 null，{@link #AVAILABLE} 为 false。</p>
+ * <p>所有对 Mekanism 类的反射访问集中于此,handler 通过 static import 使用.
+ * 当 Mekanism 未安装时,所有字段为 null,{@link #AVAILABLE} 为 false.</p>
  */
 public class MekanismReflectionHelper {
 

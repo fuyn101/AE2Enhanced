@@ -5,16 +5,16 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.energy.IEnergyStorage;
 
 /**
- * 标准 Forge IEnergyStorage 适配器（fallback）。
+ * 标准 Forge IEnergyStorage 适配器(fallback).
  *
- * <p>使用多调用策略突破机器单次 {@link IEnergyStorage#receiveEnergy} 上限，
- * 但无法突破模组自定义的 tick 级限流（如 EIO 的 EnergyOverflowProtection）。</p>
+ * <p>使用多调用策略突破机器单次 {@link IEnergyStorage#receiveEnergy} 上限,
+ * 但无法突破模组自定义的 tick 级限流(如 EIO 的 EnergyOverflowProtection).</p>
  */
 public class ForgeEnergyAdapter implements IEnergyAdapter {
 
     @Override
     public boolean canHandle(String blockId) {
-        return true; // fallback，最后匹配
+        return true; // fallback,最后匹配
     }
 
     @Override

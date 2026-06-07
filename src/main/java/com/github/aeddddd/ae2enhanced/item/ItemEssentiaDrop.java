@@ -16,12 +16,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 源质假物品（Essentia Drop）。
- * 用于在标准 AE2 物品终端中显示源质存储。
+ * 源质假物品(Essentia Drop).
+ * 用于在标准 AE2 物品终端中显示源质存储.
  *
- * 使用 NBT 中的 "AspectTag" 字段编码源质类型，符合 AGENTS.md 规范。
- * AE2-UEL 的 AEItemStack.isSameType 会完整比较 item、meta 和 NBT tag，
- * 因此 NBT 在 NetworkMonitor 的序列化/反序列化及网络同步中完全保留。
+ * 使用 NBT 中的 "AspectTag" 字段编码源质类型,符合 AGENTS.md 规范.
+ * AE2-UEL 的 AEItemStack.isSameType 会完整比较 item、meta 和 NBT tag,
+ * 因此 NBT 在 NetworkMonitor 的序列化/反序列化及网络同步中完全保留.
  */
 public class ItemEssentiaDrop extends Item {
 
@@ -31,11 +31,11 @@ public class ItemEssentiaDrop extends Item {
         setRegistryName(AE2Enhanced.MOD_ID, "essentia_drop");
         setTranslationKey(AE2Enhanced.MOD_ID + ".essentia_drop");
         setCreativeTab(null);
-        setHasSubtypes(false); // 不再使用 metadata，全部通过 NBT 区分
+        setHasSubtypes(false); // 不再使用 metadata,全部通过 NBT 区分
     }
 
     /**
-     * 创建指定源质类型的假物品堆叠。
+     * 创建指定源质类型的假物品堆叠.
      */
     public static ItemStack createStack(String aspectTag, int amount) {
         ItemStack stack = new ItemStack(ItemRegistry.ESSENTIA_DROP, amount);
@@ -48,7 +48,7 @@ public class ItemEssentiaDrop extends Item {
     }
 
     /**
-     * 从 ItemStack 中提取源质类型标签。
+     * 从 ItemStack 中提取源质类型标签.
      */
     public static String getAspectTag(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemEssentiaDrop)) return null;
@@ -70,8 +70,8 @@ public class ItemEssentiaDrop extends Item {
     }
 
     /**
-     * 返回所有已注册源质类型的 ItemStack 列表（每个堆叠数量为 1）。
-     * 供 JEI 黑名单等外部代码调用，避免直接依赖 Aspect.aspects。
+     * 返回所有已注册源质类型的 ItemStack 列表(每个堆叠数量为 1).
+     * 供 JEI 黑名单等外部代码调用,避免直接依赖 Aspect.aspects.
      */
     public static List<ItemStack> getAllAspectStacks() {
         List<ItemStack> result = new ArrayList<>();
@@ -91,7 +91,7 @@ public class ItemEssentiaDrop extends Item {
     }
 
     /**
-     * 为 JEI / 创造模式标签页提供所有子类型，使 JEI 能枚举所有 aspect 变体。
+     * 为 JEI / 创造模式标签页提供所有子类型,使 JEI 能枚举所有 aspect 变体.
      */
     @Override
     public void getSubItems(net.minecraft.creativetab.CreativeTabs tab, net.minecraft.util.NonNullList<ItemStack> items) {
@@ -101,15 +101,15 @@ public class ItemEssentiaDrop extends Item {
     }
 
     /**
-     * 判断 ItemStack 是否是源质假物品。
+     * 判断 ItemStack 是否是源质假物品.
      */
     public static boolean isEssentiaDrop(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof ItemEssentiaDrop;
     }
 
     /**
-     * 客户端初始化：注册自定义 TileEntityItemStackRenderer。
-     * RenderItem 在 isBuiltInRenderer=true 时会优先使用 Item 自己的 renderer。
+     * 客户端初始化：注册自定义 TileEntityItemStackRenderer.
+     * RenderItem 在 isBuiltInRenderer=true 时会优先使用 Item 自己的 renderer.
      */
     @SideOnly(Side.CLIENT)
     public void initModel() {

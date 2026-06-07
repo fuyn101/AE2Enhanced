@@ -25,8 +25,8 @@ import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.Collections;
 
 /**
- * E2a：在 AE2 物品网络的 NetworkMonitor 中注入气体假物品。
- * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中，由 AssemblyMixinPlugin 条件加载。
+ * E2a：在 AE2 物品网络的 NetworkMonitor 中注入气体假物品.
+ * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中,由 AssemblyMixinPlugin 条件加载.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkMonitor.class, remap = false, priority = 1099)

@@ -80,7 +80,7 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
     public boolean isSlotEnabled(int idx) {
         int capacityUpgrades = this.part.getInstalledUpgrades(Upgrades.CAPACITY);
         // idx 实际上是 OptionalSlotStockingConfig 构造函数中传入的 groupNum：
-        // slot 1-4 的 groupNum = 1，slot 5-8 的 groupNum = 2
+        // slot 1-4 的 groupNum = 1,slot 5-8 的 groupNum = 2
         switch (idx) {
             case 1: return capacityUpgrades >= 1;
             case 2: return capacityUpgrades >= 2;
@@ -104,7 +104,7 @@ public class ContainerStockingBus extends ContainerUpgradeable implements IOptio
             this.target6 = (int) Math.min(this.part.getTargetAmount(6), Integer.MAX_VALUE);
             this.target7 = (int) Math.min(this.part.getTargetAmount(7), Integer.MAX_VALUE);
             this.target8 = (int) Math.min(this.part.getTargetAmount(8), Integer.MAX_VALUE);
-            // 同步目标数量到 config inventory 的 stack size，让 slot 自然显示数量
+            // 同步目标数量到 config inventory 的 stack size,让 slot 自然显示数量
             for (int i = 0; i < 9; i++) {
                 appeng.api.storage.data.IAEItemStack aeStack = this.part.getConfig().getAEStackInSlot(i);
                 if (aeStack != null) {

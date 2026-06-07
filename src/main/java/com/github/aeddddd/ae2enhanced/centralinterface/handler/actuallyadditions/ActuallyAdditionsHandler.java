@@ -16,10 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Actually Additions Empowerer + Display Stand 处理器。
+ * Actually Additions Empowerer + Display Stand 处理器.
  *
- * <p>结构：中心 Empowerer，水平4方向距离3格各1个 Display Stand。
- * slot 0 → Empowerer 主材料，slot 1+ → 4个 Display Stands 辅助材料。</p>
+ * <p>结构：中心 Empowerer,水平4方向距离3格各1个 Display Stand.
+ * slot 0 → Empowerer 主材料,slot 1+ → 4个 Display Stands 辅助材料.</p>
  */
 public class ActuallyAdditionsHandler implements IRemoteHandler {
 
@@ -106,7 +106,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
             }
         }
 
-        // Slot 1+ → Display Stands（每stand只放1个）
+        // Slot 1+ → Display Stands(每stand只放1个)
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
@@ -115,7 +115,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
             TileEntity standTe = (TileEntity) stands[standIdx];
             IItemHandler standInv = standTe.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
             if (standInv == null) continue;
-            // 只插入1个，防止玩家未设置singleItem时出问题
+            // 只插入1个,防止玩家未设置singleItem时出问题
             ItemStack single = stack.copy();
             single.setCount(1);
             standInv.insertItem(0, single, false);
@@ -125,7 +125,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
 
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
-        // Empowerer 是自动检测配方的，不需要显式启动
+        // Empowerer 是自动检测配方的,不需要显式启动
         return true;
     }
 
@@ -137,8 +137,8 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
         try {
             int processTime = (int) CLASS_EMPOWERER.getField("processTime").get(te);
             IItemHandler inv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-            // 空闲条件：无处理进度，且 slot 0 为空（或不是可能的输入——但合成完成后输出会在这里）
-            // 更精确：processTime == 0 即可，因为输出会替换 slot 0，我们 collectProducts 时会取走
+            // 空闲条件：无处理进度,且 slot 0 为空(或不是可能的输入——但合成完成后输出会在这里)
+            // 更精确：processTime == 0 即可,因为输出会替换 slot 0,我们 collectProducts 时会取走
             return processTime == 0;
         } catch (Exception e) {
             return false;
@@ -161,7 +161,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
             result.add(output);
         }
 
-        // 清理 Display Stands 中未消耗的残余（理论上配方会消耗，但以防万一）
+        // 清理 Display Stands 中未消耗的残余(理论上配方会消耗,但以防万一)
         Object[] stands = getNearbyStands(te);
         if (stands != null) {
             for (Object stand : stands) {

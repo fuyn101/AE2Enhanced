@@ -8,14 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 能量适配器反射隔离注册表。
+ * 能量适配器反射隔离注册表.
  *
- * <p>无条件加载，内部通过 {@link Class#forName(String)} 懒加载具体适配器类。
- * 未安装的 mod 对应的适配器类永远不会被触碰，避免 {@link NoClassDefFoundError}。</p>
+ * <p>无条件加载,内部通过 {@link Class#forName(String)} 懒加载具体适配器类.
+ * 未安装的 mod 对应的适配器类永远不会被触碰,避免 {@link NoClassDefFoundError}.</p>
  *
- * <p>注册顺序：通用 fallback ({@link ForgeEnergyAdapter}) 最后匹配，
- * mod-specific adapters 先注册。{@link #findAdapter(String)} 按注册顺序匹配
- * {@link IEnergyAdapter#canHandle(String)}。</p>
+ * <p>注册顺序：通用 fallback ({@link ForgeEnergyAdapter}) 最后匹配,
+ * mod-specific adapters 先注册.{@link #findAdapter(String)} 按注册顺序匹配
+ * {@link IEnergyAdapter#canHandle(String)}.</p>
  */
 public class EnergyAdapterRegistry {
 
@@ -24,7 +24,7 @@ public class EnergyAdapterRegistry {
     private static boolean initialized = false;
 
     /**
-     * 初始化注册表。线程安全，重复调用无效果。
+     * 初始化注册表.线程安全,重复调用无效果.
      */
     public static synchronized void init() {
         if (initialized) {
@@ -32,7 +32,7 @@ public class EnergyAdapterRegistry {
         }
         initialized = true;
 
-        // Mod-specific adapters（反射隔离加载）
+        // Mod-specific adapters(反射隔离加载)
         tryLoad("enderio", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.EIOEnergyAdapter");
         tryLoad("thermalexpansion", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.TEEnergyAdapter");
         tryLoad("draconicevolution", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.DEEnergyAdapter");
@@ -55,10 +55,10 @@ public class EnergyAdapterRegistry {
     }
 
     /**
-     * 根据方块 ID 查找匹配的适配器。
+     * 根据方块 ID 查找匹配的适配器.
      *
-     * @param blockId 方块注册 ID（如 "enderio:block_alloy_smelter"）
-     * @return 匹配的适配器；若无可匹配者，返回默认 fallback
+     * @param blockId 方块注册 ID(如 "enderio:block_alloy_smelter")
+     * @return 匹配的适配器；若无可匹配者,返回默认 fallback
      */
     public static IEnergyAdapter findAdapter(String blockId) {
         init();
@@ -71,7 +71,7 @@ public class EnergyAdapterRegistry {
     }
 
     /**
-     * 获取所有已注册的适配器副本（用于调试或列表展示）。
+     * 获取所有已注册的适配器副本(用于调试或列表展示).
      */
     public static List<IEnergyAdapter> getAdapters() {
         init();

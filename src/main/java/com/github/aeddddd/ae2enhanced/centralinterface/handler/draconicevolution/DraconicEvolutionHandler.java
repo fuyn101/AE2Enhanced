@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draconic Evolution 聚合核心 + 注入器处理器。
+ * Draconic Evolution 聚合核心 + 注入器处理器.
  *
- * <p>结构：中心 FusionCraftingCore，周围16格范围内放置 CraftingInjector。
- * slot 0 → Core 主材料，slot 1+ → Injectors 辅助材料（各1个）。</p>
+ * <p>结构：中心 FusionCraftingCore,周围16格范围内放置 CraftingInjector.
+ * slot 0 → Core 主材料,slot 1+ → Injectors 辅助材料(各1个).</p>
  */
 public class DraconicEvolutionHandler implements IRemoteHandler {
 
@@ -88,7 +88,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         if (!CLASS_CORE.isInstance(te)) return false;
         if (isCrafting(te)) return false;
 
-        // 重新加载后 injectors 列表可能为空，先刷新
+        // 重新加载后 injectors 列表可能为空,先刷新
         try {
             METHOD_UPDATE_INJECTORS.invoke(te);
         } catch (Exception e) {
@@ -141,7 +141,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
 
         List<Object> injectors = getConnectedInjectors(te);
 
-        // Slot 0 → Core slot 0（主材料）
+        // Slot 0 → Core slot 0(主材料)
         ItemStack main = ingredients.getStackInSlot(0);
         if (!main.isEmpty()) {
             IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
@@ -160,7 +160,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
             }
         }
 
-        // Slot 1+ → Injectors（每个只放1个）
+        // Slot 1+ → Injectors(每个只放1个)
         int injectorIdx = 0;
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -203,7 +203,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
-        // 重新加载后 injectors 列表可能为空，先刷新
+        // 重新加载后 injectors 列表可能为空,先刷新
         try {
             METHOD_UPDATE_INJECTORS.invoke(te);
         } catch (Exception ignored) {}
@@ -217,18 +217,18 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return result;
         if (isCrafting(te)) return result;
-        // 重新加载后 injectors 列表可能为空，先刷新
+        // 重新加载后 injectors 列表可能为空,先刷新
         try {
             METHOD_UPDATE_INJECTORS.invoke(te);
         } catch (Exception ignored) {}
 
-        // 从 Core 提取产物（slot 0 或 slot 1）
+        // 从 Core 提取产物(slot 0 或 slot 1)
         IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
         if (coreInv != null) {
-            // 先尝试 slot 1（输出槽）
+            // 先尝试 slot 1(输出槽)
             ItemStack out1 = coreInv.extractItem(1, 64, false);
             if (!out1.isEmpty()) result.add(out1);
-            // 再检查 slot 0（某些配方可能替换主材料）
+            // 再检查 slot 0(某些配方可能替换主材料)
             ItemStack out0 = coreInv.extractItem(0, 64, false);
             if (!out0.isEmpty()) result.add(out0);
         } else {

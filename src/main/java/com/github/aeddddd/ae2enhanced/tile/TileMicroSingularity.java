@@ -16,10 +16,10 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
 /**
- * 微型奇点的 TileEntity。
- * 300 秒（6000 ticks）后自动坍缩消失。
- * 期间对 3×3×3 范围内的生物执行稳定击杀，物品不会受影响。
- * 黑洞合成由玩家右键方块主动触发，而非自动吸入。
+ * 微型奇点的 TileEntity.
+ * 300 秒(6000 ticks)后自动坍缩消失.
+ * 期间对 3×3×3 范围内的生物执行稳定击杀,物品不会受影响.
+ * 黑洞合成由玩家右键方块主动触发,而非自动吸入.
  */
 public class TileMicroSingularity extends TileEntity implements ITickable {
 
@@ -71,7 +71,7 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
                     }
                 }
 
-                // 混合击杀：先尝试正常伤害，失败则暴力补刀
+                // 混合击杀：先尝试正常伤害,失败则暴力补刀
                 entity.hurtResistantTime = 0;
                 entity.hurtTime = 0;
                 boolean killed = false;
@@ -85,20 +85,20 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
             }
         }
 
-        // 倒计时（黑洞合成不再自动触发，改由玩家右键主动触发）
+        // 倒计时(黑洞合成不再自动触发,改由玩家右键主动触发)
         if (--lifeTicks <= 0) {
             collapse();
         }
     }
 
     /**
-     * 玩家右键微型奇点时调用。
-     * 主动触发一次黑洞合成尝试；配方不匹配时保留物品，不会销毁。
+     * 玩家右键微型奇点时调用.
+     * 主动触发一次黑洞合成尝试；配方不匹配时保留物品,不会销毁.
      */
     public void activateCrafting() {
         if (world == null || world.isRemote) return;
-        // 产物生成在扫描范围外（y+2），防止产物被再次吸入作为材料
-        // 循环处理直到没有可匹配配方，右键一次完成所有合成
+        // 产物生成在扫描范围外(y+2),防止产物被再次吸入作为材料
+        // 循环处理直到没有可匹配配方,右键一次完成所有合成
         BlackHoleCraftingHelper.tryCraftAll(world, pos, pos.add(0, 2, 0), false, 100);
     }
 

@@ -20,12 +20,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 抽屉模组监视器包装器。
+ * 抽屉模组监视器包装器.
  *
- * <p>将 {@link IDrawerIndexAdapter} 包装为 AE2 的 {@link IMEMonitor} + {@link ITickingMonitor}，
- * 统一处理 onTick() 差异检测、listener 通知、以及主动操作后的增量更新。</p>
+ * <p>将 {@link IDrawerIndexAdapter} 包装为 AE2 的 {@link IMEMonitor} + {@link ITickingMonitor},
+ * 统一处理 onTick() 差异检测、listener 通知、以及主动操作后的增量更新.</p>
  *
- * <p>本类是无条件加载的公共类，不引用任何第三方抽屉模组类，常量池安全。</p>
+ * <p>本类是无条件加载的公共类,不引用任何第三方抽屉模组类,常量池安全.</p>
  */
 public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingMonitor {
 

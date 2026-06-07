@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Extended Crafting 量子压缩机处理器。
+ * Extended Crafting 量子压缩机处理器.
  *
- * <p>突破压缩机输入限制，直接将所需全部材料注入内部，
- * 绕过 {@code inputLimit} 和逐次堆叠限制。</p>
+ * <p>突破压缩机输入限制,直接将所需全部材料注入内部,
+ * 绕过 {@code inputLimit} 和逐次堆叠限制.</p>
  */
 public class CompressorHandler implements IRemoteHandler {
 
@@ -88,7 +88,7 @@ public class CompressorHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
         if (getProgress(te) != 0) return false;
-        // 强制关闭输入限制，允许一次性注入全部材料
+        // 强制关闭输入限制,允许一次性注入全部材料
         try {
             FIELD_INPUT_LIMIT.setBoolean(te, false);
         } catch (Exception e) {
@@ -104,7 +104,7 @@ public class CompressorHandler implements IRemoteHandler {
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
         if (getProgress(te) != 0) return false;
 
-        // 收集输入材料（忽略空槽）
+        // 收集输入材料(忽略空槽)
         List<ItemStack> inputs = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -115,9 +115,9 @@ public class CompressorHandler implements IRemoteHandler {
         if (inputs.isEmpty()) return false;
 
         // 通过产物反查配方
-        // 注意：ingredients slot 0 通常是主要材料，我们用它来找配方
-        // 但更可靠的方式是：已经有一个 recipe 在压缩机里，或者通过 expected output 查找
-        // 由于 pushMaterials 不知道 expected output，我们用 slot 0 的物品 + 所有输入来匹配
+        // 注意：ingredients slot 0 通常是主要材料,我们用它来找配方
+        // 但更可靠的方式是：已经有一个 recipe 在压缩机里,或者通过 expected output 查找
+        // 由于 pushMaterials 不知道 expected output,我们用 slot 0 的物品 + 所有输入来匹配
         Object recipe = findRecipeByInputs(inputs);
         if (recipe == null) return false;
 
@@ -126,10 +126,10 @@ public class CompressorHandler implements IRemoteHandler {
         ItemStack mainMaterial = findMatchingStack(inputs, recipeInput);
         if (mainMaterial.isEmpty()) return false;
 
-        // 直接设置 materialStack / materialCount，不限制数量
-        // 注意：必须清空 slot 1，因为 TileCompressor.setInventorySlotContents
-        // 会将堆叠截断到 64，然后 update() tick 会继续从 slot 1 吸取到 materialCount，
-        // 导致实际材料数量 = 反射值 + 64（例如 1000 → 1064）
+        // 直接设置 materialStack / materialCount,不限制数量
+        // 注意：必须清空 slot 1,因为 TileCompressor.setInventorySlotContents
+        // 会将堆叠截断到 64,然后 update() tick 会继续从 slot 1 吸取到 materialCount,
+        // 导致实际材料数量 = 反射值 + 64(例如 1000 → 1064)
         try {
             FIELD_MATERIAL_STACK.set(te, mainMaterial.copy());
             FIELD_MATERIAL_COUNT.setInt(te, mainMaterial.getCount());
@@ -164,7 +164,7 @@ public class CompressorHandler implements IRemoteHandler {
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
         if (getProgress(te) != 0) return false;
 
-        // 检查 slot 0 是否有产物：有产物说明已完成，可以收集
+        // 检查 slot 0 是否有产物：有产物说明已完成,可以收集
         ItemStack output = getSlot(te, 0);
         return !output.isEmpty();
     }
@@ -182,7 +182,7 @@ public class CompressorHandler implements IRemoteHandler {
             result.add(output);
         }
 
-        // 重置 materialStack / materialCount，防止干扰下一次
+        // 重置 materialStack / materialCount,防止干扰下一次
         try {
             FIELD_MATERIAL_STACK.set(te, ItemStack.EMPTY);
             FIELD_MATERIAL_COUNT.setInt(te, 0);

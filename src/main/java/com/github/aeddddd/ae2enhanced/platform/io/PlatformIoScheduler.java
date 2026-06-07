@@ -183,7 +183,7 @@ public class PlatformIoScheduler implements IGridTickable {
                     if (!allowFilter.isEmpty() && !allowFilter.contains(key)) {
                         continue;
                     }
-                    // 面级过滤（空过滤=全部通过）
+                    // 面级过滤(空过滤=全部通过)
                     if (!config.accepts(key)) {
                         continue;
                     }
@@ -251,7 +251,7 @@ public class PlatformIoScheduler implements IGridTickable {
                     continue;
                 }
 
-                // 如果过滤非空，且物品不在过滤集中，跳过
+                // 如果过滤非空,且物品不在过滤集中,跳过
                 if (!allowFilter.isEmpty() && !allowFilter.contains(key)) {
                     continue;
                 }
@@ -322,7 +322,7 @@ public class PlatformIoScheduler implements IGridTickable {
 
             BlockPos pos = config.getPos();
             EnumFacing face = config.getFace();
-            // 面级过滤（空过滤=全部通过）
+            // 面级过滤(空过滤=全部通过)
             if (!config.accepts(key)) {
                 continue;
             }

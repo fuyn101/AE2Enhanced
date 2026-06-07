@@ -18,7 +18,7 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * UMC 粘贴逻辑服务（含批量粘贴）。
+ * UMC 粘贴逻辑服务(含批量粘贴).
  */
 public class UMCPasteService {
 

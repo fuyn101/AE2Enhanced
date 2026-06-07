@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 共形不变�?—�?黑洞退火产物，T3 材料�?
+ * 共形不变�?—�?黑洞退火产物,T3 材料�?
  */
 public class ItemConformalCharge extends Item {
 

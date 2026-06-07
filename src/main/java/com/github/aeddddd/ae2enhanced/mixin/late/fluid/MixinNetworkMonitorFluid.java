@@ -25,9 +25,9 @@ import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.Collections;
 
 /**
- * E2a：在 AE2 物品网络的 NetworkMonitor 中注入流体假物品。
- * 与 ae2fc 的兼容策略：priority=1100（高于 ae2fc 默认 1000），
- * 在 ae2fc 完成流体注入后，再注入我们的流体假物品（如果 ae2fc 不存在则直接注入）。
+ * E2a：在 AE2 物品网络的 NetworkMonitor 中注入流体假物品.
+ * 与 ae2fc 的兼容策略：priority=1100(高于 ae2fc 默认 1000),
+ * 在 ae2fc 完成流体注入后,再注入我们的流体假物品(如果 ae2fc 不存在则直接注入).
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkMonitor.class, remap = false, priority = 1100)

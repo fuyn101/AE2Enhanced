@@ -13,16 +13,16 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 全局 Omni Terminal 持久化数据（WorldSavedData）。
- * 每个终端通过 UUID 对应一份 OmniTerminalStorage，存储在 world 维度数据中。
- * 使用 per-world storage（getPerWorldStorage），每个维度独立。
- * 玩家通常只在主世界使用终端，数据保存在 overworld 即可满足需求。
+ * 全局 Omni Terminal 持久化数据(WorldSavedData).
+ * 每个终端通过 UUID 对应一份 OmniTerminalStorage,存储在 world 维度数据中.
+ * 使用 per-world storage(getPerWorldStorage),每个维度独立.
+ * 玩家通常只在主世界使用终端,数据保存在 overworld 即可满足需求.
  */
 public class OmniTerminalData extends WorldSavedData {
 
     private static final String DATA_NAME = AE2Enhanced.MOD_ID + "_omni_terminal";
 
-    /** 注意：WorldSavedData 反射构造需要 public Constructor(String)。 */
+    /** 注意：WorldSavedData 反射构造需要 public Constructor(String). */
     public OmniTerminalData() {
         super(DATA_NAME);
     }
@@ -60,7 +60,7 @@ public class OmniTerminalData extends WorldSavedData {
     }
 
     /**
-     * 获取或创建指定 UUID 的存储。
+     * 获取或创建指定 UUID 的存储.
      */
     public OmniTerminalStorage getOrCreate(UUID id) {
         OmniTerminalStorage storage = storages.get(id);
@@ -73,7 +73,7 @@ public class OmniTerminalData extends WorldSavedData {
     }
 
     /**
-     * 删除指定 UUID 的存储（例如终端被销毁时）。
+     * 删除指定 UUID 的存储(例如终端被销毁时).
      */
     public void remove(UUID id) {
         if (storages.remove(id) != null) {
@@ -82,8 +82,8 @@ public class OmniTerminalData extends WorldSavedData {
     }
 
     /**
-     * 从世界获取或创建 OmniTerminalData 实例。
-     * 优先使用主世界（overworld，dimension=0）的存储，确保跨维度数据一致。
+     * 从世界获取或创建 OmniTerminalData 实例.
+     * 优先使用主世界(overworld,dimension=0)的存储,确保跨维度数据一致.
      */
     public static OmniTerminalData get(World world) {
         World overworld = world.getMinecraftServer() != null

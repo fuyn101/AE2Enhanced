@@ -85,8 +85,8 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     }
 
     /**
-     * 获取或创建该终端 ItemStack 对应的存储 UUID。
-     * UUID 持久化在 ItemStack NBT 中，WorldSavedData 通过此 UUID 存取实际数据。
+     * 获取或创建该终端 ItemStack 对应的存储 UUID.
+     * UUID 持久化在 ItemStack NBT 中,WorldSavedData 通过此 UUID 存取实际数据.
      */
     public static UUID getStorageId(ItemStack stack) {
         NBTTagCompound tag = Platform.openNbtData(stack);
@@ -103,8 +103,8 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
 
     @Override
     public IGuiHandler getGuiHandler(ItemStack is) {
-        // 返回 AE2 无线终端的 GuiBridge，避免 GuiCraftAmount.initGui() 中的 ClassCastException。
-        // Omni Terminal 没有自己的 GuiBridge enum 值，使用 GUI_WIRELESS_TERM 作为回退。
+        // 返回 AE2 无线终端的 GuiBridge,避免 GuiCraftAmount.initGui() 中的 ClassCastException.
+        // Omni Terminal 没有自己的 GuiBridge enum 值,使用 GUI_WIRELESS_TERM 作为回退.
         return appeng.core.sync.GuiBridge.GUI_WIRELESS_TERM;
     }
 

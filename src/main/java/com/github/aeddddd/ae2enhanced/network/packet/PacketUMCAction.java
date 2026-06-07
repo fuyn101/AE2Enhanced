@@ -8,7 +8,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 通用内存卡动作包：复制、粘贴、选取、GUI 按钮操作。
+ * 通用内存卡动作包：复制、粘贴、选取、GUI 按钮操作.
  */
 public class PacketUMCAction implements IMessage {
 

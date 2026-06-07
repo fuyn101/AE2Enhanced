@@ -9,7 +9,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import java.util.Map;
 
 /**
- * 装配枢纽未成型状态 GUI。
+ * 装配枢纽未成型状态 GUI.
  */
 public class GuiAssemblyUnformed extends GuiStructureUnformed {
 

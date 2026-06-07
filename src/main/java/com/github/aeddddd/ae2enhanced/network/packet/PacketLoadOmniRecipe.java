@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * Omni Terminal JEI 配方转移网络包
  *
- * 使用 Map<Integer, ItemStack> 保留 JEI slot index，确保配方空位正确对应。
+ * 使用 Map<Integer, ItemStack> 保留 JEI slot index,确保配方空位正确对应.
  */
 public class PacketLoadOmniRecipe implements IMessage {
 

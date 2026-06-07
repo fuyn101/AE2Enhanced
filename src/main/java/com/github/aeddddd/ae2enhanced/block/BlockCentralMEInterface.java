@@ -16,9 +16,9 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 
 /**
- * 中枢 ME 接口方块。
+ * 中枢 ME 接口方块.
  *
- * 外观和行为与普通 ME 接口方块一致，右键打开 GUI。
+ * 外观和行为与普通 ME 接口方块一致,右键打开 GUI.
  */
 public class BlockCentralMEInterface extends Block {
 

@@ -33,11 +33,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 通用内存卡：复制/粘贴 AE2 设备配置（含升级卡），选取世界中的目标方块。
+ * 通用内存卡：复制/粘贴 AE2 设备配置(含升级卡),选取世界中的目标方块.
  *
  * 架构约定：
- * 业务逻辑已拆分到 UMCCopyService / UMCPasteService / UMCSelectionService。
- * 本类只保留：NBT 序列化、客户端事件分发、tooltip 渲染。
+ * 业务逻辑已拆分到 UMCCopyService / UMCPasteService / UMCSelectionService.
+ * 本类只保留：NBT 序列化、客户端事件分发、tooltip 渲染.
  */
 public class ItemUniversalMemoryCard extends Item {
 
@@ -246,11 +246,11 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
                             || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
 
-                    // 控制器方块不拦截，让 onBlockActivated 处理
+                    // 控制器方块不拦截,让 onBlockActivated 处理
                     boolean isPlatformController = event.getWorld().getBlockState(event.getPos()).getBlock()
                             instanceof com.github.aeddddd.ae2enhanced.block.BlockAdvancedPlatformController;
                     if (isPlatformController && !isCtrl && !isSneaking && !isAlt) {
-                        return; // 不取消事件，让控制器打开 GUI
+                        return; // 不取消事件,让控制器打开 GUI
                     }
 
                     // 智能样板接口绑定：客户端查询 JEI 后直接发送 PacketSmartPatternBind

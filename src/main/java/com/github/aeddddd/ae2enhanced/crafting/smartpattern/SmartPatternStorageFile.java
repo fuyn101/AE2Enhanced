@@ -17,10 +17,10 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
- * 智能样板配方数据的文件系统持久化层。
- * 复用超维度仓储中枢的 ae2enhanced/storage/ 目录结构。
+ * 智能样板配方数据的文件系统持久化层.
+ * 复用超维度仓储中枢的 ae2enhanced/storage/ 目录结构.
  *
- * 文件格式（压缩 NBT）：
+ * 文件格式(压缩 NBT)：
  * {
  *   version: 1 (int)
  *   patternDataId: UUID (long[])
@@ -37,9 +37,9 @@ public class SmartPatternStorageFile {
     static final String FILE_PREFIX = "smartpattern_";
 
     /**
-     * 加载指定 UUID 的智能样板数据。
+     * 加载指定 UUID 的智能样板数据.
      *
-     * @return 若文件不存在或损坏，返回 null
+     * @return 若文件不存在或损坏,返回 null
      */
     @Nullable
     public static SmartPatternData load(@Nonnull World world, @Nonnull UUID patternDataId) {
@@ -59,7 +59,7 @@ public class SmartPatternStorageFile {
                     version, CURRENT_VERSION);
                 return null;
             }
-            // 更新访问时间，用于垃圾回收判断
+            // 更新访问时间,用于垃圾回收判断
             try {
                 file.setLastModified(System.currentTimeMillis());
             } catch (Exception ignored) {
@@ -73,7 +73,7 @@ public class SmartPatternStorageFile {
     }
 
     /**
-     * 保存智能样板数据到文件。
+     * 保存智能样板数据到文件.
      *
      * @return 是否保存成功
      */
@@ -97,7 +97,7 @@ public class SmartPatternStorageFile {
     }
 
     /**
-     * 删除指定 UUID 的智能样板文件。
+     * 删除指定 UUID 的智能样板文件.
      */
     public static boolean delete(@Nonnull World world, @Nonnull UUID patternDataId) {
         File file = getFile(world, patternDataId);

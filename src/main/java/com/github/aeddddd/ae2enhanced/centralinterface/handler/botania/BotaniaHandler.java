@@ -35,7 +35,7 @@ import java.util.List;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 /**
- * Botania 远程处理器。
+ * Botania 远程处理器.
  *
  * 支持设备：
  * <ul>
@@ -49,7 +49,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 public class BotaniaHandler implements IRemoteHandler {
 
     private static final String TAG_PORTAL_FLAG = "_elvenPortal";
-    /** 中枢推送的输入物品标记，用于 revertMaterials 区分未消耗输入与产物 */
+    /** 中枢推送的输入物品标记,用于 revertMaterials 区分未消耗输入与产物 */
     private static final String TAG_INPUT_FLAG = "_ae2eInput";
     /** 推料状态过期时间 */
     private static final int STATE_EXPIRY_TICKS = 1200;
@@ -182,7 +182,7 @@ public class BotaniaHandler implements IRemoteHandler {
                     if (!stack.isEmpty()) result.add(stack);
                 }
             }
-            // 兜底：回收 AABB 内可能残留的输入 EntityItem（正常不应存在）
+            // 兜底：回收 AABB 内可能残留的输入 EntityItem(正常不应存在)
             for (EntityItem item : getEntityItemsInAABB(world, pos)) {
                 if (!item.isDead && !item.getItem().isEmpty() && item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
                     result.add(item.getItem().copy());
@@ -192,8 +192,8 @@ public class BotaniaHandler implements IRemoteHandler {
 //             AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials Altar: {} items at {}", result.size(), pos);
             return result;
         }
-        // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备，
-        // 只回收带 TAG_INPUT_FLAG 标记的未消耗输入，不回收产物
+        // 对于 Pool / AlfPortal / TerraPlate 等通过 EntityItem 推料的设备,
+        // 只回收带 TAG_INPUT_FLAG 标记的未消耗输入,不回收产物
         List<ItemStack> fallback = new ArrayList<>();
         for (EntityItem item : getEntityItemsInAABB(world, pos)) {
             boolean isInput = item.getEntityData().getBoolean(TAG_INPUT_FLAG);
@@ -254,7 +254,7 @@ public class BotaniaHandler implements IRemoteHandler {
     private boolean pushMaterialsPool(World world, BlockPos pos, TilePool pool, InventoryCrafting ingredients) {
 //         AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool start at {}", pos);
 
-        // 清理 AABB 中已有的中枢输入标记实体，防止实体堆叠干扰 collideEntityItem
+        // 清理 AABB 中已有的中枢输入标记实体,防止实体堆叠干扰 collideEntityItem
         for (EntityItem existing : getEntityItemsInAABB(world, pos)) {
             if (!existing.isDead && existing.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
                 existing.setDead();
@@ -269,7 +269,7 @@ public class BotaniaHandler implements IRemoteHandler {
 //                     i, stack.getCount(), stack.getItem(), stack.getClass().getName(), System.identityHashCode(stack), stack.isEmpty());
             if (stack.isEmpty()) continue;
 
-            // 每次只推送 1 个，collideEntityItem 每次消耗 1 个
+            // 每次只推送 1 个,collideEntityItem 每次消耗 1 个
             ItemStack remaining = stack.copy();
 //             AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool slot {}: remaining copy=[count={}, item={}, hash={}, empty={}]",
 //                     i, remaining.getCount(), remaining.getItem(), System.identityHashCode(remaining), remaining.isEmpty());
@@ -284,20 +284,20 @@ public class BotaniaHandler implements IRemoteHandler {
                     break;
                 }
                 EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, single);
-                // 标记为中枢输入，使 revertMaterials 能区分未消耗输入与产物
+                // 标记为中枢输入,使 revertMaterials 能区分未消耗输入与产物
                 entityItem.getEntityData().setBoolean(TAG_INPUT_FLAG, true);
                 // 注意：Botania TilePool.collideEntityItem 会拒绝 100 < pickupDelay < 130 的物品
-                // （视为玩家刚投掷的物品）。EntityItem 默认 pickupDelay=10，不在拒绝区间内。
+                // (视为玩家刚投掷的物品).EntityItem 默认 pickupDelay=10,不在拒绝区间内.
                 entityItem.motionX = 0;
                 entityItem.motionY = 0;
                 entityItem.motionZ = 0;
-                world.spawnEntity(entityItem);  // 必须加入世界，否则产物不会出现在世界中
+                world.spawnEntity(entityItem);  // 必须加入世界,否则产物不会出现在世界中
 //                 AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool spawned entityItem: item={} hash={}",
 //                         entityItem.getItem(), System.identityHashCode(entityItem));
 
                 boolean consumed = pool.collideEntityItem(entityItem);
-                // WORKAROUND: 某些整合包中 collideEntityItem 执行了成功路径（shrink+spawn产物）
-                // 但返回值被某个未知模组篡改为 false。以 entityItem.item 是否被 shrink 空作为成功判据。
+                // WORKAROUND: 某些整合包中 collideEntityItem 执行了成功路径(shrink+spawn产物)
+                // 但返回值被某个未知模组篡改为 false.以 entityItem.item 是否被 shrink 空作为成功判据.
                 boolean actuallyConsumed = consumed || entityItem.getItem().isEmpty();
                 if (!actuallyConsumed) {
                     int actualPickupDelay = 10;
@@ -307,15 +307,15 @@ public class BotaniaHandler implements IRemoteHandler {
                     } catch (Exception ignored) {}
 //                     AE2Enhanced.LOGGER.debug("[AE2E-Botania] pushMaterialsPool failed: collideEntityItem refused {} (item={} dead={} pickupDelay={}) at {} (mana={})",
 //                             single, entityItem.getItem(), entityItem.isDead, actualPickupDelay, pos, pool.getCurrentMana());
-                    // 清理已 spawn 的实体，避免空实体堆积
+                    // 清理已 spawn 的实体,避免空实体堆积
                     if (!entityItem.isDead) {
                         entityItem.setDead();
                     }
                     return false;
                 }
                 // collideEntityItem 成功后：
-                // Botania 标准行为：原 EntityItem 的 item 被 shrink(1) 清空，产物 spawn 到新 EntityItem
-                // 因此原 entityItem.getItem() 必然为空。直接 setDead 清理即可。
+                // Botania 标准行为：原 EntityItem 的 item 被 shrink(1) 清空,产物 spawn 到新 EntityItem
+                // 因此原 entityItem.getItem() 必然为空.直接 setDead 清理即可.
                 if (!entityItem.getItem().isEmpty()) {
                     // 防御性处理：如果某个魔改版本把产物塞回了原 EntityItem
                     ItemStack product = entityItem.getItem();
@@ -333,7 +333,7 @@ public class BotaniaHandler implements IRemoteHandler {
 
     private boolean isIdlePool(World world, BlockPos pos) {
         // 只把不带 TAG_INPUT_FLAG 的 EntityItem 视为产物；
-        // 带标记的是未消耗的输入，不应视为产物
+        // 带标记的是未消耗的输入,不应视为产物
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         boolean hasProduct = false;
         for (EntityItem item : items) {
@@ -394,7 +394,7 @@ public class BotaniaHandler implements IRemoteHandler {
             hasProducts = true;
         }
         // 只有 AABB 内确实存在产物时才返回 true
-        // AABB 为空时返回 false，避免在输入被吞噬后、产物生成前过早触发
+        // AABB 为空时返回 false,避免在输入被吞噬后、产物生成前过早触发
         return hasProducts;
     }
 
@@ -465,7 +465,7 @@ public class BotaniaHandler implements IRemoteHandler {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            // 活石作为催化剂，不放入祭坛物品栏，而是丢在旁边
+            // 活石作为催化剂,不放入祭坛物品栏,而是丢在旁边
             if (stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0) {
                 if (livingrock.isEmpty()) {
                     livingrock = stack.copy();
@@ -506,7 +506,7 @@ public class BotaniaHandler implements IRemoteHandler {
         int manaToGet = altar.manaToGet;
 
         if (manaToGet <= 0 || mana < manaToGet) {
-            return true; // 魔力不足，等待充能
+            return true; // 魔力不足,等待充能
         }
 
         // 查找匹配的配方
@@ -538,10 +538,10 @@ public class BotaniaHandler implements IRemoteHandler {
         }
 
         if (livingrockItem == null) {
-            return true; // 活石还没到，等待
+            return true; // 活石还没到,等待
         }
 
-        // 执行合成核心逻辑（反射绕过 player 检查）
+        // 执行合成核心逻辑(反射绕过 player 检查)
         try {
             int manaCost = recipe.getManaUsage();
             altar.recieveMana(-manaCost);
@@ -583,29 +583,29 @@ public class BotaniaHandler implements IRemoteHandler {
 
     private boolean isIdleRuneAltar(World world, BlockPos pos, TileRuneAltar altar) {
         int cooldown = BotaniaReflectionHelper.getRuneAltarCooldown(altar);
-        // cooldown > 0 表示合成刚完成，正在冷却
+        // cooldown > 0 表示合成刚完成,正在冷却
         if (cooldown > 0) return true;
 
-        // 如果祭坛内有物品且 manaToGet > 0，说明正在充能，不 idle
+        // 如果祭坛内有物品且 manaToGet > 0,说明正在充能,不 idle
         if (!altar.isEmpty() && altar.manaToGet > 0) {
             return false;
         }
 
-        // 不通过扫描 AABB 判断 idle，防止无关物品导致误判
+        // 不通过扫描 AABB 判断 idle,防止无关物品导致误判
         // 产物是否存在由 collectProducts 在 tick 中按 expectedOutputs 匹配收集
         return false;
     }
 
     // ==================== Petal Apothecary (Altar) ====================
 
-    /** Botania 内部用于识别种子的正则，与 TileAltar.SEED_PATTERN 一致 */
+    /** Botania 内部用于识别种子的正则,与 TileAltar.SEED_PATTERN 一致 */
     private static final java.util.regex.Pattern SEED_PATTERN = java.util.regex.Pattern.compile(
             "(?:(?:(?:[A-Z-_.:]|^)seed)|(?:(?:[a-z-_.:]|^)Seed))(?:[sA-Z-_.:]|$)"
     );
 
     private boolean isSeed(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        // 与 TileAltar.collideEntityItem 一致，使用 ItemStack.getTranslationKey() (func_77977_a)
+        // 与 TileAltar.collideEntityItem 一致,使用 ItemStack.getTranslationKey() (func_77977_a)
         String unlocalizedName = stack.getTranslationKey();
         return SEED_PATTERN.matcher(unlocalizedName).find();
     }
@@ -618,7 +618,7 @@ public class BotaniaHandler implements IRemoteHandler {
     }
 
     private boolean pushMaterialsAltar(World world, BlockPos pos, TileAltar altar, InventoryCrafting ingredients) {
-        // 自动填水：花药台合成必须有水，handler 自动保证
+        // 自动填水：花药台合成必须有水,handler 自动保证
         if (!altar.hasWater()) {
             altar.setWater(true);
             world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
@@ -641,14 +641,14 @@ public class BotaniaHandler implements IRemoteHandler {
             }
         }
 
-        // 先推非种子材料（花瓣等），放入 itemHandler
+        // 先推非种子材料(花瓣等),放入 itemHandler
         for (ItemStack stack : nonSeeds) {
             if (!pushItemToAltar(world, pos, altar, stack)) {
                 return false;
             }
         }
 
-        // 最后推种子，触发 collideEntityItem 中的配方匹配与合成
+        // 最后推种子,触发 collideEntityItem 中的配方匹配与合成
         // Botania 只需要 1 个种子作为触发剂
         if (!seedStack.isEmpty()) {
             ItemStack singleSeed = seedStack.copy();
@@ -662,8 +662,8 @@ public class BotaniaHandler implements IRemoteHandler {
     }
 
     /**
-     * 将物品作为 EntityItem 直接送入花药台的 collideEntityItem。
-     * 这样可精确控制处理顺序（非种子先、种子后），避免 AABB 扫描的不确定性。
+     * 将物品作为 EntityItem 直接送入花药台的 collideEntityItem.
+     * 这样可精确控制处理顺序(非种子先、种子后),避免 AABB 扫描的不确定性.
      */
     private boolean pushItemToAltar(World world, BlockPos pos, TileAltar altar, ItemStack stack) {
         while (!stack.isEmpty()) {
@@ -680,8 +680,8 @@ public class BotaniaHandler implements IRemoteHandler {
                 entityItem.setDead();
                 return false;
             }
-            // collideEntityItem 成功：非种子已放入 itemHandler，或种子已触发合成
-            // 若 stack 仍有残留（理论上不应发生），也视为异常
+            // collideEntityItem 成功：非种子已放入 itemHandler,或种子已触发合成
+            // 若 stack 仍有残留(理论上不应发生),也视为异常
             if (!entityItem.getItem().isEmpty()) {
                 entityItem.setDead();
                 return false;
@@ -692,18 +692,18 @@ public class BotaniaHandler implements IRemoteHandler {
     }
 
     private boolean startProcessAltar(World world, BlockPos pos, TileAltar altar) {
-        // 花药台通过 collideEntityItem 自动触发合成，无需外部手动激活。
-        // pushMaterialsAltar 中已按顺序调用 collideEntityItem，合成已即时完成。
+        // 花药台通过 collideEntityItem 自动触发合成,无需外部手动激活.
+        // pushMaterialsAltar 中已按顺序调用 collideEntityItem,合成已即时完成.
         return true;
     }
 
     private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar) {
-        // pushMaterialsAltar 已直接调用 collideEntityItem 并将输入 EntityItem setDead，
-        // 因此 AABB 中只会留下 Botania 生成的产物 EntityItem（标记为 ApothecarySpawned）。
+        // pushMaterialsAltar 已直接调用 collideEntityItem 并将输入 EntityItem setDead,
+        // 因此 AABB 中只会留下 Botania 生成的产物 EntityItem(标记为 ApothecarySpawned).
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            // 跳过尚未处理的输入（兜底，理论上不应存在）
+            // 跳过尚未处理的输入(兜底,理论上不应存在)
             if (item.getEntityData().getBoolean(TAG_INPUT_FLAG)) continue;
             return true;
         }
@@ -741,9 +741,9 @@ public class BotaniaHandler implements IRemoteHandler {
     }
 
     /**
-     * 收集花药台 AABB 内的所有产物 EntityItem。
-     * pushMaterialsAltar 已直接调用 collideEntityItem 并清理输入 EntityItem，
-     * 因此 AABB 中遗留的 EntityItem 均可视为产物。
+     * 收集花药台 AABB 内的所有产物 EntityItem.
+     * pushMaterialsAltar 已直接调用 collideEntityItem 并清理输入 EntityItem,
+     * 因此 AABB 中遗留的 EntityItem 均可视为产物.
      */
     private List<ItemStack> collectProductsAltar(World world, BlockPos pos) {
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
@@ -769,7 +769,7 @@ public class BotaniaHandler implements IRemoteHandler {
 
         for (EntityItem entityItem : new ArrayList<>(items)) {
             if (entityItem.isDead) continue;
-            // 跳过未消耗的输入，只收集产物
+            // 跳过未消耗的输入,只收集产物
             if (entityItem.getEntityData().getBoolean(TAG_INPUT_FLAG)) continue;
             ItemStack stack = entityItem.getItem();
             if (stack.isEmpty()) continue;
@@ -826,7 +826,7 @@ public class BotaniaHandler implements IRemoteHandler {
                 }
             }
 
-            // 2. 收集返还物品（整合包可能有非符文返还；活石是催化剂不应收集）
+            // 2. 收集返还物品(整合包可能有非符文返还；活石是催化剂不应收集)
             if (!collectedThis && !(stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0)) {
                 collected.add(stack.copy());
                 entityItem.setDead();

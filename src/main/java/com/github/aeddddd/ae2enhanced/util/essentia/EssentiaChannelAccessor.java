@@ -10,10 +10,10 @@ import net.minecraftforge.fml.common.Loader;
 import java.lang.reflect.Method;
 
 /**
- * ThaumicEnergistics 源质存储通道的反射缓存助手。
+ * ThaumicEnergistics 源质存储通道的反射缓存助手.
  *
- * 在类加载时一次性完成所有反射，后续调用直接复用缓存对象。
- * 若 Thaumcraft / ThaumicEnergistics 未安装，所有字段为 null，AVAILABLE = false。
+ * 在类加载时一次性完成所有反射,后续调用直接复用缓存对象.
+ * 若 Thaumcraft / ThaumicEnergistics 未安装,所有字段为 null,AVAILABLE = false.
  */
 public final class EssentiaChannelAccessor {
 

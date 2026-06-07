@@ -18,14 +18,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Extended Crafting 工作台虚拟合成处理器。
+ * Extended Crafting 工作台虚拟合成处理器.
  *
- * <p>支持 Basic(3x3)、Advanced(5x5)、Elite(7x7)、Ultimate(9x9) 四种工作台。
+ * <p>支持 Basic(3x3)、Advanced(5x5)、Elite(7x7)、Ultimate(9x9) 四种工作台.
  * 通过 {@link IVirtualCraftingHandler} 实现即时虚拟合成：
- * 不将物品推送到物理工作台，直接验证输入材料是否满足配方即可返回产物。</p>
+ * 不将物品推送到物理工作台,直接验证输入材料是否满足配方即可返回产物.</p>
  *
- * <p>核心策略：忽略槽位与顺序，将输入材料按数量拆分为单件列表，
- * 与配方的非空 ingredients 进行多对多匹配。输出匹配忽略 NBT。</p>
+ * <p>核心策略：忽略槽位与顺序,将输入材料按数量拆分为单件列表,
+ * 与配方的非空 ingredients 进行多对多匹配.输出匹配忽略 NBT.</p>
  */
 public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
 
@@ -76,7 +76,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         return CLASS_ABSTRACT_TABLE.isInstance(te);
     }
 
-    // ---- IRemoteHandler 物理模式（虚拟合成不占用设备，这些方法均为空实现） ----
+    // ---- IRemoteHandler 物理模式(虚拟合成不占用设备,这些方法均为空实现) ----
 
     @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
@@ -146,7 +146,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
-                // 使用 pattern 定义的精确输出（确保 NBT 与 waitingFor 匹配）
+                // 使用 pattern 定义的精确输出(确保 NBT 与 waitingFor 匹配)
                 for (IAEItemStack output : outputs) {
                     if (output != null) {
                         products.add(output.createItemStack());
@@ -199,17 +199,17 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     }
 
     /**
-     * 检查 ingredients 中的材料是否满足 recipe 的所有非空 ingredients。
+     * 检查 ingredients 中的材料是否满足 recipe 的所有非空 ingredients.
      *
-     * <p>关键处理：AE2 传来的 InventoryCrafting 中同一物品可能堆叠在一个槽位（count>1），
-     * 而 Extended Crafting 配方中每个 ingredient 槽位固定最多 1 个物品。
-     * 因此将输入按 count 拆分为单件列表后再进行一对一匹配。</p>
+     * <p>关键处理：AE2 传来的 InventoryCrafting 中同一物品可能堆叠在一个槽位(count>1),
+     * 而 Extended Crafting 配方中每个 ingredient 槽位固定最多 1 个物品.
+     * 因此将输入按 count 拆分为单件列表后再进行一对一匹配.</p>
      */
     private static boolean ingredientsMatch(IRecipe recipe, InventoryCrafting ingredients) {
         NonNullList<Ingredient> recipeIngredients = recipe.getIngredients();
         if (recipeIngredients == null || recipeIngredients.isEmpty()) return false;
 
-        // 收集 recipe 中所有非空 ingredient（每个代表 1 个物品需求）
+        // 收集 recipe 中所有非空 ingredient(每个代表 1 个物品需求)
         List<Ingredient> required = new ArrayList<>();
         for (Ingredient ing : recipeIngredients) {
             if (ing != null && ing != Ingredient.EMPTY) {
@@ -231,7 +231,7 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
             }
         }
 
-        // 输入物品数必须不少于配方需求数（AE2 提取时可能带入了网络中的多余物品）
+        // 输入物品数必须不少于配方需求数(AE2 提取时可能带入了网络中的多余物品)
         if (available.size() < required.size()) return false;
 
         // 贪心匹配
@@ -262,9 +262,9 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
     }
 
     /**
-     * 输出匹配：忽略 NBT，比较 Item + Metadata + Count。
-     * <p>必须比较数量，以区分相同产物但不同输出数量的配方
-     *（如一种输出 4 个，另一种输出 8 个）。</p>
+     * 输出匹配：忽略 NBT,比较 Item + Metadata + Count.
+     * <p>必须比较数量,以区分相同产物但不同输出数量的配方
+     *(如一种输出 4 个,另一种输出 8 个).</p>
      */
     private static boolean outputsMatch(ItemStack recipeOutput, ItemStack expected) {
         if (recipeOutput.isEmpty() || expected.isEmpty()) return false;

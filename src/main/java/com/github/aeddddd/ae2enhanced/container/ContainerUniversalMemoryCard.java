@@ -4,7 +4,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
 
 /**
- * 通用内存卡 GUI 的 Container（无实际槽位，仅作为 GUI 的桥梁）。
+ * 通用内存卡 GUI 的 Container(无实际槽位,仅作为 GUI 的桥梁).
  */
 public class ContainerUniversalMemoryCard extends Container {
 

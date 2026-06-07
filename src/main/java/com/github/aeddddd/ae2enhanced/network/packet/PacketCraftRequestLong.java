@@ -22,9 +22,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import java.util.concurrent.Future;
 
 /**
- * 支持 long 数量下单的合成请求包。
- * AE2-UEL 原生的 PacketCraftRequest 构造函数接收 int，导致超过 int 范围的下单量被截断。
- * 此包复制了原生包的完整服务端处理逻辑，但使用 long 传输数量。
+ * 支持 long 数量下单的合成请求包.
+ * AE2-UEL 原生的 PacketCraftRequest 构造函数接收 int,导致超过 int 范围的下单量被截断.
+ * 此包复制了原生包的完整服务端处理逻辑,但使用 long 传输数量.
  */
 public class PacketCraftRequestLong implements IMessage {
 

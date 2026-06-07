@@ -93,7 +93,7 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
-        // E2a：注册 EssentiaDrop 的内置物品渲染器（流体/气体使用标准模型系统）
+        // E2a：注册 EssentiaDrop 的内置物品渲染器(流体/气体使用标准模型系统)
         if (ItemRegistry.ESSENTIA_DROP != null) {
             try {
                 java.lang.reflect.Method initModel = ItemRegistry.ESSENTIA_DROP.getClass().getMethod("initModel");
@@ -102,7 +102,7 @@ public class ClientProxy extends CommonProxy {
                 AE2Enhanced.LOGGER.error("[AE2E] Failed to init essentia drop model", e);
             }
         }
-        // E2a：注册流体假物品的 ItemColors，根据流体颜色染色
+        // E2a：注册流体假物品的 ItemColors,根据流体颜色染色
         if (ItemRegistry.FLUID_DROP != null) {
             Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
                 FluidStack fluid = com.github.aeddddd.ae2enhanced.item.ItemFluidDrop.getFluidStack(stack);
@@ -112,7 +112,7 @@ public class ClientProxy extends CommonProxy {
                 return -1;
             }, ItemRegistry.FLUID_DROP);
         }
-        // E2a：注册气体假物品的 ItemColors，根据气体 tint 染色（复刻 ae2fc ClientProxy.init）
+        // E2a：注册气体假物品的 ItemColors,根据气体 tint 染色(复刻 ae2fc ClientProxy.init)
         if (ItemRegistry.GAS_DROP != null) {
             Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
                 try {
@@ -166,7 +166,7 @@ public class ClientProxy extends CommonProxy {
     @SideOnly(Side.CLIENT)
     @SubscribeEvent
     public static void onModelBake(ModelBakeEvent event) {
-        // 将 essentia_drop 的模型替换为 BakedEssentiaPacketModel，使 isBuiltInRenderer()=true
+        // 将 essentia_drop 的模型替换为 BakedEssentiaPacketModel,使 isBuiltInRenderer()=true
         // 从而触发 RenderItem 调用 Item 自己的 TileEntityItemStackRenderer
         try {
             net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry = event.getModelRegistry();
@@ -266,7 +266,7 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.SMART_PATTERN);
         registerItemModel(ItemRegistry.ENERGY_DROP);
 
-        // Omni 专用升级卡模型（根据 metadata 动态选择）
+        // Omni 专用升级卡模型(根据 metadata 动态选择)
         ModelLoader.registerItemVariants(ItemRegistry.OMNI_UPGRADE_CARD,
             new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_magnet", "inventory"),
             new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_picker", "inventory")

@@ -8,7 +8,7 @@ import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.items.CapabilityItemHandler;
 
 /**
- * 统一探测目标容器的四种 Capability（物品 / 流体 / 气体 / 源质）。
+ * 统一探测目标容器的四种 Capability(物品 / 流体 / 气体 / 源质).
  *
  * 替代 Part 类中重复编写的 capability 探测块：
  *   hasItemCap = target.hasCapability(...);

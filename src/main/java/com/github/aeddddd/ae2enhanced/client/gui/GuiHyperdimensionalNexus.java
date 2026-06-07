@@ -10,8 +10,8 @@ import java.io.IOException;
 
 
 /**
- * 超维度仓储中枢信息面板。
- * 纯展示 GUI，无物品槽位，风格与 GuiHyperdimensionalUnformed 统一。
+ * 超维度仓储中枢信息面板.
+ * 纯展示 GUI,无物品槽位,风格与 GuiHyperdimensionalUnformed 统一.
  */
 public class GuiHyperdimensionalNexus extends GuiScreen {
 
@@ -128,7 +128,7 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
         fontRenderer.drawString(nexusLabel, x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
-        // 存储统计（客户端同步字段，含物品+流体）
+        // 存储统计(客户端同步字段,含物品+流体)
         boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
         int types = tile.getClientStorageTypes();
         String total = tile.getClientStorageTotal();

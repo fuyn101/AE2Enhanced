@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * E2a：在标准 AE2 物品终端中拦截流体/气体/源质假物品的点击。
- * 实际逻辑委托给 {@link TerminalClickBridge}。
+ * E2a：在标准 AE2 物品终端中拦截流体/气体/源质假物品的点击.
+ * 实际逻辑委托给 {@link TerminalClickBridge}.
  */
 @Mixin(value = AEBaseGui.class, remap = false, priority = 1099)
 public class MixinGuiMEMonitorableClick {

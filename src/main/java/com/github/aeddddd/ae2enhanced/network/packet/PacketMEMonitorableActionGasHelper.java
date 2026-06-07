@@ -16,11 +16,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
 /**
- * PacketMEMonitorableAction 的气体处理辅助类。
+ * PacketMEMonitorableAction 的气体处理辅助类.
  *
- * 本类包含所有对 Mekanism / MekanismEnergistics 类的直接引用，
- * 由 {@link PacketMEMonitorableAction} 在确认 mod 存在后通过反射调用，
- * 避免在缺少对应 mod 时触发 NoClassDefFoundError。
+ * 本类包含所有对 Mekanism / MekanismEnergistics 类的直接引用,
+ * 由 {@link PacketMEMonitorableAction} 在确认 mod 存在后通过反射调用,
+ * 避免在缺少对应 mod 时触发 NoClassDefFoundError.
  */
 public final class PacketMEMonitorableActionGasHelper {
 

@@ -38,19 +38,19 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 通用内存卡升级槽序列化与粘贴的公共辅助方法。
+ * 通用内存卡升级槽序列化与粘贴的公共辅助方法.
  *
  * 架构约定：
- * 1. 所有升级操作基于 IUpgradeProvider 抽象，不再直接依赖 IItemHandler。
- * 2. IItemHandler 的兼容通过 ItemHandlerUpgradeAdapter 桥接。
- * 3. tryPullFromNetwork 返回 NetworkPullResult 三元状态，区分直接提取 / 已请求合成 / 失败。
+ * 1. 所有升级操作基于 IUpgradeProvider 抽象,不再直接依赖 IItemHandler.
+ * 2. IItemHandler 的兼容通过 ItemHandlerUpgradeAdapter 桥接.
+ * 3. tryPullFromNetwork 返回 NetworkPullResult 三元状态,区分直接提取 / 已请求合成 / 失败.
  */
 public class MemoryCardUpgradeHelper {
 
     public enum NetworkPullResult {
         PULLED,              // 所有物品已直接提取到账
-        CRAFTING_REQUESTED,  // 部分或全部物品已提交合成请求（尚未到账）
-        FAILED               // 无法获取（既无库存也无法合成）
+        CRAFTING_REQUESTED,  // 部分或全部物品已提交合成请求(尚未到账)
+        FAILED               // 无法获取(既无库存也无法合成)
     }
 
     // ================== IUpgradeProvider API ==================
@@ -82,9 +82,9 @@ public class MemoryCardUpgradeHelper {
     }
 
     /**
-     * 基于 IUpgradeProvider 的统一升级应用流程。
-     * 1. 统一验证（含网络回退）
-     * 2. 弹出旧升级（返还玩家背包）
+     * 基于 IUpgradeProvider 的统一升级应用流程.
+     * 1. 统一验证(含网络回退)
+     * 2. 弹出旧升级(返还玩家背包)
      * 3. 消耗新升级
      * 4. 放入新升级
      */
@@ -94,7 +94,7 @@ public class MemoryCardUpgradeHelper {
             return PasteResult.SUCCESS;
         }
 
-        // 1. 统一验证（含网络回退）
+        // 1. 统一验证(含网络回退)
         if (!ensureAvailable(player, needed)) {
             return PasteResult.MISSING_UPGRADES;
         }
@@ -306,9 +306,9 @@ public class MemoryCardUpgradeHelper {
     }
 
     /**
-     * 确保玩家背包（含 ME 网络回退）中有足够的物品。
-     * 如果网络拉取了物品，它们会被放入玩家背包。
-     * @return true 表示所有物品都已在背包中可用（CRAFTING_REQUESTED 也视为 true，因为合成已启动）
+     * 确保玩家背包(含 ME 网络回退)中有足够的物品.
+     * 如果网络拉取了物品,它们会被放入玩家背包.
+     * @return true 表示所有物品都已在背包中可用(CRAFTING_REQUESTED 也视为 true,因为合成已启动)
      */
     public static boolean ensureAvailable(EntityPlayer player, List<ItemStack> needed) {
         List<ItemStack> missing = new ArrayList<>();

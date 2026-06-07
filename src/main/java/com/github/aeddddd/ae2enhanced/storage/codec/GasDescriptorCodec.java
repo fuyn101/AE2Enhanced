@@ -7,7 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * GasDescriptor 自定义二进制编解码器。
+ * GasDescriptor 自定义二进制编解码器.
  */
 public class GasDescriptorCodec implements DescriptorCodec<GasDescriptor> {
 

@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import java.awt.Rectangle;
 
 /**
- * E2a：JEI 成分识别适配 —— GuiContainerWrapper。
- * 当鼠标悬停在 AE2 终端的流体/气体/源质假物品上时，将假物品 ItemStack
- * 转换为对应的 FluidStack / GasStack / crystal essence ItemStack，
- * 使 JEI 的 R/U 查询能够正确识别。
+ * E2a：JEI 成分识别适配 —— GuiContainerWrapper.
+ * 当鼠标悬停在 AE2 终端的流体/气体/源质假物品上时,将假物品 ItemStack
+ * 转换为对应的 FluidStack / GasStack / crystal essence ItemStack,
+ * 使 JEI 的 R/U 查询能够正确识别.
  *
- * 对齐 ae2fc 实现：使用 @Mixin(value) 类字面量 + 实例方法 handler。
+ * 对齐 ae2fc 实现：使用 @Mixin(value) 类字面量 + 实例方法 handler.
  */
 @Mixin(value = GuiContainerWrapper.class, remap = false)
 public class MixinGuiContainerWrapper {

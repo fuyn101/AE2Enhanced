@@ -21,20 +21,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * TechReborn 机器的配置复制粘贴 Handler。
- * <p>支持所有继承 {@code reborncore.common.tile.RebornMachineTile} 的机器，包括：</p>
+ * TechReborn 机器的配置复制粘贴 Handler.
+ * <p>支持所有继承 {@code reborncore.common.tile.RebornMachineTile} 的机器,包括：</p>
  * <ul>
- *   <li>加工机器（压缩机、研磨机、离心机等）</li>
- *   <li>发电机（固体燃料、太阳能等）</li>
- *   <li>储能设备（MFSU、AESU、BatBox 等）</li>
+ *   <li>加工机器(压缩机、研磨机、离心机等)</li>
+ *   <li>发电机(固体燃料、太阳能等)</li>
+ *   <li>储能设备(MFSU、AESU、BatBox 等)</li>
  *   <li>变压器、量子箱/罐等</li>
  * </ul>
  *
- * <p>复制/粘贴的内容包括：朝向、物品侧面配置（SlotConfiguration）、
- * 流体侧面配置（FluidConfiguration）、红石模式（储能设备）、
- * 输出电量（AESU）、升级槽。</p>
+ * <p>复制/粘贴的内容包括：朝向、物品侧面配置(SlotConfiguration)、
+ * 流体侧面配置(FluidConfiguration)、红石模式(储能设备)、
+ * 输出电量(AESU)、升级槽.</p>
  *
- * <p>使用反射访问 TechReborn/RebornCore API，避免硬依赖。</p>
+ * <p>使用反射访问 TechReborn/RebornCore API,避免硬依赖.</p>
  */
 public class TechRebornMachineHandler implements IMemoryCardHandler {
 
@@ -118,7 +118,7 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
         if (!AVAILABLE || !(target instanceof TileEntity)) {
             return false;
         }
-        // 精确匹配 TechReborn 包名下的机器，避免处理其他使用 RebornCore 的 mod
+        // 精确匹配 TechReborn 包名下的机器,避免处理其他使用 RebornCore 的 mod
         String className = target.getClass().getName();
         return className.startsWith("techreborn.");
     }
@@ -155,12 +155,12 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // 红石模式（仅储能设备）
+            // 红石模式(仅储能设备)
             if (TILE_ENERGY_STORAGE_CLASS.isInstance(tile)) {
                 output.setByte("redstoneMode", (Byte) REDSTONE_MODE_FIELD.get(tile));
             }
 
-            // 输出电量（仅 AESU）
+            // 输出电量(仅 AESU)
             if (TILE_ADJUSTABLE_SU_CLASS != null && TILE_ADJUSTABLE_SU_CLASS.isInstance(tile)) {
                 output.setInteger("output", (Integer) OUTPUT_FIELD.get(tile));
             }
@@ -199,7 +199,7 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
         TileEntity tile = (TileEntity) target;
 
         try {
-            // 严格匹配机器类名（不同机器的槽位/罐位数量可能不同）
+            // 严格匹配机器类名(不同机器的槽位/罐位数量可能不同)
             String sourceType = data.getString("dataType");
             String targetType = target.getClass().getName();
             if (!sourceType.equals(targetType)) {
@@ -270,7 +270,7 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
         }
     }
 
-    /** 从 NBT 解析需要的升级物品，按目标机器的升级槽数量截断 */
+    /** 从 NBT 解析需要的升级物品,按目标机器的升级槽数量截断 */
     private List<ItemStack> parseUpgrades(TileEntity tile, NBTTagCompound data) throws Exception {
         List<ItemStack> list = new ArrayList<>();
         if (!data.hasKey("ae2e:upgrades")) {

@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * JEI 黑洞合成配方类别。
+ * JEI 黑洞合成配方类别.
  */
 public class BlackHoleRecipeCategory implements IRecipeCategory<BlackHoleRecipeWrapper> {
 

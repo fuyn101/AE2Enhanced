@@ -25,7 +25,7 @@ public class ContainerAssemblyFormed extends Container {
         this.tile = tile;
         IItemHandler handler = tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
 
-        // 升级槽：2行×3列，槽位 0~5，每种升级卡对应固定槽位
+        // 升级槽：2行×3列,槽位 0~5,每种升级卡对应固定槽位
         for (int row = 0; row < 2; ++row) {
             for (int col = 0; col < 3; ++col) {
                 final int index = row * 3 + col;
@@ -49,7 +49,7 @@ public class ContainerAssemblyFormed extends Container {
 
                     @Override
                     public boolean canTakeStack(EntityPlayer playerIn) {
-                        // 扩容升级：如果扩展页面留有样板，禁止取出
+                        // 扩容升级：如果扩展页面留有样板,禁止取出
                         if (index == ItemUpgradeCard.META_CAPACITY) {
                             ItemStack stack = handler.getStackInSlot(index);
                             int newCount = Math.max(0, stack.getCount() - 1);
@@ -101,7 +101,7 @@ public class ContainerAssemblyFormed extends Container {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // 从玩家背包移到对应升级槽（按 metadata 一一对应）
+                // 从玩家背包移到对应升级槽(按 metadata 一一对应)
                 if (itemstack1.getItem() instanceof ItemUpgradeCard) {
                     int meta = itemstack1.getMetadata();
                     if (meta >= 0 && meta < TileAssemblyController.UPGRADE_SLOTS) {

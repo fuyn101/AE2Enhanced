@@ -19,17 +19,17 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 
 /**
- * 终端点击桥接类 —— 处理流体/气体/源质假物品的点击拦截。
- * 由 MixinGuiMEMonitorableClick 在 @Inject 点调用。
+ * 终端点击桥接类 —— 处理流体/气体/源质假物品的点击拦截.
+ * 由 MixinGuiMEMonitorableClick 在 @Inject 点调用.
  */
 public final class TerminalClickBridge {
 
     private TerminalClickBridge() {}
 
     /**
-     * 在 {@code AEBaseGui.func_184098_a} 的 HEAD 处调用。
+     * 在 {@code AEBaseGui.func_184098_a} 的 HEAD 处调用.
      *
-     * @return true 表示已处理点击，Mixin 应 cancel 原方法
+     * @return true 表示已处理点击,Mixin 应 cancel 原方法
      */
     public static boolean onHandleMouseClick(AEBaseGui gui, Slot slot, int mouseButton, ClickType clickType) {
         if (!(slot instanceof SlotME)) {
@@ -40,7 +40,7 @@ public final class TerminalClickBridge {
         EntityPlayer player = gui.mc.player;
         ItemStack mouseItem = player.inventory.getItemStack();
 
-        // 中键提取（Picker upgrade）
+        // 中键提取(Picker upgrade)
         if (mouseButton == 2 && clickType == ClickType.CLONE
                 && s.getAEStack() != null && s.getAEStack().getStackSize() > 0) {
             if (gui.inventorySlots instanceof ContainerOmniTerm) {

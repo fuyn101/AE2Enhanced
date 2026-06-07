@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * E2a：允许流体容器/气体容器作为假物品放入 Cell Workbench 的 view cell 槽位。
+ * E2a：允许流体容器/气体容器作为假物品放入 Cell Workbench 的 view cell 槽位.
  */
 @Mixin(value = ContainerCellWorkbench.class, remap = false)
 public class MixinContainerCellWorkbench {
@@ -64,7 +64,7 @@ public class MixinContainerCellWorkbench {
             }
         }
 
-        // 气体容器（简化处理：不实现放入逻辑，只阻止默认行为）
+        // 气体容器(简化处理：不实现放入逻辑,只阻止默认行为)
         boolean isGasItem = false;
         try {
             Class<?> gasItemClass = Class.forName("mekanism.api.gas.IGasItem");

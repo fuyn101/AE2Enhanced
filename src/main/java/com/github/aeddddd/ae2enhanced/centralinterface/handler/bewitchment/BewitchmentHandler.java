@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bewitchment 处理器：SpinningWheel + Distillery + WitchesCauldron。
+ * Bewitchment 处理器：SpinningWheel + Distillery + WitchesCauldron.
  *
- * <p><b>SpinningWheel / Distillery</b>：通过 {@link EnumFacing#UP} 的 IItemHandler 推入材料，
- * 通过 {@link EnumFacing#DOWN} 的 IItemHandler 收集产物。每个槽位仅放入单个物品。</p>
+ * <p><b>SpinningWheel / Distillery</b>：通过 {@link EnumFacing#UP} 的 IItemHandler 推入材料,
+ * 通过 {@link EnumFacing#DOWN} 的 IItemHandler 收集产物.每个槽位仅放入单个物品.</p>
  *
- * <p><b>WitchesCauldron</b>：不暴露 IItemHandler capability，IO 完全通过反射操作内部字段完成。
- * push 时直接写入 inventory 并立即触发配方匹配与产物生成；collect 时回收周围 EntityItem 与 inventory 残余。</p>
+ * <p><b>WitchesCauldron</b>：不暴露 IItemHandler capability,IO 完全通过反射操作内部字段完成.
+ * push 时直接写入 inventory 并立即触发配方匹配与产物生成；collect 时回收周围 EntityItem 与 inventory 残余.</p>
  */
 public class BewitchmentHandler implements IRemoteHandler {
 
@@ -59,7 +59,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Method METHOD_CAULDRON_RECIPE_MATCHES;
     private static Field FIELD_CAULDRON_RECIPE_OUTPUT;
 
-    // 坩埚超时：记录 push 时间（key = dim:pos）
+    // 坩埚超时：记录 push 时间(key = dim:pos)
     private static final Map<String, Long> CAULDRON_PUSH_TIME = new HashMap<>();
     private static final long CAULDRON_TIMEOUT_MS = 30000;
 
@@ -208,7 +208,7 @@ public class BewitchmentHandler implements IRemoteHandler {
             if (stack.isEmpty()) continue;
             ItemStack single = stack.copy();
             single.setCount(1);
-            // 找到下一个空槽，避免合并到已有物品
+            // 找到下一个空槽,避免合并到已有物品
             while (slotIdx < up.getSlots() && !up.getStackInSlot(slotIdx).isEmpty()) {
                 slotIdx++;
             }
@@ -245,7 +245,7 @@ public class BewitchmentHandler implements IRemoteHandler {
             ItemStackHandler inv = (ItemStackHandler) FIELD_CAULDRON_INVENTORY.get(te);
             if (inv == null) return false;
 
-            // 1. 将材料逐个放入 inventory（每个槽位仅单个物品）
+            // 1. 将材料逐个放入 inventory(每个槽位仅单个物品)
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
                 ItemStack stack = ingredients.getStackInSlot(i);
                 if (stack.isEmpty()) continue;
@@ -266,7 +266,7 @@ public class BewitchmentHandler implements IRemoteHandler {
 
             // canCraft 条件：有能量、非 mode4、已沸腾
             boolean canCraft = hasPower && mode != 4 && heatTimer >= 5;
-            // mode3 为酿造模式，需要额外判断 isBrewItem，自动化普通配方通常不走此分支
+            // mode3 为酿造模式,需要额外判断 isBrewItem,自动化普通配方通常不走此分支
 
             if (canCraft && mode == 0) {
                 FIELD_CAULDRON_MODE.set(te, 5);
@@ -479,7 +479,7 @@ public class BewitchmentHandler implements IRemoteHandler {
 
     private void collectCauldron(World world, BlockPos pos, TileEntity te, List<ItemStack> result) {
         try {
-            // 1. 扫描周围 EntityItem（产物或未收集物品）
+            // 1. 扫描周围 EntityItem(产物或未收集物品)
             AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(1.0);
             List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, aabb);
             for (EntityItem entity : items) {

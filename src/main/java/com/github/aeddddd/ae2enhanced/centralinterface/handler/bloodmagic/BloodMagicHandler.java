@@ -20,13 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Blood Magic 远程处理器。
+ * Blood Magic 远程处理器.
  *
  * 支持设备：
  * <ul>
- *   <li>炼金术桌 (bloodmagic:alchemy_table) — 6 输入槽均分，每槽 1 个，收集输出槽产物 + 输入槽残余</li>
- *   <li>狱火锻炉 (bloodmagic:soul_forge) — 4 输入槽均分，每槽 1 个，收集输出槽产物 + 输入槽残余</li>
- *   <li>祭坛 (bloodmagic:altar) — 单槽 push + startCycle 启动，回收槽位 0 产物</li>
+ *   <li>炼金术桌 (bloodmagic:alchemy_table) — 6 输入槽均分,每槽 1 个,收集输出槽产物 + 输入槽残余</li>
+ *   <li>狱火锻炉 (bloodmagic:soul_forge) — 4 输入槽均分,每槽 1 个,收集输出槽产物 + 输入槽残余</li>
+ *   <li>祭坛 (bloodmagic:altar) — 单槽 push + startCycle 启动,回收槽位 0 产物</li>
  * </ul>
  */
 public class BloodMagicHandler implements IRemoteHandler {
@@ -80,7 +80,7 @@ public class BloodMagicHandler implements IRemoteHandler {
             ((TileAltar) te).startCycle();
             return true;
         }
-        // 炼金术桌和狱火锻炉 tick 自动处理，无需显式启动
+        // 炼金术桌和狱火锻炉 tick 自动处理,无需显式启动
         return true;
     }
 
@@ -114,7 +114,7 @@ public class BloodMagicHandler implements IRemoteHandler {
     // ==================== Helpers ====================
 
     /**
-     * 从 InventoryCrafting 中收集所有非空物品，每个只保留 1 个（均分策略）。
+     * 从 InventoryCrafting 中收集所有非空物品,每个只保留 1 个(均分策略).
      */
     private List<ItemStack> collectSingles(InventoryCrafting ingredients) {
         List<ItemStack> materials = new ArrayList<>();
@@ -185,7 +185,7 @@ public class BloodMagicHandler implements IRemoteHandler {
     private List<ItemStack> collectProductsAlchemyTable(TileAlchemyTable table) {
         List<ItemStack> collected = new ArrayList<>();
 
-        // 1. 收集输出槽产物（DOWN 面，槽位 0 对应绝对槽位 8）
+        // 1. 收集输出槽产物(DOWN 面,槽位 0 对应绝对槽位 8)
         IItemHandler outputHandler = table.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.DOWN);
         if (outputHandler != null) {
             ItemStack output = outputHandler.extractItem(0, 64, false);
@@ -194,7 +194,7 @@ public class BloodMagicHandler implements IRemoteHandler {
             }
         }
 
-        // 2. 收集输入槽残余（NORTH 面，槽位 0-5 对应绝对槽位 0-5）
+        // 2. 收集输入槽残余(NORTH 面,槽位 0-5 对应绝对槽位 0-5)
         IItemHandler inputHandler = table.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.NORTH);
         if (inputHandler != null) {
             for (int i = 0; i < inputHandler.getSlots(); i++) {

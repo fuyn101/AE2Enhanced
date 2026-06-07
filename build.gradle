@@ -56,7 +56,7 @@ dependencies {
     compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
-    // fastutil: 高性能集合库，打包进 jar
+    // fastutil: 高性能集合库,打包进 jar
     compile 'it.unimi.dsi:fastutil:8.5.12'
 
     compile files('libs/!mixinbooter-10.6.jar')
@@ -91,8 +91,8 @@ processResources {
     }
 }
 
-// runClient 时自动检测 HEI：若 mods 文件夹中存在 HEI，则排除原版 JEI jar，
-// 避免原版 JEI 与 HEI 的类冲突；若只有原版 JEI，则保持兼容。
+// runClient 时自动检测 HEI：若 mods 文件夹中存在 HEI,则排除原版 JEI jar,
+// 避免原版 JEI 与 HEI 的类冲突；若只有原版 JEI,则保持兼容.
 afterEvaluate {
     tasks.runClient {
         doFirst {
@@ -108,10 +108,10 @@ afterEvaluate {
 }
 
 jar {
-    // 排除 JEI 内部类的编译期 stub，避免与运行时 JEI/HEI 的类冲突
+    // 排除 JEI 内部类的编译期 stub,避免与运行时 JEI/HEI 的类冲突
     exclude 'mezz/jei/**'
     
-    // 打包 fastutil 并手动瘦身，排除不相关的原始类型包
+    // 打包 fastutil 并手动瘦身,排除不相关的原始类型包
     from {
         configurations.compile.findAll { it.name.contains('fastutil') }.collect { zipTree(it) }
     }

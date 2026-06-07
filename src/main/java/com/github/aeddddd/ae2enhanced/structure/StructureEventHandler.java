@@ -46,7 +46,7 @@ public class StructureEventHandler {
         if (world.isRemote) return;
 
         BlockPos pos = event.getPos();
-        // 如果是控制器本身被破坏，立即解散（不用等 tick）
+        // 如果是控制器本身被破坏,立即解散(不用等 tick)
         Block brokenBlock = world.getBlockState(pos).getBlock();
         if (brokenBlock == BlockRegistry.ASSEMBLY_CONTROLLER) {
             AssemblyStructure.disassemble(world, pos);
@@ -86,8 +86,8 @@ public class StructureEventHandler {
     }
 
     /**
-     * Chunk 加载时：只有当控制器对应的全部结构方块所在 chunk 都已加载时，才安排验证。
-     * 这防止了因部分结构 chunk 未加载而导致 validate() 误判为非法、进而错误解散结构的问题。
+     * Chunk 加载时：只有当控制器对应的全部结构方块所在 chunk 都已加载时,才安排验证.
+     * 这防止了因部分结构 chunk 未加载而导致 validate() 误判为非法、进而错误解散结构的问题.
      */
     @SubscribeEvent
     public static void onChunkLoad(net.minecraftforge.event.world.ChunkEvent.Load event) {
@@ -116,8 +116,8 @@ public class StructureEventHandler {
     }
 
     /**
-     * 检查指定控制器对应的所有结构方块是否都已加载。
-     * 未完全加载时返回 false，防止 validate 误判导致 disassemble。
+     * 检查指定控制器对应的所有结构方块是否都已加载.
+     * 未完全加载时返回 false,防止 validate 误判导致 disassemble.
      */
     private static boolean areAllChunksLoadedForController(World world, BlockPos controllerPos) {
         IBlockState state = world.getBlockState(controllerPos);
@@ -195,7 +195,7 @@ public class StructureEventHandler {
     }
 
     private static void validateAndUpdate(World world, BlockPos controllerPos) {
-        // 双重保护：即使因 tick 调度延迟导致 chunk 被卸载，也不应在此状态下解散结构
+        // 双重保护：即使因 tick 调度延迟导致 chunk 被卸载,也不应在此状态下解散结构
         if (!areAllChunksLoadedForController(world, controllerPos)) {
             scheduleCheck(world.provider.getDimension(), controllerPos);
             return;

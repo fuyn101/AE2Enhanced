@@ -74,7 +74,7 @@ public class RenderComputationCore extends TileEntitySpecialRenderer<TileComputa
         boolean alphaTestWasEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         boolean colorMaterialWasEnabled = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
 
-        // 保存并禁用光照纹理单元（单元1），防止其调制顶点颜色为黑色
+        // 保存并禁用光照纹理单元(单元1),防止其调制顶点颜色为黑色
         GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
         boolean lightmapTexWasEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
         if (lightmapTexWasEnabled) {
@@ -88,7 +88,7 @@ public class RenderComputationCore extends TileEntitySpecialRenderer<TileComputa
             GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
             GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO
         );
-        // 强制禁用底层 OpenGL 状态，防止 GlStateManager 状态跟踪不同步（其他代码可能直接调用了 GL11.glEnable）
+        // 强制禁用底层 OpenGL 状态,防止 GlStateManager 状态跟踪不同步(其他代码可能直接调用了 GL11.glEnable)
         GL11.glDisable(GL11.GL_LIGHTING);
         GlStateManager.disableLighting();
         GlStateManager.disableTexture2D();

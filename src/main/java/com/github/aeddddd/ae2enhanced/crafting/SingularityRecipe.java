@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 黑洞生成仪式配方。
- * 以 ME 控制器方块为中心，扫描周围 5×5×5 区域内的物品实体，累加数量后匹配输入。
- * 输入支持 ItemStack（含 metadata 区分）。
+ * 黑洞生成仪式配方.
+ * 以 ME 控制器方块为中心,扫描周围 5×5×5 区域内的物品实体,累加数量后匹配输入.
+ * 输入支持 ItemStack(含 metadata 区分).
  */
 public class SingularityRecipe {
 
@@ -40,7 +40,7 @@ public class SingularityRecipe {
     }
 
     /**
-     * 检测以 center 为中心的 5×5×5 区域内是否有足够材料。
+     * 检测以 center 为中心的 5×5×5 区域内是否有足够材料.
      */
     public boolean matches(World world, BlockPos center) {
         AxisAlignedBB area = new AxisAlignedBB(
@@ -62,7 +62,7 @@ public class SingularityRecipe {
     }
 
     /**
-     * 执行仪式：消耗区域内材料，在中心位置生成微型奇点方块。
+     * 执行仪式：消耗区域内材料,在中心位置生成微型奇点方块.
      */
     public void craft(World world, BlockPos center) {
         AxisAlignedBB area = new AxisAlignedBB(

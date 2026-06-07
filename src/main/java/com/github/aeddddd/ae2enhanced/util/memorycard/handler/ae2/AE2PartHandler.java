@@ -21,8 +21,8 @@ import net.minecraftforge.items.IItemHandler;
 import java.util.List;
 
 /**
- * 处理 AE2 Part 的配置复制粘贴。
- * 不依赖反射调用 AEBasePart.downloadSettings，直接复制其基础逻辑并扩展本 mod Part 的自定义状态。
+ * 处理 AE2 Part 的配置复制粘贴.
+ * 不依赖反射调用 AEBasePart.downloadSettings,直接复制其基础逻辑并扩展本 mod Part 的自定义状态.
  */
 public class AE2PartHandler implements IMemoryCardHandler {
 

@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 平台异步放置器 —— 全局 tick 调度器。
- * 将 5×5 区块的平台生成拆分为多 tick 渐进执行，避免单 tick 卡顿。
+ * 平台异步放置器 —— 全局 tick 调度器.
+ * 将 5×5 区块的平台生成拆分为多 tick 渐进执行,避免单 tick 卡顿.
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
 public class PlatformAsyncPlacer {
@@ -204,12 +204,12 @@ public class PlatformAsyncPlacer {
         }
 
         private IBlockState determineState(BlockPos pos) {
-            // 每个 16×16 区块独立判断：西北角 15×15 为白色，其余为黑色
+            // 每个 16×16 区块独立判断：西北角 15×15 为白色,其余为黑色
             int chunkStartX = (pos.getX() >> 4) << 4;
             int chunkStartZ = (pos.getZ() >> 4) << 4;
             int localX = pos.getX() - chunkStartX;
             int localZ = pos.getZ() - chunkStartZ;
-            // 每个区块的 15×15 中心放黑色标记，最中心区块的中心是控制器（已在 placeQueue 中排除）
+            // 每个区块的 15×15 中心放黑色标记,最中心区块的中心是控制器(已在 placeQueue 中排除)
             if (localX == 7 && localZ == 7) {
                 return edgeState;
             }

@@ -24,14 +24,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Thermal Expansion 机器的配置复制粘贴 Handler。
- * 通过 NBT 读写关键配置字段（Facing, SideCache, Level, Augments 等）。
- * Level 升级会消耗对应的 Upgrade Kit / Conversion Kit。
+ * Thermal Expansion 机器的配置复制粘贴 Handler.
+ * 通过 NBT 读写关键配置字段(Facing, SideCache, Level, Augments 等).
+ * Level 升级会消耗对应的 Upgrade Kit / Conversion Kit.
  *
  * 架构约定：
- * 1. paste() 采用"先统一验证（含 ME 网络回退），再原子执行"的流程。
- * 2. 配置与升级完全分离：升级通过 IUpgradeProvider 处理，配置通过 readFromNBT 处理。
- * 3. 任何消耗操作前必须确认所有物品（kit + augment）都已可用。
+ * 1. paste() 采用"先统一验证(含 ME 网络回退),再原子执行"的流程.
+ * 2. 配置与升级完全分离：升级通过 IUpgradeProvider 处理,配置通过 readFromNBT 处理.
+ * 3. 任何消耗操作前必须确认所有物品(kit + augment)都已可用.
  */
 public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
 
@@ -41,7 +41,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             "EnableAutoInput", "EnableAutoOutput", "Mode"
     ));
 
-    // Thermal Foundation 升级套件缓存（从静态字段直接引用，使用时必须 copy()）
+    // Thermal Foundation 升级套件缓存(从静态字段直接引用,使用时必须 copy())
     private static ItemStack[] UPGRADE_INCREMENTAL = null;
     private static ItemStack[] UPGRADE_FULL = null;
 
@@ -110,7 +110,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
             // ===== 阶段 1：统一计算需要的所有物品 =====
             List<ItemStack> allNeeded = new ArrayList<>();
 
-            // 1a. Level upgrade kit（如有）
+            // 1a. Level upgrade kit(如有)
             List<ItemStack> levelKits = getLevelKits(originalLevel, targetLevel);
             for (ItemStack kit : levelKits) {
                 if (kit.isEmpty()) {
@@ -119,7 +119,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 allNeeded.add(kit);
             }
 
-            // 1b. Augments（按目标 level 的 slot 数量截断）
+            // 1b. Augments(按目标 level 的 slot 数量截断)
             List<ItemStack> neededAugments = new ArrayList<>();
             if (data.hasKey("Augments")) {
                 neededAugments = parseAugmentList(data.getTagList("Augments", 10));
@@ -134,7 +134,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // ===== 阶段 2：统一验证（含 ME 网络回退） =====
+            // ===== 阶段 2：统一验证(含 ME 网络回退) =====
             if (!allNeeded.isEmpty() && !MemoryCardUpgradeHelper.ensureAvailable(player, allNeeded)) {
                 return PasteResult.MISSING_UPGRADES;
             }
@@ -156,7 +156,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 closeOpenGUIs(tile);
             }
 
-            // ===== 阶段 4：执行 Augment（通过 IUpgradeProvider） =====
+            // ===== 阶段 4：执行 Augment(通过 IUpgradeProvider) =====
             if (!neededAugments.isEmpty()) {
                 ItemStack[] augments = getAugmentsArray(tile);
                 if (augments != null && augments.length > 0) {
@@ -170,7 +170,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                         return result;
                     }
                 } else {
-                    // fallback：augments 数组不可直接访问，通过 readAugmentsFromNBT
+                    // fallback：augments 数组不可直接访问,通过 readAugmentsFromNBT
                     PasteResult result = applyAugmentsViaNBT(tile, neededAugments, player);
                     if (result != PasteResult.SUCCESS) {
                         if (!levelKits.isEmpty()) {
@@ -182,14 +182,14 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
                 }
             }
 
-            // ===== 阶段 5：readFromNBT 恢复其余配置（不含 Augments/Level） =====
+            // ===== 阶段 5：readFromNBT 恢复其余配置(不含 Augments/Level) =====
             NBTTagCompound currentNbt = tile.writeToNBT(new NBTTagCompound());
             for (String key : CONFIG_KEYS) {
                 if (!key.equals("Level") && data.hasKey(key)) {
                     currentNbt.setTag(key, data.getTag(key));
                 }
             }
-            // 移除 Augments，因为已通过 IUpgradeProvider 处理，避免 readFromNBT 双写
+            // 移除 Augments,因为已通过 IUpgradeProvider 处理,避免 readFromNBT 双写
             currentNbt.removeTag("Augments");
             tile.readFromNBT(currentNbt);
 
@@ -208,7 +208,7 @@ public class ThermalExpansionMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * 当 augments[] 字段不可直接访问时，通过构造 NBT 调用 readAugmentsFromNBT。
+     * 当 augments[] 字段不可直接访问时,通过构造 NBT 调用 readAugmentsFromNBT.
      */
     private PasteResult applyAugmentsViaNBT(TileEntity tile, List<ItemStack> neededAugments, EntityPlayer player) throws Exception {
         // 先消耗

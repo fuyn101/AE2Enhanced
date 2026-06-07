@@ -9,11 +9,11 @@ import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
 /**
- * 流体假物品（Fluid Drop）。
- * 用于在标准 AE2 物品终端中显示流体存储。
+ * 流体假物品(Fluid Drop).
+ * 用于在标准 AE2 物品终端中显示流体存储.
  *
- * 关键设计：使用 NBT 存储流体注册名，与 ae2fc 保持一致。
- * 不依赖 metadata，避免 AEItemStack.createItemStack() 在 stackSize=0 时丢失类型信息。
+ * 关键设计：使用 NBT 存储流体注册名,与 ae2fc 保持一致.
+ * 不依赖 metadata,避免 AEItemStack.createItemStack() 在 stackSize=0 时丢失类型信息.
  */
 public class ItemFluidDrop extends AbstractNbtDrop {
 
@@ -24,7 +24,7 @@ public class ItemFluidDrop extends AbstractNbtDrop {
     }
 
     /**
-     * 创建指定流体类型的假物品堆叠。
+     * 创建指定流体类型的假物品堆叠.
      */
     public static ItemStack createStack(FluidStack fluid) {
         if (fluid == null || fluid.getFluid() == null || fluid.amount <= 0) {
@@ -41,7 +41,7 @@ public class ItemFluidDrop extends AbstractNbtDrop {
     }
 
     /**
-     * 从 ItemStack 中提取 FluidStack。
+     * 从 ItemStack 中提取 FluidStack.
      */
     public static FluidStack getFluidStack(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemFluidDrop)) return null;
@@ -57,8 +57,8 @@ public class ItemFluidDrop extends AbstractNbtDrop {
     }
 
     /**
-     * 判断 ItemStack 是否是流体假物品。
-     * ItemFluidDrop 不依赖可选模组，instanceof 安全。
+     * 判断 ItemStack 是否是流体假物品.
+     * ItemFluidDrop 不依赖可选模组,instanceof 安全.
      */
     public static boolean isFluidDrop(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof ItemFluidDrop;

@@ -477,7 +477,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             }
         }
         if (count == 0) {
-            // 尝试用不同 amount 进行 drain 探测，某些容器的 drain 可能不支持 MAX_VALUE
+            // 尝试用不同 amount 进行 drain 探测,某些容器的 drain 可能不支持 MAX_VALUE
             int[] probeAmounts = {Integer.MAX_VALUE, 1000, 1};
             for (int amount : probeAmounts) {
                 FluidStack probe = new FluidStack(targetFluid, amount);
@@ -863,7 +863,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
             }
         }
         if (this.targetAmounts[slot] == 0 && !stack.isEmpty()) {
-            // 已在上方处理，此处仅作保险
+            // 已在上方处理,此处仅作保险
         }
         this.saveChanges();
     }
@@ -895,7 +895,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                     this.saveChanges();
                 }
             } else if (this.targetAmounts[slot] <= 0) {
-                // 新放入物品且之前已被清除，按类型设置默认值
+                // 新放入物品且之前已被清除,按类型设置默认值
                 long defaultAmount = getDefaultTargetAmount(newStack);
                 this.targetAmounts[slot] = defaultAmount;
                 this.saveChanges();
@@ -910,7 +910,7 @@ public class PartStockingBus extends PartUpgradeable implements IGridTickable {
                     }
                 }
             }
-            // 放入或替换物品时保留当前 targetAmount，避免覆盖 GUI 滚轮设置的值
+            // 放入或替换物品时保留当前 targetAmount,避免覆盖 GUI 滚轮设置的值
         }
     }
 

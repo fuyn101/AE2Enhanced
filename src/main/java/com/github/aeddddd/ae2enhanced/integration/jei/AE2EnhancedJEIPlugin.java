@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * JEI 插件：注册黑洞合成配方类别与配方显示。
+ * JEI 插件：注册黑洞合成配方类别与配方显示.
  */
 @JEIPlugin
 public class AE2EnhancedJEIPlugin implements IModPlugin {
@@ -40,14 +40,14 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
         IIngredientRegistry ingredientRegistry = registry.getIngredientRegistry();
         IIngredientBlacklist blacklist = registry.getJeiHelpers().getIngredientBlacklist();
 
-        // E2a：将假物品加入 JEI 黑名单，避免在物品列表中显示
+        // E2a：将假物品加入 JEI 黑名单,避免在物品列表中显示
         if (ItemRegistry.ESSENTIA_DROP != null) {
             for (ItemStack stack : ItemEssentiaDrop.getAllAspectStacks()) {
                 blacklist.addIngredientToBlacklist(stack);
             }
         }
         if (ItemRegistry.FLUID_DROP != null) {
-            // 隐藏基础流体假物品（getSubItems 已返回空，黑名单确保基础物品也不显示）
+            // 隐藏基础流体假物品(getSubItems 已返回空,黑名单确保基础物品也不显示)
             blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.FLUID_DROP));
 
         }
@@ -63,7 +63,7 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
             blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE));
         }
 
-        // 必须将 BlackHoleRecipe 包装为 BlackHoleRecipeWrapper，与 IRecipeCategory 的泛型匹配
+        // 必须将 BlackHoleRecipe 包装为 BlackHoleRecipeWrapper,与 IRecipeCategory 的泛型匹配
         List<BlackHoleRecipeWrapper> wrappers = new ArrayList<>();
         for (BlackHoleRecipe recipe : BlackHoleRecipeRegistry.getRecipes()) {
             wrappers.add(new BlackHoleRecipeWrapper(recipe));

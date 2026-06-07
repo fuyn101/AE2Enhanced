@@ -3,10 +3,10 @@ package com.github.aeddddd.ae2enhanced.util.memorycard.upgrade;
 import net.minecraft.item.ItemStack;
 
 /**
- * 将 ItemStack[] 数组适配为 IUpgradeProvider。
- * 用于 TE augments[]、EIO inventory[] 等直接操作数组的场景。
+ * 将 ItemStack[] 数组适配为 IUpgradeProvider.
+ * 用于 TE augments[]、EIO inventory[] 等直接操作数组的场景.
  *
- * 支持可选的 offset 和 count，用于 EIO 的 inventory 中某一段连续 slot。
+ * 支持可选的 offset 和 count,用于 EIO 的 inventory 中某一段连续 slot.
  */
 public class ItemStackArrayUpgradeAdapter implements IUpgradeProvider {
 

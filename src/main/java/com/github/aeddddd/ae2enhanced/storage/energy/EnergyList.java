@@ -10,8 +10,8 @@ import java.util.Collections;
 import java.util.Iterator;
 
 /**
- * 能量通道的 IItemList 实现。
- * 由于 RF 能量无子类型，内部仅需维护单一堆叠实例。
+ * 能量通道的 IItemList 实现.
+ * 由于 RF 能量无子类型,内部仅需维护单一堆叠实例.
  */
 public class EnergyList implements IItemList<IAEEnergyStack> {
 

@@ -13,8 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 超因果计算核心位置索引。
- * 用于追踪世界中所有已放置的计算核心控制器位置。
+ * 超因果计算核心位置索引.
+ * 用于追踪世界中所有已放置的计算核心控制器位置.
  */
 public class ComputationCoreIndex extends WorldSavedData {
 

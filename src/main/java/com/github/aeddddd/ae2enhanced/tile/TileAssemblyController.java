@@ -86,20 +86,20 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     private int batchCooldown = 0;
     private boolean batchBusy = false;
 
-    /** 黑洞合成缓存：事件视界内的物品被吸入到这里，每 20 ticks 尝试匹配配方 */
+    /** 黑洞合成缓存：事件视界内的物品被吸入到这里,每 20 ticks 尝试匹配配方 */
     private final List<ItemStack> blackHoleBuffer = new ArrayList<>();
     private int blackHoleCraftTicks = 0;
 
     private final PatternItemHandler itemHandler = new PatternItemHandler(TOTAL_SLOTS_BASE);
 
-    /** 自定义 ItemStackHandler，支持动态容量扩展 + 扩容升级取出限制 */
+    /** 自定义 ItemStackHandler,支持动态容量扩展 + 扩容升级取出限制 */
     public class PatternItemHandler extends ItemStackHandler {
         PatternItemHandler(int size) { super(size); }
 
         @Override
         protected void onContentsChanged(int slot) {
             TileAssemblyController.this.markDirty();
-            // 强制同步到客户端，修复'取出升级后重新打开 GUI 发现升级还在原位'的同步延迟问题
+            // 强制同步到客户端,修复'取出升级后重新打开 GUI 发现升级还在原位'的同步延迟问题
             if (world != null && !world.isRemote) {
                 world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 2);
             }
@@ -121,9 +121,9 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         }
 
         /**
-         * 插入过滤：先越界保护，再校验 isItemValid。
-         * ItemStackHandler 原 insertItem 也会调用 isItemValid，但此处显式校验可防御
-         * 未来 Forge 版本行为变动，同时保证与 setStackInSlot 一致。
+         * 插入过滤：先越界保护,再校验 isItemValid.
+         * ItemStackHandler 原 insertItem 也会调用 isItemValid,但此处显式校验可防御
+         * 未来 Forge 版本行为变动,同时保证与 setStackInSlot 一致.
          */
         @Override
         @Nonnull
@@ -135,7 +135,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             return super.insertItem(slot, stack, simulate);
         }
 
-        /** 扩容升级取出限制：如果扩展页面留有样板，禁止提取 */
+        /** 扩容升级取出限制：如果扩展页面留有样板,禁止提取 */
         @Override
         @Nonnull
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
@@ -159,7 +159,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             stacks = newStacks;
         }
 
-        /** 越界保护：客户端 itemHandler 容量可能尚未同步，避免 ArrayIndexOutOfBoundsException */
+        /** 越界保护：客户端 itemHandler 容量可能尚未同步,避免 ArrayIndexOutOfBoundsException */
         @Override
         @Nonnull
         public ItemStack getStackInSlot(int slot) {
@@ -175,7 +175,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
         /**
          * setStackInSlot 校验：防止 GUI 直接调用 IItemHandlerModifiable.setStackInSlot
-         * 绕过 insertItem 的 isItemValid 检查。
+         * 绕过 insertItem 的 isItemValid 检查.
          */
         @Override
         public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
@@ -185,7 +185,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         }
     }
 
-    /** 缓存样板是否为纯虚拟合成（getRemainingItems 全空），String key 避免 hash 碰撞 */
+    /** 缓存样板是否为纯虚拟合成(getRemainingItems 全空),String key 避免 hash 碰撞 */
     private final Map<ICraftingPatternDetails, Boolean> patternVirtualCache = new HashMap<>();
     private final List<ItemStack> pendingOutputs = new ArrayList<>();
     private static final int MAX_PENDING_OUTPUTS = 4096;
@@ -194,19 +194,19 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     /** 真实合成 batch 信息缓存：配方、催化剂槽位、槽位物品模板 */
     public static class PatternBatchInfo {
         public IRecipe recipe;
-        public java.util.BitSet catalystSlots;  // 真催化剂：remaining 与 input 完全一致（NBT 不变）
-        public java.util.BitSet transformSlots; // 消耗性转换：remaining 与 input 同一物品但 NBT 不同（如耐久扣减）
-        public IAEItemStack[] slotTemplates;    // 每个槽位实际提取的物品模板（用于构造 InventoryCrafting）
+        public java.util.BitSet catalystSlots;  // 真催化剂：remaining 与 input 完全一致(NBT 不变)
+        public java.util.BitSet transformSlots; // 消耗性转换：remaining 与 input 同一物品但 NBT 不同(如耐久扣减)
+        public IAEItemStack[] slotTemplates;    // 每个槽位实际提取的物品模板(用于构造 InventoryCrafting)
     }
     private final Map<ICraftingPatternDetails, PatternBatchInfo> patternBatchInfoCache = new HashMap<>();
     private final List<Integer> jobTimers = new ArrayList<>();
     // eventHorizonStrikes removed: banish-to-overworld fallback no longer exists
     private boolean patternsDirty = false;
     private int patternRefreshTicks = 0;
-    /** 事件视界实体扫描/物品吸入的 tick 节流计数器，每 5 tick 执行一次以减轻 TPS 压力 */
+    /** 事件视界实体扫描/物品吸入的 tick 节流计数器,每 5 tick 执行一次以减轻 TPS 压力 */
     private int eventHorizonTickCounter = 0;
 
-    /** 当前合成任务的 ActionSource（由 Mixin 在 pushPattern 前设置），用于让 AE2 正确追踪产物 */
+    /** 当前合成任务的 ActionSource(由 Mixin 在 pushPattern 前设置),用于让 AE2 正确追踪产物 */
     private IActionSource currentSource = null;
 
     public void setCurrentActionSource(IActionSource source) {
@@ -223,7 +223,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
     @Override
     public double getMaxRenderDistanceSquared() {
-        return 65536.0; // 256 格渲染距离，确保远处也能看到黑洞效果
+        return 65536.0; // 256 格渲染距离,确保远处也能看到黑洞效果
     }
 
     public ItemStackHandler getItemHandler() {
@@ -231,8 +231,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 获取当前并行上限。并行升级卡固定在槽位 0，堆叠数量即为安装数量。
-     * 0 张 = 64，每多 1 张 ×32，5 张 = Long.MAX_VALUE。
+     * 获取当前并行上限.并行升级卡固定在槽位 0,堆叠数量即为安装数量.
+     * 0 张 = 64,每多 1 张 ×32,5 张 = Long.MAX_VALUE.
      */
     public long getParallelCap() {
         ItemStack stack = itemHandler.getStackInSlot(0);
@@ -250,7 +250,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 获取当前可用的样板页数。基础 5 页，每张扩容升级卡 +5 页，上限 30 页。
+     * 获取当前可用的样板页数.基础 5 页,每张扩容升级卡 +5 页,上限 30 页.
      */
     public int getPatternPages() {
         ItemStack stack = itemHandler.getStackInSlot(ItemUpgradeCard.META_CAPACITY);
@@ -264,8 +264,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 客户端：在几何中心周围生成紫色 REDSTONE 粒子，模拟黑洞粒子光环。
-     * 粒子沿切向运动并螺旋向内，颜色为偏紫的随机色调。
+     * 客户端：在几何中心周围生成紫色 REDSTONE 粒子,模拟黑洞粒子光环.
+     * 粒子沿切向运动并螺旋向内,颜色为偏紫的随机色调.
      */
     private void spawnBlackHoleParticles() {
         if (world == null || !(world.getBlockState(pos).getBlock() instanceof BlockAssemblyController)) return;
@@ -285,7 +285,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             double tangentSpeed = 0.05 + world.rand.nextDouble() * 0.03;
             double inwardSpeed = 0.01 + world.rand.nextDouble() * 0.01;
 
-            // 切向速度（逆时针）+ 径向速度（向内）
+            // 切向速度(逆时针)+ 径向速度(向内)
             double vx = -Math.sin(angle) * tangentSpeed - Math.cos(angle) * inwardSpeed;
             double vz = Math.cos(angle) * tangentSpeed - Math.sin(angle) * inwardSpeed;
             double vy = (world.rand.nextDouble() - 0.5) * 0.005;
@@ -300,14 +300,14 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 获取当前总样板槽数（可用页数 × 每页槽数）
+     * 获取当前总样板槽数(可用页数 × 每页槽数)
      */
     public int getPatternSlotCount() {
         return getPatternPages() * PATTERN_SLOTS_PER_PAGE;
     }
 
     /**
-     * 检查是否安装了样板自动上传模块升级（META_RESERVED1，槽位 4）。
+     * 检查是否安装了样板自动上传模块升级(META_RESERVED1,槽位 4).
      */
     public boolean hasAutoUploadUpgrade() {
         ItemStack stack = itemHandler.getStackInSlot(ItemUpgradeCard.META_RESERVED1);
@@ -316,7 +316,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 检查控制器是否能接受指定样板（不重复且有空位）。
+     * 检查控制器是否能接受指定样板(不重复且有空位).
      */
     public boolean canAcceptPattern(ItemStack pattern) {
         if (world == null || world.isRemote || !formed) return false;
@@ -335,13 +335,13 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 尝试将样板自动上传到本控制器的第一个空样板槽位。
-     * 上传成功后触发 patternsDirty 通知 AE2 网络重新扫描。
+     * 尝试将样板自动上传到本控制器的第一个空样板槽位.
+     * 上传成功后触发 patternsDirty 通知 AE2 网络重新扫描.
      * @return true 如果上传成功
      */
     public boolean tryAutoUploadPattern(ItemStack pattern) {
         if (world == null || world.isRemote || !formed || pattern.isEmpty()) return false;
-        // 防御性检查：仅接受合成样板（crafting=1），拒绝处理样板
+        // 防御性检查：仅接受合成样板(crafting=1),拒绝处理样板
         if (pattern.hasTagCompound()) {
             NBTTagCompound tag = pattern.getTagCompound();
             if (!tag.hasKey("crafting", Constants.NBT.TAG_BYTE) || tag.getByte("crafting") != 1) {
@@ -366,8 +366,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 检查扩容升级能否减少到 newCapacityCount 张。
-     * 如果被移除的扩展页面中任意槽位留有样板，返回 false。
+     * 检查扩容升级能否减少到 newCapacityCount 张.
+     * 如果被移除的扩展页面中任意槽位留有样板,返回 false.
      */
     public boolean canReduceCapacity(int newCapacityCount) {
         int oldPages = getPatternPages();
@@ -386,7 +386,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 扩容升级增加时扩展 ItemStackHandler 容量。减少时由 extractItem 阻止，此处不收缩。
+     * 扩容升级增加时扩展 ItemStackHandler 容量.减少时由 extractItem 阻止,此处不收缩.
      */
     private void ensurePatternCapacity() {
         int pages = getPatternPages();
@@ -476,13 +476,13 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     @Nonnull
     public AxisAlignedBB getRenderBoundingBox() {
         if (world == null) return super.getRenderBoundingBox();
-        // 防御性检查：TileEntity 可能残留但 Block 已被移除（如死亡重生时区块加载异常）
+        // 防御性检查：TileEntity 可能残留但 Block 已被移除(如死亡重生时区块加载异常)
         if (!(world.getBlockState(pos).getBlock() instanceof BlockAssemblyController)) {
             return super.getRenderBoundingBox();
         }
         EnumFacing controllerFacing = world.getBlockState(pos).getValue(BlockAssemblyController.FACING);
         BlockPos origin = AssemblyStructure.getOriginFromController(pos, controllerFacing);
-        // 黑洞半径最大约 6.5，bounding box 必须完全覆盖渲染区域（origin 为中心 ±7）
+        // 黑洞半径最大约 6.5,bounding box 必须完全覆盖渲染区域(origin 为中心 ±7)
         return new AxisAlignedBB(
             origin.getX() - 7, origin.getY() - 7, origin.getZ() - 7,
             origin.getX() + 8, origin.getY() + 8, origin.getZ() + 8
@@ -507,7 +507,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             getProxy().onReady();
         }
 
-        // 黑洞事件视界：秒杀进入中心区域的生物（每 5 tick 节流）
+        // 黑洞事件视界：秒杀进入中心区域的生物(每 5 tick 节流)
         if (formed) {
             eventHorizonTickCounter++;
             if (eventHorizonTickCounter < 5) return;
@@ -547,7 +547,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 }
             }
 
-            // 黑洞合成：自动吸入物品到缓存，立即尝试配方匹配（一次性输出）
+            // 黑洞合成：自动吸入物品到缓存,立即尝试配方匹配(一次性输出)
             AxisAlignedBB craftArea = new AxisAlignedBB(
                     origin.getX() - 1, origin.getY() - 1, origin.getZ() - 1,
                     origin.getX() + 2, origin.getY() + 2, origin.getZ() + 2
@@ -561,14 +561,14 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                     ei.setDead();
                 }
             }
-            // 有新材料吸入时立即尝试合成，循环处理直到缓存中不再匹配任何配方
+            // 有新材料吸入时立即尝试合成,循环处理直到缓存中不再匹配任何配方
             if (!craftItems.isEmpty()) {
                 tryBlackHoleCraftAll();
             }
         }
 
-        // 样板变化时触发 AE 网络重新扫描，1 tick 延迟合并同一 tick 内的连续变化
-        // 如果 activeMeInterfacePos 为 null，先尝试从结构坐标恢复，避免死锁：
+        // 样板变化时触发 AE 网络重新扫描,1 tick 延迟合并同一 tick 内的连续变化
+        // 如果 activeMeInterfacePos 为 null,先尝试从结构坐标恢复,避免死锁：
         // patternsDirty=true → 无法发送事件 → AE2 不扫描 → provideCrafting 不调用 → 永远无法恢复
         if (patternsDirty && activeMeInterfacePos == null && formed) {
             EnumFacing controllerFacing = world.getBlockState(pos).getValue(BlockAssemblyController.FACING);
@@ -600,7 +600,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             }
         }
 
-        // 注入待输出物品（批量）
+        // 注入待输出物品(批量)
         if (!pendingOutputs.isEmpty()) {
             tryInjectPendingOutputs();
         }
@@ -621,7 +621,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         jobTimers.clear();
         jobTimers.addAll(nextTimers);
 
-        // 重置 batchBusy，允许下一 tick 继续 batch
+        // 重置 batchBusy,允许下一 tick 继续 batch
         this.batchBusy = false;
 
         // 每 20 ticks 刷新网络状态
@@ -646,7 +646,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         }
     }
 
-    // ---------- 产物注入（BatchExporter 风格，合并后批量注入） ----------
+    // ---------- 产物注入(BatchExporter 风格,合并后批量注入) ----------
 
     private void tryInjectPendingOutputs() {
         AENetworkProxy proxy = getProxy();
@@ -661,7 +661,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
         IMEMonitor<IAEItemStack> monitor = storage.getInventory(channel);
 
-        // 合并相同物品的 stack，避免逐个注入
+        // 合并相同物品的 stack,避免逐个注入
         Map<ItemDescriptor, Long> merged = new LinkedHashMap<>();
         Map<ItemDescriptor, ItemStack> prototypes = new HashMap<>();
 
@@ -689,7 +689,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                     count = 0;
                 } else {
                     count = remainder.getStackSize();
-                    // 网络满载，将剩余转回 pendingOutputs，下一 tick 再试
+                    // 网络满载,将剩余转回 pendingOutputs,下一 tick 再试
                     ItemStack leftover = proto.copy();
                     leftover.setCount((int) Math.min(count, Integer.MAX_VALUE));
                     pendingOutputs.add(leftover);
@@ -700,8 +700,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 使用 ItemDescriptor 作为 key，避免 NBTTagCompound.toString() 产生长字符串导致 GC 压力。
-     * ItemDescriptor.equals() 已包含 NBT 比较，hashCode() 基于 item+meta（碰撞由 equals 解决）。
+     * 使用 ItemDescriptor 作为 key,避免 NBTTagCompound.toString() 产生长字符串导致 GC 压力.
+     * ItemDescriptor.equals() 已包含 NBT 比较,hashCode() 基于 item+meta(碰撞由 equals 解决).
      */
     private ItemDescriptor getStackDescriptor(ItemStack stack) {
         return new ItemDescriptor(stack);
@@ -742,15 +742,15 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 虚拟轨道：普通合成，直接产出 1 份产物注入 AE 网络。
-     * 并行度由 isBusy() 控制：AE2 会多次调用 pushPattern，每次 1 份。
-     * 网络未就绪时返回 false，让 AE 重试。
+     * 虚拟轨道：普通合成,直接产出 1 份产物注入 AE 网络.
+     * 并行度由 isBusy() 控制：AE2 会多次调用 pushPattern,每次 1 份.
+     * 网络未就绪时返回 false,让 AE 重试.
      */
     private boolean executeVirtualCrafting(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         ItemStack output = patternDetails.getOutput(table, world);
         if (output.isEmpty()) return false;
 
-        // 网络未就绪：拒绝，让 AE 稍后重试
+        // 网络未就绪：拒绝,让 AE 稍后重试
         AENetworkProxy proxy = getProxy();
         IGridNode node = proxy.getNode();
         if (node == null || node.getGrid() == null) return false;
@@ -762,7 +762,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         IAEItemStack aeOutput = channel.createStack(output);
         if (aeOutput == null) return false;
 
-        // 只注入 1 份（AE2 每次 pushPattern 只发配 1 份输入）
+        // 只注入 1 份(AE2 每次 pushPattern 只发配 1 份输入)
         aeOutput.setStackSize(output.getCount());
         IAEItemStack remainder = monitor.injectItems(aeOutput, Actionable.MODULATE, getEffectiveSource());
 
@@ -772,7 +772,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             return true;
         }
 
-        // 网络满载：将剩余放入 pendingOutputs，下一 tick 再试
+        // 网络满载：将剩余放入 pendingOutputs,下一 tick 再试
         long remCount = remainder.getStackSize();
         while (remCount > 0) {
             int batch = (int) Math.min(remCount, output.getMaxStackSize());
@@ -786,8 +786,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 真实轨道：特例合成（含耐久扣减、容器返还等）。
-     * 输出和剩余物品均加入 pendingOutputs，由 tryInjectPendingOutputs 统一注入。
+     * 真实轨道：特例合成(含耐久扣减、容器返还等).
+     * 输出和剩余物品均加入 pendingOutputs,由 tryInjectPendingOutputs 统一注入.
      */
     private boolean executeRealCrafting(ICraftingPatternDetails patternDetails, InventoryCrafting table,
                                         IRecipe recipe, NonNullList<ItemStack> remaining) {
@@ -807,14 +807,14 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 尝试用黑洞缓存中的物品匹配配方并产出。
+     * 尝试用黑洞缓存中的物品匹配配方并产出.
      * 缓存物品种类超过 5 种时触发溢出销毁；
-     * 配方不匹配时保留缓存，等待更多材料。
+     * 配方不匹配时保留缓存,等待更多材料.
      */
     private void tryBlackHoleCraft() {
         if (blackHoleBuffer.isEmpty()) return;
 
-        // 统计物品种类（区分 metadata）
+        // 统计物品种类(区分 metadata)
         Set<String> uniqueTypes = new HashSet<>();
         for (ItemStack stack : blackHoleBuffer) {
             if (!stack.isEmpty()) {
@@ -833,7 +833,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             return;
         }
 
-        // 累加物品数量（区分 metadata）
+        // 累加物品数量(区分 metadata)
         Map<String, Integer> found = new HashMap<>();
         for (ItemStack stack : blackHoleBuffer) {
             if (!stack.isEmpty()) {
@@ -864,26 +864,26 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                     }
                 }
             }
-            // 生成产物（控制器上方）
+            // 生成产物(控制器上方)
             EntityItem result = new EntityItem(world,
                     pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
                     recipe.getOutput().copy());
             result.setNoPickupDelay();
             world.spawnEntity(result);
         }
-        // 配方不匹配时保留缓存，等待玩家继续丢入材料
+        // 配方不匹配时保留缓存,等待玩家继续丢入材料
     }
 
     /**
-     * 循环执行黑洞合成，直到缓存中的物品不再匹配任何配方。
-     * 用于正式黑洞一次性输出所有可合成产物。
+     * 循环执行黑洞合成,直到缓存中的物品不再匹配任何配方.
+     * 用于正式黑洞一次性输出所有可合成产物.
      */
     private void tryBlackHoleCraftAll() {
         int maxIterations = 100;
         for (int i = 0; i < maxIterations; i++) {
             int sizeBefore = blackHoleBuffer.size();
             tryBlackHoleCraft();
-            // 若缓存为空或大小未变（无匹配），退出循环
+            // 若缓存为空或大小未变(无匹配),退出循环
             if (blackHoleBuffer.isEmpty() || blackHoleBuffer.size() == sizeBefore) {
                 break;
             }
@@ -891,8 +891,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 获取当前合成延迟 tick 数。速度升级卡固定在槽位 1，堆叠数量即为安装数量。
-     * 每张减半，最低 1 tick。
+     * 获取当前合成延迟 tick 数.速度升级卡固定在槽位 1,堆叠数量即为安装数量.
+     * 每张减半,最低 1 tick.
      */
     public int getCraftingTicks() {
         int ticks = 20;
@@ -906,22 +906,22 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 供 Mixin 调用：检查当前 batch 冷却是否已结束。
+     * 供 Mixin 调用：检查当前 batch 冷却是否已结束.
      */
     public boolean canBatch() {
         return batchCooldown <= 0;
     }
 
     /**
-     * 供 Mixin 调用：batch 执行成功后重置冷却。
+     * 供 Mixin 调用：batch 执行成功后重置冷却.
      */
     public void resetBatchCooldown() {
         this.batchCooldown = getCraftingTicks();
     }
 
     /**
-     * 供 Mixin 调用：标记当前 tick 已有 batch 任务被执行，
-     * 让原生 executeCrafting 在同一 tick 内跳过该控制器，避免双重扣减。
+     * 供 Mixin 调用：标记当前 tick 已有 batch 任务被执行,
+     * 让原生 executeCrafting 在同一 tick 内跳过该控制器,避免双重扣减.
      */
     public void setBatchBusy(boolean busy) {
         this.batchBusy = busy;
@@ -939,7 +939,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 供 Mixin 调用：检查指定样板是否已被缓存为纯虚拟合成（无剩余物品）。
+     * 供 Mixin 调用：检查指定样板是否已被缓存为纯虚拟合成(无剩余物品).
      */
     public boolean isVirtualPattern(ICraftingPatternDetails details) {
         Boolean cached = patternVirtualCache.get(details);
@@ -947,13 +947,13 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 供 Mixin 调用：批量执行虚拟合成，一次性扣除原材料并注入 batchSize 份产物。
+     * 供 Mixin 调用：批量执行虚拟合成,一次性扣除原材料并注入 batchSize 份产物.
      */
     public boolean executeBatch(ICraftingPatternDetails details, long batchSize) {
         // 实际原料扣除与产物注入已移至 MixinCraftingCPUCluster.batchProcessVirtualTasks
-        // 中直接操作 CraftingCPUCluster.getInventory() 的内部列表，
-        // 以保证嵌套配方时产物能被上层 canCraft() 正确识别。
-        // 这里仅作为 batch 可行性确认（控制器在线、网络就绪）。
+        // 中直接操作 CraftingCPUCluster.getInventory() 的内部列表,
+        // 以保证嵌套配方时产物能被上层 canCraft() 正确识别.
+        // 这里仅作为 batch 可行性确认(控制器在线、网络就绪).
         if (world == null || world.isRemote) return false;
         if (batchSize <= 0) return false;
 
@@ -963,12 +963,12 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 供 Mixin 调用：获取或创建 PatternBatchInfo（含催化剂识别）。
-     * 首次调用时从 MECraftingInventory SIMULATE 提取 1 份原料构造 InventoryCrafting，
-     * 执行 getRemainingItems() 识别催化剂槽位（remaining 与 input 完全一致）。
+     * 供 Mixin 调用：获取或创建 PatternBatchInfo(含催化剂识别).
+     * 首次调用时从 MECraftingInventory SIMULATE 提取 1 份原料构造 InventoryCrafting,
+     * 执行 getRemainingItems() 识别催化剂槽位(remaining 与 input 完全一致).
      */
     /**
-     * 宽松比较两个 NBT：null 与空 tag 视为等价。
+     * 宽松比较两个 NBT：null 与空 tag 视为等价.
      */
     private static boolean areNbtEquivalent(@Nullable NBTTagCompound a, @Nullable NBTTagCompound b) {
         if (Objects.equals(a, b)) return true;
@@ -1025,15 +1025,15 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 if (areNbtEquivalent(input.getTagCompound(), rem.getTagCompound())) {
                     info.catalystSlots.set(i); // 真催化剂：NBT 完全不变
                 } else if (!input.isItemStackDamageable()) {
-                    // 不可损坏物品（如神秘农业终极注魔水晶）：getRemainingItems 返回的 NBT 可能有差异，
-                    // 但物品本身在合成中无损耗，应视为催化剂而非消耗性转换
+                    // 不可损坏物品(如神秘农业终极注魔水晶)：getRemainingItems 返回的 NBT 可能有差异,
+                    // 但物品本身在合成中无损耗,应视为催化剂而非消耗性转换
                     info.catalystSlots.set(i);
                 } else if (input.getItem().hasContainerItem(input)
                     && ItemStack.areItemStacksEqual(input.getItem().getContainerItem(input), rem)) {
-                    // getContainerItem 明确返回同一物品：视为催化剂（处理某些 mod 的 getRemainingItems 实现）
+                    // getContainerItem 明确返回同一物品：视为催化剂(处理某些 mod 的 getRemainingItems 实现)
                     info.catalystSlots.set(i);
                 } else {
-                    info.transformSlots.set(i); // 消耗性转换：同一物品但 NBT 变化（耐久、能量等）
+                    info.transformSlots.set(i); // 消耗性转换：同一物品但 NBT 变化(耐久、能量等)
                 }
             }
         }
@@ -1043,14 +1043,14 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 供 Mixin 调用：检查 pendingOutputs 是否还能接受指定数量的 stack。
+     * 供 Mixin 调用：检查 pendingOutputs 是否还能接受指定数量的 stack.
      */
     public boolean canAcceptRealBatch(int stackCount) {
         return pendingOutputs.size() + stackCount <= MAX_PENDING_OUTPUTS;
     }
 
     /**
-     * 供 Mixin 调用：安全地将产物加入 pendingOutputs。
+     * 供 Mixin 调用：安全地将产物加入 pendingOutputs.
      */
     public void addPendingOutput(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return;
@@ -1067,7 +1067,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     public void provideCrafting(ICraftingProviderHelper craftingTracker) {
         if (world == null || world.isRemote) return;
 
-        // 旧存档可能未保存 activeMeInterfacePos，尝试从结构坐标恢复
+        // 旧存档可能未保存 activeMeInterfacePos,尝试从结构坐标恢复
         if (activeMeInterfacePos == null && formed) {
             EnumFacing controllerFacing = world.getBlockState(pos).getValue(BlockAssemblyController.FACING);
             BlockPos origin = AssemblyStructure.getOriginFromController(pos, controllerFacing);
@@ -1085,7 +1085,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             }
         }
 
-        // 使用 TileAssemblyMeInterface 作为 medium 注册样板，
+        // 使用 TileAssemblyMeInterface 作为 medium 注册样板,
         // 这样 CraftingGridCache.getMediums() 返回的是 TileAssemblyMeInterface 而不是 TileAssemblyController
         appeng.api.networking.crafting.ICraftingMedium medium = this;
         if (activeMeInterfacePos != null) {
@@ -1111,8 +1111,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     /**
-     * 预填充 patternVirtualCache，避免 CPU 首次派发任务时因缓存未命中而回退到 AE2 原生 pushPattern 路径。
-     * 回退会导致：1) 性能骤降（逐次处理）；2) waitingFor 残留（原生逻辑添加记录但产物直接进网络，无法被 injectItems 清除）。
+     * 预填充 patternVirtualCache,避免 CPU 首次派发任务时因缓存未命中而回退到 AE2 原生 pushPattern 路径.
+     * 回退会导致：1) 性能骤降(逐次处理)；2) waitingFor 残留(原生逻辑添加记录但产物直接进网络,无法被 injectItems 清除).
      */
     private void prefillVirtualCache(ICraftingPatternDetails pattern) {
         if (world == null || world.isRemote) return;
@@ -1165,8 +1165,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     @Override
     public void onLoad() {
         if (world != null && !world.isRemote) {
-            // readFromNBT 时 world 通常为 null，patternVirtualCache 未被预填充。
-            // 此处补全缓存，确保 AE2 网络扫描前缓存已就绪。
+            // readFromNBT 时 world 通常为 null,patternVirtualCache 未被预填充.
+            // 此处补全缓存,确保 AE2 网络扫描前缓存已就绪.
             int patternSlots = getPatternSlotCount();
             for (int i = UPGRADE_SLOTS; i < UPGRADE_SLOTS + patternSlots; i++) {
                 ItemStack stack = itemHandler.getStackInSlot(i);
@@ -1178,8 +1178,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                     }
                 }
             }
-            // 强制同步 formed 状态到客户端，避免加载后客户端 formed 仍为默认值 false，
-            // 导致容器槽位数量不一致（服务端 78 槽 vs 客户端 36 槽），引发槽位索引映射错误
+            // 强制同步 formed 状态到客户端,避免加载后客户端 formed 仍为默认值 false,
+            // 导致容器槽位数量不一致(服务端 78 槽 vs 客户端 36 槽),引发槽位索引映射错误
             world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 2);
         }
     }
@@ -1199,7 +1199,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         }
         if (compound.hasKey("items")) {
             NBTTagCompound itemsTag = compound.getCompoundTag("items");
-            // 旧存档 Size 可能小于当前基础容量（从 42/96/102 升级），先扩展为基础容量避免越界
+            // 旧存档 Size 可能小于当前基础容量(从 42/96/102 升级),先扩展为基础容量避免越界
             if (itemsTag.hasKey("Size", Constants.NBT.TAG_INT)) {
                 int oldSize = itemsTag.getInteger("Size");
                 if (oldSize < TOTAL_SLOTS_BASE) {
@@ -1207,7 +1207,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 }
             }
             itemHandler.deserializeNBT(itemsTag);
-            // 加载扩容升级后，根据实际数量扩展容量
+            // 加载扩容升级后,根据实际数量扩展容量
             ensurePatternCapacity();
         }
         if (compound.hasKey("pendingOutputs")) {
@@ -1250,7 +1250,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         if (compound.hasKey("proxy")) {
             getProxy().readFromNBT(compound.getCompoundTag("proxy"));
         }
-        // 存档加载后立即预填充虚拟缓存，避免 AE2 网络扫描前下单时缓存为空
+        // 存档加载后立即预填充虚拟缓存,避免 AE2 网络扫描前下单时缓存为空
         if (world != null && !world.isRemote) {
             int patternSlots = getPatternSlotCount();
         for (int i = UPGRADE_SLOTS; i < UPGRADE_SLOTS + patternSlots; i++) {
@@ -1283,7 +1283,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         for (ItemStack stack : pendingOutputs) {
             NBTTagCompound tag = new NBTTagCompound();
             tag.setString("id", Objects.toString(stack.getItem().getRegistryName()));
-            tag.setInteger("Count", stack.getCount()); // int 存 count，突破 byte 限制
+            tag.setInteger("Count", stack.getCount()); // int 存 count,突破 byte 限制
             tag.setInteger("Damage", stack.getMetadata());
             if (stack.hasTagCompound()) {
                 tag.setTag("tag", stack.getTagCompound().copy());
@@ -1315,7 +1315,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
     @Override
     public NBTTagCompound getUpdateTag() {
-        // 使用 writeToNBT 保证字段完整，再移除大体积标签避免网络包膨胀。
+        // 使用 writeToNBT 保证字段完整,再移除大体积标签避免网络包膨胀.
         NBTTagCompound tag = writeToNBT(new NBTTagCompound());
         tag.removeTag("pendingOutputs");
         tag.removeTag("blackHoleBuffer");

@@ -97,7 +97,7 @@ public class HyperdimensionalStructure {
         for (BlockPos rel : relativeSet) {
             BlockPos actual = controllerPos.add(rotate(rel, facing));
             if (!world.isBlockLoaded(actual)) {
-                continue; // chunk 未加载，保持当前状态，不判定为缺失
+                continue; // chunk 未加载,保持当前状态,不判定为缺失
             }
             if (world.getBlockState(actual).getBlock() != expected) {
                 return false;
@@ -186,7 +186,7 @@ public class HyperdimensionalStructure {
         placeBlocks(world, controllerPos, CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, facing);
         placeBlocks(world, controllerPos, CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, facing);
 
-        // 立即触发组装（跳过 20 tick 等待）
+        // 立即触发组装(跳过 20 tick 等待)
         assemble(world, controllerPos);
     }
 
@@ -200,7 +200,7 @@ public class HyperdimensionalStructure {
     }
 
     /**
-     * 生存模式：检查背包材料，足够则扣除并放置
+     * 生存模式：检查背包材料,足够则扣除并放置
      * @return 是否成功
      */
     public static boolean tryConsumeAndPlace(World world, BlockPos controllerPos, net.minecraft.entity.player.EntityPlayer player) {

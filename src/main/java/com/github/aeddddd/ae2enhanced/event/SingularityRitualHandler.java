@@ -17,9 +17,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
- * 黑洞合成仪式触发器。
- * 玩家手持下界之星右键 AE2 ME 控制器方块时，扫描周围 5×5×5 区域内的物品实体，
- * 如果匹配黑洞合成配方，则消耗材料并生成产物。
+ * 黑洞合成仪式触发器.
+ * 玩家手持下界之星右键 AE2 ME 控制器方块时,扫描周围 5×5×5 区域内的物品实体,
+ * 如果匹配黑洞合成配方,则消耗材料并生成产物.
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
 public class SingularityRitualHandler {
@@ -39,7 +39,7 @@ public class SingularityRitualHandler {
         ItemStack held = event.getItemStack();
         if (held.getItem() != Items.NETHER_STAR) return;
 
-        // 取消默认交互，防止打开其他 GUI
+        // 取消默认交互,防止打开其他 GUI
         event.setCanceled(true);
 
         SingularityRecipe recipe = SingularityRecipeRegistry.findMatching(world, pos);

@@ -10,9 +10,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：在所有配方中替换物品。
+ * 智能样板接口：在所有配方中替换物品.
  *
- * <p>将左侧槽位物品替换为右侧槽位物品，作用于全部配方的输入和输出。</p>
+ * <p>将左侧槽位物品替换为右侧槽位物品,作用于全部配方的输入和输出.</p>
  */
 public class PacketSmartPatternReplace implements IMessage {
 

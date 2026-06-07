@@ -24,14 +24,14 @@ import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.Collections;
 
 /**
- * E2a：在 AE2 物品网络的 NetworkMonitor 中注入源质假物品。
- * 与 ae2fc 的兼容策略：priority=1100（高于 ae2fc 默认 1000），
- * 在 ae2fc 完成流体/气体注入后，再注入源质假物品。
- * extractItems / injectItems 使用 HEAD + cancellable 优先拦截我们的假物品，
- * 非我们的假物品则放行给 ae2fc 或原始逻辑处理。
+ * E2a：在 AE2 物品网络的 NetworkMonitor 中注入源质假物品.
+ * 与 ae2fc 的兼容策略：priority=1100(高于 ae2fc 默认 1000),
+ * 在 ae2fc 完成流体/气体注入后,再注入源质假物品.
+ * extractItems / injectItems 使用 HEAD + cancellable 优先拦截我们的假物品,
+ * 非我们的假物品则放行给 ae2fc 或原始逻辑处理.
  *
- * 注意：本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中，
- * 由 ThaumicMixinPlugin 条件加载。流体/气体逻辑在独立的 Mixin 中。
+ * 注意：本 mixin 位于 mixins.ae2enhanced.late.thaumic.json 中,
+ * 由 ThaumicMixinPlugin 条件加载.流体/气体逻辑在独立的 Mixin 中.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkMonitor.class, remap = false, priority = 1100)

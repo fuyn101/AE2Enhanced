@@ -57,13 +57,13 @@ import java.util.Set;
 import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
 
 /**
- * 先进中枢平台控制器 TileEntity。
- * 平台核心：ME 网络节点、RF 能量缓冲与均分分发、设施缓存管理、区块加载。
+ * 先进中枢平台控制器 TileEntity.
+ * 平台核心：ME 网络节点、RF 能量缓冲与均分分发、设施缓存管理、区块加载.
  */
 public class TileAdvancedPlatformController extends TileAENetworkBase
         implements IGridTickable, ITickable, ICellContainer, IActionHost {
 
-    // ===== 平台边界（相对控制器坐标系） =====
+    // ===== 平台边界(相对控制器坐标系) =====
     private int platformSizeInChunks = 5;
     private int relativeSurfaceY = 0;
     private boolean isPlatformActive = false;
@@ -93,7 +93,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private final ZoneRegistry zoneRegistry = new ZoneRegistry();
     private int nextZoneId = 1;
     private int nextSubnetId = 1;
-    // 主网不过滤：始终返回空集，不持久化
+    // 主网不过滤：始终返回空集,不持久化
     private static final Set<ItemStackKey> MAIN_NET_EMPTY_FILTER = java.util.Collections.unmodifiableSet(new HashSet<>());
 
     // ===== IO 引擎 =====
@@ -221,7 +221,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
         this.markDirty();
     }
 
-    // === 能量 Tick 逻辑（P2：按需直供） ===
+    // === 能量 Tick 逻辑(P2：按需直供) ===
 
     private void doEnergyTick() {
         if (cacheRefreshCooldown <= 0) {
@@ -239,8 +239,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     }
 
     /**
-     * 从 ME 网络按需提取能量，通过单 tick 多次调用策略注入接收设施。
-     * 断网时自动回退到 rfBuffer 应急供能。
+     * 从 ME 网络按需提取能量,通过单 tick 多次调用策略注入接收设施.
+     * 断网时自动回退到 rfBuffer 应急供能.
      */
     private void supplyReceiversFromNetwork() {
         if (energyFacilities.isEmpty()) return;
@@ -271,7 +271,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             long demand = facility.adapter.getReceiveableEnergy(tile, cap);
             if (demand <= 0) continue;
 
-            // 一次性提取全部需求，不受 rfExtractPerTick 限制
+            // 一次性提取全部需求,不受 rfExtractPerTick 限制
             IAEEnergyStack request = AEEnergyStack.create(demand);
             IAEEnergyStack extracted = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
@@ -294,7 +294,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     }
 
     /**
-     * 断网应急：使用 rfBuffer 给接收设施供能。
+     * 断网应急：使用 rfBuffer 给接收设施供能.
      */
     private void distributeRFBufferToReceivers() {
         if (rfBuffer <= 0 || energyFacilities.isEmpty()) return;
@@ -319,7 +319,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     }
 
     /**
-     * 网络恢复时，将 rfBuffer 中的能量优先回注 ME 网络。
+     * 网络恢复时,将 rfBuffer 中的能量优先回注 ME 网络.
      */
     private void handleBufferRecovery() {
         if (rfBuffer <= 0) return;
@@ -339,7 +339,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
             long injected = toRecover - (leftover != null ? leftover.getStackSize() : 0);
             rfBuffer -= injected;
         } catch (GridAccessException e) {
-            // 仍然断网，保持缓冲
+            // 仍然断网,保持缓冲
         }
     }
 

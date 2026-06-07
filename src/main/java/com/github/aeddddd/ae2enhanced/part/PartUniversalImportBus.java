@@ -31,8 +31,8 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fml.common.Loader;
 
 /**
- * E1a：通用输入总线。
- * 同时支持物品、流体、气体（Mekanism）、源质（Thaumcraft）的导入。
+ * E1a：通用输入总线.
+ * 同时支持物品、流体、气体(Mekanism)、源质(Thaumcraft)的导入.
  */
 public class PartUniversalImportBus extends PartUniversalBusBase {
 

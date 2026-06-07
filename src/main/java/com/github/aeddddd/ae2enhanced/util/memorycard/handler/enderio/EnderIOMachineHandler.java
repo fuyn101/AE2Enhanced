@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ender IO 机器的配置复制粘贴 Handler。
- * 配置与升级分离：升级通过 IUpgradeProvider 处理，配置直接反射应用。
+ * Ender IO 机器的配置复制粘贴 Handler.
+ * 配置与升级分离：升级通过 IUpgradeProvider 处理,配置直接反射应用.
  */
 public class EnderIOMachineHandler implements IMemoryCardHandler {
 
@@ -230,7 +230,7 @@ public class EnderIOMachineHandler implements IMemoryCardHandler {
 
                     // 通过 setInventorySlotContents 触发电容刷新
                     // AbstractPoweredMachineEntity.setInventorySlotContents 会在升级槽位变更时
-                    // 调用 updateCapacitorFromSlot()，直接操作 inventory[] 数组会绕过此逻辑
+                    // 调用 updateCapacitorFromSlot(),直接操作 inventory[] 数组会绕过此逻辑
                     if (SET_INVENTORY_SLOT_CONTENTS != null) {
                         for (int i = 0; i < count; i++) {
                             int slot = minUpgradeSlot + i;

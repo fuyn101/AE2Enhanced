@@ -22,9 +22,9 @@ import java.io.IOException;
 import java.util.Collections;
 
 /**
- * E2a/E2b：合成数量 GUI 增强。
+ * E2a/E2b：合成数量 GUI 增强.
  * - 流体/气体/源质假物品 tooltip 渲染
- * - 下单量 int -> long（E2b）
+ * - 下单量 int -> long(E2b)
  */
 @Mixin(value = GuiCraftAmount.class, remap = false)
 public class MixinGuiCraftAmount {
@@ -70,7 +70,7 @@ public class MixinGuiCraftAmount {
     }
 
     /**
-     * E2b：拦截 Next/Start 按钮，将下单量从 int 提升为 long。
+     * E2b：拦截 Next/Start 按钮,将下单量从 int 提升为 long.
      */
     @Inject(method = "func_146284_a", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onActionPerformed(GuiButton btn, CallbackInfo ci) throws IOException {
@@ -89,7 +89,7 @@ public class MixinGuiCraftAmount {
     }
 
     /**
-     * E2b：让加减按钮支持 long 数量，避免超过 int 范围后溢出。
+     * E2b：让加减按钮支持 long 数量,避免超过 int 范围后溢出.
      */
     @Inject(method = "addQty", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onAddQty(int i, CallbackInfo ci) {

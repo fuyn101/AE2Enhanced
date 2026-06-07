@@ -13,9 +13,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.common.Loader;
 
 /**
- * 气体假物品的 FakeItemHandler 实现与工具方法。
+ * 气体假物品的 FakeItemHandler 实现与工具方法.
  *
- * 在模组初始化时调用 FakeGases.init() 注册 handler。
+ * 在模组初始化时调用 FakeGases.init() 注册 handler.
  */
 public final class FakeGases {
 
@@ -78,26 +78,26 @@ public final class FakeGases {
     }
 
     /**
-     * 判断 ItemStack 是否是气体假物品。
-     * 注意：本方法直接引用 ItemGasDrop，仅供条件配置（gas.json）中的代码使用。
-     * 无条件配置中的代码应使用 {@link #isGasFakeItemSafe(ItemStack)}。
+     * 判断 ItemStack 是否是气体假物品.
+     * 注意：本方法直接引用 ItemGasDrop,仅供条件配置(gas.json)中的代码使用.
+     * 无条件配置中的代码应使用 {@link #isGasFakeItemSafe(ItemStack)}.
      */
     public static boolean isGasFakeItem(ItemStack stack) {
         return ItemGasDrop.isGasDrop(stack);
     }
 
     /**
-     * 安全判断 ItemStack 是否是气体假物品。
-     * 使用字符串比较而非直接引用 ItemGasDrop 类，避免 Mekanism 不存在时
-     * 触发 NoClassDefFoundError。
+     * 安全判断 ItemStack 是否是气体假物品.
+     * 使用字符串比较而非直接引用 ItemGasDrop 类,避免 Mekanism 不存在时
+     * 触发 NoClassDefFoundError.
      */
     public static boolean isGasFakeItemSafe(ItemStack stack) {
         return !stack.isEmpty() && GAS_DROP_CLASS.equals(stack.getItem().getClass().getName());
     }
 
     /**
-     * 安全获取气体假物品的气体注册名。
-     * 直接从 NBT 读取，不加载 ItemGasDrop 类。
+     * 安全获取气体假物品的气体注册名.
+     * 直接从 NBT 读取,不加载 ItemGasDrop 类.
      */
     public static String tryGetGasName(ItemStack stack) {
         if (!isGasFakeItemSafe(stack)) return null;
@@ -154,7 +154,7 @@ public final class FakeGases {
         if (tag.hasKey("GasStack", 10)) {
             return GasStack.readFromNBT(tag.getCompoundTag("GasStack"));
         }
-        // ItemGasDrop: Gas 名称存储在 "Gas" 中，amount 为 stack count
+        // ItemGasDrop: Gas 名称存储在 "Gas" 中,amount 为 stack count
         if (tag.hasKey("Gas", 8)) {
             String gasName = tag.getString("Gas");
             Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
@@ -169,8 +169,8 @@ public final class FakeGases {
     }
 
     /**
-     * 反射方法：从 JEI 拖动的 GasStack 对象打包为 AE 假物品。
-     * 供 GhostIngredientTarget 调用（避免 GhostIngredientTarget 硬引用 Mekanism 类）。
+     * 反射方法：从 JEI 拖动的 GasStack 对象打包为 AE 假物品.
+     * 供 GhostIngredientTarget 调用(避免 GhostIngredientTarget 硬引用 Mekanism 类).
      */
     public static IAEItemStack tryPackJEIGas(Object ingredient) {
         if (!Loader.isModLoaded("mekanism") || ingredient == null) return null;
@@ -187,8 +187,8 @@ public final class FakeGases {
     }
 
     /**
-     * 反射方法：从手持的气体物品（IGasItem）打包为 AE 假物品。
-     * 供 GhostIngredientTarget / Container 调用。
+     * 反射方法：从手持的气体物品(IGasItem)打包为 AE 假物品.
+     * 供 GhostIngredientTarget / Container 调用.
      */
     public static IAEItemStack tryPackJEIGasFromItem(ItemStack is) {
         if (!Loader.isModLoaded("mekanism") || is == null || is.isEmpty()) return null;
@@ -229,7 +229,7 @@ public final class FakeGases {
     }
 
     /**
-     * 反射创建 GasStack 的共享逻辑，消除 tryPackJEIGas / tryPackJEIGasFromItem 中的重复代码。
+     * 反射创建 GasStack 的共享逻辑,消除 tryPackJEIGas / tryPackJEIGasFromItem 中的重复代码.
      */
     private static Object createGasStackReflection(Class<?> gasStackClass, Object gasType, int amount) throws Exception {
         Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");

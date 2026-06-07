@@ -8,9 +8,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：更新配方显示的滚动偏移。
+ * 智能样板接口：更新配方显示的滚动偏移.
  *
- * <p>客户端发送新的 scrollOffset，服务端更新 recipeDisplayInventory 的内容。</p>
+ * <p>客户端发送新的 scrollOffset,服务端更新 recipeDisplayInventory 的内容.</p>
  */
 public class PacketSmartPatternScroll implements IMessage {
 

@@ -6,8 +6,8 @@ import appeng.api.storage.IStorageChannel;
 import java.math.BigInteger;
 
 /**
- * 源质存储适配器，继承 {@link AbstractStorageAdapter}。
- * 内部使用 BigInteger 维护数量，突破 long 上限。
+ * 源质存储适配器,继承 {@link AbstractStorageAdapter}.
+ * 内部使用 BigInteger 维护数量,突破 long 上限.
  */
 public class EssentiaStorageAdapter extends AbstractStorageAdapter<thaumicenergistics.api.storage.IAEEssentiaStack, EssentiaDescriptor> {
 

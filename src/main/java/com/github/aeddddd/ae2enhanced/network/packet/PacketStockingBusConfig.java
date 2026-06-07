@@ -8,8 +8,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 同步 Stocking 总线的目标数量到服务端。
- * 滚轮操作触发，每次只同步一个槽的变更。
+ * 同步 Stocking 总线的目标数量到服务端.
+ * 滚轮操作触发,每次只同步一个槽的变更.
  */
 public class PacketStockingBusConfig implements IMessage {
 

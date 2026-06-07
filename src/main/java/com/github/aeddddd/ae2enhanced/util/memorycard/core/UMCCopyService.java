@@ -14,7 +14,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 /**
- * UMC 复制逻辑服务。
+ * UMC 复制逻辑服务.
  */
 public class UMCCopyService {
 

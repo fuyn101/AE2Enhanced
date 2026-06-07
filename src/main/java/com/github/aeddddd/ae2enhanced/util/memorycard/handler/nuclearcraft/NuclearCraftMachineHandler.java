@@ -20,12 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * NuclearCraft 机器的配置复制粘贴 Handler。
- * <p>支持 TileEnergyProcessor 及其子类（包括可升级处理器）。</p>
+ * NuclearCraft 机器的配置复制粘贴 Handler.
+ * <p>支持 TileEnergyProcessor 及其子类(包括可升级处理器).</p>
  * <p>复制/粘贴的内容包括：物品侧面配置、流体侧面配置、红石控制、比较器模式、
- * 物品输出设置、流体设置（分离/废弃/输出模式）、升级槽（速度/能量）。</p>
+ * 物品输出设置、流体设置(分离/废弃/输出模式)、升级槽(速度/能量).</p>
  *
- * <p>使用反射访问 NuclearCraft API，避免硬依赖。</p>
+ * <p>使用反射访问 NuclearCraft API,避免硬依赖.</p>
  */
 public class NuclearCraftMachineHandler implements IMemoryCardHandler {
 
@@ -169,7 +169,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
                 output.setTag("slotSettings", slotNbt);
             }
 
-            // 流体设置（分离输入罐、废弃无效流体、输出模式）
+            // 流体设置(分离输入罐、废弃无效流体、输出模式)
             NBTTagCompound tankNbt = (NBTTagCompound) WRITE_TANK_SETTINGS_METHOD.invoke(tile, new NBTTagCompound());
             if (tankNbt != null && !tankNbt.isEmpty()) {
                 output.setTag("tankSettings", tankNbt);
@@ -231,7 +231,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         TileEntity tile = (TileEntity) target;
 
         try {
-            // 严格匹配 infoName（不同机器的槽位/罐位数量可能不同）
+            // 严格匹配 infoName(不同机器的槽位/罐位数量可能不同)
             String sourceInfoName = data.getString("infoName");
             String targetInfoName = getInfoName(tile);
             if (!sourceInfoName.equals(targetInfoName)) {
@@ -318,7 +318,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         return list;
     }
 
-    /** 为目标机器创建 IUpgradeProvider（仅针对升级槽位） */
+    /** 为目标机器创建 IUpgradeProvider(仅针对升级槽位) */
     @SuppressWarnings("unchecked")
     private IUpgradeProvider createUpgradeProvider(TileEntity tile) throws Exception {
         if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
@@ -344,8 +344,8 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
     }
 
     /**
-     * NuclearCraft 升级槽的 IUpgradeProvider 实现。
-     * <p>直接操作 NonNullList 中的指定索引，并在修改后调用 refreshEnergyCapacity()。</p>
+     * NuclearCraft 升级槽的 IUpgradeProvider 实现.
+     * <p>直接操作 NonNullList 中的指定索引,并在修改后调用 refreshEnergyCapacity().</p>
      */
     private static class NuclearCraftUpgradeProvider implements IUpgradeProvider {
 

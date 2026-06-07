@@ -18,17 +18,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 通用内存卡管理 GUI（使用 UMCGUI.png 纹理，支持条带拼接与滚动条）。
+ * 通用内存卡管理 GUI(使用 UMCGUI.png 纹理,支持条带拼接与滚动条).
  */
 public class GuiUniversalMemoryCard extends GuiContainer {
 
     private static final ResourceLocation GUI_TEXTURE = new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/umc_gui.png");
 
-    // GUI 内容区域尺寸（与纹理内容区 195×251 一致）
+    // GUI 内容区域尺寸(与纹理内容区 195×251 一致)
     private static final int GUI_WIDTH = 195;
     private static final int GUI_HEIGHT = 251;
 
-    // 列表项参数（条带高 18，与纹理匹配）
+    // 列表项参数(条带高 18,与纹理匹配)
     private static final int VISIBLE_COUNT = 8;
     private static final int ENTRY_HEIGHT = 18;
     private static final int LIST_Y = 57;
@@ -74,7 +74,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         this.buttonList.add(new GuiModernButton(1, this.guiLeft + 111, this.guiTop + 222, 52, 17,
                 I18n.format("gui.ae2enhanced.umc.btn.clear_selections")));
 
-        // 删除按钮（X），与列表项同步：纹理中 X 在(160,62)，尺寸 8×9，图标已由纹理提供
+        // 删除按钮(X),与列表项同步：纹理中 X 在(160,62),尺寸 8×9,图标已由纹理提供
         for (int i = 0; i < VISIBLE_COUNT; i++) {
             GuiModernButton btn = new GuiModernButton(2 + i, this.guiLeft + 160, this.guiTop + 62 + i * ENTRY_HEIGHT, 8, 9, "");
             btn.visible = false;
@@ -223,11 +223,11 @@ public class GuiUniversalMemoryCard extends GuiContainer {
         Minecraft.getMinecraft().getTextureManager().bindTexture(GUI_TEXTURE);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
-        // 1. 绘制整个 GUI 纹理作为背景（包含标题栏、配置栏、默认列表项、滚动条、按钮）
+        // 1. 绘制整个 GUI 纹理作为背景(包含标题栏、配置栏、默认列表项、滚动条、按钮)
         drawTexturedModalRect(x, y, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
-        // 2. 覆盖列表项区域：用条带正下方的纯色纹理片段向上平移覆盖，
-        //    保证横向纹理坐标完全一致，避免错位
+        // 2. 覆盖列表项区域：用条带正下方的纯色纹理片段向上平移覆盖,
+        //    保证横向纹理坐标完全一致,避免错位
         for (int i = 0; i < VISIBLE_COUNT; i++) {
             int rowY = y + 57 + i * ENTRY_HEIGHT;
             // 列表项条带覆盖：源坐标(7, 75) = 原条带(7,57) 向下平移 18
@@ -236,7 +236,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             drawTexturedModalRect(x + 160, rowY + 5, 160, 62 + ENTRY_HEIGHT, 8, 9);
         }
 
-        // 3. 绘制实际的列表项条带 + X 按钮（一并重复）
+        // 3. 绘制实际的列表项条带 + X 按钮(一并重复)
         int maxDisplay = Math.min(selections.size() - scrollIndex, VISIBLE_COUNT);
         for (int i = 0; i < maxDisplay; i++) {
             // 列表项条带：纹理(7,57) 146×18
@@ -245,7 +245,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
             drawTexturedModalRect(x + 160, y + 62 + i * ENTRY_HEIGHT, 160, 62, 8, 9);
         }
 
-        // 4. 滚动条滑块（代码绘制，纹理中没有专门滑块）
+        // 4. 滚动条滑块(代码绘制,纹理中没有专门滑块)
         if (selections.size() > VISIBLE_COUNT) {
             int thumbY = getThumbY();
             int thumbH = getThumbHeight();
@@ -254,7 +254,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
 
         // ===== 文字绘制 =====
 
-        // 标题文字（居中于标题栏）
+        // 标题文字(居中于标题栏)
         String title = I18n.format("gui.ae2enhanced.umc.title");
         int titleWidth = this.fontRenderer.getStringWidth(title);
         this.fontRenderer.drawString(title, x + 2 + (191 - titleWidth) / 2, y + 2 + 6, COLOR_TEXT);
@@ -300,7 +300,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     }
 
     // ============================================================
-    // 现代半透明按钮（保留 hover 效果，文字叠加在纹理按钮上）
+    // 现代半透明按钮(保留 hover 效果,文字叠加在纹理按钮上)
     // ============================================================
 
     public static class GuiModernButton extends GuiButton {

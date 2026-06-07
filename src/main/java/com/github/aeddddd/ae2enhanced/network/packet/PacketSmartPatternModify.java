@@ -9,7 +9,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：修改锁定配方或锁定/解锁操作。
+ * 智能样板接口：修改锁定配方或锁定/解锁操作.
  *
  * <p>支持的操作：</p>
  * <ul>
@@ -93,7 +93,7 @@ public class PacketSmartPatternModify implements IMessage {
                             tile.deleteDisabledRecipes();
                             break;
                         default:
-                            // 其他小按钮操作（multiply2, divide2, clearInputs 等）
+                            // 其他小按钮操作(multiply2, divide2, clearInputs 等)
                             tile.modifyLockedRecipe(message.getAction());
                             break;
                     }

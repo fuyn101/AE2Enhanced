@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Extended Crafting 合成核心 + 基座处理器。
+ * Extended Crafting 合成核心 + 基座处理器.
  *
- * <p>结构：中心 CraftingCore，周围 7×7 水平范围内放置 Pedestal。
- * slot 0 → Core 主材料，slot 1+ → Pedestals 辅助材料（各1个）。</p>
+ * <p>结构：中心 CraftingCore,周围 7×7 水平范围内放置 Pedestal.
+ * slot 0 → Core 主材料,slot 1+ → Pedestals 辅助材料(各1个).</p>
  */
 public class ExtendedCraftingHandler implements IRemoteHandler {
 
@@ -76,7 +76,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
         if (coreInv == null) return false;
         if (!coreInv.getStackInSlot(0).isEmpty()) return false;
 
-        // 检查周围有足够 pedestals（空或已有匹配材料的也算，简化处理）
+        // 检查周围有足够 pedestals(空或已有匹配材料的也算,简化处理)
         List<BlockPos> pedestalPositions = getPedestalPositions(te);
         int needed = 0;
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
@@ -95,7 +95,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
         IItemHandler coreInv = getCoreInventory(te);
         if (coreInv == null) return false;
 
-        // Slot 0 → Core slot 0（主材料）
+        // Slot 0 → Core slot 0(主材料)
         ItemStack main = ingredients.getStackInSlot(0);
         if (!main.isEmpty()) {
             ItemStack inserted = coreInv.insertItem(0, main.copy(), false);
@@ -104,14 +104,14 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
             }
         }
 
-        // Slot 1+ → Pedestals（每个只放1个）
+        // Slot 1+ → Pedestals(每个只放1个)
         List<BlockPos> pedestalPositions = getPedestalPositions(te);
         int pedestalIdx = 0;
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            // 找到下一个 pedestal，只插入到空槽位
+            // 找到下一个 pedestal,只插入到空槽位
             while (pedestalIdx < pedestalPositions.size()) {
                 BlockPos pPos = pedestalPositions.get(pedestalIdx);
                 TileEntity pTe = world.getTileEntity(pPos);
@@ -133,7 +133,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
 
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source) {
-        // EC CraftingCore 是自动检测配方并推进的，不需要显式启动
+        // EC CraftingCore 是自动检测配方并推进的,不需要显式启动
         return true;
     }
 
@@ -142,7 +142,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
-        // progress == 0 表示合成已完成（或尚未开始），允许 collectProducts 提取产物
+        // progress == 0 表示合成已完成(或尚未开始),允许 collectProducts 提取产物
         return getProgress(te) == 0;
     }
 
@@ -163,7 +163,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
             }
         }
 
-        // 清理 Pedestals 中的残余材料（防止干扰下一次合成）
+        // 清理 Pedestals 中的残余材料(防止干扰下一次合成)
         List<BlockPos> pedestalPositions = getPedestalPositions(te);
         for (BlockPos pPos : pedestalPositions) {
             TileEntity pTe = world.getTileEntity(pPos);

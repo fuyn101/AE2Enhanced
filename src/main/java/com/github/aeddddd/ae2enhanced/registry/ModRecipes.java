@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 配方注册中心：黑洞合成配方、奇点仪式配方。
- * 工作台合成配方统一通过 assets/ae2enhanced/recipes/*.json 注册。
+ * 配方注册中心：黑洞合成配方、奇点仪式配方.
+ * 工作台合成配方统一通过 assets/ae2enhanced/recipes/*.json 注册.
  */
 public final class ModRecipes {
 
@@ -39,7 +39,7 @@ public final class ModRecipes {
             ritualInputs.add(new ItemStack(Items.NETHER_STAR, 4));
             SingularityRecipeRegistry.register(new SingularityRecipe("micro_singularity_ritual", ritualInputs));
         } else {
-            AE2Enhanced.LOGGER.warn("无法获取 AE2 材料物品，黑洞生成仪式配方未注册");
+            AE2Enhanced.LOGGER.warn("无法获取 AE2 材料物品,黑洞生成仪式配方未注册");
         }
 
         // 系统 B：黑洞合成配方

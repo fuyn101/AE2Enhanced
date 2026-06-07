@@ -5,11 +5,11 @@ import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 
 /**
- * Tech-panel 风格 GUI 抽象基类。
+ * Tech-panel 风格 GUI 抽象基类.
  *
- * 统一绘制主背景、外边框、角落装饰、顶部高亮条、内面板及 slot 边框，
+ * 统一绘制主背景、外边框、角落装饰、顶部高亮条、内面板及 slot 边框,
  * 消除 GuiAssemblyFormed / GuiAssemblyPattern / GuiStructureUnformed 等
- * 5+ 个 GUI 中各自重复的 ~50 行背景绘制代码。
+ * 5+ 个 GUI 中各自重复的 ~50 行背景绘制代码.
  */
 public abstract class GuiTechPanel extends GuiContainer {
 
@@ -43,14 +43,14 @@ public abstract class GuiTechPanel extends GuiContainer {
         drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
     }
 
-    /** 绘制内面板区域（含上下边框） */
+    /** 绘制内面板区域(含上下边框) */
     protected void drawInnerPanel(int left, int top, int right, int bottom) {
         drawRect(left, top, right, bottom, GuiColors.PANEL_LIGHT);
         drawRect(left, top, right, top + 1, GuiColors.BORDER_DIM);
         drawRect(left, bottom - 1, right, bottom, GuiColors.BORDER_DIM);
     }
 
-    /** 为所有启用的 slot 绘制边框（hover 高亮） */
+    /** 为所有启用的 slot 绘制边框(hover 高亮) */
     protected void drawSlotBorders(int mouseX, int mouseY) {
         for (Slot slot : this.inventorySlots.inventorySlots) {
             if (!slot.isEnabled()) continue;

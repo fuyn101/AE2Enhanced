@@ -8,11 +8,11 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 /**
- * Botania Handler 的反射辅助类。
+ * Botania Handler 的反射辅助类.
  *
- * 缓存对 Botania 非公共 API 的反射引用，避免重复反射带来的性能损耗。
- * 所有缓存均在静态初始化块中完成，失败时记录警告但不应导致崩溃
- * （对应 handler 会在 isValidTarget 中回退到类型检查）。
+ * 缓存对 Botania 非公共 API 的反射引用,避免重复反射带来的性能损耗.
+ * 所有缓存均在静态初始化块中完成,失败时记录警告但不应导致崩溃
+ * (对应 handler 会在 isValidTarget 中回退到类型检查).
  */
 public class BotaniaReflectionHelper {
 

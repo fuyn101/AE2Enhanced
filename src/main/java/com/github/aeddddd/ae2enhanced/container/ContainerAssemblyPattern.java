@@ -39,7 +39,7 @@ public class ContainerAssemblyPattern extends Container {
 
         this.patternSlotCount = endSlot - startSlot;
 
-        // 使用 PatternInventory 代理 IItemHandler，让原版 Slot 正常工作
+        // 使用 PatternInventory 代理 IItemHandler,让原版 Slot 正常工作
         PatternInventory patternInv = new PatternInventory(handler, startSlot, this.patternSlotCount);
         for (int i = 0; i < this.patternSlotCount; i++) {
             int row = i / 16;
@@ -92,7 +92,7 @@ public class ContainerAssemblyPattern extends Container {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // 从玩家背包移到样板槽：显式过滤，只允许样板物品
+                // 从玩家背包移到样板槽：显式过滤,只允许样板物品
                 if (!itemstack1.isEmpty() && itemstack1.getItem() instanceof ICraftingPatternItem) {
                     if (!this.mergeItemStack(itemstack1, 0, patternEnd, false)) {
                         return ItemStack.EMPTY;
@@ -120,9 +120,9 @@ public class ContainerAssemblyPattern extends Container {
     }
 
     /**
-     * 将 IItemHandler 的指定槽位区间代理为 IInventory，供原版 Slot 使用。
-     * 避免使用 null inventory 导致 Slot 默认方法（decrStackSize 等）NPE。
-     * setInventorySlotContents 使用 setStackInSlot 实现替换语义，避免 insertItem 的合并副作用。
+     * 将 IItemHandler 的指定槽位区间代理为 IInventory,供原版 Slot 使用.
+     * 避免使用 null inventory 导致 Slot 默认方法(decrStackSize 等)NPE.
+     * setInventorySlotContents 使用 setStackInSlot 实现替换语义,避免 insertItem 的合并副作用.
      */
     private static class PatternInventory implements IInventory {
 
@@ -214,7 +214,7 @@ public class ContainerAssemblyPattern extends Container {
 
         @Override
         public void markDirty() {
-            // ItemStackHandler 内部已有 onContentsChanged 机制，此处无需额外操作
+            // ItemStackHandler 内部已有 onContentsChanged 机制,此处无需额外操作
         }
 
         @Override

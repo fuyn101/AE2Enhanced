@@ -8,9 +8,9 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import java.lang.reflect.Method;
 
 /**
- * Mixin 层反射调用统一封装。
- * NetworkMonitor / GridStorageCache 的私有方法通过反射调用，集中在此类缓存 Method 对象，
- * 避免每个 mixin 中重复写 try-catch + setAccessible。
+ * Mixin 层反射调用统一封装.
+ * NetworkMonitor / GridStorageCache 的私有方法通过反射调用,集中在此类缓存 Method 对象,
+ * 避免每个 mixin 中重复写 try-catch + setAccessible.
  */
 public final class MixinReflectionHelper {
 
@@ -37,7 +37,7 @@ public final class MixinReflectionHelper {
     private MixinReflectionHelper() {}
 
     /**
-     * 调用 NetworkMonitor.notifyListenersOfChange(Iterable, IActionSource)。
+     * 调用 NetworkMonitor.notifyListenersOfChange(Iterable, IActionSource).
      */
     @SuppressWarnings("unchecked")
     public static void notifyListenersOfChange(NetworkMonitor monitor, Iterable<IAEItemStack> diff, IActionSource source) {
@@ -50,7 +50,7 @@ public final class MixinReflectionHelper {
     }
 
     /**
-     * 调用 NetworkMonitor.postChange(boolean, Iterable, IActionSource)。
+     * 调用 NetworkMonitor.postChange(boolean, Iterable, IActionSource).
      */
     @SuppressWarnings("unchecked")
     public static void postChange(NetworkMonitor monitor, boolean add, Iterable<IAEItemStack> changes, IActionSource source) {

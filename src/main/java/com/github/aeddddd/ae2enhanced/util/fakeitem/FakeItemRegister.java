@@ -8,11 +8,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 假物品注册表。
- * 每种假物品类型（FluidDrop/GasDrop）注册一个 FakeItemHandler，
- * 统一负责 ItemStack 与实际存储对象的互相转换。
+ * 假物品注册表.
+ * 每种假物品类型(FluidDrop/GasDrop)注册一个 FakeItemHandler,
+ * 统一负责 ItemStack 与实际存储对象的互相转换.
  *
- * 设计参考 ae2fc 的 FakeItemRegister，但独立实现以避免与 ae2fc 冲突。
+ * 设计参考 ae2fc 的 FakeItemRegister,但独立实现以避免与 ae2fc 冲突.
  */
 public final class FakeItemRegister {
 

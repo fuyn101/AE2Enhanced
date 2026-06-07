@@ -14,9 +14,9 @@ import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
 /**
- * 流体假物品的 FakeItemHandler 实现与工具方法。
+ * 流体假物品的 FakeItemHandler 实现与工具方法.
  *
- * 在模组初始化时调用 FakeFluids.init() 注册 handler。
+ * 在模组初始化时调用 FakeFluids.init() 注册 handler.
  */
 public final class FakeFluids {
 
@@ -103,7 +103,7 @@ public final class FakeFluids {
         if (ItemFluidDrop.isFluidDrop(stack)) {
             return FakeItemRegister.getAEStack(itemStack);
         }
-        // 兼容 AE2 UEL 的 FluidDummyItem（从终端拖动流体时会得到此物品）
+        // 兼容 AE2 UEL 的 FluidDummyItem(从终端拖动流体时会得到此物品)
         if ("appeng.fluids.items.FluidDummyItem".equals(stack.getItem().getClass().getName())) {
             try {
                 Class<?> fluidDummyClass = Class.forName("appeng.fluids.items.FluidDummyItem");
@@ -141,8 +141,8 @@ public final class FakeFluids {
     }
 
     /**
-     * 从 ae2fc 的 ItemFluidDrop / ItemFluidPacket 中解析 FluidStack。
-     * 暴露为 public 供 Container 的转换逻辑复用。
+     * 从 ae2fc 的 ItemFluidDrop / ItemFluidPacket 中解析 FluidStack.
+     * 暴露为 public 供 Container 的转换逻辑复用.
      */
     public static FluidStack unpackAe2fcFluid(ItemStack stack) {
         if (!stack.hasTagCompound()) return null;
@@ -151,7 +151,7 @@ public final class FakeFluids {
         if (tag.hasKey("FluidStack", 10)) {
             return FluidStack.loadFluidStackFromNBT(tag.getCompoundTag("FluidStack"));
         }
-        // ItemFluidDrop: Fluid 名称存储在 "Fluid" 中，amount 为 stack count
+        // ItemFluidDrop: Fluid 名称存储在 "Fluid" 中,amount 为 stack count
         if (tag.hasKey("Fluid", 8)) {
             net.minecraftforge.fluids.Fluid fluid = FluidRegistry.getFluid(tag.getString("Fluid"));
             if (fluid == null) return null;
@@ -165,8 +165,8 @@ public final class FakeFluids {
     }
 
     /**
-     * 规范化 FluidStack 的 Fluid 引用，确保使用 FluidRegistry 中的 canonical 实例。
-     * 这避免了不同来源的 FluidStack 因 Fluid 对象引用不同而导致匹配失败。
+     * 规范化 FluidStack 的 Fluid 引用,确保使用 FluidRegistry 中的 canonical 实例.
+     * 这避免了不同来源的 FluidStack 因 Fluid 对象引用不同而导致匹配失败.
      */
     public static FluidStack canonicalizeFluidStack(FluidStack fluidStack) {
         if (fluidStack == null || fluidStack.getFluid() == null) return fluidStack;

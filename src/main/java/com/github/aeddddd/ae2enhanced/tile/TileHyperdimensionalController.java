@@ -35,8 +35,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 超维度仓储中枢核心控制器。
- * 实现 IGridProxyable + ICellContainer，AE2-UEL 通过 ICellContainer 发现存储。
+ * 超维度仓储中枢核心控制器.
+ * 实现 IGridProxyable + ICellContainer,AE2-UEL 通过 ICellContainer 发现存储.
  */
 public class TileHyperdimensionalController extends TileAENetworkBase implements ICellContainer, ITickable {
 
@@ -148,7 +148,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
 
     @Override
     public void saveChanges(ICellInventory<?> inv) {
-        // 我们的存储不是 cell-based，由 ItemStorageAdapter 自行管理持久化
+        // 我们的存储不是 cell-based,由 ItemStorageAdapter 自行管理持久化
     }
 
     // ---- Lifecycle ----
@@ -178,14 +178,14 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             cellArrayRetry = 5;
             notifyMeInterfacesOfStateChange();
             updateCableConnections();
-            // 强制触发 GridStorageCache 重新扫描 handlers，确保物品/流体都被正确注册
+            // 强制触发 GridStorageCache 重新扫描 handlers,确保物品/流体都被正确注册
             try {
                 appeng.api.networking.IGrid grid = getProxy().getGrid();
                 if (grid != null) {
                     grid.postEvent(new appeng.api.networking.events.MENetworkCellArrayUpdate());
                 }
             } catch (appeng.me.GridAccessException e) {
-                // grid 尚未就绪，下次 tick 的 update() 会重试
+                // grid 尚未就绪,下次 tick 的 update() 会重试
             }
         }
     }
@@ -253,7 +253,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
     }
 
-    // 缓存 AE2 NetworkMonitor 反射，避免高频 IO 时重复反射查找
+    // 缓存 AE2 NetworkMonitor 反射,避免高频 IO 时重复反射查找
     private static final java.lang.reflect.Field FORCE_UPDATE_FIELD;
     private static final java.lang.reflect.Method FORCE_UPDATE_METHOD;
     private static final java.lang.reflect.Field SEND_EVENT_FIELD;
@@ -284,15 +284,15 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     /**
-     * 兜底全量刷新 AE2 NetworkMonitor 缓存。
+     * 兜底全量刷新 AE2 NetworkMonitor 缓存.
      *
-     * <p>正常流程下，{@code postAlterationOfStoredItems} 已通过增量更新
-     * 实时维护了 NetworkMonitor 的 {@code cachedList} 与 {@code sendEvent}，
-     * 终端在下一次 {@code onTick()} 即可收到 {@code MENetworkStorageEvent}。</p>
+     * <p>正常流程下,{@code postAlterationOfStoredItems} 已通过增量更新
+     * 实时维护了 NetworkMonitor 的 {@code cachedList} 与 {@code sendEvent},
+     * 终端在下一次 {@code onTick()} 即可收到 {@code MENetworkStorageEvent}.</p>
      *
-     * <p>此方法仅在配置的 {@code monitorFullScanIntervalTicks} 间隔触发，
-     * 作为安全网纠正极端边缘场景（chunk 加载竞争、网络分裂等）下可能产生的
-     * 缓存漂移。日常高频读写不会调用它。</p>
+     * <p>此方法仅在配置的 {@code monitorFullScanIntervalTicks} 间隔触发,
+     * 作为安全网纠正极端边缘场景(chunk 加载竞争、网络分裂等)下可能产生的
+     * 缓存漂移.日常高频读写不会调用它.</p>
      */
     private void refreshNetworkMonitor() {
         if (FORCE_UPDATE_FIELD == null || FORCE_UPDATE_METHOD == null) return;
@@ -354,8 +354,8 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     /**
-     * 通过 IStorageGrid.postAlterationOfStoredItems 通知 AE2 网络物品发生变化。
-     * 这是 AE2 标准的增量更新路径，能正确处理物品完全消失的情况（forceUpdate 全量扫描无法处理）。
+     * 通过 IStorageGrid.postAlterationOfStoredItems 通知 AE2 网络物品发生变化.
+     * 这是 AE2 标准的增量更新路径,能正确处理物品完全消失的情况(forceUpdate 全量扫描无法处理).
      */
     private void postItemAlteration(appeng.api.storage.data.IAEItemStack change, appeng.api.networking.security.IActionSource src) {
         try {
@@ -452,9 +452,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     /**
-     * 直接刷新 ME 接口相邻位置的 AE2 线缆连接。
-     * ComputationCore 使用相同机制（调用 CableBusContainer.updateConnections），
-     * 比依赖 Minecraft 的 neighbor notification 更可靠，能确保时序不一致时仍能正确连接。
+     * 直接刷新 ME 接口相邻位置的 AE2 线缆连接.
+     * ComputationCore 使用相同机制(调用 CableBusContainer.updateConnections),
+     * 比依赖 Minecraft 的 neighbor notification 更可靠,能确保时序不一致时仍能正确连接.
      */
     private void updateCableConnections() {
         if (world == null || world.isRemote) return;
@@ -474,7 +474,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                 }
             }
         }
-        // 当网络活跃时，强制触发 GridStorageCache 重新扫描存储，修复因时序导致 storageNetworks 未构建的问题
+        // 当网络活跃时,强制触发 GridStorageCache 重新扫描存储,修复因时序导致 storageNetworks 未构建的问题
         if (itemAdapter != null) {
             try {
                 appeng.api.networking.IGrid grid = getProxy().getGrid();
@@ -560,13 +560,13 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                     cellArrayRetry = 0;
                 }
             } catch (appeng.me.GridAccessException e) {
-                // 网格尚未就绪，继续重试
+                // 网格尚未就绪,继续重试
             }
         }
 
         tickCounter++;
 
-        // 兜底全量扫描：由配置控制间隔，日常高频读写不会触发
+        // 兜底全量扫描：由配置控制间隔,日常高频读写不会触发
         if (formed && AE2EnhancedConfig.storage.monitorFullScanIntervalTicks > 0
                 && tickCounter % AE2EnhancedConfig.storage.monitorFullScanIntervalTicks == 0) {
             refreshNetworkMonitor();
@@ -590,7 +590,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             networkActive = newActive;
             networkPowered = newPowered;
 
-            // 更新存储统计并同步到客户端（物品 + 流体 + 可选存储）
+            // 更新存储统计并同步到客户端(物品 + 流体 + 可选存储)
             int newTypes = 0;
             java.math.BigInteger newTotal = java.math.BigInteger.ZERO;
             if (itemAdapter != null) {
@@ -702,7 +702,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             whole = whole.divide(thousand);
             unitIndex++;
         }
-        // 保留一位小数（如 1.2K），当整数部分小于 100 时
+        // 保留一位小数(如 1.2K),当整数部分小于 100 时
         if (whole.compareTo(java.math.BigInteger.valueOf(100)) < 0 && unitIndex > 0) {
             int decimal = frac.multiply(java.math.BigInteger.valueOf(10)).divide(thousand).intValue();
             return whole + "." + decimal + NUMBER_UNITS[unitIndex];
@@ -746,7 +746,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
 
     @Override
     public NBTTagCompound getUpdateTag() {
-        // 确保在客户端请求同步前，存储已初始化（避免重载后信息面板显示 0）
+        // 确保在客户端请求同步前,存储已初始化(避免重载后信息面板显示 0)
         if (formed && itemAdapter == null && nexusId != null && world != null && !world.isRemote) {
             initStorage();
         }
@@ -797,7 +797,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         double cx = pos.getX() + 0.5 + offX;
         double cy = pos.getY() + 4.0;
         double cz = pos.getZ() + 0.5 + offZ;
-        double r = 5.5; // 覆盖超立方体全部渲染范围（半径约 4.5，留余量）
+        double r = 5.5; // 覆盖超立方体全部渲染范围(半径约 4.5,留余量)
         return new AxisAlignedBB(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r);
     }
 

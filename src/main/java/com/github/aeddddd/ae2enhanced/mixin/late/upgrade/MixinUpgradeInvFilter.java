@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * F1b：Mixin AE2 UpgradeInventory 的内部过滤器，让频道接收卡能够绕过
- * {@link appeng.api.config.Upgrades} 枚举限制，直接插入升级槽。
+ * F1b：Mixin AE2 UpgradeInventory 的内部过滤器,让频道接收卡能够绕过
+ * {@link appeng.api.config.Upgrades} 枚举限制,直接插入升级槽.
  *
  * <p>参考实现：AE2 Better Magnet Card<br>
  * https://github.com/NuanKi/AE2-Better-Magnet-Card</p>

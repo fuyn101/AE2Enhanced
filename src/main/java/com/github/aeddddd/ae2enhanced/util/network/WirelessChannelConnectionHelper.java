@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 无线频道接收卡的远程网格连接管理器。
- * 此类不是 Mixin，可被任意 Mixin 安全引用，避免类加载器隔离问题。
+ * 无线频道接收卡的远程网格连接管理器.
+ * 此类不是 Mixin,可被任意 Mixin 安全引用,避免类加载器隔离问题.
  */
 public class WirelessChannelConnectionHelper {
 
@@ -48,8 +48,8 @@ public class WirelessChannelConnectionHelper {
     }
 
     /**
-     * 验证所有缓存的无线连接，销毁已失效的连接并从缓存中移除。
-     * 由定时 tick handler 调用。
+     * 验证所有缓存的无线连接,销毁已失效的连接并从缓存中移除.
+     * 由定时 tick handler 调用.
      */
     public static void validateAllConnections() {
         if (AE2E_REMOTE_CONNECTIONS.isEmpty()) return;
@@ -168,9 +168,9 @@ public class WirelessChannelConnectionHelper {
                 AE2Enhanced.LOGGER.warn("[AE2E] Created wireless grid connection for {} -> transmitter at {}",
                         parent.getClass().getSimpleName(), pos);
 
-                // AE2 的 createGridConnection 在 addConnection 之前调用 repath()，
-                // 导致路径系统看不到这条新连接，从而无法分配频道。
-                // 手动再触发一次 repath() 以修正路径计算。
+                // AE2 的 createGridConnection 在 addConnection 之前调用 repath(),
+                // 导致路径系统看不到这条新连接,从而无法分配频道.
+                // 手动再触发一次 repath() 以修正路径计算.
                 IGrid grid = node.getGrid();
                 if (grid != null) {
                     IPathingGrid pathing = grid.getCache(IPathingGrid.class);
@@ -237,7 +237,7 @@ public class WirelessChannelConnectionHelper {
         if (!(te instanceof TileWirelessChannelTransmitter)) {
             AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: TileEntity at {} is {}, expected TileWirelessChannelTransmitter",
                     pos, te.getClass().getName());
-            // 向后兼容：旧版卡片可能绑定到 IPartHost（线缆）上的 Part
+            // 向后兼容：旧版卡片可能绑定到 IPartHost(线缆)上的 Part
             if (te instanceof IPartHost) {
                 IPartHost host = (IPartHost) te;
                 for (appeng.api.util.AEPartLocation side : appeng.api.util.AEPartLocation.SIDE_LOCATIONS) {

@@ -8,9 +8,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：切换指定配方的禁用/启用状态。
+ * 智能样板接口：切换指定配方的禁用/启用状态.
  *
- * <p>客户端发送 recipeIndex，服务端根据当前 scrollOffset 计算实际配方索引并切换。</p>
+ * <p>客户端发送 recipeIndex,服务端根据当前 scrollOffset 计算实际配方索引并切换.</p>
  */
 public class PacketSmartPatternToggle implements IMessage {
 

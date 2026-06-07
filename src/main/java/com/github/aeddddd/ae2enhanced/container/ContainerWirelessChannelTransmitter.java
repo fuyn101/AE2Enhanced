@@ -8,7 +8,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 
 /**
- * F1a：无线频道发生器 GUI 的 Container。
+ * F1a：无线频道发生器 GUI 的 Container.
  */
 public class ContainerWirelessChannelTransmitter extends AEBaseContainer {
 

@@ -26,11 +26,11 @@ import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.items.IItemHandler;
 
 /**
- * 通用总线（输入/输出）Container 基类。
+ * 通用总线(输入/输出)Container 基类.
  *
- * 统一封装 7×9 过滤槽布局、5 升级槽、容量卡解锁、fake 物品转换等逻辑，
+ * 统一封装 7×9 过滤槽布局、5 升级槽、容量卡解锁、fake 物品转换等逻辑,
  * 消除 ContainerUniversalExportBus / ContainerUniversalImportBus 中
- * 各自重复的 ~130 行代码。
+ * 各自重复的 ~130 行代码.
  */
 public abstract class AbstractUniversalBusContainer extends ContainerUpgradeable implements IOptionalSlotHost {
 

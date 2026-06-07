@@ -11,10 +11,10 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 
 /**
- * ae2fc (AE2 Fluid Crafting) 反射辅助类。
+ * ae2fc (AE2 Fluid Crafting) 反射辅助类.
  *
- * <p>由于 ae2fc 是 compileOnly 依赖，所有硬引用必须通过反射，
- * 以避免运行时未安装 ae2fc 时触发 {@link NoClassDefFoundError}。</p>
+ * <p>由于 ae2fc 是 compileOnly 依赖,所有硬引用必须通过反射,
+ * 以避免运行时未安装 ae2fc 时触发 {@link NoClassDefFoundError}.</p>
  */
 public class Ae2fcFluidHelper {
 

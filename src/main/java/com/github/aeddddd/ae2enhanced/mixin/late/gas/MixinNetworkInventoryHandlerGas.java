@@ -22,8 +22,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * E2a：在 NetworkInventoryHandler 层面拦截气体假物品。
- * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中，条件加载。
+ * E2a：在 NetworkInventoryHandler 层面拦截气体假物品.
+ * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中,条件加载.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkInventoryHandler.class, remap = false, priority = 1099)

@@ -19,14 +19,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * FunctionalStorageLegacy Hash 索引适配器。
+ * FunctionalStorageLegacy Hash 索引适配器.
  *
- * <p>完全替代 {@link com.xinyihl.functionalstoragelegacy.common.integration.ae2.ControllerMEItemHandler}，
- * 在 {@link ControllerItemHandler} 之上建立 {@code Map<Item, Map<meta, List<SlotRef>>>} Hash 索引，
- * 使 injectItems / extractItems / getAvailableItems 全部走 O(同物品槽位数) 路径。</p>
+ * <p>完全替代 {@link com.xinyihl.functionalstoragelegacy.common.integration.ae2.ControllerMEItemHandler},
+ * 在 {@link ControllerItemHandler} 之上建立 {@code Map<Item, Map<meta, List<SlotRef>>>} Hash 索引,
+ * 使 injectItems / extractItems / getAvailableItems 全部走 O(同物品槽位数) 路径.</p>
  *
- * <p>索引在首次使用时惰性构建，每次 MODULATE 操作后标记失效，下次使用时重建。
- * 所有 NPE 检查已封装在内部。</p>
+ * <p>索引在首次使用时惰性构建,每次 MODULATE 操作后标记失效,下次使用时重建.
+ * 所有 NPE 检查已封装在内部.</p>
  */
 public class FSLAdapter implements IDrawerIndexAdapter {
 
@@ -35,7 +35,7 @@ public class FSLAdapter implements IDrawerIndexAdapter {
 
     // Hash 索引: Item -> meta -> SlotRef 列表
     private final Map<Item, Map<Integer, List<SlotRef>>> itemIndex = new HashMap<>();
-    // 空槽位列表（用于 insert 时快速定位）
+    // 空槽位列表(用于 insert 时快速定位)
     private final List<SlotRef> emptySlots = new ArrayList<>();
     // 索引是否失效
     private boolean indexDirty = true;
@@ -116,7 +116,7 @@ public class FSLAdapter implements IDrawerIndexAdapter {
                 long before = remaining;
                 remaining = ref.handler.insertItemLong(ref.slot, inputStack, remaining, simulate);
                 if (!simulate && remaining < before) {
-                    // 该槽位已被占用，从 emptySlots 移除
+                    // 该槽位已被占用,从 emptySlots 移除
                     it.remove();
                 }
             }
@@ -220,7 +220,7 @@ public class FSLAdapter implements IDrawerIndexAdapter {
             rebuildIndex();
         }
         ItemStack inputStack = input.getDefinition();
-        // 如果已有该物品且未满，或有空槽位，则可以接受
+        // 如果已有该物品且未满,或有空槽位,则可以接受
         Map<Integer, List<SlotRef>> metaMap = this.itemIndex.get(inputStack.getItem());
         if (metaMap != null) {
             List<SlotRef> slots = metaMap.get(inputStack.getMetadata());

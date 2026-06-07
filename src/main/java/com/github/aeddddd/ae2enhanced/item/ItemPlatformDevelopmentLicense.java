@@ -12,8 +12,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * 平台开发许可。
- * 右键触发平台生成请求，由服务端执行冲突检测与渐进放置。
+ * 平台开发许可.
+ * 右键触发平台生成请求,由服务端执行冲突检测与渐进放置.
  */
 public class ItemPlatformDevelopmentLicense extends Item {
 

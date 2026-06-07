@@ -9,7 +9,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import java.util.Map;
 
 /**
- * Supercausal Computation Core 未成型状态 GUI。
+ * Supercausal Computation Core 未成型状态 GUI.
  */
 public class GuiComputationUnformed extends GuiStructureUnformed {
 

@@ -13,10 +13,10 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口绑定请求。
+ * 智能样板接口绑定请求.
  *
- * <p>客户端查询 JEI 后，将 SmartPatternData 的 NBT 发送到服务端，
- * 服务端反序列化并保存到 TileEntity 和外部存储文件。</p>
+ * <p>客户端查询 JEI 后,将 SmartPatternData 的 NBT 发送到服务端,
+ * 服务端反序列化并保存到 TileEntity 和外部存储文件.</p>
  */
 public class PacketSmartPatternBind implements IMessage {
 

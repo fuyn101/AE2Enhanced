@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * 将 PatternHelper 中的 InventoryCrafting 在 processing 模式下从 4×4 扩展为 10×10，
- * 以支持超过 16 个输入的 processing pattern。
+ * 将 PatternHelper 中的 InventoryCrafting 在 processing 模式下从 4×4 扩展为 10×10,
+ * 以支持超过 16 个输入的 processing pattern.
  */
 @Mixin(value = PatternHelper.class, remap = false)
 public class MixinPatternHelper {

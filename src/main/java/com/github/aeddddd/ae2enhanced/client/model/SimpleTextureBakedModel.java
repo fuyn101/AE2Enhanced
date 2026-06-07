@@ -13,10 +13,10 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 极简的纹理 BakedModel：只显示单层 sprite 的 2D 物品模型。
- * 用于 FluidDrop / GasDrop / EssentiaDrop 等假物品的动态模型渲染。
+ * 极简的纹理 BakedModel：只显示单层 sprite 的 2D 物品模型.
+ * 用于 FluidDrop / GasDrop / EssentiaDrop 等假物品的动态模型渲染.
  *
- * 消除 FluidDropModel.OverrideModel 与 GasDropModel.OverrideModel 的重复 IBakedModel 实现。
+ * 消除 FluidDropModel.OverrideModel 与 GasDropModel.OverrideModel 的重复 IBakedModel 实现.
  */
 public class SimpleTextureBakedModel implements IBakedModel {
 

@@ -9,8 +9,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * RF 能量存储通道的实现。
- * 1 stackSize = 1 RF，transferFactor = 1。
+ * RF 能量存储通道的实现.
+ * 1 stackSize = 1 RF,transferFactor = 1.
  */
 public final class EnergyStorageChannel implements IEnergyStorageChannel {
 

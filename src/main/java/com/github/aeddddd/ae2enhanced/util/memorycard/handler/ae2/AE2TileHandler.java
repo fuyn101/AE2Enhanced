@@ -17,8 +17,8 @@ import net.minecraftforge.items.IItemHandler;
 import java.util.List;
 
 /**
- * 处理 AE2 TileEntity 的配置复制粘贴。
- * 配置与升级分离：paste 先应用升级，再用剩余 NBT 应用配置。
+ * 处理 AE2 TileEntity 的配置复制粘贴.
+ * 配置与升级分离：paste 先应用升级,再用剩余 NBT 应用配置.
  */
 public class AE2TileHandler implements IMemoryCardHandler {
 
@@ -57,7 +57,7 @@ public class AE2TileHandler implements IMemoryCardHandler {
     public PasteResult paste(Object target, NBTTagCompound data, EntityPlayer player) {
         AEBaseTile tile = (AEBaseTile) target;
 
-        // 1. 先处理升级（配置粘贴不应覆盖升级槽）
+        // 1. 先处理升级(配置粘贴不应覆盖升级槽)
         if (data.hasKey("ae2e:upgrades") && tile instanceof ISegmentedInventory) {
             NBTTagList upgradeList = data.getTagList("ae2e:upgrades", 10);
             IItemHandler upgrades = ((ISegmentedInventory) tile).getInventoryByName("upgrades");

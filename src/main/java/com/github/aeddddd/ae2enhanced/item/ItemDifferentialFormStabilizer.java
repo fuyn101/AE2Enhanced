@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 微分形式稳定单元 —�?黑洞退火产物，T2 材料�?
+ * 微分形式稳定单元 —�?黑洞退火产物,T2 材料�?
  */
 public class ItemDifferentialFormStabilizer extends Item {
 

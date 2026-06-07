@@ -10,20 +10,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Draconic Evolution 专用能量适配器。
+ * Draconic Evolution 专用能量适配器.
  *
- * <p>核心突破：对于所有实现 {@code IExtendedRFStorage} 的龙研设备（包括
- * {@code TileEnergyStorageCore}、{@code TileCraftingInjector} 等），通过反射
- * 直接操作其内部 {@code ManagedLong energy.value} 字段，实现 {@code long} 级别的
- * 瞬间注入，完全 bypass 标准 Forge {@link IEnergyStorage#receiveEnergy(int, boolean)}
- * 的 {@code int} 上限（2.1B）以及设备自身的 tick 级限流（如 CraftingInjector 的
- * {@code maxRFPerTick = cost / chargeSpeedModifier}）。</p>
+ * <p>核心突破：对于所有实现 {@code IExtendedRFStorage} 的龙研设备(包括
+ * {@code TileEnergyStorageCore}、{@code TileCraftingInjector} 等),通过反射
+ * 直接操作其内部 {@code ManagedLong energy.value} 字段,实现 {@code long} 级别的
+ * 瞬间注入,完全 bypass 标准 Forge {@link IEnergyStorage#receiveEnergy(int, boolean)}
+ * 的 {@code int} 上限(2.1B)以及设备自身的 tick 级限流(如 CraftingInjector 的
+ * {@code maxRFPerTick = cost / chargeSpeedModifier}).</p>
  *
- * <p>对于 {@code TileCraftingInjector}，会额外检查 {@code currentCraftingInventory}
- * 字段：只有在注入器处于活跃合成状态时（字段非 null）才注入能量；空闲时返回 0，
- * 避免能量凭空消失。</p>
+ * <p>对于 {@code TileCraftingInjector},会额外检查 {@code currentCraftingInventory}
+ * 字段：只有在注入器处于活跃合成状态时(字段非 null)才注入能量；空闲时返回 0,
+ * 避免能量凭空消失.</p>
  *
- * <p>对于不实现 {@code IExtendedRFStorage} 的龙研设备，回退到标准 FE 多调用策略。</p>
+ * <p>对于不实现 {@code IExtendedRFStorage} 的龙研设备,回退到标准 FE 多调用策略.</p>
  */
 public class DEEnergyAdapter implements IEnergyAdapter {
 
@@ -38,7 +38,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
     private static Field managedLongValueField;
     private static boolean interfaceReflectionReady = false;
 
-    // IFusionCraftingInventory 接口反射缓存（用于 TileCraftingInjector）
+    // IFusionCraftingInventory 接口反射缓存(用于 TileCraftingInjector)
     private static Method getIngredientEnergyCostMethod;
     private static boolean fusionInventoryReflectionReady = false;
 
@@ -71,7 +71,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
 
             interfaceReflectionReady = true;
         } catch (Exception e) {
-            // 反射失败，将完全回退到标准 Forge 策略
+            // 反射失败,将完全回退到标准 Forge 策略
         }
     }
 
@@ -85,7 +85,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
             getIngredientEnergyCostMethod = fusionInvClass.getMethod("getIngredientEnergyCost");
             fusionInventoryReflectionReady = true;
         } catch (Exception e) {
-            // IFusionCraftingInventory 不可用（极不可能，因为 draconic evolution 已加载）
+            // IFusionCraftingInventory 不可用(极不可能,因为 draconic evolution 已加载)
         }
     }
 
@@ -144,13 +144,13 @@ public class DEEnergyAdapter implements IEnergyAdapter {
     }
 
     /**
-     * 获取设备的有效容量。
+     * 获取设备的有效容量.
      *
-     * <p>正常设备使用 {@code getExtendedCapacity()}。对于 {@code TileCraftingInjector}，
-     * 其 {@code getExtendedCapacity()} 因实现 bug 返回 0，此时通过反射读取
-     * {@code currentCraftingInventory} 字段，若活跃则调用
+     * <p>正常设备使用 {@code getExtendedCapacity()}.对于 {@code TileCraftingInjector},
+     * 其 {@code getExtendedCapacity()} 因实现 bug 返回 0,此时通过反射读取
+     * {@code currentCraftingInventory} 字段,若活跃则调用
      * {@code IFusionCraftingInventory#getIngredientEnergyCost()} 获取真实容量；
-     * 若空闲则返回 0，阻止注入。</p>
+     * 若空闲则返回 0,阻止注入.</p>
      */
     private static long getEffectiveCapacity(TileEntity tile, long stored) {
         try {
@@ -158,17 +158,17 @@ public class DEEnergyAdapter implements IEnergyAdapter {
             if (capacity > stored) {
                 return capacity;
             }
-            // capacity <= stored（包括 TileCraftingInjector 返回 0 的情况）
+            // capacity <= stored(包括 TileCraftingInjector 返回 0 的情况)
             Field craftingInvField = getCraftingInventoryField(tile.getClass());
             if (craftingInvField != null && fusionInventoryReflectionReady) {
                 Object craftingInv = craftingInvField.get(tile);
                 if (craftingInv != null) {
                     return (Long) getIngredientEnergyCostMethod.invoke(craftingInv);
                 }
-                // currentCraftingInventory == null：注入器空闲，禁止注入
+                // currentCraftingInventory == null：注入器空闲,禁止注入
                 return 0L;
             }
-            // 不是 CraftingInjector，且 capacity <= 0，视为无上限
+            // 不是 CraftingInjector,且 capacity <= 0,视为无上限
             return Long.MAX_VALUE;
         } catch (Exception e) {
             return Long.MAX_VALUE;
@@ -195,7 +195,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
                     long capacity = getEffectiveCapacity(tile, stored);
                     return Math.max(0L, capacity - stored);
                 } catch (Exception e) {
-                    // 反射失败，回退
+                    // 反射失败,回退
                 }
             }
         }
@@ -222,7 +222,7 @@ public class DEEnergyAdapter implements IEnergyAdapter {
                     }
                     return toAdd;
                 } catch (Exception e) {
-                    // 反射失败，回退
+                    // 反射失败,回退
                 }
             }
         }

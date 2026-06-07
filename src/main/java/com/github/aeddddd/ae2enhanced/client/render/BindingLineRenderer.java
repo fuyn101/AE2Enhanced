@@ -22,12 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 客户端绑定高亮渲染器。
+ * 客户端绑定高亮渲染器.
  *
- * 当玩家主手持有 Universal Memory Card 且准心指向某个 1 对多网络中的设备时，
+ * 当玩家主手持有 Universal Memory Card 且准心指向某个 1 对多网络中的设备时,
  * 只为该网络渲染高亮描边边框：
- * - 中枢 ME 接口（source）：青色描边
- * - 目标机器（target）：橙色描边
+ * - 中枢 ME 接口(source)：青色描边
+ * - 目标机器(target)：橙色描边
  */
 public class BindingLineRenderer {
 

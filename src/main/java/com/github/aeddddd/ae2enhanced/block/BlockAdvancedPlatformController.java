@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 先进中枢平台控制器方块。
- * 平台核心，ME 网络节点，能量缓冲与分发中枢。
+ * 先进中枢平台控制器方块.
+ * 平台核心,ME 网络节点,能量缓冲与分发中枢.
  */
 public class BlockAdvancedPlatformController extends Block {
 

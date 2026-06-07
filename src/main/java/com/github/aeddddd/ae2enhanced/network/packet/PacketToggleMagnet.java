@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 客户端发送 H 键按下，服务器切换磁引卡模式。
+ * 客户端发送 H 键按下,服务器切换磁引卡模式.
  */
 public class PacketToggleMagnet implements IMessage {
 

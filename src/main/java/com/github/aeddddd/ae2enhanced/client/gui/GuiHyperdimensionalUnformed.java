@@ -9,7 +9,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import java.util.Map;
 
 /**
- * 超维度仓储中枢未成型状态 GUI。
+ * 超维度仓储中枢未成型状态 GUI.
  */
 public class GuiHyperdimensionalUnformed extends GuiStructureUnformed {
 

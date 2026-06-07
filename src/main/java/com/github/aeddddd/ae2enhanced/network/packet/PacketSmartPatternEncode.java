@@ -8,9 +8,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 智能样板接口：请求编码空白样板。
+ * 智能样板接口：请求编码空白样板.
  *
- * <p>客户端发送编码请求，服务端验证冲突并执行编码。</p>
+ * <p>客户端发送编码请求,服务端验证冲突并执行编码.</p>
  */
 public class PacketSmartPatternEncode implements IMessage {
 

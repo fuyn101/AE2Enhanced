@@ -9,8 +9,8 @@ import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import java.math.BigInteger;
 
 /**
- * 超维度仓储枢纽的 RF 能量存储适配器，继承 {@link AbstractStorageAdapter}。
- * 内部使用 BigInteger 维护数量，突破 long 上限。
+ * 超维度仓储枢纽的 RF 能量存储适配器,继承 {@link AbstractStorageAdapter}.
+ * 内部使用 BigInteger 维护数量,突破 long 上限.
  */
 public class HyperdimensionalEnergyStorageAdapter extends AbstractStorageAdapter<IAEEnergyStack, EnergyDescriptor> {
 

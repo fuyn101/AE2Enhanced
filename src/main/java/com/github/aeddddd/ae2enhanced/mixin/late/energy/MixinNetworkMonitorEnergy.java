@@ -27,8 +27,8 @@ import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.Collections;
 
 /**
- * E2a：在 AE2 物品网络的 NetworkMonitor 中注入 RF 能量假物品。
- * priority = 1100，确保在其他 mixin 之后注入。
+ * E2a：在 AE2 物品网络的 NetworkMonitor 中注入 RF 能量假物品.
+ * priority = 1100,确保在其他 mixin 之后注入.
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = NetworkMonitor.class, remap = false, priority = 1100)

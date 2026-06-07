@@ -9,7 +9,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * E1a：同步通用总线的调度模式到服务端。
+ * E1a：同步通用总线的调度模式到服务端.
  */
 public class PacketUniversalBusConfig implements IMessage {
 

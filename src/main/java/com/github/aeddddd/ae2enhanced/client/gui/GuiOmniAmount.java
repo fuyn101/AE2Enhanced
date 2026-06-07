@@ -14,7 +14,7 @@ import java.io.IOException;
 /**
  * Omni Terminal 数量输入子 GUI —— 风格完全复用 AE2 GuiCraftAmount
  *
- * 中键点击 ghost slot 后弹出，输入数量后发送 PacketSetSlotAmount 并返回父 GUI。
+ * 中键点击 ghost slot 后弹出,输入数量后发送 PacketSetSlotAmount 并返回父 GUI.
  */
 public class GuiOmniAmount extends GuiScreen {
 

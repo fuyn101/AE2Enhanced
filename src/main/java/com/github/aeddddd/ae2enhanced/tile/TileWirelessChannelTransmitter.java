@@ -28,10 +28,10 @@ import javax.annotation.Nonnull;
 import java.util.EnumSet;
 
 /**
- * F1a：无线频道发生器的 TileEntity。
+ * F1a：无线频道发生器的 TileEntity.
  *
- * <p>具有 AE 网络代理、2 槽物品栏（输入/输出频道卡）、
- * 周期性绑定处理与客户端状态同步。</p>
+ * <p>具有 AE 网络代理、2 槽物品栏(输入/输出频道卡)、
+ * 周期性绑定处理与客户端状态同步.</p>
  */
 public class TileWirelessChannelTransmitter extends TileAENetworkBase implements ITickable {
 
@@ -114,11 +114,11 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
     @Override
     public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        // INTERNAL 用于远程查询（如频道接收卡查找发射器节点）
+        // INTERNAL 用于远程查询(如频道接收卡查找发射器节点)
         if (dir == AEPartLocation.INTERNAL) {
             return getProxy().getNode();
         }
-        // 仅背面暴露节点（用于线缆连接）
+        // 仅背面暴露节点(用于线缆连接)
         if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
             return getProxy().getNode();
         }

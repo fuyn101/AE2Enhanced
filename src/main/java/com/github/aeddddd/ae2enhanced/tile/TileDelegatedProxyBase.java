@@ -13,14 +13,14 @@ import net.minecraft.util.math.BlockPos;
 import javax.annotation.Nonnull;
 
 /**
- * 委托控制器代理的网络接口 TileEntity 基类。
+ * 委托控制器代理的网络接口 TileEntity 基类.
  *
- * ME 接口方块本身不创建独立 AE 节点，而是将网络接入委托给对应的控制器。
- * 统一封装 controllerPos 读写、getProxy/getGridNode 委托、securityBreak 转发，
+ * ME 接口方块本身不创建独立 AE 节点,而是将网络接入委托给对应的控制器.
+ * 统一封装 controllerPos 读写、getProxy/getGridNode 委托、securityBreak 转发,
  * 消除 TileAssemblyMeInterface / TileHyperdimensionalMeInterface / TileSuperCraftingInterface
- * 中各自重复的 ~30 行样板代码。
+ * 中各自重复的 ~30 行样板代码.
  *
- * @param <C> 控制器类型，必须实现 IGridProxyable
+ * @param <C> 控制器类型,必须实现 IGridProxyable
  */
 public abstract class TileDelegatedProxyBase<C extends TileEntity & IGridProxyable> extends TileEntity implements IGridProxyable {
 

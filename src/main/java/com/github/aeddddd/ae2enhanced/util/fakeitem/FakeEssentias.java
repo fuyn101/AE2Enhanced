@@ -9,20 +9,20 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 /**
- * 源质假物品的 Thaumic Energistics 依赖方法。
+ * 源质假物品的 Thaumic Energistics 依赖方法.
  *
- * <p>此类包含 {@link #init()} 与 {@link #unpackEssentia}，它们直接引用
- * Thaumic Energistics 类型（IAEEssentiaStack 等）。因此本类<strong>只能</strong>
- * 在 Thaumic Energistics 已安装时被加载（由 AE2Enhanced.preInit() 控制）。</p>
+ * <p>此类包含 {@link #init()} 与 {@link #unpackEssentia},它们直接引用
+ * Thaumic Energistics 类型(IAEEssentiaStack 等).因此本类<strong>只能</strong>
+ * 在 Thaumic Energistics 已安装时被加载(由 AE2Enhanced.preInit() 控制).</p>
  *
- * <p>无需 Thaumic Energistics 的安全方法已移至 {@link FakeEssentiaSafe}，
- * 可供无条件加载的类安全导入。</p>
+ * <p>无需 Thaumic Energistics 的安全方法已移至 {@link FakeEssentiaSafe},
+ * 可供无条件加载的类安全导入.</p>
  */
 public class FakeEssentias {
 
     /**
-     * 在模组初始化时注册源质 FakeItemHandler。
-     * 仅在 Thaumcraft 存在时调用（由 AE2Enhanced.preInit() 控制）。
+     * 在模组初始化时注册源质 FakeItemHandler.
+     * 仅在 Thaumcraft 存在时调用(由 AE2Enhanced.preInit() 控制).
      */
     public static void init() {
         FakeItemRegister.registerHandler(ItemEssentiaDrop.class, new FakeItemHandler<IAEEssentiaStack, IAEEssentiaStack>() {
@@ -80,8 +80,8 @@ public class FakeEssentias {
     }
 
     /**
-     * 从 IAEItemStack 中解析 IAEEssentiaStack。
-     * 支持 ItemEssentiaDrop 和 Thaumic Energistics 的 ItemDummyAspect。
+     * 从 IAEItemStack 中解析 IAEEssentiaStack.
+     * 支持 ItemEssentiaDrop 和 Thaumic Energistics 的 ItemDummyAspect.
      */
     public static IAEEssentiaStack unpackEssentia(IAEItemStack itemStack) {
         if (itemStack == null) return null;

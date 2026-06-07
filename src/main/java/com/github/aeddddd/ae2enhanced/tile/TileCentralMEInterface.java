@@ -30,10 +30,10 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * 中枢 ME 接口的 TileEntity。
+ * 中枢 ME 接口的 TileEntity.
  *
- * 委托所有核心逻辑给 {@link DualityCentralInterface}，
- * 自身仅承担生命周期管理与 AE2 接口适配。
+ * 委托所有核心逻辑给 {@link DualityCentralInterface},
+ * 自身仅承担生命周期管理与 AE2 接口适配.
  */
 public class TileCentralMEInterface extends TileAENetworkBase
     implements ICentralInterfaceHost, IGridTickable, ICraftingProvider,
@@ -85,7 +85,7 @@ public class TileCentralMEInterface extends TileAENetworkBase
     }
 
     /**
-     * 掉落中枢 ME 接口的所有内容物（样板、存储/返回栏、升级卡）。
+     * 掉落中枢 ME 接口的所有内容物(样板、存储/返回栏、升级卡).
      */
     public void dropAllContents() {
         if (world == null || world.isRemote) return;
@@ -129,7 +129,7 @@ public class TileCentralMEInterface extends TileAENetworkBase
     @Override
     public void securityBreak() {
         if (world != null && !world.isRemote) {
-            // 安全破坏时不掉落物品，与标准 AE2 行为一致
+            // 安全破坏时不掉落物品,与标准 AE2 行为一致
             world.destroyBlock(pos, false);
         }
     }

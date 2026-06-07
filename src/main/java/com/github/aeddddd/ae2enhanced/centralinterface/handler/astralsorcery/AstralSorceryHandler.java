@@ -25,14 +25,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Astral Sorcery 星辉祭坛远程处理器。
+ * Astral Sorcery 星辉祭坛远程处理器.
  *
- * <p>支持全部 5 个等级（DISCOVERY~BRILLIANCE）。
- * 配方匹配策略：在 {@code canStart} 中通过输入物品种类+数量遍历祭坛配方列表，
+ * <p>支持全部 5 个等级(DISCOVERY~BRILLIANCE).
+ * 配方匹配策略：在 {@code canStart} 中通过输入物品种类+数量遍历祭坛配方列表,
  * 找到唯一匹配后缓存；{@code pushMaterials} 按缓存配方的 slot 布局精确放置物品
- * （包括 3x3 主网格与 Attunement/Constellation/Trait 额外槽位）；
- * {@code startProcess} 直接创建 {@code ActiveCraftingTask} 并注入 TileAltar，
- * 绕过 FakePlayer 进度门控。</p>
+ * (包括 3x3 主网格与 Attunement/Constellation/Trait 额外槽位)；
+ * {@code startProcess} 直接创建 {@code ActiveCraftingTask} 并注入 TileAltar,
+ * 绕过 FakePlayer 进度门控.</p>
  */
 public class AstralSorceryHandler implements IRemoteHandler {
 
@@ -72,7 +72,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
     private static Constructor<?> CTOR_ACTIVE_CRAFTING_TASK;
     private static boolean reflectionReady = false;
 
-    // 配方缓存：BlockPos → AbstractAltarRecipe（canStart 与 pushMaterials 之间传递）
+    // 配方缓存：BlockPos → AbstractAltarRecipe(canStart 与 pushMaterials 之间传递)
     private final Map<BlockPos, Object> recipeCache = new ConcurrentHashMap<>();
 
     private static void initReflection() {
@@ -154,7 +154,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
         if (!getMultiblockState(te)) return false;
 
         // 祭坛所有 slot 必须为空；如有残留物品则尝试清空
-        // 注意：matches() 检查的是 handler.getSlots() 中的所有 slot，不能仅清空 accessibleSize
+        // 注意：matches() 检查的是 handler.getSlots() 中的所有 slot,不能仅清空 accessibleSize
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
         for (int i = 0; i < handler.getSlots(); i++) {
@@ -162,7 +162,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (!current.isEmpty()) {
                 ItemStack extracted = handler.extractItem(i, current.getCount(), false);
                 if (!handler.getStackInSlot(i).isEmpty()) {
-                    return false; // 无法清空，祭坛被占用
+                    return false; // 无法清空,祭坛被占用
                 }
             }
         }
@@ -194,7 +194,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             if (recipe == null) return false;
         }
 
-        // 清空祭坛所有 slot（matches() 会检查 handler 的全部 slot）
+        // 清空祭坛所有 slot(matches() 会检查 handler 的全部 slot)
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack current = handler.getStackInSlot(i);
             if (!current.isEmpty()) {
@@ -202,7 +202,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 收集可用物品（AE 样板中的所有非空物品）
+        // 收集可用物品(AE 样板中的所有非空物品)
         List<ItemStack> available = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -232,12 +232,12 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 放置额外槽位（Attunement / Constellation / Trait）
+        // 放置额外槽位(Attunement / Constellation / Trait)
         placeExtraSlots(recipe, available, handler, CLASS_ATTUNEMENT_RECIPE, FIELD_ADDITIONAL_SLOTS);
         placeExtraSlots(recipe, available, handler, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
         placeExtraSlots(recipe, available, handler, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
 
-        // 放置 TraitRecipe 的外部 additionallyRequiredStacks（光波增幅器 / AttunementRelay）
+        // 放置 TraitRecipe 的外部 additionallyRequiredStacks(光波增幅器 / AttunementRelay)
         placeOuterStacks(world, pos, recipe, available);
 
         return true;
@@ -259,7 +259,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             // 直接使用 canStart/pushMaterials 已验证的配方创建 ActiveCraftingTask
             Object recipe = recipeCache.get(pos);
             if (recipe == null) {
-                // 回退：通过 findMatchingRecipe 查找（此时物品已放置好，应该能找到）
+                // 回退：通过 findMatchingRecipe 查找(此时物品已放置好,应该能找到)
                 recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
             }
             if (recipe == null) {
@@ -316,10 +316,10 @@ public class AstralSorceryHandler implements IRemoteHandler {
             }
         }
 
-        // 清空祭坛所有 slot，防止残留物品阻塞下一次推送
+        // 清空祭坛所有 slot,防止残留物品阻塞下一次推送
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_TILE_ALTAR.isInstance(te)) {
-            // 双重校验：确保确实不在合成中，避免过早清空未完成的材料
+            // 双重校验：确保确实不在合成中,避免过早清空未完成的材料
             if (getActiveCraftingTask(te) == null) {
                 IItemHandler handler = getInventoryHandler(te);
                 if (handler != null) {
@@ -340,8 +340,8 @@ public class AstralSorceryHandler implements IRemoteHandler {
     // ---- 配方查找与匹配 ----
 
     /**
-     * 通过输入物品种类+数量在 AltarRecipeRegistry 中查找匹配的配方。
-     * 只搜索当前祭坛等级及以下的配方。
+     * 通过输入物品种类+数量在 AltarRecipeRegistry 中查找匹配的配方.
+     * 只搜索当前祭坛等级及以下的配方.
      */
     @SuppressWarnings("unchecked")
     private static Object findRecipeByIngredients(TileEntity altar, InventoryCrafting ingredients) {
@@ -388,10 +388,10 @@ public class AstralSorceryHandler implements IRemoteHandler {
             // ConstellationRecipe 额外 slot
             addExtraSlotRequirements(recipe, required, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
 
-            // TraitRecipe 额外 slot（内部 matchTraitStacks）
+            // TraitRecipe 额外 slot(内部 matchTraitStacks)
             addExtraSlotRequirements(recipe, required, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
 
-            // TraitRecipe 外部 additionallyRequiredStacks（光波增幅器 / AttunementRelay）
+            // TraitRecipe 外部 additionallyRequiredStacks(光波增幅器 / AttunementRelay)
             addOuterStackRequirements(recipe, required);
 
             List<ItemStack> available = new ArrayList<>();
@@ -600,7 +600,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
         if (a.isEmpty() || b.isEmpty()) return false;
         if (a.getItem() != b.getItem()) return false;
         if (a.getMetadata() != b.getMetadata()) return false;
-        // 星辉产物可能带有随机 NBT（如 Rock Crystal），回收时忽略 NBT
+        // 星辉产物可能带有随机 NBT(如 Rock Crystal),回收时忽略 NBT
         return true;
     }
 }

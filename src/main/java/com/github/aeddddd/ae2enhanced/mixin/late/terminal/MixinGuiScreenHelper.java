@@ -9,12 +9,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * E2a：JEI 成分识别适配 —— GuiScreenHelper。
- * 处理通过 IAdvancedGuiHandler / IGlobalGuiHandler 获取的 ingredient，
- * 同样将假物品转换为 JEI 可识别的实际成分。
+ * E2a：JEI 成分识别适配 —— GuiScreenHelper.
+ * 处理通过 IAdvancedGuiHandler / IGlobalGuiHandler 获取的 ingredient,
+ * 同样将假物品转换为 JEI 可识别的实际成分.
  *
- * 使用 targets 字符串代替类字面量，避免 Mixin 配置解析阶段提前触发
- * GuiScreenHelper 类加载（HEI 尚未初始化时会导致 ActualClassLoader 标记 invalid）。
+ * 使用 targets 字符串代替类字面量,避免 Mixin 配置解析阶段提前触发
+ * GuiScreenHelper 类加载(HEI 尚未初始化时会导致 ActualClassLoader 标记 invalid).
  */
 @Mixin(targets = "mezz.jei.gui.GuiScreenHelper", remap = false)
 public class MixinGuiScreenHelper {

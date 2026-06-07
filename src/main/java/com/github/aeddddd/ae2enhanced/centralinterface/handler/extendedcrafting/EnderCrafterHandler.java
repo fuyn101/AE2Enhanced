@@ -19,16 +19,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Extended Crafting 末影工作台远程处理器。
+ * Extended Crafting 末影工作台远程处理器.
  *
- * <p>末影工作台为 3×3 合成网格，材料放入后自动开始合成，
- * 需要周围存在 Ender Alternator 才能推进进度。
- * 合成完成后产物留在 result 槽，matrix 中未消耗的物品保留。</p>
+ * <p>末影工作台为 3×3 合成网格,材料放入后自动开始合成,
+ * 需要周围存在 Ender Alternator 才能推进进度.
+ * 合成完成后产物留在 result 槽,matrix 中未消耗的物品保留.</p>
  *
- * <p>处理样板策略（参考 ExtendedCraftingTableHandler / AstralSorceryHandler）：
- * AE 处理样板不保证槽位一一对应，因此 {@code canStart} 中通过物品种类+数量
+ * <p>处理样板策略(参考 ExtendedCraftingTableHandler / AstralSorceryHandler)：
+ * AE 处理样板不保证槽位一一对应,因此 {@code canStart} 中通过物品种类+数量
  * 遍历配方列表进行多对多匹配；{@code pushMaterials} 按配方 {@code getIngredients()}
- * 的槽位顺序从可用物品中匹配并精确放置。</p>
+ * 的槽位顺序从可用物品中匹配并精确放置.</p>
  */
 public class EnderCrafterHandler implements IRemoteHandler {
 
@@ -49,7 +49,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
     private static Method METHOD_GET_RECIPES;
     private static boolean recipeReflectionReady = false;
 
-    // 配方缓存：BlockPos → IRecipe（canStart 与 pushMaterials 之间传递）
+    // 配方缓存：BlockPos → IRecipe(canStart 与 pushMaterials 之间传递)
     private final Map<BlockPos, Object> recipeCache = new ConcurrentHashMap<>();
 
     private static void initBaseReflection() {
@@ -114,7 +114,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
             ItemStack result = (ItemStack) METHOD_GET_RESULT.invoke(te);
             if (!result.isEmpty()) return false;
 
-            // 周围必须有 Ender Alternator，否则 progress 不会增加
+            // 周围必须有 Ender Alternator,否则 progress 不会增加
             List<BlockPos> alternators = (List<BlockPos>) METHOD_GET_ALTERNATOR_POSITIONS.invoke(te);
             if (alternators == null || alternators.isEmpty()) return false;
 
@@ -122,7 +122,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
             return false;
         }
 
-        // 通过 ingredients 反查配方（不依赖槽位顺序）
+        // 通过 ingredients 反查配方(不依赖槽位顺序)
         Object recipe = findRecipe(ingredients);
         if (recipe != null) {
             recipeCache.put(pos, recipe);
@@ -147,7 +147,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
 
             List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
 
-            // 收集可用物品（保持原始 count）
+            // 收集可用物品(保持原始 count)
             List<ItemStack> available = new ArrayList<>();
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
                 ItemStack stack = ingredients.getStackInSlot(i);
@@ -195,7 +195,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return result;
 
         try {
-            // 收集产物（result 槽）
+            // 收集产物(result 槽)
             ItemStack product = (ItemStack) METHOD_GET_RESULT.invoke(te);
             if (!product.isEmpty()) {
                 result.add(product.copy());
@@ -228,7 +228,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
 
         try {
-            // 有产物可收集：无论 progress 状态如何，只要 result 非空就视为完成
+            // 有产物可收集：无论 progress 状态如何,只要 result 非空就视为完成
             ItemStack result = (ItemStack) METHOD_GET_RESULT.invoke(te);
             if (!result.isEmpty()) {
                 return true;
@@ -236,7 +236,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
 
             int progress = (int) METHOD_GET_PROGRESS.invoke(te);
             if (progress == 0) {
-                // 无产物且无进度：检查 matrix 是否也空，避免刚 push 材料后误判为 idle
+                // 无产物且无进度：检查 matrix 是否也空,避免刚 push 材料后误判为 idle
                 List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
                 for (ItemStack stack : matrix) {
                     if (!stack.isEmpty()) return false;
@@ -308,10 +308,10 @@ public class EnderCrafterHandler implements IRemoteHandler {
     }
 
     /**
-     * 检查 ingredients 中的材料是否满足 recipe 的所有非空 ingredients。
+     * 检查 ingredients 中的材料是否满足 recipe 的所有非空 ingredients.
      *
-     * <p>关键处理：AE2 处理样板传来的 InventoryCrafting 不保证槽位对应关系，
-     * 因此将输入按 count 拆分为单件列表后再与配方的非空 ingredient 进行一对一匹配。</p>
+     * <p>关键处理：AE2 处理样板传来的 InventoryCrafting 不保证槽位对应关系,
+     * 因此将输入按 count 拆分为单件列表后再与配方的非空 ingredient 进行一对一匹配.</p>
      */
     private static boolean ingredientsMatch(Object recipe, InventoryCrafting ingredients) {
         try {
@@ -319,7 +319,7 @@ public class EnderCrafterHandler implements IRemoteHandler {
             NonNullList<Ingredient> recipeIngredients = irecipe.getIngredients();
             if (recipeIngredients == null || recipeIngredients.isEmpty()) return false;
 
-            // 收集 recipe 中所有非空 ingredient（每个代表 1 个物品需求）
+            // 收集 recipe 中所有非空 ingredient(每个代表 1 个物品需求)
             List<Ingredient> required = new ArrayList<>();
             for (Ingredient ing : recipeIngredients) {
                 if (ing != null && ing != Ingredient.EMPTY) {

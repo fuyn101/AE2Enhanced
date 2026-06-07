@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.registry.content;
 import com.github.aeddddd.ae2enhanced.block.*;
 
 /**
- * 方块注册表 —— 仅声明 Block 实例字段。
+ * 方块注册表 —— 仅声明 Block 实例字段.
  */
 public final class BlockRegistry {
 
@@ -39,10 +39,10 @@ public final class BlockRegistry {
     // 智能样板接口
     public static BlockSmartPatternInterface SMART_PATTERN_INTERFACE;
 
-    // RF 访问节点（通用 ME-RF 桥接器，独立于平台系统）
+    // RF 访问节点(通用 ME-RF 桥接器,独立于平台系统)
     public static BlockRFAccessNode RF_ACCESS_NODE;
 
-    // 区块供电节点（从 ME 网络向本区块设备供能）
+    // 区块供电节点(从 ME 网络向本区块设备供能)
     public static BlockChunkPowerNode CHUNK_POWER_NODE;
 
     // 先进中枢平台

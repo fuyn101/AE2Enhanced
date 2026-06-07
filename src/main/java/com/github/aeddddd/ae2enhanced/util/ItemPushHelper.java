@@ -10,20 +10,20 @@ import appeng.util.Platform;
 import net.minecraft.item.ItemStack;
 
 /**
- * E2b-2：通用物品推送帮助类。
- * 封装“从网络提取并插入目标容器”的完整事务流程。
+ * E2b-2：通用物品推送帮助类.
+ * 封装“从网络提取并插入目标容器”的完整事务流程.
  */
 public final class ItemPushHelper {
 
     private ItemPushHelper() {}
 
     /**
-     * 将指定物品从网络推送到目标容器。
+     * 将指定物品从网络推送到目标容器.
      *
      * @param adaptor 目标容器的 InventoryAdaptor
-     * @param energy  能量网格（用于驱动提取）
+     * @param energy  能量网格(用于驱动提取)
      * @param inv     网络物品存储
-     * @param org     要推送的物品原型（含目标类型与数量信息）
+     * @param org     要推送的物品原型(含目标类型与数量信息)
      * @param maxSend 最大推送数量
      * @param source  动作来源
      * @return 实际推送的数量

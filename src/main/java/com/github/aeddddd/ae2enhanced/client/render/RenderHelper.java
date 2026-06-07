@@ -7,10 +7,10 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
 /**
- * TESR 渲染工具类。
+ * TESR 渲染工具类.
  *
- * 提取重复的球体绘制、线框球体、颜色解包等工具方法，
- * 消除 RenderBlackHole / RenderMicroSingularity 中 ~150 行重复代码。
+ * 提取重复的球体绘制、线框球体、颜色解包等工具方法,
+ * 消除 RenderBlackHole / RenderMicroSingularity 中 ~150 行重复代码.
  */
 public final class RenderHelper {
 
@@ -25,7 +25,7 @@ public final class RenderHelper {
         };
     }
 
-    /** 绘制实心球体（三角形网格） */
+    /** 绘制实心球体(三角形网格) */
     public static void drawSphere(double radius, int color, float alpha, int latSegs, int lonSegs) {
         if (alpha <= 0.01f) return;
         float[] rgb = unpackRGB(color);
@@ -49,7 +49,7 @@ public final class RenderHelper {
         tess.draw();
     }
 
-    /** 绘制线框球体（经纬线网格） */
+    /** 绘制线框球体(经纬线网格) */
     public static void drawWireframeSphere(double radius, int color, float alpha, int gridLat, int gridLon) {
         if (alpha <= 0.01f) return;
         float[] rgb = unpackRGB(color);

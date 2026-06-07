@@ -6,8 +6,8 @@ import appeng.api.storage.IStorageChannel;
 import java.math.BigInteger;
 
 /**
- * 气体存储适配器，继承 {@link AbstractStorageAdapter}。
- * 内部使用 BigInteger 维护数量，突破 long 上限。
+ * 气体存储适配器,继承 {@link AbstractStorageAdapter}.
+ * 内部使用 BigInteger 维护数量,突破 long 上限.
  */
 public class GasStorageAdapter extends AbstractStorageAdapter<com.mekeng.github.common.me.data.IAEGasStack, GasDescriptor> {
 

@@ -22,10 +22,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 超维度仓储中枢的外部文件持久化层（自定义二进制格式 v1）。
- * 每个结构对应一个独立目录，数据不写入 NBT/WorldSavedData。
+ * 超维度仓储中枢的外部文件持久化层(自定义二进制格式 v1).
+ * 每个结构对应一个独立目录,数据不写入 NBT/WorldSavedData.
  *
- * <p>文件格式（单文件 .bin）：</p>
+ * <p>文件格式(单文件 .bin)：</p>
  * <pre>
  * Header (16 bytes):
  *   Magic[4]      = "AE2E"
@@ -114,8 +114,8 @@ public class HyperdimensionalStorageFile {
 
     @SuppressWarnings("unchecked")
     private void initConditionalCodecs() {
-        // GasDescriptorCodec / EssentiaDescriptorCodec 类本身不硬引用可选 Mod 类，
-        // 但为了绝对安全（JVM 链接阶段行为不确定），仍通过反射加载。
+        // GasDescriptorCodec / EssentiaDescriptorCodec 类本身不硬引用可选 Mod 类,
+        // 但为了绝对安全(JVM 链接阶段行为不确定),仍通过反射加载.
         try {
             Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.codec.GasDescriptorCodec");
             this.gasCodec = clazz.getField("INSTANCE").get(null);
