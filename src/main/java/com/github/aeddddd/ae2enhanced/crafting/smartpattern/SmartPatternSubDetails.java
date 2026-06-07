@@ -33,13 +33,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
     public SmartPatternSubDetails(@Nonnull ItemStack parentPattern, @Nonnull SmartRecipe recipe) {
         this.parentPattern = parentPattern;
         this.recipe = recipe;
-        IAEItemStack[] inputs = recipe.getInputs();
-        // AE2 CraftingCPUCluster.executeCrafting 对 crafting pattern 硬编码 3x3 InventoryCrafting，
-        // 若 inputs 超过 9 个会在设置槽位时 IndexOutOfBoundsException。
-        if (recipe.isCrafting() && inputs.length > 9) {
-            inputs = java.util.Arrays.copyOf(inputs, 9);
-        }
-        this.condensedInputs = condenseStacks(inputs);
+        this.condensedInputs = condenseStacks(recipe.getInputs());
         this.condensedOutputs = condenseStacks(recipe.getOutputs());
         this.pattern = AEItemStack.fromItemStack(parentPattern);
     }
@@ -76,11 +70,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
     @Override
     @Nonnull
     public IAEItemStack[] getInputs() {
-        IAEItemStack[] inputs = recipe.getInputs();
-        if (recipe.isCrafting() && inputs.length > 9) {
-            return java.util.Arrays.copyOf(inputs, 9);
-        }
-        return inputs;
+        return recipe.getInputs();
     }
 
     @Override
