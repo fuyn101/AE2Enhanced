@@ -130,8 +130,10 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         if (channel instanceof IEnergyStorageChannel && energyAdapter != null) {
             return Collections.singletonList(energyAdapter);
         }
-        List<IMEInventoryHandler> optional = optionalStorage.getHandlers(channel);
-        if (!optional.isEmpty()) return optional;
+        if (optionalStorage != null) {
+            List<IMEInventoryHandler> optional = optionalStorage.getHandlers(channel);
+            if (!optional.isEmpty()) return optional;
+        }
         return Collections.emptyList();
     }
 
