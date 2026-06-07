@@ -117,7 +117,6 @@ public class OptionalStorageManager {
     }
 
     public void init(HyperdimensionalStorageFile file) {
-        AE2Enhanced.LOGGER.info("[AE2E-DIAG] OptionalStorageManager.init() start, nexus={}", file.getNexusId());
         initOptionalAdapter("mekeng",
                 "com.github.aeddddd.ae2enhanced.storage.GasStorageAdapter",
                 "com.mekeng.github.common.me.storage.IGasStorageChannel",
@@ -126,7 +125,6 @@ public class OptionalStorageManager {
                 "com.github.aeddddd.ae2enhanced.storage.EssentiaStorageAdapter",
                 "thaumicenergistics.api.storage.IEssentiaStorageChannel",
                 file);
-        AE2Enhanced.LOGGER.info("[AE2E-DIAG] OptionalStorageManager.init() done, adapters={}", optionalAdapters.size());
     }
 
     private void initOptionalAdapter(String modId, String adapterClassName,

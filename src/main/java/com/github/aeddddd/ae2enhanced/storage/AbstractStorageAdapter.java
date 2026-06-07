@@ -137,7 +137,6 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
     @Override
     public IItemList<T> getAvailableItems(IItemList<T> out) {
-        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-DIAG] AbstractStorageAdapter.getAvailableItems: storageSize={}, class={}", storage.size(), this.getClass().getSimpleName());
         int added = 0;
         for (Map.Entry<D, BigInteger> entry : storage.entrySet()) {
             D desc = entry.getKey();
@@ -154,7 +153,6 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             out.add(copy);
             added++;
         }
-        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-DIAG] AbstractStorageAdapter.getAvailableItems done: added={}, class={}", added, this.getClass().getSimpleName());
         return out;
     }
 

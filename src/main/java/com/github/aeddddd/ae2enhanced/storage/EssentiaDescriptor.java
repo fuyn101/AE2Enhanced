@@ -55,11 +55,9 @@ public class EssentiaDescriptor implements Descriptor {
                     thaumicenergistics.api.EssentiaStack stack = new thaumicenergistics.api.EssentiaStack(aspectTag, 1);
                     // 防御性检查：aspectTag 对应的 Aspect 可能已被移除或不存在
                     if (stack.getAspect() == null) {
-                        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E-DIAG] EssentiaDescriptor.getAETemplate: aspectTag={} -> stack.getAspect() is null", aspectTag);
                         return null;
                     }
                     result = aeTemplate = thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(stack);
-                    com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info("[AE2E-DIAG] EssentiaDescriptor.getAETemplate: aspectTag={} -> created AEEssentiaStack", aspectTag);
                 }
             }
         }

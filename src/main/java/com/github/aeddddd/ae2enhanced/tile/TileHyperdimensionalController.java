@@ -133,7 +133,6 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         if (optionalStorage != null) {
             List<IMEInventoryHandler> optional = optionalStorage.getHandlers(channel);
             if (!optional.isEmpty()) {
-                AE2Enhanced.LOGGER.info("[AE2E-DIAG] getCellArray optional: channel={}, handlers={}", channel.getClass().getName(), optional.size());
                 return optional;
             }
         }
@@ -210,8 +209,6 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     private void initStorage() {
-        AE2Enhanced.LOGGER.info("[AE2E-DIAG] initStorage() called: pos={}, nexusId={}, storageFile={}, formed={}",
-            pos, nexusId, storageFile, formed);
         if (world == null || world.isRemote) return;
         if (storageFile == null) {
             storageFile = new HyperdimensionalStorageFile(world, nexusId);
@@ -354,7 +351,6 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             Object channel = getChannel.invoke(AEApi.instance().storage(), channelClass);
             java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
             Object monitor = getInventory.invoke(storageGrid, channel);
-            AE2Enhanced.LOGGER.info("[AE2E-DIAG] refreshOptionalMonitor: type={}, monitor={}, adapter={}", typeName, monitor != null, adapter.getClass().getSimpleName());
             refreshSingleMonitor(monitor);
         } catch (ReflectiveOperationException | RuntimeException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh {} monitor", typeName, e);
@@ -496,8 +492,6 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     private void closeStorage() {
-        AE2Enhanced.LOGGER.info("[AE2E-DIAG] closeStorage() called: pos={}, nexusId={}, storageFile={}",
-            pos, nexusId, storageFile);
         if (storageFile != null) {
             storageFile.close();
             storageFile = null;
