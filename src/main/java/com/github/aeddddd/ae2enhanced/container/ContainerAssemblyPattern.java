@@ -15,11 +15,11 @@ import javax.annotation.Nonnull;
 
 public class ContainerAssemblyPattern extends Container {
 
-    private static final int PATTERN_X = 10;
+    private static final int PATTERN_X = 7;
     private static final int PATTERN_Y = 24;
-    private static final int INV_X = 89;
-    private static final int INV_Y = 152;
-    private static final int HOTBAR_Y = 210;
+    private static final int INV_X = 79;
+    private static final int INV_Y = 144;
+    private static final int HOTBAR_Y = 202;
 
     private final TileAssemblyController tile;
     private final int page;
@@ -42,10 +42,10 @@ public class ContainerAssemblyPattern extends Container {
         // 使用 PatternInventory 代理 IItemHandler,让原版 Slot 正常工作
         PatternInventory patternInv = new PatternInventory(handler, startSlot, this.patternSlotCount);
         for (int i = 0; i < this.patternSlotCount; i++) {
-            int row = i / 16;
-            int col = i % 16;
+            int row = i / 17;
+            int col = i % 17;
             this.addSlotToContainer(new Slot(patternInv, i,
-                PATTERN_X + col * 20, PATTERN_Y + row * 20) {
+                PATTERN_X + col * 18, PATTERN_Y + row * 18) {
                 @Override
                 public boolean isItemValid(ItemStack stack) {
                     return !stack.isEmpty() && stack.getItem() instanceof ICraftingPatternItem;

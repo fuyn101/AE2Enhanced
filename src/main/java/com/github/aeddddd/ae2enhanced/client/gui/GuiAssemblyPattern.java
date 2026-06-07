@@ -6,11 +6,16 @@ import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.util.ResourceLocation;
 
-public class GuiAssemblyPattern extends GuiTechPanel {
+public class GuiAssemblyPattern extends GuiContainer {
+
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/3.png");
 
     private static final int PREV_BUTTON_ID = 1;
     private static final int NEXT_BUTTON_ID = 2;
@@ -22,8 +27,8 @@ public class GuiAssemblyPattern extends GuiTechPanel {
 
     public GuiAssemblyPattern(InventoryPlayer playerInv, TileAssemblyController tile, int page, int patternPages) {
         super(new ContainerAssemblyPattern(playerInv, tile, page, patternPages));
-        this.xSize = 350;
-        this.ySize = 234;
+        this.xSize = 320;
+        this.ySize = 228;
         this.tile = tile;
         this.page = page;
     }
@@ -38,11 +43,8 @@ public class GuiAssemblyPattern extends GuiTechPanel {
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        drawTechPanelFrame();
-        drawInnerPanel(guiLeft + 8, guiTop + 22, guiLeft + 332, guiTop + 146);
-        drawInnerPanel(guiLeft + 87, guiTop + 150, guiLeft + 253, guiTop + 208);
-        drawInnerPanel(guiLeft + 87, guiTop + 208, guiLeft + 253, guiTop + 230);
-        drawSlotBorders(mouseX, mouseY);
+        this.mc.getTextureManager().bindTexture(TEXTURE);
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
     }
 
     @Override
@@ -50,12 +52,9 @@ public class GuiAssemblyPattern extends GuiTechPanel {
         super.initGui();
         this.buttonList.clear();
 
-        int cx = (this.width - this.xSize) / 2;
-        int cy = (this.height - this.ySize) / 2;
-
-        this.prevButton = new GuiButtonTech(PREV_BUTTON_ID, cx + 20, cy + 200, 40, 16,
+        this.prevButton = new GuiButtonTech(PREV_BUTTON_ID, guiLeft + 7, guiTop + 178, 56, 20,
                 I18n.format("gui.ae2enhanced.pattern.prev"));
-        this.nextButton = new GuiButtonTech(NEXT_BUTTON_ID, cx + 290, cy + 200, 40, 16,
+        this.nextButton = new GuiButtonTech(NEXT_BUTTON_ID, guiLeft + 257, guiTop + 178, 56, 20,
                 I18n.format("gui.ae2enhanced.pattern.next"));
 
         this.buttonList.add(this.prevButton);

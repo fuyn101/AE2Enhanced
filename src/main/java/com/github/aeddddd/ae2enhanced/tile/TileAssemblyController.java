@@ -63,7 +63,7 @@ import java.util.*;
 public class TileAssemblyController extends TileAENetworkBase implements ICraftingProvider, ITickable {
 
     public static final int UPGRADE_SLOTS = 6;
-    public static final int PATTERN_SLOTS_PER_PAGE = 96; // 16×6
+    public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
     public static final int PATTERN_PAGES_BASE = 5;               // 基础页数
     public static final int PATTERN_PAGES_PER_CAPACITY = 5;       // 每张扩容升级卡增加的页数
     public static final int PATTERN_PAGES_MAX = 30;               // 上限页数

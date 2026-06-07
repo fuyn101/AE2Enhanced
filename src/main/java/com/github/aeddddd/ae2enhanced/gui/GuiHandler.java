@@ -133,7 +133,7 @@ public class GuiHandler implements IGuiHandler {
             if (ID == GUI_HYPERDIMENSIONAL_UNFORMED && !tile.isFormed()) {
                 return new ContainerHyperdimensionalUnformed(player.inventory, tile);
             } else if (ID == GUI_HYPERDIMENSIONAL_NEXUS && tile.isFormed()) {
-                return new ContainerHyperdimensionalNexus();
+                return new ContainerHyperdimensionalNexus(player.inventory);
             }
             return null;
         } else if (te instanceof TileComputationCore) {
@@ -141,7 +141,7 @@ public class GuiHandler implements IGuiHandler {
             if (ID == GUI_COMPUTATION_UNFORMED && !tile.isFormed()) {
                 return new ContainerComputationUnformed(player.inventory, tile);
             } else if (ID == GUI_COMPUTATION_FORMED && tile.isFormed()) {
-                return new ContainerHyperdimensionalNexus(); // Dummy container for pure-display GUI
+                return new ContainerHyperdimensionalNexus(player.inventory); // Dummy container for pure-display GUI
             }
             return null;
         }
@@ -254,7 +254,7 @@ public class GuiHandler implements IGuiHandler {
         } else if (te instanceof TileHyperdimensionalController) {
             TileHyperdimensionalController tile = (TileHyperdimensionalController) te;
             if (ID == GUI_HYPERDIMENSIONAL_NEXUS) {
-                return new GuiHyperdimensionalNexus(tile);
+                return new GuiHyperdimensionalNexus(player.inventory, tile);
             } else if (ID == GUI_HYPERDIMENSIONAL_UNFORMED) {
                 return new GuiHyperdimensionalUnformed(player.inventory, tile);
             }

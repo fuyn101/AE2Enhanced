@@ -5,14 +5,19 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.util.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GuiAssemblyFormed extends GuiTechPanel {
+public class GuiAssemblyFormed extends GuiContainer {
+
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/1.png");
 
     private final TileAssemblyController tile;
     private GuiButtonTech patternButton;
@@ -20,31 +25,29 @@ public class GuiAssemblyFormed extends GuiTechPanel {
     public GuiAssemblyFormed(InventoryPlayer playerInv, TileAssemblyController tile) {
         super(new ContainerAssemblyFormed(playerInv, tile));
         this.tile = tile;
-        this.xSize = 280;
-        this.ySize = 270;
+        this.xSize = 176;
+        this.ySize = 166;
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
-        if (!this.drawCustomTooltips(mouseX, mouseY)) {
-            this.renderHoveredToolTip(mouseX, mouseY);
-        }
+        this.renderHoveredToolTip(mouseX, mouseY);
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        drawTechPanelFrame();
-        drawInnerPanel(guiLeft + 10, guiTop + 26, guiLeft + xSize - 10, guiTop + 170);
-        drawSlotBorders(mouseX, mouseY);
+        this.mc.getTextureManager().bindTexture(TEXTURE);
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
     }
 
     @Override
     public void initGui() {
         super.initGui();
-        patternButton = new GuiButtonTech(0, guiLeft + 90, guiTop + 28, 120, 20, I18n.format("gui.ae2enhanced.formed.open_patterns"));
+        patternButton = new GuiButtonTech(0, guiLeft + 90, guiTop + 28, 120, 20,
+            I18n.format("gui.ae2enhanced.formed.open_patterns"));
         buttonList.add(patternButton);
     }
 
@@ -73,10 +76,10 @@ public class GuiAssemblyFormed extends GuiTechPanel {
         } else {
             parallelText = I18n.format("gui.ae2enhanced.formed.parallel", parallelCap);
         }
-        fontRenderer.drawString(parallelText, 16, 130, GuiColors.TEXT_DIM);
+        fontRenderer.drawString(parallelText, 16, 50, GuiColors.TEXT_DIM);
 
         String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
-        fontRenderer.drawString(jobs, 16, 142, GuiColors.TEXT_DIM);
+        fontRenderer.drawString(jobs, 16, 62, GuiColors.TEXT_DIM);
 
         String netStatus;
         int netColor;
@@ -91,15 +94,21 @@ public class GuiAssemblyFormed extends GuiTechPanel {
             netColor = GuiColors.TEXT_ERROR;
         }
         int nw = fontRenderer.getStringWidth(netStatus);
-        fontRenderer.drawString(netStatus, xSize - 16 - nw, 130, netColor);
+        fontRenderer.drawString(netStatus, xSize - 16 - nw, 50, netColor);
+    }
 
-        drawRect(16, 176, xSize - 16, 177, GuiColors.ACCENT_SOFT);
+    @Override
+    protected void renderHoveredToolTip(int mouseX, int mouseY) {
+        if (drawCustomTooltips(mouseX, mouseY)) {
+            return;
+        }
+        super.renderHoveredToolTip(mouseX, mouseY);
     }
 
     private boolean drawCustomTooltips(int mouseX, int mouseY) {
         int[][] upgradeSlots = {
-            {16, 38}, {36, 38}, {56, 38},
-            {16, 58}, {36, 58}, {56, 58}
+            {7, 7}, {25, 7}, {43, 7},
+            {7, 25}, {25, 25}, {43, 25}
         };
         String[] upgradeKeys = {
             "item.ae2enhanced.upgrade_card.parallel.name",

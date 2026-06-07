@@ -1,9 +1,13 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
-import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
@@ -11,86 +15,62 @@ import java.io.IOException;
 
 /**
  * 超维度仓储中枢信息面板.
- * 纯展示 GUI,无物品槽位,风格与 GuiHyperdimensionalUnformed 统一.
+ * 使用 2.png 纹理绘制背景,包含玩家背包和快捷栏.
  */
-public class GuiHyperdimensionalNexus extends GuiScreen {
+public class GuiHyperdimensionalNexus extends GuiContainer {
 
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/2.png");
 
     private final TileHyperdimensionalController tile;
-    private int xSize = 240;
-    private int ySize = 180;
-    private int guiLeft;
-    private int guiTop;
 
-    public GuiHyperdimensionalNexus(TileHyperdimensionalController tile) {
+    public GuiHyperdimensionalNexus(InventoryPlayer playerInv, TileHyperdimensionalController tile) {
+        super(new ContainerHyperdimensionalNexus(playerInv));
         this.tile = tile;
-    }
-
-    @Override
-    public void initGui() {
-        super.initGui();
-        this.guiLeft = (this.width - this.xSize) / 2;
-        this.guiTop = (this.height - this.ySize) / 2;
+        this.xSize = 176;
+        this.ySize = 166;
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        this.mc.getTextureManager().bindTexture(TEXTURE);
+        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+    }
 
-        // 主背景
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.PANEL_BG);
-
-        // 顶部高亮条
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
-
-        // 外边框
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + 1, GuiColors.BORDER_DIM);
-        drawRect(guiLeft, guiTop + ySize - 1, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
-        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + ySize, GuiColors.BORDER_DIM);
-        drawRect(guiLeft + xSize - 1, guiTop, guiLeft + xSize, guiTop + ySize, GuiColors.BORDER_DIM);
-
-        // 角落装饰
-        int corner = 10;
-        drawRect(guiLeft, guiTop, guiLeft + corner, guiTop + 2, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop, guiLeft + 2, guiTop + corner, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop, guiLeft + xSize, guiTop + 2, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop, guiLeft + xSize, guiTop + corner, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop + ySize - 2, guiLeft + corner, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft, guiTop + ySize - corner, guiLeft + 2, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - corner, guiTop + ySize - 2, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
-        drawRect(guiLeft + xSize - 2, guiTop + ySize - corner, guiLeft + xSize, guiTop + ySize, GuiColors.ACCENT);
-
-        // 内面板区域
-        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + ySize - 10, GuiColors.PANEL_LIGHT);
-        drawRect(guiLeft + 10, guiTop + 36, guiLeft + xSize - 10, guiTop + 37, GuiColors.BORDER_DIM);
-        drawRect(guiLeft + 10, guiTop + ySize - 11, guiLeft + xSize - 10, guiTop + ySize - 10, GuiColors.BORDER_DIM);
-
+    @Override
+    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // 标题
         String title = I18n.format("gui.ae2enhanced.nexus.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, guiLeft + (xSize - titleWidth) / 2, guiTop + 8, GuiColors.ACCENT);
+        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, GuiColors.ACCENT);
 
         // 分隔线
-        drawRect(guiLeft + 16, guiTop + 22, guiLeft + xSize - 16, guiTop + 23, GuiColors.ACCENT_SOFT);
+        drawRect(16, 22, xSize - 16, 23, GuiColors.ACCENT_SOFT);
 
         // 安全模式警告横幅
         if (tile != null && tile.getClientSafeMode()) {
-            int bannerY = guiTop + 26;
-            drawRect(guiLeft + 10, bannerY, guiLeft + xSize - 10, bannerY + 12, 0x55ff0000);
+            int bannerY = 26;
+            drawRect(10, bannerY, xSize - 10, bannerY + 12, 0x55ff0000);
             String warn = I18n.format("gui.ae2enhanced.nexus.safe_mode");
             int warnW = fontRenderer.getStringWidth(warn);
-            fontRenderer.drawString(warn, guiLeft + (xSize - warnW) / 2, bannerY + 2, 0xFFffaaaa);
+            fontRenderer.drawString(warn, (xSize - warnW) / 2, bannerY + 2, 0xFFffaaaa);
         }
 
         if (tile == null) {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"), guiLeft + 20, guiTop + 40, GuiColors.TEXT_ERROR);
-            super.drawScreen(mouseX, mouseY, partialTicks);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"), 20, 40, GuiColors.TEXT_ERROR);
             return;
         }
 
-        int x = guiLeft + 20;
-        int y = guiTop + 42;
+        int x = 20;
+        int y = 42;
         if (tile != null && tile.getClientSafeMode()) {
             y += 14; // 为安全模式横幅让出空间
         }
@@ -136,25 +116,42 @@ public class GuiHyperdimensionalNexus extends GuiScreen {
             total = TileHyperdimensionalController.toScientificNotation(
                     new java.math.BigInteger(tile.getClientStorageTotalRaw()));
         }
-        int storageYStart = y;
-        int storageYEnd;
         if (types > 0) {
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.label.storage_types", types), x, y, GuiColors.TEXT_MAIN);
             y += lineHeight;
             String totalLine = I18n.format("gui.ae2enhanced.nexus.label.storage_total", total);
             fontRenderer.drawString(totalLine, x, y, GuiColors.TEXT_MAIN);
-            storageYEnd = y + lineHeight;
         } else {
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, GuiColors.TEXT_MAIN);
-            storageYEnd = y + lineHeight;
         }
+    }
 
-        super.drawScreen(mouseX, mouseY, partialTicks);
+    @Override
+    public void renderHoveredToolTip(int mouseX, int mouseY) {
+        super.renderHoveredToolTip(mouseX, mouseY);
+
+        if (tile == null) return;
 
         // Tooltip: show raw or scientific notation on hover over storage stats
-        if (tile != null && mouseX >= x && mouseX <= guiLeft + xSize - 20
-                && mouseY >= storageYStart && mouseY <= storageYEnd) {
+        int x = 20;
+        int y = 42;
+        if (tile.getClientSafeMode()) {
+            y += 14;
+        }
+        int lineHeight = 14;
+        int storageYStart = y + lineHeight * 4; // 跳过结构/网络/能源/Nexus ID
+        int storageYEnd;
+        int types = tile.getClientStorageTypes();
+        if (types > 0) {
+            storageYEnd = storageYStart + lineHeight * 2;
+        } else {
+            storageYEnd = storageYStart + lineHeight;
+        }
+
+        if (mouseX >= guiLeft + x && mouseX <= guiLeft + xSize - 20
+                && mouseY >= guiTop + storageYStart && mouseY <= guiTop + storageYEnd) {
             String display;
+            boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
             if (shift) {
                 display = TileHyperdimensionalController.toScientificNotation(
                         new java.math.BigInteger(tile.getClientStorageTotalRaw()));

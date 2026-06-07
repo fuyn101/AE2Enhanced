@@ -13,11 +13,11 @@ import net.minecraftforge.items.SlotItemHandler;
 
 public class ContainerAssemblyFormed extends Container {
 
-    private static final int UPGRADE_X = 16;
-    private static final int UPGRADE_Y = 38;
-    private static final int INV_X = 51;
-    private static final int INV_Y = 182;
-    private static final int HOTBAR_Y = 240;
+    private static final int UPGRADE_X = 7;
+    private static final int UPGRADE_Y = 7;
+    private static final int INV_X = 7;
+    private static final int INV_Y = 83;
+    private static final int HOTBAR_Y = 141;
 
     private final TileAssemblyController tile;
 
@@ -30,7 +30,7 @@ public class ContainerAssemblyFormed extends Container {
             for (int col = 0; col < 3; ++col) {
                 final int index = row * 3 + col;
                 this.addSlotToContainer(new SlotItemHandler(handler, index,
-                    UPGRADE_X + col * 20, UPGRADE_Y + row * 20) {
+                    UPGRADE_X + col * 18, UPGRADE_Y + row * 18) {
                     @Override
                     public boolean isItemValid(ItemStack stack) {
                         return stack.getItem() instanceof ItemUpgradeCard
