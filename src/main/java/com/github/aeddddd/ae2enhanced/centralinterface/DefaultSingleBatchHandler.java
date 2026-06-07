@@ -239,10 +239,18 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 if (inSlot.isEmpty()) continue;
                 if (isInputMaterial(inSlot, inputs)) continue;
 
-                ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                if (!extracted.isEmpty()) {
-                    visitedSlots.add(slotKey);
+                // 循环提取直到槽位真正清空，防止某些 IItemHandler 单次提取上限导致产物残留
+                boolean anyExtracted = false;
+                while (true) {
+                    ItemStack current = handler.getStackInSlot(slot);
+                    if (current.isEmpty()) break;
+                    ItemStack extracted = handler.extractItem(slot, current.getCount(), false);
+                    if (extracted.isEmpty()) break;
                     collected.add(extracted);
+                    anyExtracted = true;
+                }
+                if (anyExtracted) {
+                    visitedSlots.add(slotKey);
                 }
             }
         }
