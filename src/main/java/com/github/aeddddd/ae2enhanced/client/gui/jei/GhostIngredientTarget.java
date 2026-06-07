@@ -101,7 +101,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         try {
             Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
             return (IAEItemStack) fakeGasesClass.getMethod("tryPackJEIGas", Object.class).invoke(null, ingredient);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
@@ -110,7 +110,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         try {
             Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
             return (IAEItemStack) fakeGasesClass.getMethod("tryPackJEIGasFromItem", ItemStack.class).invoke(null, is);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
