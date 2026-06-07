@@ -660,7 +660,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     private void updateCraftingList() {
         AENetworkProxy proxy = this.host.getProxy();
-        if (!proxy.isReady()) return;
 
         boolean removed = false;
         boolean newPattern = false;
@@ -705,7 +704,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        if (newPattern || removed) {
+        // 网络就绪后才发送事件；若未就绪，craftingList 仍已完成重建，
+        // 等网络恢复后 CraftingGridCache 的 provideCrafting 扫描即可发现配方。
+        if (proxy.isReady() && (newPattern || removed)) {
             try {
                 proxy.getGrid().postEvent(new MENetworkCraftingPatternChange(this.host, proxy.getNode()));
             } catch (GridAccessException e) {
