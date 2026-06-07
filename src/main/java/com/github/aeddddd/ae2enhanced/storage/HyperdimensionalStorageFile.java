@@ -179,13 +179,24 @@ public class HyperdimensionalStorageFile {
 
     @SuppressWarnings("unchecked")
     private void loadSectionReflective(File file, Object codec, Map<?, BigInteger> target, String typeName) {
-        if (file == null || codec == null || target == null) return;
-        if (!file.exists()) return;
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective: type={}, file={}, exists={}, codec={}, targetSizeBefore={}",
+            typeName, file != null ? file.getAbsolutePath() : "null", file != null && file.exists(), codec, target.size());
+        if (file == null || codec == null || target == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E-DIAG] loadSectionReflective abort: null param, type={}", typeName);
+            return;
+        }
+        if (!file.exists()) {
+            AE2Enhanced.LOGGER.warn("[AE2E-DIAG] loadSectionReflective abort: file does not exist, type={}, path={}", typeName, file.getAbsolutePath());
+            return;
+        }
         try {
             java.lang.reflect.Method readMethod = codec.getClass().getMethod("read", DataInput.class);
+            AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective readMethod found: type={}, method={}", typeName, readMethod);
             try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
                 readAndValidateHeader(in, typeName);
                 int entryCount = in.readInt();
+                AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective header ok: type={}, entries={}", typeName, entryCount);
+                int loaded = 0;
                 for (int i = 0; i < entryCount; i++) {
                     Object descriptor = readMethod.invoke(codec, in);
                     BigInteger count = readCount(in);
@@ -193,8 +204,12 @@ public class HyperdimensionalStorageFile {
                         @SuppressWarnings("unchecked")
                         Map<Object, BigInteger> rawTarget = (Map<Object, BigInteger>) (Map<?, ?>) target;
                         rawTarget.put(descriptor, count);
+                        loaded++;
+                    } else {
+                        AE2Enhanced.LOGGER.warn("[AE2E-DIAG] loadSectionReflective null descriptor at index {}, type={}", i, typeName);
                     }
                 }
+                AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective done: type={}, loaded={}, targetSizeAfter={}", typeName, loaded, target.size());
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to load {} storage from file: {}. Entering safe mode (read-only).", typeName, file.getAbsolutePath(), e);
@@ -235,6 +250,8 @@ public class HyperdimensionalStorageFile {
     // ---- Save ----
 
     public boolean save() {
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] save() called for nexus={}, essentiaFile={}, essentiaCodec={}, essentiaStorageRef={}",
+            nexusId, essentiaFile, essentiaCodec, essentiaStorageRef);
         boolean ok = true;
         ok &= saveSection(itemFile, itemCodec, storageRef, "item");
         ok &= saveSection(fluidFile, fluidCodec, fluidStorageRef, "fluid");
@@ -243,7 +260,13 @@ public class HyperdimensionalStorageFile {
             ok &= saveSectionReflective(gasFile, gasCodec, gasStorageRef, "gas");
         }
         if (essentiaFile != null && essentiaCodec != null && essentiaStorageRef != null) {
+            AE2Enhanced.LOGGER.info("[AE2E-DIAG] Saving essentia section, entries={}, file={}",
+                essentiaStorageRef.size(), essentiaFile.getAbsolutePath());
             ok &= saveSectionReflective(essentiaFile, essentiaCodec, essentiaStorageRef, "essentia");
+            AE2Enhanced.LOGGER.info("[AE2E-DIAG] Essentia save result: ok={}, safeMode={}", ok, safeMode);
+        } else {
+            AE2Enhanced.LOGGER.warn("[AE2E-DIAG] Skipping essentia save: file={}, codec={}, ref={}",
+                essentiaFile, essentiaCodec, essentiaStorageRef);
         }
         return ok;
     }
@@ -269,16 +292,25 @@ public class HyperdimensionalStorageFile {
 
     @SuppressWarnings("unchecked")
     private boolean saveSectionReflective(File file, Object codec, Map<?, BigInteger> source, String typeName) {
-        if (file == null || codec == null) return true;
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] saveSectionReflective: type={}, file={}, codec={}, sourceSize={}",
+            typeName, file, codec, source != null ? source.size() : "null");
+        if (file == null || codec == null) {
+            AE2Enhanced.LOGGER.warn("[AE2E-DIAG] saveSectionReflective abort: null param, type={}", typeName);
+            return true;
+        }
         try {
             java.lang.reflect.Method writeMethod = codec.getClass().getMethod("write", DataOutput.class, Descriptor.class);
+            AE2Enhanced.LOGGER.info("[AE2E-DIAG] saveSectionReflective writeMethod found: type={}, method={}", typeName, writeMethod);
             File tmpFile = new File(file.getAbsolutePath() + ".tmp");
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(tmpFile)))) {
                 writeHeader(out, source != null ? source.size() : 0);
                 if (source != null) {
+                    int written = 0;
                     for (Map.Entry<?, BigInteger> entry : source.entrySet()) {
                         writeEntryReflective(out, codec, writeMethod, (Descriptor) entry.getKey(), entry.getValue());
+                        written++;
                     }
+                    AE2Enhanced.LOGGER.info("[AE2E-DIAG] saveSectionReflective written entries: type={}, count={}", typeName, written);
                 }
                 out.flush();
             } catch (IOException e) {
@@ -486,11 +518,13 @@ public class HyperdimensionalStorageFile {
 
     public void close() {
         if (closed) return;
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] close() called for nexus={}, safeMode={}", nexusId, safeMode);
         closed = true;
         if (flushTask != null) {
             flushTask.cancel(false);
         }
-        save();
+        boolean saved = save();
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] close() save result: nexus={}, saved={}", nexusId, saved);
     }
 
     public boolean isClosed() {

@@ -13,9 +13,15 @@ public class EssentiaStorageAdapter extends AbstractStorageAdapter<thaumicenergi
 
     public EssentiaStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
+        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info(
+            "[AE2E-DIAG] EssentiaStorageAdapter constructor: file nexus={}, storageBeforeLoad={}",
+            file.getNexusId(), storage.size());
         this.channel = AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
         file.loadEssentias(storage);
         recalcTotal(); // 从文件加载后必须重新计算总数
+        com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.info(
+            "[AE2E-DIAG] EssentiaStorageAdapter loaded: nexus={}, storageAfterLoad={}, total={}",
+            file.getNexusId(), storage.size(), getTotalCount());
     }
 
     @Override

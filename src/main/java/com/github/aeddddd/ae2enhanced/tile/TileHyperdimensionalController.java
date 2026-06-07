@@ -205,6 +205,8 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     private void initStorage() {
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] initStorage() called: pos={}, nexusId={}, storageFile={}, formed={}",
+            pos, nexusId, storageFile, formed);
         if (world == null || world.isRemote) return;
         if (storageFile == null) {
             storageFile = new HyperdimensionalStorageFile(world, nexusId);
@@ -488,6 +490,8 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     }
 
     private void closeStorage() {
+        AE2Enhanced.LOGGER.info("[AE2E-DIAG] closeStorage() called: pos={}, nexusId={}, storageFile={}",
+            pos, nexusId, storageFile);
         if (storageFile != null) {
             storageFile.close();
             storageFile = null;
