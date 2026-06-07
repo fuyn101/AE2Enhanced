@@ -319,7 +319,7 @@ public class MixinCraftingCPUCluster {
         }
     }
 
-    @Inject(method = "executeCrafting", at = @At("HEAD"))
+    @Inject(method = "executeCrafting", at = @At("HEAD"), cancellable = true)
     private void batchProcessVirtualTasks(IEnergyGrid energy, CraftingGridCache cache, CallbackInfo ci) {
         // CrazyAE 兼容：跳过批量合成注入，避免与其修改后的 executeCrafting 冲突。
         if (ae2enhanced$computationCore != null && CRAZYAE_LOADED) return;
@@ -436,6 +436,7 @@ public class MixinCraftingCPUCluster {
                                     }
                                 }
                                 if (!canExtract || actualBatchSize <= 0) break;
+                                if (actualBatchSize <= 1) break; // 单份无 batch 收益，避免与原生 executeCrafting 重复处理
 
                                 for (int i = 0; i < info.slotTemplates.length; i++) {
                                     if (info.slotTemplates[i] == null) continue;
@@ -508,11 +509,13 @@ public class MixinCraftingCPUCluster {
                                 changed = true;
                                 controller.resetBatchCooldown();
 
-
                             } catch (Exception e) {
                                 AE2Enhanced.LOGGER.error("[AE2E] Real batch error: {}", e.toString());
                             } finally {
                                 controller.setCurrentActionSource(null);
+                            }
+                            if (changed) {
+                                ci.cancel();
                             }
                             break;
                         }
@@ -621,9 +624,11 @@ public class MixinCraftingCPUCluster {
                             virtualTasksExecuted++;
                             controller.resetBatchCooldown();
 
-
                         } finally {
                             controller.setCurrentActionSource(null);
+                        }
+                        if (changed) {
+                            ci.cancel();
                         }
                         break;
                     }
