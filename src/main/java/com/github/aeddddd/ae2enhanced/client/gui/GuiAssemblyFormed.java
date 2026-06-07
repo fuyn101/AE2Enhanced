@@ -63,7 +63,7 @@ public class GuiAssemblyFormed extends GuiContainer {
         // 标题画在名称栏内 (y=47~70)
         String title = I18n.format("gui.ae2enhanced.formed.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 51, GuiColors.TEXT_MAIN);
+        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 51, 0xFFffaa00);
 
         // 状态信息画在名称栏内
         long parallelCap = tile.getParallelCap();
@@ -105,8 +105,8 @@ public class GuiAssemblyFormed extends GuiContainer {
 
     private boolean drawCustomTooltips(int mouseX, int mouseY) {
         int[][] upgradeSlots = {
-            {7, 7}, {25, 7}, {43, 7},
-            {7, 25}, {25, 25}, {43, 25}
+            {8, 8}, {26, 8}, {44, 8},
+            {8, 26}, {26, 26}, {44, 26}
         };
         String[] upgradeKeys = {
             "item.ae2enhanced.upgrade_card.parallel.name",

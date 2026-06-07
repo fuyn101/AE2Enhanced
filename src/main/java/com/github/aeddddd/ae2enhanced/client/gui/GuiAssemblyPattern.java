@@ -102,7 +102,7 @@ public class GuiAssemblyPattern extends GuiContainer {
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         String title = I18n.format("gui.ae2enhanced.pattern.title");
         this.fontRenderer.drawString(title,
-                (this.xSize - this.fontRenderer.getStringWidth(title)) / 2, 8, GuiColors.ACCENT);
+                (this.xSize - this.fontRenderer.getStringWidth(title)) / 2, 8, 0xFF00ccff);
 
         String pageStr = I18n.format("gui.ae2enhanced.pattern.page",
                 page + 1, tile.getPatternPages());

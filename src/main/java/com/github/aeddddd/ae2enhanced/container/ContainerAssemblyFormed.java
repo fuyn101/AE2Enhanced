@@ -13,8 +13,8 @@ import net.minecraftforge.items.SlotItemHandler;
 
 public class ContainerAssemblyFormed extends Container {
 
-    private static final int UPGRADE_X = 7;
-    private static final int UPGRADE_Y = 7;
+    private static final int UPGRADE_X = 8;
+    private static final int UPGRADE_Y = 8;
     private static final int INV_X = 7;
     private static final int INV_Y = 83;
     private static final int HOTBAR_Y = 141;

@@ -15,8 +15,8 @@ import javax.annotation.Nonnull;
 
 public class ContainerAssemblyPattern extends Container {
 
-    private static final int PATTERN_X = 7;
-    private static final int PATTERN_Y = 24;
+    private static final int PATTERN_X = 8;
+    private static final int PATTERN_Y = 25;
     private static final int INV_X = 79;
     private static final int INV_Y = 144;
     private static final int HOTBAR_Y = 202;
