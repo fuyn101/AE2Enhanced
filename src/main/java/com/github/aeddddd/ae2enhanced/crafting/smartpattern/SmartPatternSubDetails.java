@@ -64,7 +64,8 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
 
     @Override
     public boolean isCraftable() {
-        return recipe.isCrafting();
+        // 智能样板统一作为 processing 配方处理，避免 AE2 硬编码 3x3 合成网格限制
+        return false;
     }
 
     @Override
