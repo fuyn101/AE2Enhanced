@@ -257,8 +257,8 @@ public class SmartRecipe {
     public static SmartRecipe fromNBT(NBTTagCompound tag) {
         IAEItemStack[] inputs = readStackArray(tag.getTagList("inputs", 10));
         IAEItemStack[] outputs = readStackArray(tag.getTagList("outputs", 10));
-        boolean isCrafting = tag.getBoolean("crafting");
-        return new SmartRecipe(inputs, outputs, isCrafting);
+        // 智能样板统一作为 processing 配方，忽略旧 NBT 中的 crafting 标记
+        return new SmartRecipe(inputs, outputs, false);
     }
 
     private static NBTTagList writeStackArray(IAEItemStack[] stacks) {
