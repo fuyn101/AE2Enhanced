@@ -132,7 +132,10 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
         if (optionalStorage != null) {
             List<IMEInventoryHandler> optional = optionalStorage.getHandlers(channel);
-            if (!optional.isEmpty()) return optional;
+            if (!optional.isEmpty()) {
+                AE2Enhanced.LOGGER.info("[AE2E-DIAG] getCellArray optional: channel={}, handlers={}", channel.getClass().getName(), optional.size());
+                return optional;
+            }
         }
         return Collections.emptyList();
     }
@@ -351,6 +354,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             Object channel = getChannel.invoke(AEApi.instance().storage(), channelClass);
             java.lang.reflect.Method getInventory = storageGrid.getClass().getMethod("getInventory", appeng.api.storage.IStorageChannel.class);
             Object monitor = getInventory.invoke(storageGrid, channel);
+            AE2Enhanced.LOGGER.info("[AE2E-DIAG] refreshOptionalMonitor: type={}, monitor={}, adapter={}", typeName, monitor != null, adapter.getClass().getSimpleName());
             refreshSingleMonitor(monitor);
         } catch (ReflectiveOperationException | RuntimeException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to refresh {} monitor", typeName, e);
