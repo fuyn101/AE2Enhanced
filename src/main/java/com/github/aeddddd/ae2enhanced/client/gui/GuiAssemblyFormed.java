@@ -46,7 +46,7 @@ public class GuiAssemblyFormed extends GuiContainer {
     @Override
     public void initGui() {
         super.initGui();
-        patternButton = new GuiButtonTech(0, guiLeft + 90, guiTop + 28, 120, 20,
+        patternButton = new GuiButtonTech(0, guiLeft + 65, guiTop + 46, 110, 20,
             I18n.format("gui.ae2enhanced.formed.open_patterns"));
         buttonList.add(patternButton);
     }
@@ -60,15 +60,12 @@ public class GuiAssemblyFormed extends GuiContainer {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
+        // 标题画在名称栏内 (y=47~70)
         String title = I18n.format("gui.ae2enhanced.formed.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, GuiColors.ACCENT);
+        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 51, GuiColors.TEXT_MAIN);
 
-        String upgradeLabel = I18n.format("gui.ae2enhanced.formed.upgrades");
-        fontRenderer.drawString(upgradeLabel, 16, 28, GuiColors.TEXT_DIM);
-
-        drawRect(16, 40, 78, 41, GuiColors.ACCENT_SOFT);
-
+        // 状态信息画在名称栏内
         long parallelCap = tile.getParallelCap();
         String parallelText;
         if (parallelCap >= Long.MAX_VALUE / 2) {
@@ -76,10 +73,7 @@ public class GuiAssemblyFormed extends GuiContainer {
         } else {
             parallelText = I18n.format("gui.ae2enhanced.formed.parallel", parallelCap);
         }
-        fontRenderer.drawString(parallelText, 16, 50, GuiColors.TEXT_DIM);
-
-        String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
-        fontRenderer.drawString(jobs, 16, 62, GuiColors.TEXT_DIM);
+        fontRenderer.drawString(parallelText, 12, 61, GuiColors.TEXT_DIM);
 
         String netStatus;
         int netColor;
@@ -94,7 +88,11 @@ public class GuiAssemblyFormed extends GuiContainer {
             netColor = GuiColors.TEXT_ERROR;
         }
         int nw = fontRenderer.getStringWidth(netStatus);
-        fontRenderer.drawString(netStatus, xSize - 16 - nw, 50, netColor);
+        fontRenderer.drawString(netStatus, xSize - 12 - nw, 61, netColor);
+
+        // 任务数画在格子区右侧空白处 (x=65~170, y=7~42)
+        String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
+        fontRenderer.drawString(jobs, 65, 15, GuiColors.TEXT_DIM);
     }
 
     @Override
@@ -186,7 +184,7 @@ public class GuiAssemblyFormed extends GuiContainer {
             this.drawHoveringText(lines, mouseX, mouseY);
             return true;
         }
-        if (isPointInRegion(140, 125, 120, 20, mouseX, mouseY)) {
+        if (isPointInRegion(65, 46, 110, 20, mouseX, mouseY)) {
             List<String> lines = new ArrayList<>();
             if (tile.isNetworkActive()) {
                 lines.add(I18n.format("gui.ae2enhanced.formed.network.active"));

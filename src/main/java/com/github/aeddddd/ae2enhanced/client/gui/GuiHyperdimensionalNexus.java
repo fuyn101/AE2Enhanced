@@ -47,34 +47,41 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        // 标题
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(0.85F, 0.85F, 1.0F);
+        float invScale = 1.0F / 0.85F;
+
+        // 标题 (缩放后坐标需除以 0.85)
         String title = I18n.format("gui.ae2enhanced.nexus.title");
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 8, GuiColors.ACCENT);
+        fontRenderer.drawString(title, (int)((xSize - titleWidth) * invScale / 2), 10, GuiColors.TEXT_MAIN);
 
         // 分隔线
-        drawRect(16, 22, xSize - 16, 23, GuiColors.ACCENT_SOFT);
+        int sepY = (int)(22 * invScale);
+        drawRect(16, sepY, xSize - 16, sepY + 1, GuiColors.ACCENT_SOFT);
 
         // 安全模式警告横幅
         if (tile != null && tile.getClientSafeMode()) {
-            int bannerY = 26;
-            drawRect(10, bannerY, xSize - 10, bannerY + 12, 0x55ff0000);
+            int bannerY = (int)(26 * invScale);
+            drawRect(10, bannerY, xSize - 10, bannerY + 10, 0x55ff0000);
             String warn = I18n.format("gui.ae2enhanced.nexus.safe_mode");
             int warnW = fontRenderer.getStringWidth(warn);
-            fontRenderer.drawString(warn, (xSize - warnW) / 2, bannerY + 2, 0xFFffaaaa);
+            fontRenderer.drawString(warn, (int)((xSize - warnW) * invScale / 2), bannerY + 1, 0xFFffaaaa);
         }
 
         if (tile == null) {
-            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"), 20, 40, GuiColors.TEXT_ERROR);
+            fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.tile_unavailable"),
+                (int)(20 * invScale), (int)(34 * invScale), GuiColors.TEXT_ERROR);
+            GlStateManager.popMatrix();
             return;
         }
 
-        int x = 20;
-        int y = 42;
+        int x = (int)(20 * invScale);
+        int y = (int)(34 * invScale);
         if (tile != null && tile.getClientSafeMode()) {
-            y += 14; // 为安全模式横幅让出空间
+            y += (int)(12 * invScale);
         }
-        int lineHeight = 14;
+        int lineHeight = (int)(11 * invScale);
 
         // 结构状态
         String formedStr = tile.isFormed()
@@ -108,7 +115,7 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
         fontRenderer.drawString(nexusLabel, x, y, GuiColors.TEXT_MAIN);
         y += lineHeight;
 
-        // 存储统计(客户端同步字段,含物品+流体)
+        // 存储统计
         boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
         int types = tile.getClientStorageTypes();
         String total = tile.getClientStorageTotal();
@@ -124,6 +131,8 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
         } else {
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.nexus.storage.empty"), x, y, GuiColors.TEXT_MAIN);
         }
+
+        GlStateManager.popMatrix();
     }
 
     @Override
@@ -134,12 +143,12 @@ public class GuiHyperdimensionalNexus extends GuiContainer {
 
         // Tooltip: show raw or scientific notation on hover over storage stats
         int x = 20;
-        int y = 42;
+        int y = 34;
         if (tile.getClientSafeMode()) {
-            y += 14;
+            y += 12;
         }
-        int lineHeight = 14;
-        int storageYStart = y + lineHeight * 4; // 跳过结构/网络/能源/Nexus ID
+        int lineHeight = 11;
+        int storageYStart = y + lineHeight * 4;
         int storageYEnd;
         int types = tile.getClientStorageTypes();
         if (types > 0) {
