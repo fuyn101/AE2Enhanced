@@ -198,15 +198,20 @@ public class HyperdimensionalStorageFile {
                 AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective header ok: type={}, entries={}", typeName, entryCount);
                 int loaded = 0;
                 for (int i = 0; i < entryCount; i++) {
-                    Object descriptor = readMethod.invoke(codec, in);
-                    BigInteger count = readCount(in);
-                    if (descriptor != null) {
-                        @SuppressWarnings("unchecked")
-                        Map<Object, BigInteger> rawTarget = (Map<Object, BigInteger>) (Map<?, ?>) target;
-                        rawTarget.put(descriptor, count);
-                        loaded++;
-                    } else {
-                        AE2Enhanced.LOGGER.warn("[AE2E-DIAG] loadSectionReflective null descriptor at index {}, type={}", i, typeName);
+                    int len = in.readInt();
+                    byte[] bytes = new byte[len];
+                    in.readFully(bytes);
+                    try (java.io.DataInputStream descIn = new java.io.DataInputStream(new java.io.ByteArrayInputStream(bytes))) {
+                        Object descriptor = readMethod.invoke(codec, descIn);
+                        BigInteger count = readCount(in);
+                        if (descriptor != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<Object, BigInteger> rawTarget = (Map<Object, BigInteger>) (Map<?, ?>) target;
+                            rawTarget.put(descriptor, count);
+                            loaded++;
+                        } else {
+                            AE2Enhanced.LOGGER.warn("[AE2E-DIAG] loadSectionReflective null descriptor at index {}, type={}", i, typeName);
+                        }
                     }
                 }
                 AE2Enhanced.LOGGER.info("[AE2E-DIAG] loadSectionReflective done: type={}, loaded={}, targetSizeAfter={}", typeName, loaded, target.size());

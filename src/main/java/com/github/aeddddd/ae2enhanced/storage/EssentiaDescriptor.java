@@ -18,8 +18,29 @@ public class EssentiaDescriptor implements Descriptor {
     }
 
     public EssentiaDescriptor(String aspectTag) {
-        this.aspectTag = aspectTag;
-        this.hash = aspectTag.hashCode();
+        this.aspectTag = sanitizeAspectTag(aspectTag);
+        this.hash = this.aspectTag.hashCode();
+    }
+
+    /**
+     * 修复历史损坏数据：早期版本的 loadSectionReflective 未正确解包 length+bytes 包装层，
+     * 导致 aspectTag 前导出现 \0 和控制字符（来自内层 tagBytes.length 的 4 字节整数）。
+     */
+    private static String sanitizeAspectTag(String tag) {
+        if (tag == null || tag.isEmpty()) {
+            return tag;
+        }
+        int start = 0;
+        while (start < tag.length()) {
+            char c = tag.charAt(start);
+            // 跳过 \0 和 C0 控制字符 (\u0001-\u001F)
+            if (c == '\0' || (c >= '\u0001' && c <= '\u001F')) {
+                start++;
+            } else {
+                break;
+            }
+        }
+        return start > 0 ? tag.substring(start) : tag;
     }
 
     /**
