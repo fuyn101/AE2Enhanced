@@ -4,13 +4,14 @@ import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.util.ResourceLocation;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,7 +21,16 @@ public class GuiAssemblyFormed extends GuiContainer {
         new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/1.png");
 
     private final TileAssemblyController tile;
-    private GuiButtonTech patternButton;
+
+    // 按钮区域（纹理坐标 79,23 -> 170,43，尺寸 91×20）
+    private static final int BTN_X = 79;
+    private static final int BTN_Y = 23;
+    private static final int BTN_W = 91;
+    private static final int BTN_H = 20;
+
+    // 高亮条纹理坐标 0,186 -> 91,206，尺寸 91×20
+    private static final int HIGHLIGHT_U = 0;
+    private static final int HIGHLIGHT_V = 186;
 
     public GuiAssemblyFormed(InventoryPlayer playerInv, TileAssemblyController tile) {
         super(new ContainerAssemblyFormed(playerInv, tile));
@@ -41,31 +51,29 @@ public class GuiAssemblyFormed extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
-    }
 
-    @Override
-    public void initGui() {
-        super.initGui();
-        patternButton = new GuiButtonTech(0, guiLeft + 65, guiTop + 46, 110, 20,
-            I18n.format("gui.ae2enhanced.formed.open_patterns"));
-        buttonList.add(patternButton);
-    }
-
-    @Override
-    protected void actionPerformed(GuiButton button) {
-        if (button.id == 0) {
-            AE2Enhanced.network.sendToServer(new PacketPatternPage(tile.getPos(), 0));
+        // 鼠标悬停时复制高亮条覆盖按钮
+        if (isMouseOverButton(mouseX, mouseY)) {
+            this.drawTexturedModalRect(
+                this.guiLeft + BTN_X, this.guiTop + BTN_Y,
+                HIGHLIGHT_U, HIGHLIGHT_V, BTN_W, BTN_H);
         }
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        // 标题画在名称栏内 (y=47~70)
+        // 标题画在按钮上方（格子区右侧）
         String title = I18n.format("gui.ae2enhanced.formed.title");
-        int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, (xSize - titleWidth) / 2, 51, 0xFFffaa00);
+        fontRenderer.drawString(title, BTN_X, 8, 0xFFffaa00);
 
-        // 状态信息画在名称栏内
+        // 按钮文字画在按钮中央
+        String btnText = I18n.format("gui.ae2enhanced.formed.open_patterns");
+        int btnTextWidth = fontRenderer.getStringWidth(btnText);
+        int textX = BTN_X + (BTN_W - btnTextWidth) / 2;
+        int textY = BTN_Y + (BTN_H - 8) / 2; // 字体高度约8px，垂直居中
+        fontRenderer.drawString(btnText, textX, textY, 0xFFFFFFFF);
+
+        // 信息展示区：名称栏内 (7,47) -> (169,70)
         long parallelCap = tile.getParallelCap();
         String parallelText;
         if (parallelCap >= Long.MAX_VALUE / 2) {
@@ -73,7 +81,7 @@ public class GuiAssemblyFormed extends GuiContainer {
         } else {
             parallelText = I18n.format("gui.ae2enhanced.formed.parallel", parallelCap);
         }
-        fontRenderer.drawString(parallelText, 12, 61, GuiColors.TEXT_DIM);
+        fontRenderer.drawString(parallelText, 12, 50, GuiColors.TEXT_DIM);
 
         String netStatus;
         int netColor;
@@ -88,11 +96,28 @@ public class GuiAssemblyFormed extends GuiContainer {
             netColor = GuiColors.TEXT_ERROR;
         }
         int nw = fontRenderer.getStringWidth(netStatus);
-        fontRenderer.drawString(netStatus, xSize - 12 - nw, 61, netColor);
+        fontRenderer.drawString(netStatus, xSize - 12 - nw, 50, netColor);
 
-        // 任务数画在格子区右侧空白处 (x=65~170, y=7~42)
+        // 任务数画在信息区第二行
         String jobs = I18n.format("gui.ae2enhanced.formed.jobs", tile.getJobCount());
-        fontRenderer.drawString(jobs, 65, 15, GuiColors.TEXT_DIM);
+        fontRenderer.drawString(jobs, 12, 62, GuiColors.TEXT_DIM);
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (mouseButton == 0 && isMouseOverButton(mouseX, mouseY)) {
+            AE2Enhanced.network.sendToServer(new PacketPatternPage(tile.getPos(), 0));
+            this.mc.getSoundHandler().playSound(
+                net.minecraft.client.audio.PositionedSoundRecord.getMasterRecord(
+                    SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            return;
+        }
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    private boolean isMouseOverButton(int mouseX, int mouseY) {
+        return mouseX >= guiLeft + BTN_X && mouseX < guiLeft + BTN_X + BTN_W
+            && mouseY >= guiTop + BTN_Y && mouseY < guiTop + BTN_Y + BTN_H;
     }
 
     @Override
@@ -177,14 +202,18 @@ public class GuiAssemblyFormed extends GuiContainer {
                 return true;
             }
         }
-        if (patternButton != null && patternButton.isMouseOver()) {
+
+        // 按钮 tooltip
+        if (isMouseOverButton(mouseX, mouseY)) {
             List<String> lines = new ArrayList<>();
             lines.add(I18n.format("gui.ae2enhanced.tooltip.patterns"));
             lines.add("§7" + I18n.format("gui.ae2enhanced.tooltip.patterns.desc") + "§r");
             this.drawHoveringText(lines, mouseX, mouseY);
             return true;
         }
-        if (isPointInRegion(65, 46, 110, 20, mouseX, mouseY)) {
+
+        // 网络状态 tooltip（名称栏区域）
+        if (isPointInRegion(7, 47, 162, 23, mouseX, mouseY)) {
             List<String> lines = new ArrayList<>();
             if (tile.isNetworkActive()) {
                 lines.add(I18n.format("gui.ae2enhanced.formed.network.active"));
