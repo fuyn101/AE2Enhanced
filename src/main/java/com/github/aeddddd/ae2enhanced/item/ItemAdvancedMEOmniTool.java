@@ -366,13 +366,20 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
         double distance = getBlinkDistance(stack);
         Vec3d look = player.getLookVec();
-        Vec3d start = player.getPositionVector().add(0, player.getEyeHeight(), 0);
+        Vec3d start = player.getPositionEyes(1.0f);
         Vec3d end = start.add(look.x * distance, look.y * distance, look.z * distance);
 
         RayTraceResult ray = world.rayTraceBlocks(start, end, false, true, false);
         Vec3d target;
         if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK) {
-            target = ray.hitVec.subtract(look.scale(0.15));
+            // 尝试穿墙：穿过阻挡方块后继续搜索安全落点
+            Vec3d through = ray.hitVec.add(look.scale(0.5));
+            Vec3d safe = findSafePos(world, through, end, look);
+            if (safe != null) {
+                target = safe;
+            } else {
+                target = ray.hitVec.subtract(look.scale(0.15));
+            }
         } else {
             target = end;
         }
@@ -381,6 +388,40 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         player.fallDistance = 0.0f;
         setLastBlink(stack, now);
         return EnumActionResult.SUCCESS;
+    }
+
+    /**
+     * 在穿过阻挡点后向前搜索第一个安全的站立位置。
+     */
+    private Vec3d findSafePos(World world, Vec3d through, Vec3d maxEnd, Vec3d look) {
+        double remainingDist = through.distanceTo(maxEnd);
+        double step = 0.5;
+        int steps = (int) Math.ceil(remainingDist / step);
+
+        for (int i = 0; i <= steps; i++) {
+            Vec3d check = through.add(look.scale(i * step));
+            if (check.distanceTo(through) > remainingDist + 0.01) break;
+
+            BlockPos pos = new BlockPos(check);
+            if (isSafeStandingPos(world, pos)) {
+                return new Vec3d(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 检查指定坐标是否为安全的站立位置（脚下有碰撞箱，身体/头部无碰撞箱）。
+     */
+    private boolean isSafeStandingPos(World world, BlockPos pos) {
+        IBlockState ground = world.getBlockState(pos.down());
+        if (world.isAirBlock(pos.down())) return false;
+        if (ground.getBlock().getCollisionBoundingBox(ground, world, pos.down()) == null) return false;
+
+        IBlockState feet = world.getBlockState(pos);
+        IBlockState head = world.getBlockState(pos.up());
+        return feet.getBlock().getCollisionBoundingBox(feet, world, pos) == null
+            && head.getBlock().getCollisionBoundingBox(head, world, pos.up()) == null;
     }
 
     // ==================== Mode ====================
