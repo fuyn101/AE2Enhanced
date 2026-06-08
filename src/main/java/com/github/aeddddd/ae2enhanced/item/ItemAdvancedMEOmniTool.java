@@ -1,17 +1,28 @@
 package com.github.aeddddd.ae2enhanced.item;
 
+import appeng.api.implementations.items.IAEWrench;
+import cofh.api.item.IToolHammer;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
+import crazypants.enderio.api.tool.IConduitControl;
+import crazypants.enderio.api.tool.IHideFacades;
+import crazypants.enderio.api.tool.ITool;
+import mekanism.api.IMekWrench;
 import net.minecraft.block.Block;
+import net.minecraft.block.properties.IProperty;
+import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
-import net.minecraft.item.EnumAction;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -20,9 +31,10 @@ import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -31,16 +43,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.inventory.EntityEquipmentSlot;
-
-/**
- * 先进ME工具 — 通用创造级挖掘 + 扳手 + 旋转 + 旅行 + 升级系统.
- */
-public class ItemAdvancedMEOmniTool extends Item {
+@Optional.InterfaceList({
+    @Optional.Interface(iface = "cofh.api.item.IToolHammer", modid = "cofhcore"),
+    @Optional.Interface(iface = "mekanism.api.IMekWrench", modid = "mekanism"),
+    @Optional.Interface(iface = "crazypants.enderio.api.tool.ITool", modid = "enderio"),
+    @Optional.Interface(iface = "crazypants.enderio.api.tool.IConduitControl", modid = "enderio")
+})
+public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHammer, IMekWrench, ITool, IConduitControl {
 
     // ---- NBT Keys ----
     public static final String NBT_MODE = "Mode";
@@ -88,7 +97,7 @@ public class ItemAdvancedMEOmniTool extends Item {
     private static final float DESTROY_SPEED = 1_000_000.0f;
     private static final float ATTACK_DAMAGE = 6.0f;
     private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
-    private static final double DEFAULT_BLINK_DIST = 10.0;
+    private static final double DEFAULT_BLINK_DIST = 32.0;
     private static final int BLINK_COOLDOWN_TICKS = 5;
     private static final int DEFAULT_BREAK_COOLDOWN = 6;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
@@ -98,6 +107,7 @@ public class ItemAdvancedMEOmniTool extends Item {
         setTranslationKey(AE2Enhanced.MOD_ID + ".me_omni_tool");
         setCreativeTab(AE2Enhanced.CREATIVE_TAB);
         setMaxStackSize(1);
+        setHarvestLevel("wrench", 0);
     }
 
     // ==================== Mining ====================
@@ -156,6 +166,30 @@ public class ItemAdvancedMEOmniTool extends Item {
         return super.onLeftClickEntity(stack, player, entity);
     }
 
+    // ==================== Item Use First (Wrench Rotate) ====================
+
+    @Override
+    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
+        if (world.isRemote) return EnumActionResult.PASS;
+        ItemStack stack = player.getHeldItem(hand);
+        int mode = getMode(stack);
+        if (mode != MODE_WRENCH && mode != MODE_UNIVERSAL) return EnumActionResult.PASS;
+        if (player.isSneaking()) return EnumActionResult.PASS;
+
+        Block block = world.getBlockState(pos).getBlock();
+        if (block != null && block.rotateBlock(world, pos, side)) {
+            player.swingArm(hand);
+            return EnumActionResult.SUCCESS;
+        }
+        return EnumActionResult.PASS;
+    }
+
+    @Override
+    public boolean doesSneakBypassUse(ItemStack stack, IBlockAccess world, BlockPos pos, EntityPlayer player) {
+        int mode = getMode(stack);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
     // ==================== Right-Click on Block ====================
 
     @Override
@@ -198,7 +232,29 @@ public class ItemAdvancedMEOmniTool extends Item {
 
     private EnumActionResult doWrench(EntityPlayer player, World world, BlockPos pos, EnumFacing facing, EnumHand hand) {
         if (world.isRemote) return EnumActionResult.SUCCESS;
-        // TODO: 多模组扳手兼容反射隔离
+
+        // 首先尝试通用旋转
+        IBlockState state = world.getBlockState(pos);
+        Block block = state.getBlock();
+        if (block.rotateBlock(world, pos, facing)) {
+            player.swingArm(hand);
+            return EnumActionResult.SUCCESS;
+        }
+
+        // PropertyDirection 手动循环回退（用于扳手模式旋转）
+        for (IProperty<?> prop : state.getPropertyKeys()) {
+            if (prop instanceof PropertyDirection) {
+                PropertyDirection dirProp = (PropertyDirection) prop;
+                EnumFacing current = state.getValue(dirProp);
+                EnumFacing next = getNextFacing(current, facing, dirProp);
+                if (next != null && next != current && dirProp.getAllowedValues().contains(next)) {
+                    world.setBlockState(pos, state.withProperty(dirProp, next));
+                    player.swingArm(hand);
+                    return EnumActionResult.SUCCESS;
+                }
+            }
+        }
+
         return EnumActionResult.PASS;
     }
 
@@ -209,9 +265,44 @@ public class ItemAdvancedMEOmniTool extends Item {
         IBlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
         boolean rotated = block.rotateBlock(world, pos, facing);
-        if (rotated) return EnumActionResult.SUCCESS;
-        // TODO: PropertyDirection 手动循环回退
+        if (rotated) {
+            player.swingArm(player.getActiveHand());
+            return EnumActionResult.SUCCESS;
+        }
+
+        // PropertyDirection 手动循环回退
+        for (IProperty<?> prop : state.getPropertyKeys()) {
+            if (prop instanceof PropertyDirection) {
+                PropertyDirection dirProp = (PropertyDirection) prop;
+                EnumFacing current = state.getValue(dirProp);
+                EnumFacing next = getNextFacing(current, facing, dirProp);
+                if (next != null && next != current && dirProp.getAllowedValues().contains(next)) {
+                    world.setBlockState(pos, state.withProperty(dirProp, next));
+                    player.swingArm(player.getActiveHand());
+                    return EnumActionResult.SUCCESS;
+                }
+            }
+        }
         return EnumActionResult.PASS;
+    }
+
+    private EnumFacing getNextFacing(EnumFacing current, EnumFacing clickFace, PropertyDirection dirProp) {
+        if (clickFace.getAxis() == EnumFacing.Axis.Y) {
+            // 点击顶面/底面：先尝试绕 X 轴旋转，再绕 Z 轴，再取反
+            EnumFacing next = current.rotateAround(EnumFacing.Axis.X);
+            if (dirProp.getAllowedValues().contains(next)) return next;
+            next = current.rotateAround(EnumFacing.Axis.Z);
+            if (dirProp.getAllowedValues().contains(next)) return next;
+            next = current.getOpposite();
+            if (dirProp.getAllowedValues().contains(next)) return next;
+        } else {
+            // 点击侧面：绕 Y 轴旋转
+            EnumFacing next = current.rotateY();
+            if (dirProp.getAllowedValues().contains(next)) return next;
+            next = current.rotateYCCW();
+            if (dirProp.getAllowedValues().contains(next)) return next;
+        }
+        return null;
     }
 
     // ==================== Travel Mode ====================
@@ -444,6 +535,75 @@ public class ItemAdvancedMEOmniTool extends Item {
         }
     }
 
+    // ==================== Wrench Interface Implementations ====================
+
+    // -- IAEWrench --
+    @Override
+    public boolean canWrench(ItemStack wrench, EntityPlayer player, BlockPos pos) {
+        int mode = getMode(wrench);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
+    // -- IToolHammer (CoFH) --
+    @Override
+    public boolean isUsable(ItemStack item, EntityLivingBase user, BlockPos pos) {
+        return item.getItem() instanceof ItemAdvancedMEOmniTool;
+    }
+
+    @Override
+    public boolean isUsable(ItemStack item, EntityLivingBase user, Entity entity) {
+        return item.getItem() instanceof ItemAdvancedMEOmniTool;
+    }
+
+    @Override
+    public void toolUsed(ItemStack item, EntityLivingBase user, BlockPos pos) {
+    }
+
+    @Override
+    public void toolUsed(ItemStack item, EntityLivingBase user, Entity entity) {
+    }
+
+    // -- IMekWrench (Mekanism) --
+    @Override
+    public boolean canUseWrench(ItemStack stack, EntityPlayer player, BlockPos pos) {
+        int mode = getMode(stack);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
+    @Override
+    public boolean canUseWrench(EntityPlayer player, EnumHand hand, ItemStack stack, RayTraceResult rayTrace) {
+        int mode = getMode(stack);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
+    @Override
+    public void wrenchUsed(EntityPlayer player, EnumHand hand, ItemStack stack, RayTraceResult rayTrace) {
+    }
+
+    // -- ITool / IHideFacades / IConduitControl (EnderIO) --
+    @Override
+    public boolean canUse(EnumHand hand, EntityPlayer player, BlockPos pos) {
+        ItemStack stack = player.getHeldItem(hand);
+        int mode = getMode(stack);
+        return (mode == MODE_WRENCH || mode == MODE_UNIVERSAL) && stack.getItem() instanceof ItemAdvancedMEOmniTool;
+    }
+
+    @Override
+    public void used(EnumHand hand, EntityPlayer player, BlockPos pos) {
+    }
+
+    @Override
+    public boolean shouldHideFacades(ItemStack stack, EntityPlayer player) {
+        int mode = getMode(stack);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
+    @Override
+    public boolean showOverlay(ItemStack stack, EntityPlayer player) {
+        int mode = getMode(stack);
+        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
     // ==================== Attribute Modifiers ====================
 
     @Override
@@ -452,7 +612,7 @@ public class ItemAdvancedMEOmniTool extends Item {
         multimap.putAll(super.getAttributeModifiers(slot, stack));
         if (slot == EntityEquipmentSlot.MAINHAND) {
             multimap.put(EntityPlayer.REACH_DISTANCE.getName(),
-                new AttributeModifier(REACH_MODIFIER_UUID, "AE2Enhanced OmniTool reach", 3.0, 0));
+                new AttributeModifier(REACH_MODIFIER_UUID, "AE2Enhanced OmniTool reach", 5.0, 0));
         }
         return multimap;
     }
