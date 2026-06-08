@@ -12,6 +12,7 @@ import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
@@ -239,8 +240,8 @@ public final class ModEventHandler {
 
     /**
      * 兜底：每 tick 末强制把带 anti-heal 且未死亡的实体标记为 isDead。
-     * 防止某些实体（如 dechaosislandlegacy 的 DraconicGuardianEntity）通过覆盖 setDead/onLivingUpdate
-     * 等手段阻止自身被 World.updateEntities() 移除。
+     * 防止某些具有自定义存活逻辑的实体通过覆盖 setDead / onLivingUpdate 等手段
+     * 阻止自身被 World.updateEntities() 移除。
      */
     @SubscribeEvent
     public void onWorldTick(net.minecraftforge.fml.common.gameevent.TickEvent.WorldTickEvent event) {
@@ -248,7 +249,7 @@ public final class ModEventHandler {
         for (net.minecraft.entity.Entity entity : event.world.loadedEntityList) {
             if (entity instanceof EntityLivingBase && ItemAdvancedMEOmniTool.hasAntiHeal((EntityLivingBase) entity)) {
                 if (!entity.isDead) {
-                    ItemAdvancedMEOmniTool.forceSetIsDead(entity, true);
+                    ForceKillHelper.forceSetIsDead(entity, true);
                 }
             }
         }

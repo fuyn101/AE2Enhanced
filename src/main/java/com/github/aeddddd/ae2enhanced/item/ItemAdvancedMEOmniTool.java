@@ -4,6 +4,7 @@ import appeng.api.implementations.items.IAEWrench;
 import cofh.api.item.IToolHammer;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.BlockWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
@@ -121,155 +122,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final int DEFAULT_BREAK_COOLDOWN = 6;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
-    // ---- Force-setHealth via dataManager (generic fallback for subclasses that override setHealth) ----
-    private static final java.lang.reflect.Field ENTITY_DATA_MANAGER;
-    private static final java.lang.reflect.Field ELB_HEALTH_PARAM;
-    private static final java.util.List<java.lang.reflect.Method> DATA_MANAGER_CANDIDATES = new java.util.ArrayList<>();
-    private static final java.lang.reflect.Field ENTITY_IS_DEAD;
-    // 直接操作 DataEntry 所需的反射缓存（绕过任何 EntityDataManager 子类对 set() 的覆盖）
-    private static final java.lang.reflect.Field EDM_ENTRIES;
-    private static final java.lang.reflect.Field EDM_DIRTY;
-    private static final java.lang.reflect.Method DATA_PARAM_GET_ID;
-    private static final java.lang.reflect.Method DATA_ENTRY_SET_VALUE;
-    private static final java.lang.reflect.Method DATA_ENTRY_SET_DIRTY;
-
-    static {
-        java.lang.reflect.Field dm = null;
-        java.lang.reflect.Field hp = null;
-        java.lang.reflect.Field isDead = null;
-        java.lang.reflect.Field edmEntries = null;
-        java.lang.reflect.Field edmDirty = null;
-        java.lang.reflect.Method dataParamGetId = null;
-        java.lang.reflect.Method dataEntrySetValue = null;
-        java.lang.reflect.Method dataEntrySetDirty = null;
-
-        try {
-            // 1. Entity.dataManager
-            for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
-                if (f.getType().getSimpleName().equals("EntityDataManager")) {
-                    dm = f;
-                    dm.setAccessible(true);
-                    break;
-                }
-            }
-
-            // 2. EntityLivingBase.HEALTH
-            for (java.lang.reflect.Field f : EntityLivingBase.class.getDeclaredFields()) {
-                if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) &&
-                    f.getType().getSimpleName().equals("DataParameter")) {
-                    java.lang.reflect.Type genericType = f.getGenericType();
-                    if (genericType instanceof java.lang.reflect.ParameterizedType) {
-                        java.lang.reflect.Type[] args = ((java.lang.reflect.ParameterizedType) genericType).getActualTypeArguments();
-                        if (args.length > 0 && "java.lang.Float".equals(args[0].getTypeName())) {
-                            hp = f;
-                            hp.setAccessible(true);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // 3. EntityDataManager 的方法与字段
-            if (dm != null) {
-                Class<?> dataManagerClass = dm.getType();
-
-                // 3a. set / setEntry 方法候选
-                for (java.lang.reflect.Method m : dataManagerClass.getDeclaredMethods()) {
-                    if (m.getParameterCount() == 2 &&
-                        m.getParameterTypes()[0].getSimpleName().equals("DataParameter") &&
-                        m.getParameterTypes()[1] == Object.class) {
-                        String name = m.getName();
-                        boolean isSet = name.equals("set") || name.equals("func_187227_b");
-                        boolean isSetEntry = name.equals("setEntry") || name.equals("func_187226_a");
-                        if (isSet || isSetEntry) {
-                            m.setAccessible(true);
-                            if (isSet) {
-                                DATA_MANAGER_CANDIDATES.add(0, m);
-                            } else {
-                                DATA_MANAGER_CANDIDATES.add(m);
-                            }
-                        }
-                    }
-                }
-
-                // 3b. entries map（唯一一个 Map 类型字段）
-                java.util.List<java.lang.reflect.Field> boolFields = new java.util.ArrayList<>();
-                for (java.lang.reflect.Field f : dataManagerClass.getDeclaredFields()) {
-                    if (java.util.Map.class.isAssignableFrom(f.getType())) {
-                        edmEntries = f;
-                        edmEntries.setAccessible(true);
-                    } else if (f.getType() == boolean.class) {
-                        boolFields.add(f);
-                    }
-                }
-                // dirty 字段：先尝试名字匹配，否则取最后一个 boolean 字段
-                for (java.lang.reflect.Field f : boolFields) {
-                    String name = f.getName();
-                    if (name.equals("dirty") || name.contains("187232")) {
-                        edmDirty = f;
-                        edmDirty.setAccessible(true);
-                        break;
-                    }
-                }
-                if (edmDirty == null && !boolFields.isEmpty()) {
-                    edmDirty = boolFields.get(boolFields.size() - 1);
-                    edmDirty.setAccessible(true);
-                }
-            }
-
-            // 4. DataParameter.getId()
-            Class<?> paramClass = Class.forName("net.minecraft.network.datasync.DataParameter");
-            for (java.lang.reflect.Method m : paramClass.getDeclaredMethods()) {
-                if (m.getReturnType() == int.class && m.getParameterCount() == 0) {
-                    dataParamGetId = m;
-                    dataParamGetId.setAccessible(true);
-                    break;
-                }
-            }
-
-            // 5. DataEntry.setValue() / setDirty()
-            Class<?> entryClass = Class.forName("net.minecraft.network.datasync.EntityDataManager$DataEntry");
-            for (java.lang.reflect.Method m : entryClass.getDeclaredMethods()) {
-                if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == Object.class && m.getReturnType() == void.class) {
-                    dataEntrySetValue = m;
-                    dataEntrySetValue.setAccessible(true);
-                } else if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == boolean.class && m.getReturnType() == void.class) {
-                    dataEntrySetDirty = m;
-                    dataEntrySetDirty.setAccessible(true);
-                }
-            }
-
-            // 6. Entity.isDead（尝试多种名字策略）
-            try {
-                isDead = Entity.class.getDeclaredField("field_70128_L");
-            } catch (NoSuchFieldException e1) {
-                try {
-                    isDead = Entity.class.getDeclaredField("isDead");
-                } catch (NoSuchFieldException e2) {
-                    for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
-                        if (f.getType() == boolean.class && java.lang.reflect.Modifier.isPublic(f.getModifiers())) {
-                            isDead = f;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (isDead != null) {
-                isDead.setAccessible(true);
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to initialize forceSetHealthViaDataManager", e);
-        }
-        ENTITY_DATA_MANAGER = dm;
-        ELB_HEALTH_PARAM = hp;
-        ENTITY_IS_DEAD = isDead;
-        EDM_ENTRIES = edmEntries;
-        EDM_DIRTY = edmDirty;
-        DATA_PARAM_GET_ID = dataParamGetId;
-        DATA_ENTRY_SET_VALUE = dataEntrySetValue;
-        DATA_ENTRY_SET_DIRTY = dataEntrySetDirty;
-    }
-
     public ItemAdvancedMEOmniTool() {
         setRegistryName(AE2Enhanced.MOD_ID, "me_omni_tool");
         setTranslationKey(AE2Enhanced.MOD_ID + ".me_omni_tool");
@@ -360,91 +212,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 通用管理器死亡通知：遍历实体类的所有无参方法，返回类型名包含 manager/fight/boss 的视为管理器获取方法；
-     * 再遍历管理器的所有单参方法，名字包含 death/complete/finish 的视为死亡回调并调用。
-     * 同时尝试将管理器中的 "killed" / "dead" / "defeated" boolean 字段设为 true。
-     * 这套模式可覆盖 dechaosislandlegacy GuardianFightManager、末影龙 DragonFightManager 等多种 boss 管理器。
-     */
-    private static void tryNotifyBossManager(EntityLivingBase boss) {
-        try {
-            Object manager = null;
-            java.lang.reflect.Method managerGetter = null;
-            for (java.lang.reflect.Method m : boss.getClass().getDeclaredMethods()) {
-                if (m.getParameterCount() != 0) continue;
-                String retName = m.getReturnType().getSimpleName().toLowerCase();
-                if (retName.contains("manager") || retName.contains("fight") || retName.contains("boss")) {
-                    m.setAccessible(true);
-                    Object candidate = m.invoke(boss);
-                    if (candidate != null) {
-                        manager = candidate;
-                        managerGetter = m;
-                        break;
-                    }
-                }
-            }
-            if (manager == null) return;
-
-            boolean deathCalled = false;
-            for (java.lang.reflect.Method m : manager.getClass().getDeclaredMethods()) {
-                if (m.getParameterCount() != 1) continue;
-                String name = m.getName().toLowerCase();
-                if (name.contains("death") || name.contains("complete") || name.contains("finish")) {
-                    m.setAccessible(true);
-                    try {
-                        m.invoke(manager, boss);
-                        deathCalled = true;
-                    } catch (Exception ignored) {}
-                }
-            }
-
-            if (!deathCalled) {
-                for (java.lang.reflect.Field f : manager.getClass().getDeclaredFields()) {
-                    if (f.getType() != boolean.class) continue;
-                    String name = f.getName().toLowerCase();
-                    if (name.contains("killed") || name.contains("dead") || name.contains("defeated")) {
-                        f.setAccessible(true);
-                        f.setBoolean(manager, true);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] tryNotifyBossManager failed", e);
-        }
-    }
-
-    /**
-     * 对已知有保护机制的实体（如 DraconicGuardianEntity），反射打开其内部保护开关。
-     */
-    private static void forceBypassProtection(EntityLivingBase entity) {
-        Class<?> clazz = entity.getClass();
-        while (clazz != null && clazz != Object.class) {
-            for (java.lang.reflect.Field f : clazz.getDeclaredFields()) {
-                if (f.getType() != boolean.class) continue;
-                String name = f.getName();
-                if (name.equals("allowProtectedHealthChange") || name.contains("ProtectedHealth")) {
-                    try {
-                        f.setAccessible(true);
-                        f.setBoolean(entity, true);
-                    } catch (Exception e) {
-                        AE2Enhanced.LOGGER.error("[AE2E] forceBypassProtection allowProtectedHealthChange failed", e);
-                    }
-                }
-                if (name.equals("allowProtectedRemoval") || name.contains("ProtectedRemoval")) {
-                    try {
-                        f.setAccessible(true);
-                        f.setBoolean(entity, true);
-                    } catch (Exception e) {
-                        AE2Enhanced.LOGGER.error("[AE2E] forceBypassProtection allowProtectedRemoval failed", e);
-                    }
-                }
-            }
-            clazz = clazz.getSuperclass();
-        }
-    }
-
-    /**
-     * 应用混沌伤害：先尝试 setHealth；若被子类重写阻止，则回退到直接修改 dataManager。
-     * 固定扣除 1000 血量，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
+     * 应用混沌伤害：固定扣除 1000 血量，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
+     * 视觉效果（受击动画、击退）保留在本方法中；核心强制击杀逻辑委托给 {@link ForceKillHelper}。
      */
     private void applyChaosDamage(EntityLivingBase target, EntityPlayer player) {
         if (target.world.isRemote) return;
@@ -457,8 +226,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                 targetPlayer.wakeUpPlayer(true, true, false);
             }
         }
-
-        float newHealth = target.getHealth() - CHAOS_DAMAGE_VALUE;
 
         target.limbSwingAmount = 1.5f;
         target.setRevengeTarget(player);
@@ -474,226 +241,24 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
         target.knockBack(player, 0.4f, dx, dz);
 
-        // 打开实体内部保护开关（如 DraconicGuardianEntity 的 allowProtectedHealthChange）
-        forceBypassProtection(target);
-
-        // 尝试 setHealth；若被子类重写阻止（血量未变），回退到直接修改 dataManager
-        float healthBefore = target.getHealth();
-        target.setHealth(Math.max(0.0f, newHealth));
-        if (target.getHealth() >= healthBefore) {
-            forceSetHealthViaDataManager(target, Math.max(0.0f, newHealth));
-        }
-
-        // 施加禁疗效果（阻止任何形式回血）
+        // 施加禁疗效果（必须在 onDeath 之前，因为 Mixin 注入会检查此标志）
         applyAntiHeal(target);
 
-        // 强制触发死亡。混沌核心设计为"秒杀"，不依赖 getHealth()
-        target.onDeath(CHAOS_DAMAGE);
-        if (!target.isDead) {
-            forceBypassProtection(target); // 确保 allowProtectedRemoval=true
-            target.setDead();
-            forceSetIsDead(target, true);
-            removeMultipartChildren(target);
+        // 核心强制击杀逻辑
+        ForceKillHelper.applyForceKill(target, player, CHAOS_DAMAGE_VALUE, CHAOS_DAMAGE);
 
-            // 通知 boss 管理器执行正常死亡清理，阻止重新生成
-            tryNotifyBossManager(target);
-
-            // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
-            if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
-                final EntityLivingBase toRemove = target;
-                target.world.getMinecraftServer().addScheduledTask(() -> {
-                    if (!toRemove.isDead && toRemove.world != null) {
-                        try {
-                            toRemove.world.removeEntityDangerously(toRemove);
-                        } catch (Exception e) {
-                            AE2Enhanced.LOGGER.error("[AE2E] removeEntityDangerously failed", e);
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    private static void forceSetHealthViaDataManager(EntityLivingBase entity, float health) {
-        if (ENTITY_DATA_MANAGER == null) return;
-        try {
-            Object dataManager = ENTITY_DATA_MANAGER.get(entity);
-            if (dataManager == null) return;
-
-            // 收集实体类及其父类中所有 DataParameter<Float> 静态字段（某些实体使用自己的参数而非 HEALTH）
-            java.util.List<Object> healthParams = new java.util.ArrayList<>();
-            Class<?> clazz = entity.getClass();
-            while (clazz != null && clazz != Object.class) {
-                for (java.lang.reflect.Field f : clazz.getDeclaredFields()) {
-                    if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) &&
-                        f.getType().getSimpleName().equals("DataParameter")) {
-                        java.lang.reflect.Type genericType = f.getGenericType();
-                        if (genericType instanceof java.lang.reflect.ParameterizedType) {
-                            java.lang.reflect.Type[] args = ((java.lang.reflect.ParameterizedType) genericType).getActualTypeArguments();
-                            if (args.length > 0 && "java.lang.Float".equals(args[0].getTypeName())) {
-                                f.setAccessible(true);
-                                Object param = f.get(null);
-                                if (param != null) healthParams.add(param);
-                            }
-                        }
-                    }
-                }
-                clazz = clazz.getSuperclass();
-            }
-            // 保底：加上 EntityLivingBase.HEALTH
-            if (ELB_HEALTH_PARAM != null && !healthParams.contains(ELB_HEALTH_PARAM)) {
-                healthParams.add(ELB_HEALTH_PARAM);
-            }
-            if (healthParams.isEmpty()) return;
-
-            float clamped = MathHelper.clamp(health, 0.0f, entity.getMaxHealth());
-
-            // 方法1：直接修改 DataEntry.value + dirty，绕过任何 EntityDataManager 子类对 set() 的覆盖
-            if (EDM_ENTRIES != null && DATA_PARAM_GET_ID != null && DATA_ENTRY_SET_VALUE != null) {
-                java.util.Map<?, ?> entries = (java.util.Map<?, ?>) EDM_ENTRIES.get(dataManager);
-                boolean anyModified = false;
-                for (Object param : healthParams) {
-                    int id = (Integer) DATA_PARAM_GET_ID.invoke(param);
-                    Object entry = entries.get(id);
-                    if (entry == null) continue;
+        // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
+        if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
+            final EntityLivingBase toRemove = target;
+            target.world.getMinecraftServer().addScheduledTask(() -> {
+                if (!toRemove.isDead && toRemove.world != null) {
                     try {
-                        // 标准 DataEntry
-                        DATA_ENTRY_SET_VALUE.invoke(entry, Float.valueOf(clamped));
-                        if (DATA_ENTRY_SET_DIRTY != null) {
-                            DATA_ENTRY_SET_DIRTY.invoke(entry, true);
-                        }
-                        anyModified = true;
-                    } catch (IllegalArgumentException e) {
-                        // 自定义 entry 对象：暴力探测 value 字段 / setter 方法
-                        boolean customModified = false;
-                        for (java.lang.reflect.Method m : entry.getClass().getDeclaredMethods()) {
-                            if (m.getParameterCount() == 1) {
-                                Class<?> pt = m.getParameterTypes()[0];
-                                if (pt == Object.class || pt == Float.class || pt == float.class) {
-                                    try {
-                                        m.setAccessible(true);
-                                        m.invoke(entry, Float.valueOf(clamped));
-                                        customModified = true;
-                                        break;
-                                    } catch (Exception ignored) {}
-                                }
-                            }
-                        }
-                        if (!customModified) {
-                            for (java.lang.reflect.Field f : entry.getClass().getDeclaredFields()) {
-                                if (f.getType() == Object.class || f.getType() == Float.class || f.getType() == float.class) {
-                                    try {
-                                        f.setAccessible(true);
-                                        f.set(entry, Float.valueOf(clamped));
-                                        customModified = true;
-                                        break;
-                                    } catch (Exception ignored) {}
-                                }
-                            }
-                        }
-                        if (customModified) {
-                            // 尝试标记 dirty（自定义 dirty 方法/字段）
-                            for (java.lang.reflect.Method m : entry.getClass().getDeclaredMethods()) {
-                                if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == boolean.class) {
-                                    try {
-                                        m.setAccessible(true);
-                                        m.invoke(entry, true);
-                                        break;
-                                    } catch (Exception ignored) {}
-                                }
-                            }
-                            for (java.lang.reflect.Field f : entry.getClass().getDeclaredFields()) {
-                                if (f.getType() == boolean.class) {
-                                    try {
-                                        f.setAccessible(true);
-                                        f.setBoolean(entry, true);
-                                        break;
-                                    } catch (Exception ignored) {}
-                                }
-                            }
-                            anyModified = true;
-                        }
+                        toRemove.world.removeEntityDangerously(toRemove);
+                    } catch (Exception e) {
+                        AE2Enhanced.LOGGER.error("[AE2E] removeEntityDangerously failed", e);
                     }
                 }
-                if (anyModified && EDM_DIRTY != null) {
-                    try {
-                        EDM_DIRTY.setBoolean(dataManager, true);
-                    } catch (Exception ignored) {}
-                }
-            }
-
-            // 方法2：反射调用 set / setEntry（fallback，用于触发 notifyDataManagerChange）
-            for (java.lang.reflect.Method m : DATA_MANAGER_CANDIDATES) {
-                try {
-                    for (Object param : healthParams) {
-                        m.invoke(dataManager, param, Float.valueOf(clamped));
-                    }
-                } catch (java.lang.reflect.InvocationTargetException e) {
-                    Throwable cause = e.getCause();
-                    if (cause instanceof IllegalArgumentException
-                            && cause.getMessage() != null
-                            && cause.getMessage().contains("Duplicate")) {
-                        continue;
-                    }
-                    AE2Enhanced.LOGGER.warn("[AE2E] forceSetHealthViaDataManager candidate {} failed: {}", m.getName(), cause);
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] forceSetHealthViaDataManager failed", e);
-        }
-    }
-
-    /**
-     * 强制设置实体 isDead=true，绕过任何 setDead() 覆盖。
-     * 采用运行时动态查找，不再依赖静态缓存，确保在不同映射环境（Forge/CleanroomMC）下都能命中正确字段。
-     */
-    public static void forceSetIsDead(Entity entity, boolean dead) {
-        // 先尝试静态缓存（性能优化）
-        if (ENTITY_IS_DEAD != null) {
-            try {
-                ENTITY_IS_DEAD.setBoolean(entity, dead);
-                return;
-            } catch (Exception ignored) {}
-        }
-        // 运行时动态精确查找
-        String[] candidates = {"field_70128_L", "isDead", "dead"};
-        for (String name : candidates) {
-            Class<?> clazz = entity.getClass();
-            while (clazz != null && clazz != Object.class) {
-                try {
-                    java.lang.reflect.Field f = clazz.getDeclaredField(name);
-                    f.setAccessible(true);
-                    f.setBoolean(entity, dead);
-                    return;
-                } catch (NoSuchFieldException e) {
-                    clazz = clazz.getSuperclass();
-                } catch (Exception e) {
-                    AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead failed", e);
-                    return;
-                }
-            }
-        }
-        AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead: could not find isDead field on {}", entity.getClass().getName());
-    }
-
-    private static void removeMultipartChildren(Entity parent) {
-        for (java.lang.reflect.Field f : parent.getClass().getDeclaredFields()) {
-            Class<?> type = f.getType();
-            if (type.isArray() && type.getComponentType().getSimpleName().equals("MultiPartEntityPart")) {
-                try {
-                    f.setAccessible(true);
-                    Object[] parts = (Object[]) f.get(parent);
-                    if (parts != null) {
-                        for (Object part : parts) {
-                            if (part instanceof Entity) {
-                                forceSetIsDead((Entity) part, true);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
+            });
         }
     }
 
