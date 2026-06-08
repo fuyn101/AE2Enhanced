@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.client.handler;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolMode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolSilkTouch;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolDropMode;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.client.settings.KeyModifier;
@@ -34,18 +35,28 @@ public class KeyHandlerOmniTool {
         "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding KEY_DROP = new KeyBinding(
+        "key.ae2enhanced.omnitool_drop_mode",
+        KeyConflictContext.IN_GAME,
+        KeyModifier.CONTROL,
+        Keyboard.KEY_N,
+        "key.categories.ae2enhanced"
+    );
+
     public static void init() {
         ClientRegistry.registerKeyBinding(KEY_MODE);
         ClientRegistry.registerKeyBinding(KEY_SILK);
+        ClientRegistry.registerKeyBinding(KEY_DROP);
     }
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (KEY_MODE.isPressed()) {
-            AE2Enhanced.network.sendToServer(new PacketOmniToolMode());
-        }
-        if (KEY_SILK.isPressed()) {
+        if (KEY_DROP.isPressed()) {
+            AE2Enhanced.network.sendToServer(new PacketOmniToolDropMode());
+        } else if (KEY_SILK.isPressed()) {
             AE2Enhanced.network.sendToServer(new PacketOmniToolSilkTouch());
+        } else if (KEY_MODE.isPressed()) {
+            AE2Enhanced.network.sendToServer(new PacketOmniToolMode());
         }
     }
 }

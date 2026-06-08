@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.item;
 import appeng.api.implementations.items.IAEWrench;
 import cofh.api.item.IToolHammer;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.block.BlockWirelessChannelTransmitter;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
@@ -32,6 +33,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
@@ -62,6 +64,18 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_LAST_BLINK = "LastBlink";
     public static final String NBT_BREAK_COOLDOWN = "BreakCooldown";
     public static final String NBT_LAST_BREAK = "LastBreak";
+    public static final String NBT_DROP_MODE = "DropMode";
+    public static final String NBT_AE_BOUND = "AEBound";
+    public static final String NBT_AE_X = "AEX";
+    public static final String NBT_AE_Y = "AEY";
+    public static final String NBT_AE_Z = "AEZ";
+    public static final String NBT_AE_DIM = "AEDim";
+
+    // ---- Drop Modes ----
+    public static final int DROP_NORMAL = 0;
+    public static final int DROP_INVENTORY = 1;
+    public static final int DROP_AE = 2;
+    private static final String[] DROP_MODE_NAMES = {"normal", "inventory", "ae"};
 
     // ---- Modes ----
     public static final int MODE_COUNT = 4;
@@ -99,7 +113,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final float ATTACK_DAMAGE = 6.0f;
     private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
     private static final double DEFAULT_BLINK_DIST = 32.0;
-    private static final int BLINK_COOLDOWN_TICKS = 5;
+    private static final int BLINK_COOLDOWN_TICKS = 1;
     private static final int DEFAULT_BREAK_COOLDOWN = 6;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
@@ -240,6 +254,15 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack stack = player.getHeldItem(hand);
         if (world.isRemote) return EnumActionResult.SUCCESS;
+
+        // 蹲下右键无线频道发生器：绑定 AE
+        Block targetBlock = world.getBlockState(pos).getBlock();
+        if (targetBlock instanceof BlockWirelessChannelTransmitter && player.isSneaking()) {
+            setAEBound(stack, pos, world.provider.getDimension());
+            player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.ae_bound", pos.getX(), pos.getY(), pos.getZ()), true);
+            player.setHeldItem(hand, stack);
+            return EnumActionResult.SUCCESS;
+        }
 
         int mode = getMode(stack);
         switch (mode) {
@@ -444,6 +467,66 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         return "item.ae2enhanced.me_omni_tool." + MODE_NAMES[mode % MODE_COUNT];
     }
 
+    // ==================== Drop Mode ====================
+
+    public static int getDropMode(ItemStack stack) {
+        return stack.hasTagCompound() ? stack.getTagCompound().getInteger(NBT_DROP_MODE) : DROP_NORMAL;
+    }
+
+    public static void setDropMode(ItemStack stack, int mode) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setInteger(NBT_DROP_MODE, mode % 3);
+    }
+
+    public static void cycleDropMode(ItemStack stack) {
+        setDropMode(stack, getDropMode(stack) + 1);
+    }
+
+    public static String getDropModeNameKey(int mode) {
+        return "item.ae2enhanced.me_omni_tool.drop_mode." + DROP_MODE_NAMES[mode % 3];
+    }
+
+    // ==================== AE Binding ====================
+
+    public static boolean isAEBound(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_AE_BOUND);
+    }
+
+    public static void setAEBound(ItemStack stack, BlockPos pos, int dim) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        NBTTagCompound tag = stack.getTagCompound();
+        tag.setBoolean(NBT_AE_BOUND, true);
+        tag.setInteger(NBT_AE_X, pos.getX());
+        tag.setInteger(NBT_AE_Y, pos.getY());
+        tag.setInteger(NBT_AE_Z, pos.getZ());
+        tag.setInteger(NBT_AE_DIM, dim);
+    }
+
+    public static BlockPos getAETransmitterPos(ItemStack stack) {
+        if (!isAEBound(stack)) return null;
+        NBTTagCompound tag = stack.getTagCompound();
+        return new BlockPos(tag.getInteger(NBT_AE_X), tag.getInteger(NBT_AE_Y), tag.getInteger(NBT_AE_Z));
+    }
+
+    public static int getAETransmitterDim(ItemStack stack) {
+        if (!isAEBound(stack)) return Integer.MIN_VALUE;
+        return stack.getTagCompound().getInteger(NBT_AE_DIM);
+    }
+
+    public static void clearAEBinding(ItemStack stack) {
+        if (stack.hasTagCompound()) {
+            NBTTagCompound tag = stack.getTagCompound();
+            tag.removeTag(NBT_AE_BOUND);
+            tag.removeTag(NBT_AE_X);
+            tag.removeTag(NBT_AE_Y);
+            tag.removeTag(NBT_AE_Z);
+            tag.removeTag(NBT_AE_DIM);
+            if (tag.getSize() == 0) {
+                stack.setTagCompound(null);
+            }
+        }
+    }
+
     // ==================== Silk Touch ====================
 
     public static boolean isSilkTouchEnabled(ItemStack stack) {
@@ -597,6 +680,11 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             int cooldown = getBreakCooldown(stack);
             tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
                 + I18n.format("item.ae2enhanced.me_omni_tool.break_cooldown", TextFormatting.YELLOW + String.valueOf(cooldown)));
+
+            int dropMode = getDropMode(stack);
+            String dropModeName = I18n.format(getDropModeNameKey(dropMode));
+            tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                + I18n.format("item.ae2enhanced.me_omni_tool.drop_mode", TextFormatting.YELLOW + dropModeName));
         }
 
         tooltip.add(TextFormatting.AQUA + "━━━━━━━━━━━━━━━━━━━━");
@@ -617,6 +705,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
         if (!hasUpgrades) {
             tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2enhanced.me_omni_tool.no_upgrades"));
+        }
+
+        if (isAEBound(stack)) {
+            BlockPos aePos = getAETransmitterPos(stack);
+            int aeDim = getAETransmitterDim(stack);
+            tooltip.add(TextFormatting.DARK_AQUA + "● " + TextFormatting.WHITE
+                + I18n.format("item.ae2enhanced.me_omni_tool.ae_bound", aePos.getX(), aePos.getY(), aePos.getZ(), aeDim));
         }
     }
 

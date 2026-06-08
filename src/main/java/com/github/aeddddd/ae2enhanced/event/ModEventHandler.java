@@ -1,14 +1,35 @@
 package com.github.aeddddd.ae2enhanced.event;
 
+import appeng.api.AEApi;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.util.AEPartLocation;
+
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * AE2Enhanced 全局事件处理器
@@ -31,6 +52,98 @@ public final class ModEventHandler {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new ModEventHandler());
+    }
+
+    @SubscribeEvent
+    public void onHarvestDrops(BlockEvent.HarvestDropsEvent event) {
+        EntityPlayer player = event.getHarvester();
+        if (player == null) return;
+        ItemStack mainHand = player.getHeldItemMainhand();
+        if (!(mainHand.getItem() instanceof ItemAdvancedMEOmniTool)) return;
+
+        int dropMode = ItemAdvancedMEOmniTool.getDropMode(mainHand);
+        if (dropMode == ItemAdvancedMEOmniTool.DROP_NORMAL) return;
+
+        List<ItemStack> drops = new ArrayList<>(event.getDrops());
+        event.getDrops().clear();
+        event.setDropChance(0.0f);
+
+        if (dropMode == ItemAdvancedMEOmniTool.DROP_INVENTORY) {
+            for (ItemStack drop : drops) {
+                if (!player.inventory.addItemStackToInventory(drop)) {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+            }
+        } else if (dropMode == ItemAdvancedMEOmniTool.DROP_AE) {
+            if (!ItemAdvancedMEOmniTool.isAEBound(mainHand)) {
+                // 未绑定 AE，回退到正常掉落
+                for (ItemStack drop : drops) {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+                return;
+            }
+            BlockPos txPos = ItemAdvancedMEOmniTool.getAETransmitterPos(mainHand);
+            int txDim = ItemAdvancedMEOmniTool.getAETransmitterDim(mainHand);
+            if (txPos == null || player.world.provider.getDimension() != txDim) {
+                for (ItemStack drop : drops) {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+                return;
+            }
+            TileEntity te = player.world.getTileEntity(txPos);
+            if (!(te instanceof TileWirelessChannelTransmitter)) {
+                for (ItemStack drop : drops) {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+                return;
+            }
+            TileWirelessChannelTransmitter transmitter = (TileWirelessChannelTransmitter) te;
+            IGridNode node = transmitter.getGridNode(AEPartLocation.INTERNAL);
+            if (node == null || node.getGrid() == null) {
+                for (ItemStack drop : drops) {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+                return;
+            }
+            IGrid grid = node.getGrid();
+            appeng.api.networking.storage.IStorageGrid storage = (appeng.api.networking.storage.IStorageGrid) grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
+            IMEMonitor<IAEItemStack> monitor = storage.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+
+            IActionSource source = new IActionSource() {
+                @Override
+                public Optional<EntityPlayer> player() {
+                    return Optional.of(player);
+                }
+                @Override
+                public Optional<appeng.api.networking.security.IActionHost> machine() {
+                    return Optional.empty();
+                }
+                @Override
+                public <T> Optional<T> context(Class<T> key) {
+                    return Optional.empty();
+                }
+            };
+
+            for (ItemStack drop : drops) {
+                IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(drop);
+                if (aeStack != null) {
+                    IAEItemStack leftover = monitor.injectItems(aeStack, appeng.api.config.Actionable.MODULATE, source);
+                    if (leftover != null && leftover.getStackSize() > 0) {
+                        ItemStack overflow = leftover.createItemStack();
+                        EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, overflow);
+                        player.world.spawnEntity(entityItem);
+                    }
+                } else {
+                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
+                    player.world.spawnEntity(entityItem);
+                }
+            }
+        }
     }
 
     @SubscribeEvent
