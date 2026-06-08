@@ -360,6 +360,36 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
+     * 对已知有保护机制的实体（如 DraconicGuardianEntity），反射打开其内部保护开关。
+     */
+    private static void forceBypassProtection(EntityLivingBase entity) {
+        Class<?> clazz = entity.getClass();
+        while (clazz != null && clazz != Object.class) {
+            for (java.lang.reflect.Field f : clazz.getDeclaredFields()) {
+                if (f.getType() != boolean.class) continue;
+                String name = f.getName();
+                if (name.equals("allowProtectedHealthChange") || name.contains("ProtectedHealth")) {
+                    try {
+                        f.setAccessible(true);
+                        f.setBoolean(entity, true);
+                    } catch (Exception e) {
+                        AE2Enhanced.LOGGER.error("[AE2E] forceBypassProtection allowProtectedHealthChange failed", e);
+                    }
+                }
+                if (name.equals("allowProtectedRemoval") || name.contains("ProtectedRemoval")) {
+                    try {
+                        f.setAccessible(true);
+                        f.setBoolean(entity, true);
+                    } catch (Exception e) {
+                        AE2Enhanced.LOGGER.error("[AE2E] forceBypassProtection allowProtectedRemoval failed", e);
+                    }
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+    }
+
+    /**
      * 应用混沌伤害：先尝试 setHealth；若被子类重写阻止，则回退到直接修改 dataManager。
      * 固定扣除 1000 血量，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
      */
@@ -391,6 +421,9 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
         target.knockBack(player, 0.4f, dx, dz);
 
+        // 打开实体内部保护开关（如 DraconicGuardianEntity 的 allowProtectedHealthChange）
+        forceBypassProtection(target);
+
         // 尝试 setHealth；若被子类重写阻止（血量未变），回退到直接修改 dataManager
         float healthBefore = target.getHealth();
         target.setHealth(Math.max(0.0f, newHealth));
@@ -401,9 +434,10 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         // 施加禁疗效果（阻止任何形式回血）
         applyAntiHeal(target);
 
-        // 强制触发死亡。混沌核心设计为"秒杀"，不依赖 getHealth()（某些实体覆盖 getHealth() 返回固定值）
+        // 强制触发死亡。混沌核心设计为"秒杀"，不依赖 getHealth()
         target.onDeath(CHAOS_DAMAGE);
         if (!target.isDead) {
+            forceBypassProtection(target); // 确保 allowProtectedRemoval=true
             target.setDead();
             forceSetIsDead(target, true);
             removeMultipartChildren(target);
