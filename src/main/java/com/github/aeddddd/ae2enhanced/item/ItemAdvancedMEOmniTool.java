@@ -125,10 +125,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final java.lang.reflect.Field ENTITY_DATA_MANAGER;
     private static final java.lang.reflect.Field ELB_HEALTH_PARAM;
     private static final java.lang.reflect.Method DATA_MANAGER_SET;
+    private static final java.lang.reflect.Field ENTITY_IS_DEAD;
     static {
         java.lang.reflect.Field dm = null;
         java.lang.reflect.Field hp = null;
         java.lang.reflect.Method set = null;
+        java.lang.reflect.Field isDead = null;
         try {
             for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
                 if (f.getType().getSimpleName().equals("EntityDataManager")) {
@@ -163,12 +165,15 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     }
                 }
             }
+            isDead = Entity.class.getDeclaredField("field_70128_L");
+            isDead.setAccessible(true);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to initialize forceSetHealthViaDataManager", e);
         }
         ENTITY_DATA_MANAGER = dm;
         ELB_HEALTH_PARAM = hp;
         DATA_MANAGER_SET = set;
+        ENTITY_IS_DEAD = isDead;
     }
 
     public ItemAdvancedMEOmniTool() {
@@ -302,11 +307,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         // 施加禁疗效果（阻止任何形式回血）
         applyAntiHeal(target);
 
-        // 触发死亡。若 onDeath 被子类重写阻止，暴力移除
+        // 触发死亡。若 onDeath / setDead 被子类重写阻止，暴力移除
         if (target.getHealth() <= 0.0f) {
             target.onDeath(CHAOS_DAMAGE);
             if (!target.isDead) {
                 target.setDead();
+                forceSetIsDead(target, true);
+                removeMultipartChildren(target);
             }
         }
     }
@@ -320,6 +327,36 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             DATA_MANAGER_SET.invoke(dataManager, healthParam, Float.valueOf(clamped));
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] forceSetHealthViaDataManager failed", e);
+        }
+    }
+
+    private static void forceSetIsDead(Entity entity, boolean dead) {
+        if (ENTITY_IS_DEAD == null) return;
+        try {
+            ENTITY_IS_DEAD.setBoolean(entity, dead);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead failed", e);
+        }
+    }
+
+    private static void removeMultipartChildren(Entity parent) {
+        for (java.lang.reflect.Field f : parent.getClass().getDeclaredFields()) {
+            Class<?> type = f.getType();
+            if (type.isArray() && type.getComponentType().getSimpleName().equals("MultiPartEntityPart")) {
+                try {
+                    f.setAccessible(true);
+                    Object[] parts = (Object[]) f.get(parent);
+                    if (parts != null) {
+                        for (Object part : parts) {
+                            if (part instanceof Entity) {
+                                forceSetIsDead((Entity) part, true);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
         }
     }
 
