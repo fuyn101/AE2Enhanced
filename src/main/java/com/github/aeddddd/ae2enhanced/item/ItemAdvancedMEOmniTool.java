@@ -94,6 +94,20 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final DamageSource CHAOS_DAMAGE =
         new DamageSource("ae2enhanced.omnitool.chaos").setDamageBypassesArmor();
 
+    // ---- DE Reflection ----
+    private static final java.lang.reflect.Constructor<?> DE_DAMAGE_SOURCE_CHAOS_CTOR;
+    static {
+        java.lang.reflect.Constructor<?> ctor = null;
+        try {
+            Class<?> clazz = Class.forName("com.brandon3055.draconicevolution.lib.DEDamageSources$DamageSourceChaos");
+            ctor = clazz.getConstructor(Entity.class);
+        } catch (Exception e) {
+            // Draconic Evolution not loaded
+        }
+        DE_DAMAGE_SOURCE_CHAOS_CTOR = ctor;
+    }
+    private static final String DE_CHAOS_CRYSTAL_CLASS = "com.brandon3055.draconicevolution.blocks.ChaosCrystal";
+
     // ---- Blacklist ----
     private static final Set<Block> BLACKLIST = ImmutableSet.of(
         Blocks.BEDROCK,
@@ -151,6 +165,19 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (getMode(stack) != MODE_UNIVERSAL) {
             return super.onBlockStartBreak(stack, pos, player);
         }
+
+        // 混沌核心：允许破坏 DE 混沌水晶（即使 hardness = -1）
+        if (hasChaosCore(stack) && isChaosCrystal(player.world, pos)) {
+            IBlockState state = player.world.getBlockState(pos);
+            Block block = state.getBlock();
+            if (!player.world.isRemote) {
+                block.dropBlockAsItem(player.world, pos, state, getFortuneLevel(stack));
+                player.world.setBlockToAir(pos);
+                block.breakBlock(player.world, pos, state);
+            }
+            return true;
+        }
+
         int cooldown = getBreakCooldown(stack);
         if (cooldown > 0) {
             long now = player.world.getTotalWorldTime();
@@ -169,13 +196,83 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
         if (entity instanceof EntityLivingBase) {
             EntityLivingBase target = (EntityLivingBase) entity;
-            applyTrueDamage(target, player, ATTACK_DAMAGE, OMNITOOL_DAMAGE);
-            if (target.getHealth() > 0 && hasChaosCore(stack)) {
-                applyTrueDamage(target, player, CHAOS_DAMAGE_VALUE, CHAOS_DAMAGE);
+            if (hasChaosCore(stack)) {
+                applyChaosDamage(target, player);
+            } else {
+                applyTrueDamage(target, player, ATTACK_DAMAGE, OMNITOOL_DAMAGE);
             }
             return true; // 阻止默认攻击逻辑（绕过攻击冷却衰减）
         }
         return super.onLeftClickEntity(stack, player, entity);
+    }
+
+    /**
+     * 应用混沌伤害：附带 DE 混沌伤害类型，固定 1000 伤害，无视减伤，越过混沌守卫护盾。
+     */
+    private void applyChaosDamage(EntityLivingBase target, EntityPlayer player) {
+        if (target.world.isRemote) return;
+        if (target.getHealth() <= 0.0f) return;
+
+        // 玩家特殊检查（唤醒睡眠）
+        if (target instanceof EntityPlayer) {
+            EntityPlayer targetPlayer = (EntityPlayer) target;
+            if (targetPlayer.isPlayerSleeping() && !targetPlayer.world.isRemote) {
+                targetPlayer.wakeUpPlayer(true, true, false);
+            }
+        }
+
+        // 构造 DE 混沌伤害源（反射）
+        DamageSource chaosSource = createChaosDamageSource(player);
+
+        float healthBefore = target.getHealth();
+
+        // 先尝试标准攻击路径（让 DE 识别伤害类型，越过混沌守卫护盾）
+        if (chaosSource != null) {
+            target.attackEntityFrom(chaosSource, CHAOS_DAMAGE_VALUE);
+        }
+
+        // 强制补足伤害至固定 1000（无视末影龙等减伤）
+        float healthAfter = target.getHealth();
+        float actualDamage = healthBefore - healthAfter;
+        if (actualDamage < CHAOS_DAMAGE_VALUE && healthAfter > 0.0f) {
+            float newHealth = healthAfter - (CHAOS_DAMAGE_VALUE - actualDamage);
+            if (newHealth <= 0.0f) {
+                target.setHealth(0.0f);
+                target.onDeath(chaosSource != null ? chaosSource : CHAOS_DAMAGE);
+            } else {
+                target.setHealth(newHealth);
+            }
+        }
+
+        // 受伤动画、击退等效果
+        target.limbSwingAmount = 1.5f;
+        target.setRevengeTarget(player);
+        target.hurtResistantTime = target.maxHurtResistantTime;
+        target.hurtTime = target.maxHurtTime;
+        target.world.setEntityState(target, (byte) 2);
+        double dx = player.posX - target.posX;
+        double dz = player.posZ - target.posZ;
+        while (dx * dx + dz * dz < 1.0E-4) {
+            dx = (Math.random() - Math.random()) * 0.01;
+            dz = (Math.random() - Math.random()) * 0.01;
+        }
+        target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
+        target.knockBack(player, 0.4f, dx, dz);
+    }
+
+    private static DamageSource createChaosDamageSource(Entity attacker) {
+        if (DE_DAMAGE_SOURCE_CHAOS_CTOR == null) return null;
+        try {
+            return (DamageSource) DE_DAMAGE_SOURCE_CHAOS_CTOR.newInstance(attacker);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to create DamageSourceChaos", e);
+            return null;
+        }
+    }
+
+    private static boolean isChaosCrystal(World world, BlockPos pos) {
+        Block block = world.getBlockState(pos).getBlock();
+        return DE_CHAOS_CRYSTAL_CLASS.equals(block.getClass().getName());
     }
 
     /**

@@ -63,13 +63,13 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
                     && "draconicevolution:chaotic_core".equals(stack.getItem().getRegistryName().toString());
         } else if ("fortune".equals(upgradeType)) {
             if (stack.getItem() != Items.ENCHANTED_BOOK) return false;
-            return hasFortuneEnchantment(stack);
+            return getFortuneLevelFromBook(stack) > 0;
         }
         return false;
     }
 
-    private static boolean hasFortuneEnchantment(ItemStack stack) {
-        if (!stack.hasTagCompound()) return false;
+    private static int getFortuneLevelFromBook(ItemStack stack) {
+        if (!stack.hasTagCompound()) return 0;
         NBTTagList list = stack.getTagCompound().getTagList("StoredEnchantments", 10);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound tag = list.getCompoundTagAt(i);
@@ -77,20 +77,22 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
             if (ench != null && ench.getRegistryName() != null
                     && "minecraft".equals(ench.getRegistryName().getNamespace())
                     && "fortune".equals(ench.getRegistryName().getPath())) {
-                return true;
+                return tag.getShort("lvl");
             }
         }
-        return false;
+        return 0;
     }
 
     @Override
     public ItemStack getCraftingResult(InventoryCrafting inv) {
         ItemStack omniTool = ItemStack.EMPTY;
+        ItemStack book = ItemStack.EMPTY;
         for (int i = 0; i < inv.getSizeInventory(); i++) {
             ItemStack stack = inv.getStackInSlot(i);
             if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
                 omniTool = stack;
-                break;
+            } else if (stack.getItem() == Items.ENCHANTED_BOOK) {
+                book = stack;
             }
         }
         if (omniTool.isEmpty()) return ItemStack.EMPTY;
@@ -100,7 +102,8 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         if ("chaos".equals(upgradeType)) {
             ItemAdvancedMEOmniTool.setChaosCore(result, true);
         } else if ("fortune".equals(upgradeType)) {
-            ItemAdvancedMEOmniTool.setFortuneLevel(result, 3);
+            int level = getFortuneLevelFromBook(book);
+            ItemAdvancedMEOmniTool.setFortuneLevel(result, level > 0 ? level : 3);
         }
         return result;
     }
