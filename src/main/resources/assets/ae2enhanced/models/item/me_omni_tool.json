@@ -1,0 +1,11 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "ae2enhanced:items/MEOmniTool_basic"
+    },
+    "overrides": [
+        {"predicate": {"ae2enhanced:omnitool_mode": 0.1}, "model": "ae2enhanced:item/me_omni_tool_mode1"},
+        {"predicate": {"ae2enhanced:omnitool_mode": 0.2}, "model": "ae2enhanced:item/me_omni_tool_mode2"},
+        {"predicate": {"ae2enhanced:omnitool_mode": 0.3}, "model": "ae2enhanced:item/me_omni_tool_mode3"}
+    ]
+}

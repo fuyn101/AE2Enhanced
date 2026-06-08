@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -15,7 +16,11 @@ public class PacketOmniToolModeHandler implements IMessageHandler<PacketOmniTool
             for (net.minecraft.util.EnumHand hand : net.minecraft.util.EnumHand.values()) {
                 ItemStack stack = player.getHeldItem(hand);
                 if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
+                    int oldMode = ItemAdvancedMEOmniTool.getMode(stack);
                     ItemAdvancedMEOmniTool.cycleMode(stack);
+                    int newMode = ItemAdvancedMEOmniTool.getMode(stack);
+                    String modeName = new TextComponentTranslation(ItemAdvancedMEOmniTool.getModeNameKey(newMode)).getFormattedText();
+                    player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.mode_changed", modeName), true);
                     break;
                 }
             }

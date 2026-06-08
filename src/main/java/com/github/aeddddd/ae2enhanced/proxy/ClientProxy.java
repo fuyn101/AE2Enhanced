@@ -269,6 +269,12 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.SMART_PATTERN);
         registerItemModel(ItemRegistry.ENERGY_DROP);
 
+        // 先进ME工具：使用 property override + overrides 切换模型
+        if (ItemRegistry.ME_OMNI_TOOL != null) {
+            ModelLoader.setCustomModelResourceLocation(ItemRegistry.ME_OMNI_TOOL, 0,
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool", "inventory"));
+        }
+
         // Omni 专用升级卡模型(根据 metadata 动态选择)
         ModelLoader.registerItemVariants(ItemRegistry.OMNI_UPGRADE_CARD,
             new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_magnet", "inventory"),

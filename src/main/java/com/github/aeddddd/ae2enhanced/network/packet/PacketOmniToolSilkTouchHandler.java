@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -15,7 +16,10 @@ public class PacketOmniToolSilkTouchHandler implements IMessageHandler<PacketOmn
             for (net.minecraft.util.EnumHand hand : net.minecraft.util.EnumHand.values()) {
                 ItemStack stack = player.getHeldItem(hand);
                 if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
-                    ItemAdvancedMEOmniTool.toggleSilkTouch(stack);
+                    boolean enabled = !ItemAdvancedMEOmniTool.isSilkTouchEnabled(stack);
+                    ItemAdvancedMEOmniTool.setSilkTouchEnabled(stack, enabled);
+                    String stateKey = enabled ? "message.ae2enhanced.omnitool.silk_on" : "message.ae2enhanced.omnitool.silk_off";
+                    player.sendStatusMessage(new TextComponentTranslation(stateKey), true);
                     break;
                 }
             }
