@@ -121,6 +121,56 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final int DEFAULT_BREAK_COOLDOWN = 6;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
+    // ---- Force-setHealth via dataManager (generic fallback for subclasses that override setHealth) ----
+    private static final java.lang.reflect.Field ENTITY_DATA_MANAGER;
+    private static final java.lang.reflect.Field ELB_HEALTH_PARAM;
+    private static final java.lang.reflect.Method DATA_MANAGER_SET;
+    static {
+        java.lang.reflect.Field dm = null;
+        java.lang.reflect.Field hp = null;
+        java.lang.reflect.Method set = null;
+        try {
+            for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
+                if (f.getType().getSimpleName().equals("EntityDataManager")) {
+                    dm = f;
+                    dm.setAccessible(true);
+                    break;
+                }
+            }
+            for (java.lang.reflect.Field f : EntityLivingBase.class.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) &&
+                    f.getType().getSimpleName().equals("DataParameter")) {
+                    java.lang.reflect.Type genericType = f.getGenericType();
+                    if (genericType instanceof java.lang.reflect.ParameterizedType) {
+                        java.lang.reflect.Type[] args = ((java.lang.reflect.ParameterizedType) genericType).getActualTypeArguments();
+                        if (args.length > 0 && "java.lang.Float".equals(args[0].getTypeName())) {
+                            hp = f;
+                            hp.setAccessible(true);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (dm != null) {
+                Class<?> dataManagerClass = dm.getType();
+                for (java.lang.reflect.Method m : dataManagerClass.getDeclaredMethods()) {
+                    if (m.getParameterCount() == 2 &&
+                        m.getParameterTypes()[0].getSimpleName().equals("DataParameter") &&
+                        m.getParameterTypes()[1] == Object.class) {
+                        set = m;
+                        set.setAccessible(true);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to initialize forceSetHealthViaDataManager", e);
+        }
+        ENTITY_DATA_MANAGER = dm;
+        ELB_HEALTH_PARAM = hp;
+        DATA_MANAGER_SET = set;
+    }
+
     public ItemAdvancedMEOmniTool() {
         setRegistryName(AE2Enhanced.MOD_ID, "me_omni_tool");
         setTranslationKey(AE2Enhanced.MOD_ID + ".me_omni_tool");
@@ -184,6 +234,14 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
+        // 通用守护水晶实体检测：类名包含 GuardianCrystal 或 CrystalEntity（覆盖 DE / dechaosislandlegacy 等）
+        String className = entity.getClass().getName();
+        if ((className.contains("GuardianCrystal") || className.endsWith("CrystalEntity"))
+                && hasChaosCore(stack) && !entity.world.isRemote) {
+            entity.setDead();
+            return true;
+        }
+
         // 处理多碰撞箱生物（如末影龙、混沌守卫）：点击的是 part，实际伤害 parent
         Entity targetEntity = entity;
         if (targetEntity instanceof net.minecraft.entity.MultiPartEntityPart) {
@@ -203,7 +261,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 应用混沌伤害：直接使用 setHealth 扣除固定 1000 血量，越过所有保护机制（护盾、水晶回血、减伤等）。
+     * 应用混沌伤害：先尝试 setHealth；若被子类重写阻止，则回退到直接修改 dataManager。
+     * 固定扣除 1000 血量，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
      */
     private void applyChaosDamage(EntityLivingBase target, EntityPlayer player) {
         if (target.world.isRemote) return;
@@ -217,7 +276,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             }
         }
 
-        // 直接扣除固定 1000 血量（越过 LivingHurtEvent、护甲、药水、难度缩放、DE 护盾、水晶回血等一切保护）
         float newHealth = target.getHealth() - CHAOS_DAMAGE_VALUE;
 
         target.limbSwingAmount = 1.5f;
@@ -234,15 +292,35 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
         target.knockBack(player, 0.4f, dx, dz);
 
-        if (newHealth <= 0.0f) {
-            target.setHealth(0.0f);
-            target.onDeath(CHAOS_DAMAGE);
-        } else {
-            target.setHealth(newHealth);
+        // 尝试 setHealth；若被子类重写阻止（血量未变），回退到直接修改 dataManager
+        float healthBefore = target.getHealth();
+        target.setHealth(Math.max(0.0f, newHealth));
+        if (target.getHealth() >= healthBefore) {
+            forceSetHealthViaDataManager(target, Math.max(0.0f, newHealth));
         }
 
-        // 施加禁疗效果（阻止任何形式回血，包括自然恢复、药水、mod 直接 setHealth 等）
+        // 施加禁疗效果（阻止任何形式回血）
         applyAntiHeal(target);
+
+        // 触发死亡。若 onDeath 被子类重写阻止，暴力移除
+        if (target.getHealth() <= 0.0f) {
+            target.onDeath(CHAOS_DAMAGE);
+            if (!target.isDead) {
+                target.setDead();
+            }
+        }
+    }
+
+    private static void forceSetHealthViaDataManager(EntityLivingBase entity, float health) {
+        if (ENTITY_DATA_MANAGER == null || ELB_HEALTH_PARAM == null || DATA_MANAGER_SET == null) return;
+        try {
+            Object dataManager = ENTITY_DATA_MANAGER.get(entity);
+            Object healthParam = ELB_HEALTH_PARAM.get(null);
+            float clamped = MathHelper.clamp(health, 0.0f, entity.getMaxHealth());
+            DATA_MANAGER_SET.invoke(dataManager, healthParam, Float.valueOf(clamped));
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] forceSetHealthViaDataManager failed", e);
+        }
     }
 
     // ==================== Anti-Heal ====================
