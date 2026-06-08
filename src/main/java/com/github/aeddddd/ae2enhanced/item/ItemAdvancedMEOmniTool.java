@@ -360,44 +360,55 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 通知 GuardianFightManager（如 dechaosislandlegacy 的混沌龙管理器）龙已死亡，
-     * 让它执行正常的击杀后清理（guardianKilled=true、移除水晶、生成龙心等），阻止重新生成。
+     * 通用管理器死亡通知：遍历实体类的所有无参方法，返回类型名包含 manager/fight/boss 的视为管理器获取方法；
+     * 再遍历管理器的所有单参方法，名字包含 death/complete/finish 的视为死亡回调并调用。
+     * 同时尝试将管理器中的 "killed" / "dead" / "defeated" boolean 字段设为 true。
+     * 这套模式可覆盖 dechaosislandlegacy GuardianFightManager、末影龙 DragonFightManager 等多种 boss 管理器。
      */
-    private static void tryNotifyGuardianFightManager(EntityLivingBase guardian) {
+    private static void tryNotifyBossManager(EntityLivingBase boss) {
         try {
-            java.lang.reflect.Method getManager = null;
-            for (java.lang.reflect.Method m : guardian.getClass().getDeclaredMethods()) {
-                if (m.getParameterCount() == 0 && m.getReturnType().getSimpleName().equals("GuardianFightManager")) {
-                    getManager = m;
-                    break;
-                }
-            }
-            if (getManager == null) return;
-            getManager.setAccessible(true);
-            Object manager = getManager.invoke(guardian);
-            if (manager == null) return;
-
-            boolean completed = false;
-            for (java.lang.reflect.Method m : manager.getClass().getDeclaredMethods()) {
-                String name = m.getName();
-                if ((name.equals("completeDragonDeath") || name.equals("processDragonDeath")) && m.getParameterCount() == 1) {
+            Object manager = null;
+            java.lang.reflect.Method managerGetter = null;
+            for (java.lang.reflect.Method m : boss.getClass().getDeclaredMethods()) {
+                if (m.getParameterCount() != 0) continue;
+                String retName = m.getReturnType().getSimpleName().toLowerCase();
+                if (retName.contains("manager") || retName.contains("fight") || retName.contains("boss")) {
                     m.setAccessible(true);
-                    m.invoke(manager, guardian);
-                    completed = true;
-                    break;
-                }
-            }
-            if (!completed) {
-                for (java.lang.reflect.Field f : manager.getClass().getDeclaredFields()) {
-                    if (f.getName().equals("guardianKilled")) {
-                        f.setAccessible(true);
-                        f.setBoolean(manager, true);
+                    Object candidate = m.invoke(boss);
+                    if (candidate != null) {
+                        manager = candidate;
+                        managerGetter = m;
                         break;
                     }
                 }
             }
+            if (manager == null) return;
+
+            boolean deathCalled = false;
+            for (java.lang.reflect.Method m : manager.getClass().getDeclaredMethods()) {
+                if (m.getParameterCount() != 1) continue;
+                String name = m.getName().toLowerCase();
+                if (name.contains("death") || name.contains("complete") || name.contains("finish")) {
+                    m.setAccessible(true);
+                    try {
+                        m.invoke(manager, boss);
+                        deathCalled = true;
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            if (!deathCalled) {
+                for (java.lang.reflect.Field f : manager.getClass().getDeclaredFields()) {
+                    if (f.getType() != boolean.class) continue;
+                    String name = f.getName().toLowerCase();
+                    if (name.contains("killed") || name.contains("dead") || name.contains("defeated")) {
+                        f.setAccessible(true);
+                        f.setBoolean(manager, true);
+                    }
+                }
+            }
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] tryNotifyGuardianFightManager failed", e);
+            AE2Enhanced.LOGGER.error("[AE2E] tryNotifyBossManager failed", e);
         }
     }
 
@@ -484,8 +495,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             forceSetIsDead(target, true);
             removeMultipartChildren(target);
 
-            // 通知 GuardianFightManager 执行正常死亡清理，阻止重新生成
-            tryNotifyGuardianFightManager(target);
+            // 通知 boss 管理器执行正常死亡清理，阻止重新生成
+            tryNotifyBossManager(target);
 
             // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
             if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
