@@ -29,6 +29,13 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.inventory.EntityEquipmentSlot;
 
 /**
  * 先进ME工具 — 通用创造级挖掘 + 扳手 + 旋转 + 旅行 + 升级系统.
@@ -83,7 +90,8 @@ public class ItemAdvancedMEOmniTool extends Item {
     private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
     private static final double DEFAULT_BLINK_DIST = 10.0;
     private static final int BLINK_COOLDOWN_TICKS = 5;
-    private static final int DEFAULT_BREAK_COOLDOWN = 0;
+    private static final int DEFAULT_BREAK_COOLDOWN = 6;
+    private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
     public ItemAdvancedMEOmniTool() {
         setRegistryName(AE2Enhanced.MOD_ID, "me_omni_tool");
@@ -96,22 +104,28 @@ public class ItemAdvancedMEOmniTool extends Item {
 
     @Override
     public float getDestroySpeed(ItemStack stack, IBlockState state) {
+        if (getMode(stack) != MODE_UNIVERSAL) return 1.0f;
         if (isBlacklisted(state.getBlock())) return 0.0f;
         return DESTROY_SPEED;
     }
 
     @Override
     public boolean canHarvestBlock(IBlockState state, ItemStack stack) {
+        if (getMode(stack) != MODE_UNIVERSAL) return false;
         return !isBlacklisted(state.getBlock());
     }
 
     @Override
     public int getHarvestLevel(ItemStack stack, String toolClass, EntityPlayer player, @Nullable IBlockState blockState) {
+        if (getMode(stack) != MODE_UNIVERSAL) return -1;
         return Integer.MAX_VALUE;
     }
 
     @Override
     public boolean onBlockStartBreak(ItemStack stack, BlockPos pos, EntityPlayer player) {
+        if (getMode(stack) != MODE_UNIVERSAL) {
+            return super.onBlockStartBreak(stack, pos, player);
+        }
         int cooldown = getBreakCooldown(stack);
         if (cooldown > 0) {
             long now = player.world.getTotalWorldTime();
@@ -130,6 +144,9 @@ public class ItemAdvancedMEOmniTool extends Item {
     public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
         if (entity instanceof EntityLivingBase) {
             EntityLivingBase target = (EntityLivingBase) entity;
+            // 无视无敌帧
+            target.hurtResistantTime = 0;
+            target.hurtTime = 0;
             target.attackEntityFrom(OMNITOOL_DAMAGE, ATTACK_DAMAGE);
             if (hasChaosCore(stack)) {
                 target.attackEntityFrom(CHAOS_DAMAGE, CHAOS_DAMAGE_VALUE);
@@ -300,7 +317,12 @@ public class ItemAdvancedMEOmniTool extends Item {
     // ==================== Blink Distance / Cooldown ====================
 
     public static double getBlinkDistance(ItemStack stack) {
-        return stack.hasTagCompound() ? stack.getTagCompound().getDouble(NBT_BLINK_DIST) : DEFAULT_BLINK_DIST;
+        if (!stack.hasTagCompound()) return DEFAULT_BLINK_DIST;
+        NBTTagCompound tag = stack.getTagCompound();
+        if (!tag.hasKey(NBT_BLINK_DIST, net.minecraftforge.common.util.Constants.NBT.TAG_DOUBLE)) {
+            tag.setDouble(NBT_BLINK_DIST, DEFAULT_BLINK_DIST);
+        }
+        return tag.getDouble(NBT_BLINK_DIST);
     }
 
     public static void setBlinkDistance(ItemStack stack, double dist) {
@@ -386,14 +408,20 @@ public class ItemAdvancedMEOmniTool extends Item {
 
         if (isSilkTouchEnabled(stack)) {
             tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.silk_touch.on"));
+        } else {
+            tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.silk_touch.off"));
         }
 
-        tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
-            + I18n.format("item.ae2enhanced.me_omni_tool.blink_dist", TextFormatting.YELLOW + String.format("%.1f", getBlinkDistance(stack))));
+        if (mode == MODE_TRAVEL) {
+            tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                + I18n.format("item.ae2enhanced.me_omni_tool.blink_dist", TextFormatting.YELLOW + String.format("%.1f", getBlinkDistance(stack))));
+        }
 
-        int cooldown = getBreakCooldown(stack);
-        tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
-            + I18n.format("item.ae2enhanced.me_omni_tool.break_cooldown", TextFormatting.YELLOW + String.valueOf(cooldown)));
+        if (mode == MODE_UNIVERSAL) {
+            int cooldown = getBreakCooldown(stack);
+            tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                + I18n.format("item.ae2enhanced.me_omni_tool.break_cooldown", TextFormatting.YELLOW + String.valueOf(cooldown)));
+        }
 
         tooltip.add(TextFormatting.AQUA + "━━━━━━━━━━━━━━━━━━━━");
 
@@ -414,6 +442,19 @@ public class ItemAdvancedMEOmniTool extends Item {
         if (!hasUpgrades) {
             tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2enhanced.me_omni_tool.no_upgrades"));
         }
+    }
+
+    // ==================== Attribute Modifiers ====================
+
+    @Override
+    public Multimap<String, AttributeModifier> getAttributeModifiers(EntityEquipmentSlot slot, ItemStack stack) {
+        Multimap<String, AttributeModifier> multimap = HashMultimap.create();
+        multimap.putAll(super.getAttributeModifiers(slot, stack));
+        if (slot == EntityEquipmentSlot.MAINHAND) {
+            multimap.put(EntityPlayer.REACH_DISTANCE.getName(),
+                new AttributeModifier(REACH_MODIFIER_UUID, "AE2Enhanced OmniTool reach", 3.0, 0));
+        }
+        return multimap;
     }
 
     // ==================== Helpers ====================

@@ -343,13 +343,14 @@ gui.ae2enhanced.advanced_platform.zone.right_click_unbind=Right-click to unbind
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=Click to assign
 
 # Advanced ME Omni Tool
-item.ae2enhanced.me_omni_tool=§bAdvanced ME Omni Tool
+item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool
 item.ae2enhanced.me_omni_tool.mode=§fMode: %s
 item.ae2enhanced.me_omni_tool.mode.universal=§eUniversal
 item.ae2enhanced.me_omni_tool.mode.wrench=§eWrench
 item.ae2enhanced.me_omni_tool.mode.rotate=§eRotate
 item.ae2enhanced.me_omni_tool.mode.travel=§eTravel
 item.ae2enhanced.me_omni_tool.silk_touch.on=§aSilk Touch: ON
+item.ae2enhanced.me_omni_tool.silk_touch.off=§cSilk Touch: OFF
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6Chaos Core
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§aFortune %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§dTravel Staff

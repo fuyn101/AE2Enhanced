@@ -341,13 +341,14 @@ gui.ae2enhanced.advanced_platform.zone.right_click_unbind=右键解绑
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=点击分配
 
 # 先进ME工具
-item.ae2enhanced.me_omni_tool=§b先进ME工具
+item.ae2enhanced.me_omni_tool.name=§b先进ME工具
 item.ae2enhanced.me_omni_tool.mode=§f模式: %s
 item.ae2enhanced.me_omni_tool.mode.universal=§e通用
 item.ae2enhanced.me_omni_tool.mode.wrench=§e扳手
 item.ae2enhanced.me_omni_tool.mode.rotate=§e旋转
 item.ae2enhanced.me_omni_tool.mode.travel=§e旅行
 item.ae2enhanced.me_omni_tool.silk_touch.on=§a精准采集: 开启
+item.ae2enhanced.me_omni_tool.silk_touch.off=§c精准采集: 关闭
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6混沌核心
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§a时运 %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§d旅行手杖
