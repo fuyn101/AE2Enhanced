@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.tile;
 
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleCraftingHelper;
+import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -71,17 +72,8 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
                     }
                 }
 
-                // 混合击杀：先尝试正常伤害,失败则暴力补刀
-                entity.hurtResistantTime = 0;
-                entity.hurtTime = 0;
-                boolean killed = false;
-                if (entity.attackEntityFrom(SPACETIME, Float.MAX_VALUE)) {
-                    if (!entity.isEntityAlive()) killed = true;
-                }
-                if (!killed) {
-                    entity.setHealth(0);
-                    entity.onDeath(SPACETIME);
-                }
+                // 强制击杀：绕过一切保护机制与事件拦截
+                ForceKillHelper.applyForceKill(entity, null, Float.MAX_VALUE, SPACETIME);
             }
         }
 

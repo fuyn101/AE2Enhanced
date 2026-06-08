@@ -17,6 +17,7 @@ import appeng.api.util.AEPartLocation;
 import appeng.me.helpers.AENetworkProxy;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
@@ -534,16 +535,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                             continue;
                         }
                     }
-                    entity.hurtResistantTime = 0;
-                    entity.hurtTime = 0;
-                    boolean killed = false;
-                    if (entity.attackEntityFrom(spacetime, Float.MAX_VALUE)) {
-                        if (!entity.isEntityAlive()) killed = true;
-                    }
-                    if (!killed) {
-                        entity.setHealth(0);
-                        entity.onDeath(spacetime);
-                    }
+                    // 强制击杀：绕过一切保护机制与事件拦截
+                    ForceKillHelper.applyForceKill(entity, null, Float.MAX_VALUE, spacetime);
                 }
             }
 
