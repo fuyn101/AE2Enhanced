@@ -106,6 +106,29 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) {
+            return Collections.emptyList();
+        }
+        List<ItemStack> cleared = new ArrayList<>();
+        for (EnumFacing face : EnumFacing.values()) {
+            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
+            if (handler == null) continue;
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack inSlot = handler.getStackInSlot(slot);
+                if (!inSlot.isEmpty()) {
+                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
+                    if (!extracted.isEmpty()) {
+                        cleared.add(extracted);
+                    }
+                }
+            }
+        }
+        return cleared;
+    }
+
+    @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
                                            List<ItemStack> inputs, IActionSource source) {
         TileEntity te = world.getTileEntity(pos);

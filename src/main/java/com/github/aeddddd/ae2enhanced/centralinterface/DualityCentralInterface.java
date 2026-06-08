@@ -244,6 +244,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
+        // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
+        List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+        if (!clearedOutputs.isEmpty()) {
+            if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
+                stashItemsToStorage(world, clearedOutputs);
+            }
+        }
+
         // 物理模式路径
         if (!handler.canStart(world, target.pos, table)) {
             revertPushedFluids(world, target.pos, pushedFluids);

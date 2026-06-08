@@ -123,4 +123,18 @@ public interface IRemoteHandler {
     default List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
         return java.util.Collections.emptyList();
     }
+
+    /**
+     * 在发配前回收目标输出槽中的全部残留内容,防止残留产物干扰新材料推送.
+     *
+     * <p>默认实现返回空列表.通用机器处理器应覆盖此方法以遍历 IItemHandler 提取所有物品.</p>
+     *
+     * @param world  世界实例
+     * @param pos    方块位置
+     * @param source AE 动作源
+     * @return 回收到的物品列表；无物品则返回空列表
+     */
+    default List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+        return java.util.Collections.emptyList();
+    }
 }
