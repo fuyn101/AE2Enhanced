@@ -72,8 +72,18 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
                     }
                 }
 
-                // 强制击杀：绕过一切保护机制与事件拦截
-                ForceKillHelper.applyForceKill(entity, null, Float.MAX_VALUE, SPACETIME);
+                // 强制击杀：先绕过内部保护开关，再尝试标准伤害；若被拦截则暴力补刀
+                ForceKillHelper.forceBypassProtection(entity);
+                entity.hurtResistantTime = 0;
+                entity.hurtTime = 0;
+                boolean killed = false;
+                if (entity.attackEntityFrom(SPACETIME, Float.MAX_VALUE)) {
+                    if (!entity.isEntityAlive()) killed = true;
+                }
+                if (!killed) {
+                    entity.setHealth(0.0f);
+                    entity.onDeath(SPACETIME);
+                }
             }
         }
 
