@@ -170,14 +170,10 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private void applyTrueDamage(EntityLivingBase target, EntityPlayer player, float damage, DamageSource source) {
         if (target.world.isRemote) return;
         if (target.getHealth() <= 0.0f) return;
-        if (target.isEntityInvulnerable(source)) return;
 
-        // 玩家特殊检查（创造模式无敌）
+        // 玩家特殊检查（唤醒睡眠）
         if (target instanceof EntityPlayer) {
             EntityPlayer targetPlayer = (EntityPlayer) target;
-            if (targetPlayer.capabilities.disableDamage && !source.canHarmInCreative()) {
-                return;
-            }
             if (targetPlayer.isPlayerSleeping() && !targetPlayer.world.isRemote) {
                 targetPlayer.wakeUpPlayer(true, true, false);
             }
