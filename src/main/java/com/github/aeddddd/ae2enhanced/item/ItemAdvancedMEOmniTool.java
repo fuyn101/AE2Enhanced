@@ -401,27 +401,25 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         // 施加禁疗效果（阻止任何形式回血）
         applyAntiHeal(target);
 
-        // 触发死亡。若 onDeath / setDead 被子类重写阻止，暴力移除
-        if (target.getHealth() <= 0.0f) {
-            target.onDeath(CHAOS_DAMAGE);
-            if (!target.isDead) {
-                target.setDead();
-                forceSetIsDead(target, true);
-                removeMultipartChildren(target);
+        // 强制触发死亡。混沌核心设计为"秒杀"，不依赖 getHealth()（某些实体覆盖 getHealth() 返回固定值）
+        target.onDeath(CHAOS_DAMAGE);
+        if (!target.isDead) {
+            target.setDead();
+            forceSetIsDead(target, true);
+            removeMultipartChildren(target);
 
-                // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
-                if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
-                    final EntityLivingBase toRemove = target;
-                    target.world.getMinecraftServer().addScheduledTask(() -> {
-                        if (!toRemove.isDead && toRemove.world != null) {
-                            try {
-                                toRemove.world.removeEntityDangerously(toRemove);
-                            } catch (Exception e) {
-                                AE2Enhanced.LOGGER.error("[AE2E] removeEntityDangerously failed", e);
-                            }
+            // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
+            if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
+                final EntityLivingBase toRemove = target;
+                target.world.getMinecraftServer().addScheduledTask(() -> {
+                    if (!toRemove.isDead && toRemove.world != null) {
+                        try {
+                            toRemove.world.removeEntityDangerously(toRemove);
+                        } catch (Exception e) {
+                            AE2Enhanced.LOGGER.error("[AE2E] removeEntityDangerously failed", e);
                         }
-                    });
-                }
+                    }
+                });
             }
         }
     }
@@ -463,18 +461,74 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             // 方法1：直接修改 DataEntry.value + dirty，绕过任何 EntityDataManager 子类对 set() 的覆盖
             if (EDM_ENTRIES != null && DATA_PARAM_GET_ID != null && DATA_ENTRY_SET_VALUE != null) {
                 java.util.Map<?, ?> entries = (java.util.Map<?, ?>) EDM_ENTRIES.get(dataManager);
+                boolean anyModified = false;
                 for (Object param : healthParams) {
                     int id = (Integer) DATA_PARAM_GET_ID.invoke(param);
                     Object entry = entries.get(id);
-                    if (entry != null) {
+                    if (entry == null) continue;
+                    try {
+                        // 标准 DataEntry
                         DATA_ENTRY_SET_VALUE.invoke(entry, Float.valueOf(clamped));
                         if (DATA_ENTRY_SET_DIRTY != null) {
                             DATA_ENTRY_SET_DIRTY.invoke(entry, true);
                         }
+                        anyModified = true;
+                    } catch (IllegalArgumentException e) {
+                        // 自定义 entry 对象：暴力探测 value 字段 / setter 方法
+                        boolean customModified = false;
+                        for (java.lang.reflect.Method m : entry.getClass().getDeclaredMethods()) {
+                            if (m.getParameterCount() == 1) {
+                                Class<?> pt = m.getParameterTypes()[0];
+                                if (pt == Object.class || pt == Float.class || pt == float.class) {
+                                    try {
+                                        m.setAccessible(true);
+                                        m.invoke(entry, Float.valueOf(clamped));
+                                        customModified = true;
+                                        break;
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                        if (!customModified) {
+                            for (java.lang.reflect.Field f : entry.getClass().getDeclaredFields()) {
+                                if (f.getType() == Object.class || f.getType() == Float.class || f.getType() == float.class) {
+                                    try {
+                                        f.setAccessible(true);
+                                        f.set(entry, Float.valueOf(clamped));
+                                        customModified = true;
+                                        break;
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                        if (customModified) {
+                            // 尝试标记 dirty（自定义 dirty 方法/字段）
+                            for (java.lang.reflect.Method m : entry.getClass().getDeclaredMethods()) {
+                                if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == boolean.class) {
+                                    try {
+                                        m.setAccessible(true);
+                                        m.invoke(entry, true);
+                                        break;
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                            for (java.lang.reflect.Field f : entry.getClass().getDeclaredFields()) {
+                                if (f.getType() == boolean.class) {
+                                    try {
+                                        f.setAccessible(true);
+                                        f.setBoolean(entry, true);
+                                        break;
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                            anyModified = true;
+                        }
                     }
                 }
-                if (EDM_DIRTY != null) {
-                    EDM_DIRTY.setBoolean(dataManager, true);
+                if (anyModified && EDM_DIRTY != null) {
+                    try {
+                        EDM_DIRTY.setBoolean(dataManager, true);
+                    } catch (Exception ignored) {}
                 }
             }
 
