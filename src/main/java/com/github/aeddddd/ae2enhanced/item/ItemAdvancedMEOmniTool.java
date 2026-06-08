@@ -94,18 +94,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final DamageSource CHAOS_DAMAGE =
         new DamageSource("ae2enhanced.omnitool.chaos").setDamageBypassesArmor();
 
-    // ---- DE Reflection ----
-    private static final java.lang.reflect.Constructor<?> DE_DAMAGE_SOURCE_CHAOS_CTOR;
-    static {
-        java.lang.reflect.Constructor<?> ctor = null;
-        try {
-            Class<?> clazz = Class.forName("com.brandon3055.draconicevolution.lib.DEDamageSources$DamageSourceChaos");
-            ctor = clazz.getConstructor(Entity.class);
-        } catch (Exception e) {
-            // Draconic Evolution not loaded
-        }
-        DE_DAMAGE_SOURCE_CHAOS_CTOR = ctor;
-    }
+    // ---- DE Chaos Crystal class name (for reflection-free string comparison) ----
     private static final String DE_CHAOS_CRYSTAL_CLASS = "com.brandon3055.draconicevolution.blocks.ChaosCrystal";
 
     // ---- Blacklist ----
@@ -194,8 +183,14 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     @Override
     public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
-        if (entity instanceof EntityLivingBase) {
-            EntityLivingBase target = (EntityLivingBase) entity;
+        // 处理多碰撞箱生物（如末影龙、混沌守卫）：点击的是 part，实际伤害 parent
+        Entity targetEntity = entity;
+        if (targetEntity instanceof net.minecraft.entity.MultiPartEntityPart) {
+            targetEntity = (Entity) ((net.minecraft.entity.MultiPartEntityPart) targetEntity).parent;
+        }
+
+        if (targetEntity instanceof EntityLivingBase) {
+            EntityLivingBase target = (EntityLivingBase) targetEntity;
             if (hasChaosCore(stack)) {
                 applyChaosDamage(target, player);
             } else {
@@ -207,7 +202,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 应用混沌伤害：附带 DE 混沌伤害类型，固定 1000 伤害，无视减伤，越过混沌守卫护盾。
+     * 应用混沌伤害：直接使用 setHealth 扣除固定 1000 血量，越过所有保护机制（护盾、水晶回血、减伤等）。
      */
     private void applyChaosDamage(EntityLivingBase target, EntityPlayer player) {
         if (target.world.isRemote) return;
@@ -221,30 +216,9 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             }
         }
 
-        // 构造 DE 混沌伤害源（反射）
-        DamageSource chaosSource = createChaosDamageSource(player);
+        // 直接扣除固定 1000 血量（越过 LivingHurtEvent、护甲、药水、难度缩放、DE 护盾、水晶回血等一切保护）
+        float newHealth = target.getHealth() - CHAOS_DAMAGE_VALUE;
 
-        float healthBefore = target.getHealth();
-
-        // 先尝试标准攻击路径（让 DE 识别伤害类型，越过混沌守卫护盾）
-        if (chaosSource != null) {
-            target.attackEntityFrom(chaosSource, CHAOS_DAMAGE_VALUE);
-        }
-
-        // 强制补足伤害至固定 1000（无视末影龙等减伤）
-        float healthAfter = target.getHealth();
-        float actualDamage = healthBefore - healthAfter;
-        if (actualDamage < CHAOS_DAMAGE_VALUE && healthAfter > 0.0f) {
-            float newHealth = healthAfter - (CHAOS_DAMAGE_VALUE - actualDamage);
-            if (newHealth <= 0.0f) {
-                target.setHealth(0.0f);
-                target.onDeath(chaosSource != null ? chaosSource : CHAOS_DAMAGE);
-            } else {
-                target.setHealth(newHealth);
-            }
-        }
-
-        // 受伤动画、击退等效果
         target.limbSwingAmount = 1.5f;
         target.setRevengeTarget(player);
         target.hurtResistantTime = target.maxHurtResistantTime;
@@ -258,15 +232,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
         target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
         target.knockBack(player, 0.4f, dx, dz);
-    }
 
-    private static DamageSource createChaosDamageSource(Entity attacker) {
-        if (DE_DAMAGE_SOURCE_CHAOS_CTOR == null) return null;
-        try {
-            return (DamageSource) DE_DAMAGE_SOURCE_CHAOS_CTOR.newInstance(attacker);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to create DamageSourceChaos", e);
-            return null;
+        if (newHealth <= 0.0f) {
+            target.setHealth(0.0f);
+            target.onDeath(CHAOS_DAMAGE);
+        } else {
+            target.setHealth(newHealth);
         }
     }
 
