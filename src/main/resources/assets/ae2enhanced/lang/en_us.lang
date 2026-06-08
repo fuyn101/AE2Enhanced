@@ -341,3 +341,19 @@ gui.ae2enhanced.advanced_platform.click_to_cycle=Click to cycle mode
 gui.ae2enhanced.advanced_platform.zone.blocks=Blocks: %d
 gui.ae2enhanced.advanced_platform.zone.right_click_unbind=Right-click to unbind
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=Click to assign
+
+# Advanced ME Omni Tool
+item.ae2enhanced.me_omni_tool=Advanced ME Omni Tool
+item.ae2enhanced.me_omni_tool.mode=Mode: %s
+item.ae2enhanced.me_omni_tool.mode.universal=Universal
+item.ae2enhanced.me_omni_tool.mode.wrench=Wrench
+item.ae2enhanced.me_omni_tool.mode.rotate=Rotate
+item.ae2enhanced.me_omni_tool.mode.travel=Travel
+item.ae2enhanced.me_omni_tool.silk_touch.on=Silk Touch: ON
+item.ae2enhanced.me_omni_tool.upgrade.chaos=Chaos Core
+item.ae2enhanced.me_omni_tool.upgrade.fortune=Fortune %d
+item.ae2enhanced.me_omni_tool.upgrade.travel=Travel Staff
+item.ae2enhanced.me_omni_tool.no_upgrades=No upgrades installed
+item.ae2enhanced.me_omni_tool.blink_dist=Blink Distance: %.1f
+key.ae2enhanced.omnitool_mode=ME Omni Tool: Cycle Mode
+key.ae2enhanced.omnitool_silk=ME Omni Tool: Toggle Silk Touch

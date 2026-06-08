@@ -29,4 +29,7 @@ public final class ItemRegistry {
 
     // 先进中枢平台 — 平台开发许可
     public static ItemPlatformDevelopmentLicense PLATFORM_DEVELOPMENT_LICENSE;
+
+    // 先进ME工具
+    public static ItemAdvancedMEOmniTool ME_OMNI_TOOL;
 }

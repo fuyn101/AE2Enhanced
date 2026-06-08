@@ -57,6 +57,7 @@ public final class GameRegistryManager {
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
         ItemRegistry.ENERGY_DROP = new ItemEnergyDrop();
         ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
+        ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
     }
 
     @SubscribeEvent
@@ -150,5 +151,6 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
         event.getRegistry().register(ItemRegistry.ENERGY_DROP);
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
+        event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
     }
 }

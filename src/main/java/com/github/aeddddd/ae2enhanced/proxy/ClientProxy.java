@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
+import com.github.aeddddd.ae2enhanced.client.handler.KeyHandlerOmniTool;
 import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
@@ -80,11 +81,13 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
         ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
         ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
+        KeyHandlerOmniTool.init();
     }
 
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        MinecraftForge.EVENT_BUS.register(new KeyHandlerOmniTool());
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());

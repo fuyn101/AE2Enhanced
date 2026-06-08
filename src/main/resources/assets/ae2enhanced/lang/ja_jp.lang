@@ -229,3 +229,18 @@ message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 
 item.ae2enhanced.energy_drop.name=RFエネルギー滴
 key.ae2enhanced.rtsToggle=RTSモードの切り替え
+
+item.ae2enhanced.me_omni_tool=Advanced ME Omni Tool
+item.ae2enhanced.me_omni_tool.mode=Mode: %s
+item.ae2enhanced.me_omni_tool.mode.universal=Universal
+item.ae2enhanced.me_omni_tool.mode.wrench=Wrench
+item.ae2enhanced.me_omni_tool.mode.rotate=Rotate
+item.ae2enhanced.me_omni_tool.mode.travel=Travel
+item.ae2enhanced.me_omni_tool.silk_touch.on=Silk Touch: ON
+item.ae2enhanced.me_omni_tool.upgrade.chaos=Chaos Core
+item.ae2enhanced.me_omni_tool.upgrade.fortune=Fortune %d
+item.ae2enhanced.me_omni_tool.upgrade.travel=Travel Staff
+item.ae2enhanced.me_omni_tool.no_upgrades=No upgrades installed
+item.ae2enhanced.me_omni_tool.blink_dist=Blink Distance: %.1f
+key.ae2enhanced.omnitool_mode=ME Omni Tool: Cycle Mode
+key.ae2enhanced.omnitool_silk=ME Omni Tool: Toggle Silk Touch

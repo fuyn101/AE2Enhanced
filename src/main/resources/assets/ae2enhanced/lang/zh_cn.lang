@@ -339,3 +339,19 @@ gui.ae2enhanced.advanced_platform.click_to_cycle=点击切换模式
 gui.ae2enhanced.advanced_platform.zone.blocks=方块数: %d
 gui.ae2enhanced.advanced_platform.zone.right_click_unbind=右键解绑
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=点击分配
+
+# 先进ME工具
+item.ae2enhanced.me_omni_tool=先进ME工具
+item.ae2enhanced.me_omni_tool.mode=模式: %s
+item.ae2enhanced.me_omni_tool.mode.universal=通用
+item.ae2enhanced.me_omni_tool.mode.wrench=扳手
+item.ae2enhanced.me_omni_tool.mode.rotate=旋转
+item.ae2enhanced.me_omni_tool.mode.travel=旅行
+item.ae2enhanced.me_omni_tool.silk_touch.on=精准采集: 开启
+item.ae2enhanced.me_omni_tool.upgrade.chaos=混沌核心
+item.ae2enhanced.me_omni_tool.upgrade.fortune=时运 %d
+item.ae2enhanced.me_omni_tool.upgrade.travel=旅行手杖
+item.ae2enhanced.me_omni_tool.no_upgrades=未安装升级
+item.ae2enhanced.me_omni_tool.blink_dist=Blink距离: %.1f
+key.ae2enhanced.omnitool_mode=ME工具: 切换模式
+key.ae2enhanced.omnitool_silk=ME工具: 切换精准采集
