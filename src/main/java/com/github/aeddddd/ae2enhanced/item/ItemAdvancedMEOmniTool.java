@@ -408,6 +408,20 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                 target.setDead();
                 forceSetIsDead(target, true);
                 removeMultipartChildren(target);
+
+                // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
+                if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
+                    final EntityLivingBase toRemove = target;
+                    target.world.getMinecraftServer().addScheduledTask(() -> {
+                        if (!toRemove.isDead && toRemove.world != null) {
+                            try {
+                                toRemove.world.removeEntityDangerously(toRemove);
+                            } catch (Exception e) {
+                                AE2Enhanced.LOGGER.error("[AE2E] removeEntityDangerously failed", e);
+                            }
+                        }
+                    });
+                }
             }
         }
     }
@@ -485,13 +499,37 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
     }
 
-    private static void forceSetIsDead(Entity entity, boolean dead) {
-        if (ENTITY_IS_DEAD == null) return;
-        try {
-            ENTITY_IS_DEAD.setBoolean(entity, dead);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead failed", e);
+    /**
+     * 强制设置实体 isDead=true，绕过任何 setDead() 覆盖。
+     * 采用运行时动态查找，不再依赖静态缓存，确保在不同映射环境（Forge/CleanroomMC）下都能命中正确字段。
+     */
+    public static void forceSetIsDead(Entity entity, boolean dead) {
+        // 先尝试静态缓存（性能优化）
+        if (ENTITY_IS_DEAD != null) {
+            try {
+                ENTITY_IS_DEAD.setBoolean(entity, dead);
+                return;
+            } catch (Exception ignored) {}
         }
+        // 运行时动态精确查找
+        String[] candidates = {"field_70128_L", "isDead", "dead"};
+        for (String name : candidates) {
+            Class<?> clazz = entity.getClass();
+            while (clazz != null && clazz != Object.class) {
+                try {
+                    java.lang.reflect.Field f = clazz.getDeclaredField(name);
+                    f.setAccessible(true);
+                    f.setBoolean(entity, dead);
+                    return;
+                } catch (NoSuchFieldException e) {
+                    clazz = clazz.getSuperclass();
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead failed", e);
+                    return;
+                }
+            }
+        }
+        AE2Enhanced.LOGGER.error("[AE2E] forceSetIsDead: could not find isDead field on {}", entity.getClass().getName());
     }
 
     private static void removeMultipartChildren(Entity parent) {
