@@ -29,6 +29,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextFormatting;
@@ -154,16 +155,63 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
         if (entity instanceof EntityLivingBase) {
             EntityLivingBase target = (EntityLivingBase) entity;
-            // 无视无敌帧
-            target.hurtResistantTime = 0;
-            target.hurtTime = 0;
-            target.attackEntityFrom(OMNITOOL_DAMAGE, ATTACK_DAMAGE);
-            if (hasChaosCore(stack)) {
-                target.attackEntityFrom(CHAOS_DAMAGE, CHAOS_DAMAGE_VALUE);
+            applyTrueDamage(target, player, ATTACK_DAMAGE, OMNITOOL_DAMAGE);
+            if (target.getHealth() > 0 && hasChaosCore(stack)) {
+                applyTrueDamage(target, player, CHAOS_DAMAGE_VALUE, CHAOS_DAMAGE);
             }
             return true; // 阻止默认攻击逻辑（绕过攻击冷却衰减）
         }
         return super.onLeftClickEntity(stack, player, entity);
+    }
+
+    /**
+     * 应用完全锁定的真实伤害：直接修改血量，绕过 LivingHurtEvent / LivingDamageEvent / 护甲 / 药水 / 难度缩放。
+     */
+    private void applyTrueDamage(EntityLivingBase target, EntityPlayer player, float damage, DamageSource source) {
+        if (target.world.isRemote) return;
+        if (target.getHealth() <= 0.0f) return;
+        if (target.isEntityInvulnerable(source)) return;
+
+        // 玩家特殊检查（创造模式无敌）
+        if (target instanceof EntityPlayer) {
+            EntityPlayer targetPlayer = (EntityPlayer) target;
+            if (targetPlayer.capabilities.disableDamage && !source.canHarmInCreative()) {
+                return;
+            }
+            if (targetPlayer.isPlayerSleeping() && !targetPlayer.world.isRemote) {
+                targetPlayer.wakeUpPlayer(true, true, false);
+            }
+        }
+
+        target.limbSwingAmount = 1.5f;
+
+        float newHealth = target.getHealth() - damage;
+
+        // 复仇目标
+        target.setRevengeTarget(player);
+
+        // 受伤动画与无敌帧
+        target.hurtResistantTime = target.maxHurtResistantTime;
+        target.hurtTime = target.maxHurtTime;
+        target.world.setEntityState(target, (byte) 2);
+
+        // 击退
+        double dx = player.posX - target.posX;
+        double dz = player.posZ - target.posZ;
+        while (dx * dx + dz * dz < 1.0E-4) {
+            dx = (Math.random() - Math.random()) * 0.01;
+            dz = (Math.random() - Math.random()) * 0.01;
+        }
+        target.attackedAtYaw = (float)(MathHelper.atan2(dz, dx) * 57.29577951308232 - (double)target.rotationYaw);
+        target.knockBack(player, 0.4f, dx, dz);
+
+        // 直接血量修改（绕过所有伤害计算事件和修饰）
+        if (newHealth <= 0.0f) {
+            target.setHealth(0.0f);
+            target.onDeath(source);
+        } else {
+            target.setHealth(newHealth);
+        }
     }
 
     // ==================== Item Use First (Wrench Rotate) ====================
