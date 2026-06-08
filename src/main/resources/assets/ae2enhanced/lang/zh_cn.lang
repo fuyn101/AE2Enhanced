@@ -341,7 +341,7 @@ gui.ae2enhanced.advanced_platform.zone.right_click_unbind=右键解绑
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=点击分配
 
 # 先进ME工具
-item.ae2enhanced.me_omni_tool.name=§b先进ME工具
+item.ae2enhanced.me_omni_tool=§b先进ME工具
 item.ae2enhanced.me_omni_tool.mode=§f模式: %s
 item.ae2enhanced.me_omni_tool.mode.universal=§e通用
 item.ae2enhanced.me_omni_tool.mode.wrench=§e扳手

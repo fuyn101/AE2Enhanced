@@ -230,7 +230,7 @@ message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 item.ae2enhanced.energy_drop.name=RFエネルギー滴
 key.ae2enhanced.rtsToggle=RTSモードの切り替え
 
-item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool
+item.ae2enhanced.me_omni_tool=§bAdvanced ME Omni Tool
 item.ae2enhanced.me_omni_tool.mode=§fMode: %s
 item.ae2enhanced.me_omni_tool.mode.universal=§eUniversal
 item.ae2enhanced.me_omni_tool.mode.wrench=§eWrench
