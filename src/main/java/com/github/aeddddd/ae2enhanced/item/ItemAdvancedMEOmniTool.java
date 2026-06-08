@@ -434,13 +434,9 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 检查指定坐标是否为安全的站立位置（脚下有碰撞箱，身体/头部无碰撞箱）。
+     * 检查指定坐标是否为安全位置（身体/头部无碰撞箱即可，不要求脚下有地面）。
      */
     private boolean isSafeStandingPos(World world, BlockPos pos) {
-        IBlockState ground = world.getBlockState(pos.down());
-        if (world.isAirBlock(pos.down())) return false;
-        if (ground.getBlock().getCollisionBoundingBox(ground, world, pos.down()) == null) return false;
-
         IBlockState feet = world.getBlockState(pos);
         IBlockState head = world.getBlockState(pos.up());
         return feet.getBlock().getCollisionBoundingBox(feet, world, pos) == null
