@@ -126,11 +126,25 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final java.lang.reflect.Field ELB_HEALTH_PARAM;
     private static final java.util.List<java.lang.reflect.Method> DATA_MANAGER_CANDIDATES = new java.util.ArrayList<>();
     private static final java.lang.reflect.Field ENTITY_IS_DEAD;
+    // 直接操作 DataEntry 所需的反射缓存（绕过任何 EntityDataManager 子类对 set() 的覆盖）
+    private static final java.lang.reflect.Field EDM_ENTRIES;
+    private static final java.lang.reflect.Field EDM_DIRTY;
+    private static final java.lang.reflect.Method DATA_PARAM_GET_ID;
+    private static final java.lang.reflect.Method DATA_ENTRY_SET_VALUE;
+    private static final java.lang.reflect.Method DATA_ENTRY_SET_DIRTY;
+
     static {
         java.lang.reflect.Field dm = null;
         java.lang.reflect.Field hp = null;
         java.lang.reflect.Field isDead = null;
+        java.lang.reflect.Field edmEntries = null;
+        java.lang.reflect.Field edmDirty = null;
+        java.lang.reflect.Method dataParamGetId = null;
+        java.lang.reflect.Method dataEntrySetValue = null;
+        java.lang.reflect.Method dataEntrySetDirty = null;
+
         try {
+            // 1. Entity.dataManager
             for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
                 if (f.getType().getSimpleName().equals("EntityDataManager")) {
                     dm = f;
@@ -138,6 +152,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     break;
                 }
             }
+
+            // 2. EntityLivingBase.HEALTH
             for (java.lang.reflect.Field f : EntityLivingBase.class.getDeclaredFields()) {
                 if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) &&
                     f.getType().getSimpleName().equals("DataParameter")) {
@@ -152,19 +168,21 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     }
                 }
             }
+
+            // 3. EntityDataManager 的方法与字段
             if (dm != null) {
                 Class<?> dataManagerClass = dm.getType();
+
+                // 3a. set / setEntry 方法候选
                 for (java.lang.reflect.Method m : dataManagerClass.getDeclaredMethods()) {
                     if (m.getParameterCount() == 2 &&
                         m.getParameterTypes()[0].getSimpleName().equals("DataParameter") &&
                         m.getParameterTypes()[1] == Object.class) {
                         String name = m.getName();
-                        // 只选取 set / setEntry（deobf 或 Searge 名），明确排除 register
                         boolean isSet = name.equals("set") || name.equals("func_187227_b");
                         boolean isSetEntry = name.equals("setEntry") || name.equals("func_187226_a");
                         if (isSet || isSetEntry) {
                             m.setAccessible(true);
-                            // set 必须排在 setEntry 前面，因为 setEntry 不会标记 dirty，客户端无法同步
                             if (isSet) {
                                 DATA_MANAGER_CANDIDATES.add(0, m);
                             } else {
@@ -173,15 +191,83 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                         }
                     }
                 }
+
+                // 3b. entries map（唯一一个 Map 类型字段）
+                java.util.List<java.lang.reflect.Field> boolFields = new java.util.ArrayList<>();
+                for (java.lang.reflect.Field f : dataManagerClass.getDeclaredFields()) {
+                    if (java.util.Map.class.isAssignableFrom(f.getType())) {
+                        edmEntries = f;
+                        edmEntries.setAccessible(true);
+                    } else if (f.getType() == boolean.class) {
+                        boolFields.add(f);
+                    }
+                }
+                // dirty 字段：先尝试名字匹配，否则取最后一个 boolean 字段
+                for (java.lang.reflect.Field f : boolFields) {
+                    String name = f.getName();
+                    if (name.equals("dirty") || name.contains("187232")) {
+                        edmDirty = f;
+                        edmDirty.setAccessible(true);
+                        break;
+                    }
+                }
+                if (edmDirty == null && !boolFields.isEmpty()) {
+                    edmDirty = boolFields.get(boolFields.size() - 1);
+                    edmDirty.setAccessible(true);
+                }
             }
-            isDead = Entity.class.getDeclaredField("field_70128_L");
-            isDead.setAccessible(true);
+
+            // 4. DataParameter.getId()
+            Class<?> paramClass = Class.forName("net.minecraft.network.datasync.DataParameter");
+            for (java.lang.reflect.Method m : paramClass.getDeclaredMethods()) {
+                if (m.getReturnType() == int.class && m.getParameterCount() == 0) {
+                    dataParamGetId = m;
+                    dataParamGetId.setAccessible(true);
+                    break;
+                }
+            }
+
+            // 5. DataEntry.setValue() / setDirty()
+            Class<?> entryClass = Class.forName("net.minecraft.network.datasync.EntityDataManager$DataEntry");
+            for (java.lang.reflect.Method m : entryClass.getDeclaredMethods()) {
+                if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == Object.class && m.getReturnType() == void.class) {
+                    dataEntrySetValue = m;
+                    dataEntrySetValue.setAccessible(true);
+                } else if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == boolean.class && m.getReturnType() == void.class) {
+                    dataEntrySetDirty = m;
+                    dataEntrySetDirty.setAccessible(true);
+                }
+            }
+
+            // 6. Entity.isDead（尝试多种名字策略）
+            try {
+                isDead = Entity.class.getDeclaredField("field_70128_L");
+            } catch (NoSuchFieldException e1) {
+                try {
+                    isDead = Entity.class.getDeclaredField("isDead");
+                } catch (NoSuchFieldException e2) {
+                    for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
+                        if (f.getType() == boolean.class && java.lang.reflect.Modifier.isPublic(f.getModifiers())) {
+                            isDead = f;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (isDead != null) {
+                isDead.setAccessible(true);
+            }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to initialize forceSetHealthViaDataManager", e);
         }
         ENTITY_DATA_MANAGER = dm;
         ELB_HEALTH_PARAM = hp;
         ENTITY_IS_DEAD = isDead;
+        EDM_ENTRIES = edmEntries;
+        EDM_DIRTY = edmDirty;
+        DATA_PARAM_GET_ID = dataParamGetId;
+        DATA_ENTRY_SET_VALUE = dataEntrySetValue;
+        DATA_ENTRY_SET_DIRTY = dataEntrySetDirty;
     }
 
     public ItemAdvancedMEOmniTool() {
@@ -327,28 +413,73 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     private static void forceSetHealthViaDataManager(EntityLivingBase entity, float health) {
-        if (ENTITY_DATA_MANAGER == null || ELB_HEALTH_PARAM == null || DATA_MANAGER_CANDIDATES.isEmpty()) return;
+        if (ENTITY_DATA_MANAGER == null) return;
         try {
             Object dataManager = ENTITY_DATA_MANAGER.get(entity);
-            Object healthParam = ELB_HEALTH_PARAM.get(null);
+            if (dataManager == null) return;
+
+            // 收集实体类及其父类中所有 DataParameter<Float> 静态字段（某些实体使用自己的参数而非 HEALTH）
+            java.util.List<Object> healthParams = new java.util.ArrayList<>();
+            Class<?> clazz = entity.getClass();
+            while (clazz != null && clazz != Object.class) {
+                for (java.lang.reflect.Field f : clazz.getDeclaredFields()) {
+                    if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) &&
+                        f.getType().getSimpleName().equals("DataParameter")) {
+                        java.lang.reflect.Type genericType = f.getGenericType();
+                        if (genericType instanceof java.lang.reflect.ParameterizedType) {
+                            java.lang.reflect.Type[] args = ((java.lang.reflect.ParameterizedType) genericType).getActualTypeArguments();
+                            if (args.length > 0 && "java.lang.Float".equals(args[0].getTypeName())) {
+                                f.setAccessible(true);
+                                Object param = f.get(null);
+                                if (param != null) healthParams.add(param);
+                            }
+                        }
+                    }
+                }
+                clazz = clazz.getSuperclass();
+            }
+            // 保底：加上 EntityLivingBase.HEALTH
+            if (ELB_HEALTH_PARAM != null && !healthParams.contains(ELB_HEALTH_PARAM)) {
+                healthParams.add(ELB_HEALTH_PARAM);
+            }
+            if (healthParams.isEmpty()) return;
+
             float clamped = MathHelper.clamp(health, 0.0f, entity.getMaxHealth());
+
+            // 方法1：直接修改 DataEntry.value + dirty，绕过任何 EntityDataManager 子类对 set() 的覆盖
+            if (EDM_ENTRIES != null && DATA_PARAM_GET_ID != null && DATA_ENTRY_SET_VALUE != null) {
+                java.util.Map<?, ?> entries = (java.util.Map<?, ?>) EDM_ENTRIES.get(dataManager);
+                for (Object param : healthParams) {
+                    int id = (Integer) DATA_PARAM_GET_ID.invoke(param);
+                    Object entry = entries.get(id);
+                    if (entry != null) {
+                        DATA_ENTRY_SET_VALUE.invoke(entry, Float.valueOf(clamped));
+                        if (DATA_ENTRY_SET_DIRTY != null) {
+                            DATA_ENTRY_SET_DIRTY.invoke(entry, true);
+                        }
+                    }
+                }
+                if (EDM_DIRTY != null) {
+                    EDM_DIRTY.setBoolean(dataManager, true);
+                }
+            }
+
+            // 方法2：反射调用 set / setEntry（fallback，用于触发 notifyDataManagerChange）
             for (java.lang.reflect.Method m : DATA_MANAGER_CANDIDATES) {
                 try {
-                    m.invoke(dataManager, healthParam, Float.valueOf(clamped));
-                    return; // 成功
+                    for (Object param : healthParams) {
+                        m.invoke(dataManager, param, Float.valueOf(clamped));
+                    }
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     Throwable cause = e.getCause();
-                    // 安全网：如果 register 意外进入列表，跳过它
                     if (cause instanceof IllegalArgumentException
                             && cause.getMessage() != null
                             && cause.getMessage().contains("Duplicate")) {
                         continue;
                     }
-                    // set/setEntry 失败，记录并尝试下一个候选
                     AE2Enhanced.LOGGER.warn("[AE2E] forceSetHealthViaDataManager candidate {} failed: {}", m.getName(), cause);
                 }
             }
-            AE2Enhanced.LOGGER.error("[AE2E] All dataManager candidate methods failed for forceSetHealthViaDataManager");
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] forceSetHealthViaDataManager failed", e);
         }
