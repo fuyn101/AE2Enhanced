@@ -158,8 +158,14 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     if (m.getParameterCount() == 2 &&
                         m.getParameterTypes()[0].getSimpleName().equals("DataParameter") &&
                         m.getParameterTypes()[1] == Object.class) {
-                        m.setAccessible(true);
-                        DATA_MANAGER_CANDIDATES.add(m);
+                        String name = m.getName();
+                        // 只选取 set / setEntry（deobf 或 Searge 名），明确排除 register
+                        boolean isSet = name.equals("set") || name.equals("func_187227_b");
+                        boolean isSetEntry = name.equals("setEntry") || name.equals("func_187226_a");
+                        if (isSet || isSetEntry) {
+                            m.setAccessible(true);
+                            DATA_MANAGER_CANDIDATES.add(m);
+                        }
                     }
                 }
             }
@@ -325,11 +331,16 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                 try {
                     m.invoke(dataManager, healthParam, Float.valueOf(clamped));
                     return; // 成功
-                } catch (IllegalArgumentException e) {
-                    if (e.getMessage() != null && e.getMessage().contains("Duplicate")) {
-                        continue; // 这是 register 方法，尝试下一个候选
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    Throwable cause = e.getCause();
+                    // 安全网：如果 register 意外进入列表，跳过它
+                    if (cause instanceof IllegalArgumentException
+                            && cause.getMessage() != null
+                            && cause.getMessage().contains("Duplicate")) {
+                        continue;
                     }
-                    throw e;
+                    // set/setEntry 失败，记录并尝试下一个候选
+                    AE2Enhanced.LOGGER.warn("[AE2E] forceSetHealthViaDataManager candidate {} failed: {}", m.getName(), cause);
                 }
             }
             AE2Enhanced.LOGGER.error("[AE2E] All dataManager candidate methods failed for forceSetHealthViaDataManager");
