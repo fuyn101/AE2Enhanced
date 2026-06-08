@@ -20,6 +20,8 @@ public class PacketOmniToolSilkTouchHandler implements IMessageHandler<PacketOmn
                     ItemAdvancedMEOmniTool.setSilkTouchEnabled(stack, enabled);
                     String stateKey = enabled ? "message.ae2enhanced.omnitool.silk_on" : "message.ae2enhanced.omnitool.silk_off";
                     player.sendStatusMessage(new TextComponentTranslation(stateKey), true);
+                    // 强制同步 NBT 到客户端，防止数据丢失
+                    player.setHeldItem(hand, stack);
                     break;
                 }
             }

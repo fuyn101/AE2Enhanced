@@ -16,11 +16,12 @@ public class PacketOmniToolModeHandler implements IMessageHandler<PacketOmniTool
             for (net.minecraft.util.EnumHand hand : net.minecraft.util.EnumHand.values()) {
                 ItemStack stack = player.getHeldItem(hand);
                 if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
-                    int oldMode = ItemAdvancedMEOmniTool.getMode(stack);
                     ItemAdvancedMEOmniTool.cycleMode(stack);
                     int newMode = ItemAdvancedMEOmniTool.getMode(stack);
                     String modeName = new TextComponentTranslation(ItemAdvancedMEOmniTool.getModeNameKey(newMode)).getFormattedText();
                     player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.mode_changed", modeName), true);
+                    // 强制同步 NBT 到客户端，防止数据丢失
+                    player.setHeldItem(hand, stack);
                     break;
                 }
             }

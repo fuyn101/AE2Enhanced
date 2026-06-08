@@ -269,10 +269,24 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.SMART_PATTERN);
         registerItemModel(ItemRegistry.ENERGY_DROP);
 
-        // 先进ME工具：使用 property override + overrides 切换模型
+        // 先进ME工具：4模式使用 ItemMeshDefinition 动态切换模型
         if (ItemRegistry.ME_OMNI_TOOL != null) {
-            ModelLoader.setCustomModelResourceLocation(ItemRegistry.ME_OMNI_TOOL, 0,
-                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool", "inventory"));
+            ModelLoader.registerItemVariants(ItemRegistry.ME_OMNI_TOOL,
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_basic", "inventory"),
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode1", "inventory"),
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode2", "inventory"),
+                new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode3", "inventory")
+            );
+            ModelLoader.setCustomMeshDefinition(ItemRegistry.ME_OMNI_TOOL, stack -> {
+                int mode = com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool.getMode(stack);
+                switch (mode) {
+                    case 0: return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_basic", "inventory");
+                    case 1: return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode1", "inventory");
+                    case 2: return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode2", "inventory");
+                    case 3: return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_mode3", "inventory");
+                    default: return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":me_omni_tool_basic", "inventory");
+                }
+            });
         }
 
         // Omni 专用升级卡模型(根据 metadata 动态选择)

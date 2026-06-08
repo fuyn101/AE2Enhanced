@@ -7,9 +7,11 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.item.EnumAction;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -80,7 +82,7 @@ public class ItemAdvancedMEOmniTool extends Item {
     private static final float ATTACK_DAMAGE = 6.0f;
     private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
     private static final double DEFAULT_BLINK_DIST = 10.0;
-    private static final int BLINK_COOLDOWN_TICKS = 20;
+    private static final int BLINK_COOLDOWN_TICKS = 5;
     private static final int DEFAULT_BREAK_COOLDOWN = 0;
 
     public ItemAdvancedMEOmniTool() {
@@ -88,10 +90,6 @@ public class ItemAdvancedMEOmniTool extends Item {
         setTranslationKey(AE2Enhanced.MOD_ID + ".me_omni_tool");
         setCreativeTab(AE2Enhanced.CREATIVE_TAB);
         setMaxStackSize(1);
-
-        // 模型覆层：根据模式切换贴图
-        addPropertyOverride(new ResourceLocation(AE2Enhanced.MOD_ID, "omnitool_mode"),
-            (stack, world, entity) -> getMode(stack) / 10.0f);
     }
 
     // ==================== Mining ====================
@@ -114,36 +112,34 @@ public class ItemAdvancedMEOmniTool extends Item {
 
     @Override
     public boolean onBlockStartBreak(ItemStack stack, BlockPos pos, EntityPlayer player) {
-        // 可调破坏冷却
         int cooldown = getBreakCooldown(stack);
         if (cooldown > 0) {
             long now = player.world.getTotalWorldTime();
             long last = getLastBreakTick(stack);
             if (now - last < cooldown) {
-                return true; // 冷却中，取消挖掘
+                return true;
             }
             setLastBreakTick(stack, now);
         }
         return super.onBlockStartBreak(stack, pos, player);
     }
 
-    @Override
-    public boolean onBlockDestroyed(ItemStack stack, World world, IBlockState state, BlockPos pos, EntityLivingBase entityLiving) {
-        return true;
-    }
-
-    // ==================== Combat ====================
+    // ==================== Attack (Bypass Cooldown) ====================
 
     @Override
-    public boolean hitEntity(ItemStack stack, EntityLivingBase target, EntityLivingBase attacker) {
-        target.attackEntityFrom(OMNITOOL_DAMAGE, ATTACK_DAMAGE);
-        if (hasChaosCore(stack) && attacker instanceof EntityPlayer) {
-            target.attackEntityFrom(CHAOS_DAMAGE, CHAOS_DAMAGE_VALUE);
+    public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
+        if (entity instanceof EntityLivingBase) {
+            EntityLivingBase target = (EntityLivingBase) entity;
+            target.attackEntityFrom(OMNITOOL_DAMAGE, ATTACK_DAMAGE);
+            if (hasChaosCore(stack)) {
+                target.attackEntityFrom(CHAOS_DAMAGE, CHAOS_DAMAGE_VALUE);
+            }
+            return true; // 阻止默认攻击逻辑（绕过攻击冷却衰减）
         }
-        return true;
+        return super.onLeftClickEntity(stack, player, entity);
     }
 
-    // ==================== Right-Click ====================
+    // ==================== Right-Click on Block ====================
 
     @Override
     public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
@@ -163,11 +159,33 @@ public class ItemAdvancedMEOmniTool extends Item {
         }
     }
 
+    // ==================== Right-Click in Air ====================
+
+    @Override
+    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+        ItemStack stack = player.getHeldItem(hand);
+        if (world.isRemote) return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+
+        int mode = getMode(stack);
+        if (mode == MODE_TRAVEL) {
+            if (hasTravelStaff(stack)) {
+                // TODO: EIO Travel Anchor 反射传送（右键空气时不触发Anchor）
+            }
+            doBlink(player, world, stack);
+            return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+        }
+        return new ActionResult<>(EnumActionResult.PASS, stack);
+    }
+
+    // ==================== Wrench Mode ====================
+
     private EnumActionResult doWrench(EntityPlayer player, World world, BlockPos pos, EnumFacing facing, EnumHand hand) {
         if (world.isRemote) return EnumActionResult.SUCCESS;
         // TODO: 多模组扳手兼容反射隔离
         return EnumActionResult.PASS;
     }
+
+    // ==================== Rotate Mode ====================
 
     private EnumActionResult doRotate(EntityPlayer player, World world, BlockPos pos, EnumFacing facing) {
         if (world.isRemote) return EnumActionResult.SUCCESS;
@@ -178,6 +196,8 @@ public class ItemAdvancedMEOmniTool extends Item {
         // TODO: PropertyDirection 手动循环回退
         return EnumActionResult.PASS;
     }
+
+    // ==================== Travel Mode ====================
 
     private EnumActionResult doTravel(EntityPlayer player, World world, BlockPos pos, EnumHand hand, ItemStack stack) {
         if (world.isRemote) return EnumActionResult.SUCCESS;
@@ -227,7 +247,6 @@ public class ItemAdvancedMEOmniTool extends Item {
         setMode(stack, getMode(stack) + 1);
     }
 
-    /** 获取当前模式名称（用于动作栏提示） */
     public static String getModeNameKey(int mode) {
         return "item.ae2enhanced.me_omni_tool." + MODE_NAMES[mode % MODE_COUNT];
     }

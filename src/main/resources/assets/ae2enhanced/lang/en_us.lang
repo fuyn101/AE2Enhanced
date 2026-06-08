@@ -343,7 +343,7 @@ gui.ae2enhanced.advanced_platform.zone.right_click_unbind=Right-click to unbind
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=Click to assign
 
 # Advanced ME Omni Tool
-item.ae2enhanced.me_omni_tool=§bAdvanced ME Omni Tool
+item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool
 item.ae2enhanced.me_omni_tool.mode=§fMode: %s
 item.ae2enhanced.me_omni_tool.mode.universal=§eUniversal
 item.ae2enhanced.me_omni_tool.mode.wrench=§eWrench
