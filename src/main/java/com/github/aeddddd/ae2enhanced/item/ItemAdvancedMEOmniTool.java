@@ -360,6 +360,48 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
+     * 通知 GuardianFightManager（如 dechaosislandlegacy 的混沌龙管理器）龙已死亡，
+     * 让它执行正常的击杀后清理（guardianKilled=true、移除水晶、生成龙心等），阻止重新生成。
+     */
+    private static void tryNotifyGuardianFightManager(EntityLivingBase guardian) {
+        try {
+            java.lang.reflect.Method getManager = null;
+            for (java.lang.reflect.Method m : guardian.getClass().getDeclaredMethods()) {
+                if (m.getParameterCount() == 0 && m.getReturnType().getSimpleName().equals("GuardianFightManager")) {
+                    getManager = m;
+                    break;
+                }
+            }
+            if (getManager == null) return;
+            getManager.setAccessible(true);
+            Object manager = getManager.invoke(guardian);
+            if (manager == null) return;
+
+            boolean completed = false;
+            for (java.lang.reflect.Method m : manager.getClass().getDeclaredMethods()) {
+                String name = m.getName();
+                if ((name.equals("completeDragonDeath") || name.equals("processDragonDeath")) && m.getParameterCount() == 1) {
+                    m.setAccessible(true);
+                    m.invoke(manager, guardian);
+                    completed = true;
+                    break;
+                }
+            }
+            if (!completed) {
+                for (java.lang.reflect.Field f : manager.getClass().getDeclaredFields()) {
+                    if (f.getName().equals("guardianKilled")) {
+                        f.setAccessible(true);
+                        f.setBoolean(manager, true);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] tryNotifyGuardianFightManager failed", e);
+        }
+    }
+
+    /**
      * 对已知有保护机制的实体（如 DraconicGuardianEntity），反射打开其内部保护开关。
      */
     private static void forceBypassProtection(EntityLivingBase entity) {
@@ -441,6 +483,9 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             target.setDead();
             forceSetIsDead(target, true);
             removeMultipartChildren(target);
+
+            // 通知 GuardianFightManager 执行正常死亡清理，阻止重新生成
+            tryNotifyGuardianFightManager(target);
 
             // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
             if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
