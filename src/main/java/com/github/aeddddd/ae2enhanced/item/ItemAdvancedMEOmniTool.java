@@ -124,12 +124,11 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ---- Force-setHealth via dataManager (generic fallback for subclasses that override setHealth) ----
     private static final java.lang.reflect.Field ENTITY_DATA_MANAGER;
     private static final java.lang.reflect.Field ELB_HEALTH_PARAM;
-    private static final java.lang.reflect.Method DATA_MANAGER_SET;
+    private static final java.util.List<java.lang.reflect.Method> DATA_MANAGER_CANDIDATES = new java.util.ArrayList<>();
     private static final java.lang.reflect.Field ENTITY_IS_DEAD;
     static {
         java.lang.reflect.Field dm = null;
         java.lang.reflect.Field hp = null;
-        java.lang.reflect.Method set = null;
         java.lang.reflect.Field isDead = null;
         try {
             for (java.lang.reflect.Field f : Entity.class.getDeclaredFields()) {
@@ -159,9 +158,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     if (m.getParameterCount() == 2 &&
                         m.getParameterTypes()[0].getSimpleName().equals("DataParameter") &&
                         m.getParameterTypes()[1] == Object.class) {
-                        set = m;
-                        set.setAccessible(true);
-                        break;
+                        m.setAccessible(true);
+                        DATA_MANAGER_CANDIDATES.add(m);
                     }
                 }
             }
@@ -172,7 +170,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
         ENTITY_DATA_MANAGER = dm;
         ELB_HEALTH_PARAM = hp;
-        DATA_MANAGER_SET = set;
         ENTITY_IS_DEAD = isDead;
     }
 
@@ -319,12 +316,23 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     private static void forceSetHealthViaDataManager(EntityLivingBase entity, float health) {
-        if (ENTITY_DATA_MANAGER == null || ELB_HEALTH_PARAM == null || DATA_MANAGER_SET == null) return;
+        if (ENTITY_DATA_MANAGER == null || ELB_HEALTH_PARAM == null || DATA_MANAGER_CANDIDATES.isEmpty()) return;
         try {
             Object dataManager = ENTITY_DATA_MANAGER.get(entity);
             Object healthParam = ELB_HEALTH_PARAM.get(null);
             float clamped = MathHelper.clamp(health, 0.0f, entity.getMaxHealth());
-            DATA_MANAGER_SET.invoke(dataManager, healthParam, Float.valueOf(clamped));
+            for (java.lang.reflect.Method m : DATA_MANAGER_CANDIDATES) {
+                try {
+                    m.invoke(dataManager, healthParam, Float.valueOf(clamped));
+                    return; // 成功
+                } catch (IllegalArgumentException e) {
+                    if (e.getMessage() != null && e.getMessage().contains("Duplicate")) {
+                        continue; // 这是 register 方法，尝试下一个候选
+                    }
+                    throw e;
+                }
+            }
+            AE2Enhanced.LOGGER.error("[AE2E] All dataManager candidate methods failed for forceSetHealthViaDataManager");
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] forceSetHealthViaDataManager failed", e);
         }
