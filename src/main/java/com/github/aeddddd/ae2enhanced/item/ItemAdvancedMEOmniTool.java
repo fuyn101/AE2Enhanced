@@ -70,6 +70,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_AE_Y = "AEY";
     public static final String NBT_AE_Z = "AEZ";
     public static final String NBT_AE_DIM = "AEDim";
+    public static final String NBT_ANTI_HEAL = "AE2E_AntiHeal";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -115,6 +116,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     private static final float DESTROY_SPEED = 1_000_000.0f;
     private static final float ATTACK_DAMAGE = 6.0f;
     private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
+    private static final int ANTI_HEAL_DURATION_TICKS = 200; // 10 seconds
     private static final double DEFAULT_BLINK_DIST = 32.0;
     private static final int BLINK_COOLDOWN_TICKS = 1;
     private static final int DEFAULT_BREAK_COOLDOWN = 6;
@@ -239,6 +241,26 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         } else {
             target.setHealth(newHealth);
         }
+
+        // 施加禁疗效果（阻止任何形式回血，包括自然恢复、药水、mod 直接 setHealth 等）
+        applyAntiHeal(target);
+    }
+
+    // ==================== Anti-Heal ====================
+
+    public static void applyAntiHeal(EntityLivingBase entity) {
+        entity.getEntityData().setLong(NBT_ANTI_HEAL, entity.world.getTotalWorldTime() + ANTI_HEAL_DURATION_TICKS);
+    }
+
+    public static boolean hasAntiHeal(EntityLivingBase entity) {
+        NBTTagCompound data = entity.getEntityData();
+        if (!data.hasKey(NBT_ANTI_HEAL, net.minecraftforge.common.util.Constants.NBT.TAG_LONG)) return false;
+        long expiry = data.getLong(NBT_ANTI_HEAL);
+        return entity.world.getTotalWorldTime() < expiry;
+    }
+
+    public static void clearAntiHeal(EntityLivingBase entity) {
+        entity.getEntityData().removeTag(NBT_ANTI_HEAL);
     }
 
     private static boolean isChaosCrystal(World world, BlockPos pos) {

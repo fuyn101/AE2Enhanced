@@ -23,6 +23,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -225,4 +226,15 @@ public final class ModEventHandler {
         // ⑤ 燃烧
         entity.setFire(10);
     }
+
+    // ==================== Anti-Heal ====================
+
+    @SubscribeEvent
+    public void onLivingHeal(LivingHealEvent event) {
+        if (ItemAdvancedMEOmniTool.hasAntiHeal(event.getEntityLiving())) {
+            event.setCanceled(true);
+        }
+    }
+
+
 }

@@ -30,7 +30,8 @@
     "energy.MixinNetworkMonitorEnergy",
     "upgrade.MixinUpgradeInvFilter",
     "upgrade.MixinUpgradeInventory",
-    "upgrade.MixinUpgradeSlots"
+    "upgrade.MixinUpgradeSlots",
+    "entity.MixinEntityLivingBase"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",
