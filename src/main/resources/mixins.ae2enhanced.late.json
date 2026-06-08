@@ -31,7 +31,8 @@
     "upgrade.MixinUpgradeInvFilter",
     "upgrade.MixinUpgradeInventory",
     "upgrade.MixinUpgradeSlots",
-    "entity.MixinEntityLivingBase"
+    "entity.MixinEntityLivingBase",
+    "entity.MixinEntityDataManager"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",

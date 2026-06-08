@@ -164,7 +164,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                         boolean isSetEntry = name.equals("setEntry") || name.equals("func_187226_a");
                         if (isSet || isSetEntry) {
                             m.setAccessible(true);
-                            DATA_MANAGER_CANDIDATES.add(m);
+                            // set 必须排在 setEntry 前面，因为 setEntry 不会标记 dirty，客户端无法同步
+                            if (isSet) {
+                                DATA_MANAGER_CANDIDATES.add(0, m);
+                            } else {
+                                DATA_MANAGER_CANDIDATES.add(m);
+                            }
                         }
                     }
                 }
