@@ -289,6 +289,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             if (hasTravelStaff(stack)) {
                 // TODO: EIO Travel Anchor 反射传送（右键空气时不触发Anchor）
             }
+            player.fallDistance = 0.0f; // 每次尝试位移都重置摔落伤害
             doBlink(player, world, stack);
             return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         }
