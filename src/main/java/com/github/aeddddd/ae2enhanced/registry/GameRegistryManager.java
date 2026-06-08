@@ -7,10 +7,15 @@ import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.tile.*;
+import com.github.aeddddd.ae2enhanced.crafting.RecipeOmniToolUpgrade;
 import net.minecraft.block.Block;
+import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.GameRegistry;
@@ -152,5 +157,31 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.ENERGY_DROP);
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
+    }
+
+    @SubscribeEvent
+    public static void registerRecipes(RegistryEvent.Register<net.minecraft.item.crafting.IRecipe> event) {
+        // ME Omni Tool - Chaos Core upgrade
+        if (Loader.isModLoaded("draconicevolution")) {
+            Item chaoticCore = Item.REGISTRY.getObject(new ResourceLocation("draconicevolution", "chaotic_core"));
+            if (chaoticCore != null) {
+                event.getRegistry().register(new RecipeOmniToolUpgrade(
+                        new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_chaos_upgrade"),
+                        new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                        "chaos",
+                        new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                        new ItemStack(chaoticCore)
+                ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_chaos_upgrade"));
+            }
+        }
+
+        // ME Omni Tool - Fortune upgrade
+        event.getRegistry().register(new RecipeOmniToolUpgrade(
+                new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_fortune_upgrade"),
+                new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                "fortune",
+                new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                new ItemStack(Items.ENCHANTED_BOOK)
+        ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_fortune_upgrade"));
     }
 }
