@@ -74,6 +74,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_AE_DIM = "AEDim";
     public static final String NBT_ANTI_HEAL = "AE2E_AntiHeal";
     public static final String NBT_CONFORMAL = "ConformalCharge";
+    public static final String NBT_PARAM_ENABLED = "ParamEnabled";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -682,6 +683,25 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static void setTravelStaff(ItemStack stack, boolean has) {
         if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
         stack.getTagCompound().setBoolean(NBT_TRAVEL, has);
+    }
+
+    // ==================== Param Enabled ====================
+
+    public static boolean isParamEnabled(ItemStack stack, int paramIdx) {
+        if (paramIdx < 0 || paramIdx > 5) return true;
+        if (!stack.hasTagCompound()) return true;
+        int mask = stack.getTagCompound().getInteger(NBT_PARAM_ENABLED);
+        if (mask == 0 && !stack.getTagCompound().hasKey(NBT_PARAM_ENABLED)) return true;
+        return (mask & (1 << paramIdx)) != 0;
+    }
+
+    public static void setParamEnabled(ItemStack stack, int paramIdx, boolean enabled) {
+        if (paramIdx < 0 || paramIdx > 5) return;
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        int mask = stack.getTagCompound().getInteger(NBT_PARAM_ENABLED);
+        if (enabled) mask |= (1 << paramIdx);
+        else mask &= ~(1 << paramIdx);
+        stack.getTagCompound().setInteger(NBT_PARAM_ENABLED, mask);
     }
 
     // ==================== Blink Distance / Cooldown ====================

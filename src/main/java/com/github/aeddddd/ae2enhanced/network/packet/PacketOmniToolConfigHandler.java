@@ -19,13 +19,13 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setMode(stack, message.getMode());
                     ItemAdvancedMEOmniTool.setDropMode(stack, message.getDropMode());
                     ItemAdvancedMEOmniTool.setSilkTouchEnabled(stack, message.isSilkTouch());
-                    if (ItemAdvancedMEOmniTool.getFortuneLevel(stack) >= 0) {
-                        ItemAdvancedMEOmniTool.setFortuneLevel(stack, Math.max(0, message.getFortune()));
-                    }
-                    if (ItemAdvancedMEOmniTool.hasTravelStaff(stack)) {
-                        ItemAdvancedMEOmniTool.setBlinkDistance(stack, message.getBlinkDistance());
-                    }
+                    ItemAdvancedMEOmniTool.setFortuneLevel(stack, Math.max(0, message.getFortune()));
+                    ItemAdvancedMEOmniTool.setBlinkDistance(stack, message.getBlinkDistance());
                     ItemAdvancedMEOmniTool.setBreakCooldown(stack, Math.max(0, message.getBreakCooldown()));
+                    int mask = message.getParamEnabled();
+                    for (int i = 0; i < 6; i++) {
+                        ItemAdvancedMEOmniTool.setParamEnabled(stack, i, (mask & (1 << i)) != 0);
+                    }
                     // 强制同步NBT到客户端
                     player.setHeldItem(hand, stack);
                     break;

@@ -16,62 +16,69 @@ import net.minecraft.util.math.MathHelper;
 import java.io.IOException;
 
 /**
- * 先进ME工具配置GUI —— 参考 GuiAssemblyFormed 的纹理绘制模式.
- * 背景纹理 (0,0)->(195,221) 包含完整GUI设计，交互状态通过叠加纹理实现.
+ * 先进ME工具配置GUI —— 严格遵循 me_omni_tool_gui.png UV文档.
+ * 纹理 (0,0)->(195,221) 为背景，交互状态通过 y=221/y=238 区域复制纹理实现.
  */
 public class GuiOmniToolConfig extends GuiContainer {
 
     private static final ResourceLocation TEXTURE = new ResourceLocation(
             AE2Enhanced.MOD_ID, "textures/gui/me_omni_tool_gui.png");
 
-    // GUI尺寸（与纹理设计匹配）
+    // GUI尺寸
     private static final int GUI_W = 195;
     private static final int GUI_H = 221;
 
-    // ---- 纹理UV：小按钮与滑块（y=221状态区）----
-    private static final int SMOL_U = 0, SMOL_V = 221;
-    private static final int SMOL_HL_U = 75, SMOL_HL_V = 221;
-    private static final int SMOL_W = 12, SMOL_H = 18;
-    private static final int KNOB_U = 150, KNOB_V = 221;
-    private static final int KNOB_W = 12, KNOB_H = 17;
+    // ---- UV坐标：顶部按钮区（背景已包含默认槽位，此处仅记录文档值） ----
+    private static final int LEFT_BTN_X = 4;   // 左侧按钮外框 x
+    private static final int RIGHT_BTN_X = 116; // 右侧按钮外框 x
+    private static final int BTN_W = 75;
+    private static final int BTN_H = 17;
+    private static final int BTN_Y0 = 25;       // 第一个按钮 y
+    private static final int BTN_GAP = 2;       // 按钮间距
+    private static final int BTN_STEP = BTN_H + BTN_GAP; // 19
 
-    // ---- 纹理UV：长条高亮（y=238状态区）----
-    private static final int BAR_HL_U = 0, BAR_HL_V = 238;
-    private static final int BAR_HL_W = 188, BAR_HL_H = 17;
+    // ---- UV坐标：y=221 纹理复制区 ----
+    private static final int TEX_NORMAL_BTN_U = 0;
+    private static final int TEX_NORMAL_BTN_V = 221; // 普通小按钮 75x17
+    private static final int TEX_HIGHLIGHT_BTN_U = 75;
+    private static final int TEX_HIGHLIGHT_BTN_V = 221; // 高亮小按钮 75x17
+    private static final int TEX_KNOB_U = 150;
+    private static final int TEX_KNOB_V = 221; // 滑块 12x17
+    private static final int KNOB_W = 12;
+    private static final int KNOB_H = 17;
 
-    // ---- 屏幕坐标（相对于guiTop/guiLeft）----
-    // 小按钮竖向排列在竖条两侧，与竖条间距2px
-    private static final int VERT_BAR_X = 81;   // 竖条起始x
-    private static final int VERT_BAR_W = 33;   // 竖条宽
-    private static final int VERT_BAR_Y = 25;   // 竖条起始y
-    private static final int VERT_BAR_H = 75;   // 竖条高
-    private static final int SMALL_LEFT_X = 35;  // 4 + (75-12)/2, 左区域内居中
-    private static final int SMALL_RIGHT_X = 147; // 116 + (75-12)/2, 右区域内居中
-    private static final int SMALL_Y0 = 24;       // 适配 4×18+3×2=78 在 75px 竖条区域
-    private static final int SMALL_H = 18;        // 文档明确 12×18
-    private static final int SMALL_GAP = 2;       // 按钮相互间隔 2px
-    private static final int SMALL_PER_SIDE = 4;
+    // ---- UV坐标：y=238 高亮大条 ----
+    private static final int TEX_HIGHLIGHT_BAR_U = 0;
+    private static final int TEX_HIGHLIGHT_BAR_V = 238; // 高亮大按钮 188x17
+    private static final int BAR_W = 188;
+    private static final int BAR_H = 17;
 
-    // 长条
-    private static final int BAR1_X = 4, BAR1_Y = 102, BAR1_W = 188, BAR1_H = 17;
-    private static final int BAR2_X = 4, BAR2_Y = 122, BAR2_W = 187, BAR2_H = 16;
+    // ---- 中间长条坐标 ----
+    private static final int BAR1_X = 4;
+    private static final int BAR1_Y = 102;
+    private static final int BAR2_X = 4;
+    private static final int BAR2_Y = 122;
 
-    // 底部按钮
-    private static final int BOT_Y = 160;
-    private static final int BOT_LEFT_X = 4;
-    private static final int BOT_MID_X = 83;
-    private static final int BOT_SMALL_X = 166;
+    // ---- 参数定义 ----
+    private static final int PARAM_COUNT = 6;
+    private static final String[] PARAM_LANG_KEYS = {
+        "gui.ae2enhanced.omni_tool_config.mode",
+        "gui.ae2enhanced.omni_tool_config.drop_mode",
+        "gui.ae2enhanced.omni_tool_config.silk_touch",
+        "gui.ae2enhanced.omni_tool_config.fortune",
+        "gui.ae2enhanced.omni_tool_config.blink_dist",
+        "gui.ae2enhanced.omni_tool_config.break_cooldown"
+    };
+    private static final int[] PARAM_MIN = {0, 0, 0, 0, 1, 0};
+    private static final int[] PARAM_MAX = {3, 2, 1, 3, 256, 100};
 
-    // ---- 参数数据 ----
     private final EntityPlayer player;
     private ItemStack toolStack = ItemStack.EMPTY;
 
-    private int selParam = 0;      // 当前选中参数 0~5
-    private int[] values = new int[6];
-    private static final int[] MIN = {0, 0, 0, 0, 1, 0};
-    private static final int[] MAX = {3, 2, 1, 20, 256, 100};
-
-    private int drag = -1;
+    private int selParam = 0;
+    private final int[] values = new int[PARAM_COUNT];
+    private int paramEnabledMask = 0x3F; // 默认全部启用
+    private int dragParam = -1;
 
     public GuiOmniToolConfig(EntityPlayer player, ContainerOmniToolConfig container) {
         super(container);
@@ -95,7 +102,10 @@ public class GuiOmniToolConfig extends GuiContainer {
                 break;
             }
         }
-        if (toolStack.isEmpty()) { mc.displayGuiScreen(null); return; }
+        if (toolStack.isEmpty()) {
+            mc.displayGuiScreen(null);
+            return;
+        }
 
         values[0] = ItemAdvancedMEOmniTool.getMode(toolStack);
         values[1] = ItemAdvancedMEOmniTool.getDropMode(toolStack);
@@ -103,6 +113,13 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[3] = Math.max(0, ItemAdvancedMEOmniTool.getFortuneLevel(toolStack));
         values[4] = (int) ItemAdvancedMEOmniTool.getBlinkDistance(toolStack);
         values[5] = ItemAdvancedMEOmniTool.getBreakCooldown(toolStack);
+
+        paramEnabledMask = 0;
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            if (ItemAdvancedMEOmniTool.isParamEnabled(toolStack, i)) {
+                paramEnabledMask |= (1 << i);
+            }
+        }
     }
 
     // ==================== 绘制 ====================
@@ -118,75 +135,96 @@ public class GuiOmniToolConfig extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
-        // 1. 绘制完整背景（纹理 0,0 -> 195,221）
+        // 1. 完整背景
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_W, GUI_H);
 
-        // 2. 顶部小按钮（竖向排列在竖条两侧）
-        for (int i = 0; i < SMALL_PER_SIDE; i++) {
-            int idx = i;
-            if (idx >= 6) break;
-            int x = this.guiLeft + SMALL_LEFT_X;
-            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
-            boolean on = (selParam == idx);
-            this.drawTexturedModalRect(x, y,
-                    on ? SMOL_HL_U : SMOL_U,
-                    on ? SMOL_HL_V : SMOL_V,
-                    SMOL_W, SMOL_H);
-        }
-        for (int i = 0; i < SMALL_PER_SIDE; i++) {
-            int idx = 4 + i;
-            if (idx >= 6) break;
-            int x = this.guiLeft + SMALL_RIGHT_X;
-            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
-            boolean on = (selParam == idx);
-            this.drawTexturedModalRect(x, y,
-                    on ? SMOL_HL_U : SMOL_U,
-                    on ? SMOL_HL_V : SMOL_V,
-                    SMOL_W, SMOL_H);
+        // 2. 顶部参数按钮 — 选中或hover时叠加纹理
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            int bx = (i < 3) ? LEFT_BTN_X : RIGHT_BTN_X;
+            int by = BTN_Y0 + (i % 3) * BTN_STEP;
+            int absX = this.guiLeft + bx;
+            int absY = this.guiTop + by;
+            boolean selected = (selParam == i);
+            boolean hovered = in(mouseX, mouseY, absX, absY, BTN_W, BTN_H);
+
+            if (selected) {
+                this.drawTexturedModalRect(absX, absY,
+                        TEX_HIGHLIGHT_BTN_U, TEX_HIGHLIGHT_BTN_V, BTN_W, BTN_H);
+            } else if (hovered) {
+                this.drawTexturedModalRect(absX, absY,
+                        TEX_NORMAL_BTN_U, TEX_NORMAL_BTN_V, BTN_W, BTN_H);
+            }
         }
 
-        // 3. 长条1：开关 — ON或悬停时叠加高亮纹理
-        if (values[selParam] > 0 || in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR1_W, BAR1_H)) {
+        // 3. Bar1 — 启用时叠加高亮大条
+        if (isParamEnabled(selParam)) {
             this.drawTexturedModalRect(this.guiLeft + BAR1_X, this.guiTop + BAR1_Y,
-                    BAR_HL_U, BAR_HL_V, BAR_HL_W, BAR_HL_H);
+                    TEX_HIGHLIGHT_BAR_U, TEX_HIGHLIGHT_BAR_V, BAR_W, BAR_H);
         }
 
-        // 4. 长条2：滑块 — 不叠加高亮纹理
-        // 滑块旋钮
-        int trackX = this.guiLeft + BAR2_X + 65;
-        int trackW = 100;
-        float r = (values[selParam] - MIN[selParam]) / (float) (MAX[selParam] - MIN[selParam]);
-        int knobX = trackX + Math.round(r * (trackW - KNOB_W));
-        this.drawTexturedModalRect(knobX, this.guiTop + BAR2_Y, KNOB_U, KNOB_V, KNOB_W, KNOB_H);
+        // 4. Bar2 — 滑块旋钮
+        int knobX = computeKnobX(selParam);
+        this.drawTexturedModalRect(knobX, this.guiTop + BAR2_Y,
+                TEX_KNOB_U, TEX_KNOB_V, KNOB_W, KNOB_H);
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // 标题
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.omni_tool_config.title"),
-                GUI_W / 2 - fontRenderer.getStringWidth(I18n.format("gui.ae2enhanced.omni_tool_config.title")) / 2,
-                6, 0x333333);
+        String title = I18n.format("gui.ae2enhanced.omni_tool_config.title");
+        fontRenderer.drawString(title,
+                GUI_W / 2 - fontRenderer.getStringWidth(title) / 2, 6, 0x333333);
 
-        // 当前参数名（长条1左侧）
-        String name = paramName(selParam);
-        fontRenderer.drawString(name, 12, BAR1_Y + 4, 0x333333);
+        // 顶部按钮文字 — 参数名居中
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            int bx = (i < 3) ? LEFT_BTN_X : RIGHT_BTN_X;
+            int by = BTN_Y0 + (i % 3) * BTN_STEP;
+            String name = I18n.format(PARAM_LANG_KEYS[i]);
+            int tx = bx + BTN_W / 2 - fontRenderer.getStringWidth(name) / 2;
+            int ty = by + (BTN_H - fontRenderer.FONT_HEIGHT) / 2 + 1;
+            fontRenderer.drawString(name, tx, ty, 0x333333);
+        }
 
-        // 长条2标签 + 数值
-        fontRenderer.drawString(name, 12, BAR2_Y + 3, 0x333333);
-        String val = String.valueOf(values[selParam]);
-        fontRenderer.drawString(val, BAR2_X + BAR2_W - 22, BAR2_Y + 3, 0x333333);
+        // Bar1 文字 — 参数名 + ON/OFF
+        String bar1Name = I18n.format(PARAM_LANG_KEYS[selParam]);
+        String bar1State = isParamEnabled(selParam) ? "ON" : "OFF";
+        fontRenderer.drawString(bar1Name, BAR1_X + 6, BAR1_Y + 4, 0x333333);
+        fontRenderer.drawString(bar1State, BAR1_X + BAR_W - 6 - fontRenderer.getStringWidth(bar1State), BAR1_Y + 4, 0x333333);
+
+        // Bar2 文字 — 当前值
+        String valStr = formatValue(selParam, values[selParam]);
+        fontRenderer.drawString(valStr,
+                BAR2_X + BAR_W - 6 - fontRenderer.getStringWidth(valStr), BAR2_Y + 4, 0x333333);
     }
 
-    private String paramName(int idx) {
-        switch (idx) {
-            case 0: return I18n.format("gui.ae2enhanced.omni_tool_config.mode");
-            case 1: return I18n.format("gui.ae2enhanced.omni_tool_config.drop_mode");
-            case 2: return I18n.format("gui.ae2enhanced.omni_tool_config.silk_touch");
-            case 3: return I18n.format("gui.ae2enhanced.omni_tool_config.fortune");
-            case 4: return I18n.format("gui.ae2enhanced.omni_tool_config.blink_dist");
-            case 5: return I18n.format("gui.ae2enhanced.omni_tool_config.break_cooldown");
-            default: return "";
+    private String formatValue(int param, int value) {
+        switch (param) {
+            case 0:
+                return I18n.format(ItemAdvancedMEOmniTool.getModeNameKey(value));
+            case 1:
+                return I18n.format(ItemAdvancedMEOmniTool.getDropModeNameKey(value));
+            case 2:
+                return value > 0 ? "ON" : "OFF";
+            default:
+                return String.valueOf(value);
         }
+    }
+
+    private int computeKnobX(int param) {
+        int min = PARAM_MIN[param];
+        int max = PARAM_MAX[param];
+        float ratio = (values[param] - min) / (float) (max - min);
+        int trackX = this.guiLeft + BAR2_X;
+        return trackX + Math.round(ratio * (BAR_W - KNOB_W));
+    }
+
+    private boolean isParamEnabled(int param) {
+        return (paramEnabledMask & (1 << param)) != 0;
+    }
+
+    private void setParamEnabled(int param, boolean enabled) {
+        if (enabled) paramEnabledMask |= (1 << param);
+        else paramEnabledMask &= ~(1 << param);
     }
 
     // ==================== 交互 ====================
@@ -195,54 +233,26 @@ public class GuiOmniToolConfig extends GuiContainer {
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        // 顶部左边小按钮（竖向）
-        for (int i = 0; i < SMALL_PER_SIDE; i++) {
-            int idx = i;
-            if (idx >= 6) break;
-            int x = this.guiLeft + SMALL_LEFT_X;
-            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
-            if (in(mouseX, mouseY, x, y, SMOL_W, SMALL_H)) {
-                selParam = idx;
-                return;
-            }
-        }
-        // 顶部右边小按钮（竖向）
-        for (int i = 0; i < SMALL_PER_SIDE; i++) {
-            int idx = 4 + i;
-            if (idx >= 6) break;
-            int x = this.guiLeft + SMALL_RIGHT_X;
-            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
-            if (in(mouseX, mouseY, x, y, SMOL_W, SMALL_H)) {
-                selParam = idx;
+        // 顶部参数按钮
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            int bx = this.guiLeft + ((i < 3) ? LEFT_BTN_X : RIGHT_BTN_X);
+            int by = this.guiTop + BTN_Y0 + (i % 3) * BTN_STEP;
+            if (in(mouseX, mouseY, bx, by, BTN_W, BTN_H)) {
+                selParam = i;
                 return;
             }
         }
 
-        // 长条1 — 切换开关
-        if (in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR1_W, BAR1_H)) {
-            values[selParam] = (values[selParam] > MIN[selParam]) ? MIN[selParam] : MAX[selParam];
+        // Bar1 — 切换启用/禁用
+        if (in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR_W, BAR_H)) {
+            setParamEnabled(selParam, !isParamEnabled(selParam));
             return;
         }
 
-        // 长条2 — 开始拖拽
-        if (in(mouseX, mouseY, this.guiLeft + BAR2_X + 65, this.guiTop + BAR2_Y, 100, BAR2_H)) {
-            drag = selParam;
+        // Bar2 — 开始拖拽
+        if (in(mouseX, mouseY, this.guiLeft + BAR2_X, this.guiTop + BAR2_Y, BAR_W, BAR_H)) {
+            dragParam = selParam;
             updateSlider(mouseX);
-            return;
-        }
-
-        // 底部左按钮 — 复制纹理
-        if (in(mouseX, mouseY, this.guiLeft + BOT_LEFT_X, this.guiTop + BOT_Y, 75, 17)) {
-            // 复制纹理 — 待用户指定具体逻辑
-            return;
-        }
-        // 底部中按钮 — 改变状态
-        if (in(mouseX, mouseY, this.guiLeft + BOT_MID_X, this.guiTop + BOT_Y, 75, 17)) {
-            // 改变状态 — 待用户指定具体逻辑
-            return;
-        }
-        // 底部右小按钮
-        if (in(mouseX, mouseY, this.guiLeft + BOT_SMALL_X, this.guiTop + BOT_Y, SMOL_W, SMOL_H)) {
             return;
         }
     }
@@ -250,20 +260,21 @@ public class GuiOmniToolConfig extends GuiContainer {
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
-        drag = -1;
+        dragParam = -1;
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-        if (drag >= 0) updateSlider(mouseX);
+        if (dragParam >= 0) updateSlider(mouseX);
     }
 
     private void updateSlider(int mouseX) {
-        int trackX = this.guiLeft + BAR2_X + 65;
-        int trackW = 100;
-        float ratio = MathHelper.clamp((mouseX - trackX) / (float) (trackW - KNOB_W), 0f, 1f);
-        values[selParam] = MIN[selParam] + Math.round(ratio * (MAX[selParam] - MIN[selParam]));
+        int trackX = this.guiLeft + BAR2_X;
+        float ratio = MathHelper.clamp((mouseX - trackX) / (float) (BAR_W - KNOB_W), 0f, 1f);
+        int min = PARAM_MIN[dragParam];
+        int max = PARAM_MAX[dragParam];
+        values[dragParam] = min + Math.round(ratio * (max - min));
     }
 
     @Override
@@ -277,15 +288,16 @@ public class GuiOmniToolConfig extends GuiContainer {
         ItemAdvancedMEOmniTool.setMode(toolStack, values[0]);
         ItemAdvancedMEOmniTool.setDropMode(toolStack, values[1]);
         ItemAdvancedMEOmniTool.setSilkTouchEnabled(toolStack, values[2] > 0);
-        if (ItemAdvancedMEOmniTool.getFortuneLevel(toolStack) >= 0)
-            ItemAdvancedMEOmniTool.setFortuneLevel(toolStack, values[3]);
-        if (ItemAdvancedMEOmniTool.hasTravelStaff(toolStack))
-            ItemAdvancedMEOmniTool.setBlinkDistance(toolStack, values[4]);
+        ItemAdvancedMEOmniTool.setFortuneLevel(toolStack, values[3]);
+        ItemAdvancedMEOmniTool.setBlinkDistance(toolStack, values[4]);
         ItemAdvancedMEOmniTool.setBreakCooldown(toolStack, values[5]);
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, isParamEnabled(i));
+        }
 
         AE2Enhanced.network.sendToServer(new PacketOmniToolConfig(
                 values[0], values[1], values[2] > 0,
-                values[3], values[4], values[5]));
+                values[3], values[4], values[5], paramEnabledMask));
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {
