@@ -15,13 +15,15 @@ public class PacketOmniToolConfig implements IMessage {
     private double blinkDistance;
     private int breakCooldown;
     private int paramEnabled;
+    private boolean chaosForceKill;
+    private boolean conformalEnabled;
 
     public PacketOmniToolConfig() {
     }
 
     public PacketOmniToolConfig(int mode, int dropMode, boolean silkTouch,
                                  int fortune, double blinkDistance, int breakCooldown,
-                                 int paramEnabled) {
+                                 int paramEnabled, boolean chaosForceKill, boolean conformalEnabled) {
         this.mode = mode;
         this.dropMode = dropMode;
         this.silkTouch = silkTouch;
@@ -29,6 +31,8 @@ public class PacketOmniToolConfig implements IMessage {
         this.blinkDistance = blinkDistance;
         this.breakCooldown = breakCooldown;
         this.paramEnabled = paramEnabled;
+        this.chaosForceKill = chaosForceKill;
+        this.conformalEnabled = conformalEnabled;
     }
 
     public int getMode() { return mode; }
@@ -38,6 +42,8 @@ public class PacketOmniToolConfig implements IMessage {
     public double getBlinkDistance() { return blinkDistance; }
     public int getBreakCooldown() { return breakCooldown; }
     public int getParamEnabled() { return paramEnabled; }
+    public boolean isChaosForceKill() { return chaosForceKill; }
+    public boolean isConformalEnabled() { return conformalEnabled; }
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -48,6 +54,8 @@ public class PacketOmniToolConfig implements IMessage {
         blinkDistance = buf.readDouble();
         breakCooldown = buf.readByte();
         paramEnabled = buf.readByte();
+        chaosForceKill = buf.readBoolean();
+        conformalEnabled = buf.readBoolean();
     }
 
     @Override
@@ -59,5 +67,7 @@ public class PacketOmniToolConfig implements IMessage {
         buf.writeDouble(blinkDistance);
         buf.writeByte(breakCooldown);
         buf.writeByte(paramEnabled);
+        buf.writeBoolean(chaosForceKill);
+        buf.writeBoolean(conformalEnabled);
     }
 }

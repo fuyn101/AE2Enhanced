@@ -75,6 +75,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_ANTI_HEAL = "AE2E_AntiHeal";
     public static final String NBT_CONFORMAL = "ConformalCharge";
     public static final String NBT_PARAM_ENABLED = "ParamEnabled";
+    public static final String NBT_CHAOS_FORCE_KILL = "ChaosForceKill";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -209,7 +210,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
         if (targetEntity instanceof EntityLivingBase) {
             EntityLivingBase target = (EntityLivingBase) targetEntity;
-            if (hasChaosCore(stack)) {
+            if (hasChaosCore(stack) && isChaosForceKillEnabled(stack)) {
                 applyChaosDamage(target, player);
             } else {
                 applyTrueDamage(target, player, ATTACK_DAMAGE, OMNITOOL_DAMAGE);
@@ -671,6 +672,21 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         stack.getTagCompound().setBoolean(NBT_CHAOS, has);
     }
 
+    public static boolean isChaosForceKillEnabled(ItemStack stack) {
+        if (!stack.hasTagCompound()) return true;
+        if (!stack.getTagCompound().hasKey(NBT_CHAOS_FORCE_KILL)) return true;
+        return stack.getTagCompound().getBoolean(NBT_CHAOS_FORCE_KILL);
+    }
+
+    public static void setChaosForceKillEnabled(ItemStack stack, boolean enabled) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setBoolean(NBT_CHAOS_FORCE_KILL, enabled);
+    }
+
+    public static boolean hasFortuneUpgrade(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().hasKey(NBT_FORTUNE, net.minecraftforge.common.util.Constants.NBT.TAG_INT);
+    }
+
     public static int getFortuneLevel(ItemStack stack) {
         return stack.hasTagCompound() ? stack.getTagCompound().getInteger(NBT_FORTUNE) : 0;
     }
@@ -693,7 +709,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ==================== Param Enabled ====================
 
     public static boolean isParamEnabled(ItemStack stack, int paramIdx) {
-        if (paramIdx < 0 || paramIdx > 5) return true;
+        if (paramIdx < 0 || paramIdx > 31) return true;
         if (!stack.hasTagCompound()) return true;
         int mask = stack.getTagCompound().getInteger(NBT_PARAM_ENABLED);
         if (mask == 0 && !stack.getTagCompound().hasKey(NBT_PARAM_ENABLED)) return true;
@@ -701,7 +717,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     public static void setParamEnabled(ItemStack stack, int paramIdx, boolean enabled) {
-        if (paramIdx < 0 || paramIdx > 5) return;
+        if (paramIdx < 0 || paramIdx > 31) return;
         if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
         int mask = stack.getTagCompound().getInteger(NBT_PARAM_ENABLED);
         if (enabled) mask |= (1 << paramIdx);
