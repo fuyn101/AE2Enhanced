@@ -44,7 +44,8 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int PID_COOLDOWN = 5;
     private static final int PID_CHAOS_KILL = 6;
     private static final int PID_CONFORMAL = 7;
-    private static final int PID_COUNT = 8;
+    private static final int PID_ADVANCED_SILK = 8;
+    private static final int PID_COUNT = 9;
 
     // ---- UV坐标：顶部按钮区 ----
     private static final int LEFT_BTN_X = 4;
@@ -144,6 +145,11 @@ public class GuiOmniToolConfig extends GuiContainer {
                 0, 1, ItemAdvancedMEOmniTool::hasConformalCharge,
                 s -> ItemAdvancedMEOmniTool.hasConformalCharge(s) ? 1 : 0,
                 (s, v) -> ItemAdvancedMEOmniTool.setConformalCharge(s, v > 0)),
+        new ParamDef(PID_ADVANCED_SILK, "gui.ae2enhanced.omni_tool_config.advanced_silk_touch",
+                "gui.ae2enhanced.omni_tool_config.advanced_silk_touch.desc",
+                0, 1, s -> true,
+                s -> ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(s) ? 1 : 0,
+                (s, v) -> ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(s, v > 0)),
     };
 
     private final EntityPlayer player;
@@ -197,6 +203,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[PID_COOLDOWN] = ItemAdvancedMEOmniTool.getBreakCooldown(toolStack);
         values[PID_CHAOS_KILL] = ItemAdvancedMEOmniTool.isChaosForceKillEnabled(toolStack) ? 1 : 0;
         values[PID_CONFORMAL] = ItemAdvancedMEOmniTool.hasConformalCharge(toolStack) ? 1 : 0;
+        values[PID_ADVANCED_SILK] = ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(toolStack) ? 1 : 0;
 
         paramEnabledMask = 0;
         for (int i = 0; i < PID_COUNT; i++) {
@@ -402,6 +409,7 @@ public class GuiOmniToolConfig extends GuiContainer {
             case PID_SILK:
             case PID_CHAOS_KILL:
             case PID_CONFORMAL:
+            case PID_ADVANCED_SILK:
                 return value > 0 ? "ON" : "OFF";
             default:
                 return String.valueOf(value);
@@ -523,6 +531,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         ItemAdvancedMEOmniTool.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
         ItemAdvancedMEOmniTool.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
         ItemAdvancedMEOmniTool.setConformalCharge(toolStack, values[PID_CONFORMAL] > 0);
+        ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(toolStack, values[PID_ADVANCED_SILK] > 0);
         for (int i = 0; i < PID_COUNT; i++) {
             ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
         }
@@ -530,7 +539,8 @@ public class GuiOmniToolConfig extends GuiContainer {
         AE2Enhanced.network.sendToServer(new PacketOmniToolConfig(
                 values[PID_MODE], values[PID_DROP], values[PID_SILK] > 0,
                 values[PID_FORTUNE], values[PID_BLINK], values[PID_COOLDOWN],
-                paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0));
+                paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0,
+                values[PID_ADVANCED_SILK] > 0));
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {

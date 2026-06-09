@@ -17,13 +17,15 @@ public class PacketOmniToolConfig implements IMessage {
     private int paramEnabled;
     private boolean chaosForceKill;
     private boolean conformalEnabled;
+    private boolean advancedSilkTouch;
 
     public PacketOmniToolConfig() {
     }
 
     public PacketOmniToolConfig(int mode, int dropMode, boolean silkTouch,
                                  int fortune, double blinkDistance, int breakCooldown,
-                                 int paramEnabled, boolean chaosForceKill, boolean conformalEnabled) {
+                                 int paramEnabled, boolean chaosForceKill, boolean conformalEnabled,
+                                 boolean advancedSilkTouch) {
         this.mode = mode;
         this.dropMode = dropMode;
         this.silkTouch = silkTouch;
@@ -33,6 +35,7 @@ public class PacketOmniToolConfig implements IMessage {
         this.paramEnabled = paramEnabled;
         this.chaosForceKill = chaosForceKill;
         this.conformalEnabled = conformalEnabled;
+        this.advancedSilkTouch = advancedSilkTouch;
     }
 
     public int getMode() { return mode; }
@@ -44,6 +47,7 @@ public class PacketOmniToolConfig implements IMessage {
     public int getParamEnabled() { return paramEnabled; }
     public boolean isChaosForceKill() { return chaosForceKill; }
     public boolean isConformalEnabled() { return conformalEnabled; }
+    public boolean isAdvancedSilkTouch() { return advancedSilkTouch; }
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -56,6 +60,7 @@ public class PacketOmniToolConfig implements IMessage {
         paramEnabled = buf.readByte();
         chaosForceKill = buf.readBoolean();
         conformalEnabled = buf.readBoolean();
+        advancedSilkTouch = buf.readBoolean();
     }
 
     @Override
@@ -69,5 +74,6 @@ public class PacketOmniToolConfig implements IMessage {
         buf.writeByte(paramEnabled);
         buf.writeBoolean(chaosForceKill);
         buf.writeBoolean(conformalEnabled);
+        buf.writeBoolean(advancedSilkTouch);
     }
 }

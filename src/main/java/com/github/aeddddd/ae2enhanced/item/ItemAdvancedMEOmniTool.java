@@ -38,6 +38,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.IBlockAccess;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
@@ -76,6 +77,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_CONFORMAL = "ConformalCharge";
     public static final String NBT_PARAM_ENABLED = "ParamEnabled";
     public static final String NBT_CHAOS_FORCE_KILL = "ChaosForceKill";
+    public static final String NBT_ADVANCED_SILK = "AdvancedSilkTouch";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -187,7 +189,65 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             }
             setLastBreakTick(stack, now);
         }
+
+        // 高级精准采集：保留方块 NBT 掉落
+        if (isSilkTouchEnabled(stack) && isAdvancedSilkTouchEnabled(stack)) {
+            return breakBlockWithNBT(stack, player.world, pos, player);
+        }
+
         return super.onBlockStartBreak(stack, pos, player);
+    }
+
+    private boolean breakBlockWithNBT(ItemStack stack, World world, BlockPos pos, EntityPlayer player) {
+        if (world.isRemote) return true;
+        IBlockState state = world.getBlockState(pos);
+        Block block = state.getBlock();
+        if (isBlacklisted(block)) return super.onBlockStartBreak(stack, pos, player);
+
+        // 1. 保存 TileEntity NBT
+        TileEntity te = world.getTileEntity(pos);
+        NBTTagCompound teNbt = null;
+        if (te != null) {
+            teNbt = new NBTTagCompound();
+            te.writeToNBT(teNbt);
+            teNbt.removeTag("x");
+            teNbt.removeTag("y");
+            teNbt.removeTag("z");
+            teNbt.removeTag("id");
+        }
+
+        // 2. 移除 TileEntity，防止 breakBlock 额外掉落内容物
+        world.removeTileEntity(pos);
+
+        // 3. 获取掉落物
+        List<ItemStack> drops = block.getDrops(world, pos, state, getFortuneLevel(stack));
+        if (drops.isEmpty()) {
+            Item item = Item.getItemFromBlock(block);
+            if (item != null && item != net.minecraft.init.Items.AIR) {
+                drops.add(new ItemStack(item, 1, block.damageDropped(state)));
+            }
+        }
+
+        // 4. 给第一个掉落物附加 NBT
+        if (teNbt != null && !drops.isEmpty()) {
+            ItemStack mainDrop = drops.get(0);
+            NBTTagCompound tag = mainDrop.hasTagCompound() ? mainDrop.getTagCompound() : new NBTTagCompound();
+            tag.setTag("BlockEntityTag", teNbt);
+            mainDrop.setTagCompound(tag);
+        }
+
+        // 5. 生成掉落物
+        for (ItemStack drop : drops) {
+            EntityItem entityItem = new EntityItem(world,
+                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, drop);
+            entityItem.setPickupDelay(10);
+            world.spawnEntity(entityItem);
+        }
+
+        // 6. 破坏方块并移除
+        block.breakBlock(world, pos, state);
+        world.setBlockToAir(pos);
+        return true;
     }
 
     // ==================== Attack (Bypass Cooldown) ====================
@@ -659,6 +719,15 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     public static void toggleSilkTouch(ItemStack stack) {
         setSilkTouchEnabled(stack, !isSilkTouchEnabled(stack));
+    }
+
+    public static boolean isAdvancedSilkTouchEnabled(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_ADVANCED_SILK);
+    }
+
+    public static void setAdvancedSilkTouchEnabled(ItemStack stack, boolean enabled) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setBoolean(NBT_ADVANCED_SILK, enabled);
     }
 
     // ==================== Upgrades ====================
