@@ -250,6 +250,15 @@ public class GuiOmniToolConfig extends GuiContainer {
             }
         }
 
+        // 中间竖框 — 彩蛋计数
+        if (!dreamMode && in(mouseX, mouseY, this.guiLeft + 81, this.guiTop + 25, 33, 75)) {
+            verticalBarClicks++;
+            if (verticalBarClicks >= 30) {
+                dreamMode = true;
+            }
+            return;
+        }
+
         // Bar1 — 切换启用/禁用
         if (in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR_W, BAR_H)) {
             setParamEnabled(selParam, !isParamEnabled(selParam));
