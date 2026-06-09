@@ -84,6 +84,17 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
                     entity.setHealth(0.0f);
                     entity.onDeath(SPACETIME);
                 }
+                // 兜底：若实体被复活或 setDead 被覆盖，使用 ForceKillHelper 强制移除
+                if (entity.isEntityAlive()) {
+                    ForceKillHelper.forceSetHealthViaDataManager(entity, 0.0f);
+                    entity.onDeath(SPACETIME);
+                    if (!entity.isDead) {
+                        entity.setDead();
+                        ForceKillHelper.forceSetIsDead(entity, true);
+                    }
+                    ForceKillHelper.removeMultipartChildren(entity);
+                    ForceKillHelper.tryNotifyBossManager(entity);
+                }
             }
         }
 
