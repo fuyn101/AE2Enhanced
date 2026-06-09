@@ -25,7 +25,11 @@ public class OmniItemRegistry {
     private final Int2LongMap idToCount = new Int2LongOpenHashMap();
     private final Int2ObjectMap<String[]> idToNameWords = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectMap<String> idToModId = new Int2ObjectOpenHashMap<>();
-    private final Object2IntOpenHashMap<IAEItemStack> stackToId = new Object2IntOpenHashMap<>(-1);
+    private final Object2IntOpenHashMap<IAEItemStack> stackToId = new Object2IntOpenHashMap<>();
+
+    public OmniItemRegistry() {
+        this.stackToId.defaultReturnValue(-1);
+    }
 
     public void register(int id, IAEItemStack stack, long count) {
         IAEItemStack copy = stack.copy();

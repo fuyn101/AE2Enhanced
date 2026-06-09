@@ -100,9 +100,13 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== V4：扁平化缓存 ====================
     private final List<IAEItemStack> flatList = new ArrayList<>();
-    private final Object2IntOpenHashMap<IAEItemStack> flatIndex = new Object2IntOpenHashMap<>(-1);
+    private final Object2IntOpenHashMap<IAEItemStack> flatIndex = new Object2IntOpenHashMap<>();
     private long flatListVersion = 0;
     private final Object flatListLock = new Object();
+
+    {
+        this.flatIndex.defaultReturnValue(-1);
+    }
 
     // ==================== V4：倒排索引 ====================
     private final Object2ObjectOpenHashMap<String, IntList> nameIndex = new Object2ObjectOpenHashMap<>();
