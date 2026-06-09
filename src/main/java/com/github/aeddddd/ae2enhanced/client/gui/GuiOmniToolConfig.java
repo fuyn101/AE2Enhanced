@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
@@ -16,35 +15,81 @@ import net.minecraft.util.math.MathHelper;
 import java.io.IOException;
 
 /**
- * 先进ME工具配置GUI —— 调控各功能开关与数值滑块.
- * 使用自定义纹理（UV坐标由外部文档提供）.
+ * 先进ME工具配置GUI —— 使用 me_omni_tool_gui.png 纹理图集.
+ * 按照 docs/design/omni_gui_uv_document.md 的UV坐标绘制.
  */
 public class GuiOmniToolConfig extends GuiScreen {
 
-    // 暂定使用默认样式，等UV文档后替换为自定义纹理
-    private static final ResourceLocation TEXTURE = new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/omni_tool_config.png");
+    private static final ResourceLocation TEXTURE = new ResourceLocation(
+            AE2Enhanced.MOD_ID, "textures/gui/me_omni_tool_gui.png");
 
-    private static final int GUI_WIDTH = 200;
-    private static final int GUI_HEIGHT = 220;
+    // GUI 外框尺寸
+    private static final int GUI_W = 195;
+    private static final int GUI_H = 221;
+
+    // 颜色（来自UV文档颜色对照表）
+    private static final int COLOR_BG = 0xFFCBCCD4;      // 背景浅灰 (203,204,212)
+    private static final int COLOR_BORDER = 0xFFF2F2F2;  // 白色边框 (242,242,242)
+
+    // ==================== 纹理 UV 坐标 ====================
+    // 左按钮外框
+    private static final int BTN_L_OUT_U = 4, BTN_L_OUT_V = 25;
+    private static final int BTN_L_OUT_W = 75, BTN_L_OUT_H = 17;
+    // 左按钮内部
+    private static final int BTN_L_IN_U = 6, BTN_L_IN_V = 27;
+    private static final int BTN_L_IN_W = 71, BTN_L_IN_H = 11;
+    // 右按钮外框
+    private static final int BTN_R_OUT_U = 116, BTN_R_OUT_V = 25;
+    private static final int BTN_R_OUT_W = 75, BTN_R_OUT_H = 17;
+    // 右按钮内部
+    private static final int BTN_R_IN_U = 118, BTN_R_IN_V = 27;
+    private static final int BTN_R_IN_W = 71, BTN_R_IN_H = 11;
+    // 长条1 外框（开关条背景）
+    private static final int BAR1_OUT_U = 4, BAR1_OUT_V = 102;
+    private static final int BAR1_OUT_W = 188, BAR1_OUT_H = 17;
+    // 长条1 内部
+    private static final int BAR1_IN_U = 6, BAR1_IN_V = 104;
+    private static final int BAR1_IN_W = 184, BAR1_IN_H = 11;
+    // 长条2 外框（滑块条背景）
+    private static final int BAR2_OUT_U = 4, BAR2_OUT_V = 122;
+    private static final int BAR2_OUT_W = 188, BAR2_OUT_H = 17;
+    // 长条2 内部
+    private static final int BAR2_IN_U = 5, BAR2_IN_V = 123;
+    private static final int BAR2_IN_W = 186, BAR2_IN_H = 15;
+    // 普通小按钮
+    private static final int SMOL_U = 0, SMOL_V = 221;
+    private static final int SMOL_W = 12, SMOL_H = 17;
+    // 高亮小按钮
+    private static final int SMOL_HL_U = 75, SMOL_HL_V = 221;
+    private static final int SMOL_HL_W = 12, SMOL_HL_H = 17;
+    // 滑块
+    private static final int KNOB_U = 150, KNOB_V = 221;
+    private static final int KNOB_W = 12, KNOB_H = 17;
+    // 高亮大按钮
+    private static final int BIG_HL_U = 0, BIG_HL_V = 238;
+    private static final int BIG_HL_W = 188, BIG_HL_H = 17;
+
+    // ==================== 屏幕布局（相对于 guiLeft, guiTop）====================
+    private static final int TITLE_Y = 6;
+    // 模式选择行
+    private static final int MODE_Y = 20;
+    // 掉落模式行
+    private static final int DROP_Y = 42;
+    // 长条1 (丝绸触摸)
+    private static final int BAR1_Y = 66;
+    // 长条2 (时运)
+    private static final int SLIDER_1_Y = 92;
+    // 长条2 (闪烁)
+    private static final int SLIDER_2_Y = 118;
+    // 长条2 (冷却)
+    private static final int SLIDER_3_Y = 144;
+    // 确认按钮
+    private static final int CONFIRM_Y = 190;
 
     private final EntityPlayer player;
-    private ItemStack toolStack;
+    private ItemStack toolStack = ItemStack.EMPTY;
 
-    // 控件ID
-    private static final int BTN_MODE_0 = 10;
-    private static final int BTN_MODE_1 = 11;
-    private static final int BTN_MODE_2 = 12;
-    private static final int BTN_MODE_3 = 13;
-    private static final int BTN_DROP_0 = 20;
-    private static final int BTN_DROP_1 = 21;
-    private static final int BTN_DROP_2 = 22;
-    private static final int BTN_SILK = 30;
-    private static final int SLIDER_FORTUNE = 40;
-    private static final int SLIDER_BLINK = 41;
-    private static final int SLIDER_COOLDOWN = 42;
-    private static final int BTN_CONFIRM = 50;
-
-    // 当前值（与服务端同步前的本地缓存）
+    // 当前配置值（本地缓存）
     private int currentMode;
     private int currentDropMode;
     private boolean currentSilk;
@@ -55,23 +100,33 @@ public class GuiOmniToolConfig extends GuiScreen {
     // 滑条状态
     private int draggingSlider = -1;
     private final int[] sliderValues = new int[3];
-    private final int[] sliderMax = {20, 256, 100};
     private final int[] sliderMin = {0, 1, 0};
+    private final int[] sliderMax = {20, 256, 100};
+
+    private int guiLeft, guiTop;
 
     public GuiOmniToolConfig(EntityPlayer player) {
         this.player = player;
+    }
+
+    @Override
+    public void initGui() {
+        super.initGui();
+        guiLeft = (width - GUI_W) / 2;
+        guiTop = (height - GUI_H) / 2;
         refreshStack();
     }
 
     private void refreshStack() {
+        this.toolStack = ItemStack.EMPTY;
         for (EnumHand hand : EnumHand.values()) {
             ItemStack stack = player.getHeldItem(hand);
-            if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemAdvancedMEOmniTool) {
                 this.toolStack = stack;
                 break;
             }
         }
-        if (toolStack == null || toolStack.isEmpty()) {
+        if (toolStack.isEmpty()) {
             mc.displayGuiScreen(null);
             return;
         }
@@ -88,87 +143,182 @@ public class GuiOmniToolConfig extends GuiScreen {
     }
 
     @Override
-    public void initGui() {
-        super.initGui();
-        int cx = (width - GUI_WIDTH) / 2;
-        int cy = (height - GUI_HEIGHT) / 2;
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        drawDefaultBackground();
 
-        // 模式选择按钮（4个）
-        addButton(new GuiButton(BTN_MODE_0, cx + 10, cy + 25, 42, 18, I18n.format("item.ae2enhanced.me_omni_tool.mode.universal")));
-        addButton(new GuiButton(BTN_MODE_1, cx + 56, cy + 25, 42, 18, I18n.format("item.ae2enhanced.me_omni_tool.mode.wrench")));
-        addButton(new GuiButton(BTN_MODE_2, cx + 102, cy + 25, 42, 18, I18n.format("item.ae2enhanced.me_omni_tool.mode.rotate")));
-        addButton(new GuiButton(BTN_MODE_3, cx + 148, cy + 25, 42, 18, I18n.format("item.ae2enhanced.me_omni_tool.mode.travel")));
+        guiLeft = (width - GUI_W) / 2;
+        guiTop = (height - GUI_H) / 2;
 
-        // 掉落模式按钮（3个）
-        addButton(new GuiButton(BTN_DROP_0, cx + 10, cy + 65, 58, 18, I18n.format("item.ae2enhanced.me_omni_tool.drop_mode.normal")));
-        addButton(new GuiButton(BTN_DROP_1, cx + 72, cy + 65, 58, 18, I18n.format("item.ae2enhanced.me_omni_tool.drop_mode.inventory")));
-        addButton(new GuiButton(BTN_DROP_2, cx + 134, cy + 65, 58, 18, I18n.format("item.ae2enhanced.me_omni_tool.drop_mode.ae")));
+        // ---- 绘制外框背景与边框 ----
+        drawRect(guiLeft, guiTop, guiLeft + GUI_W, guiTop + GUI_H, COLOR_BG);
+        drawRect(guiLeft, guiTop, guiLeft + GUI_W, guiTop + 1, COLOR_BORDER);
+        drawRect(guiLeft, guiTop + GUI_H - 1, guiLeft + GUI_W, guiTop + GUI_H, COLOR_BORDER);
+        drawRect(guiLeft, guiTop, guiLeft + 1, guiTop + GUI_H, COLOR_BORDER);
+        drawRect(guiLeft + GUI_W - 1, guiTop, guiLeft + GUI_W, guiTop + GUI_H, COLOR_BORDER);
 
-        // 丝绸触摸开关
-        addButton(new GuiButton(BTN_SILK, cx + 10, cy + 95, 80, 18, ""));
+        mc.getTextureManager().bindTexture(TEXTURE);
+        GlStateManager.color(1f, 1f, 1f, 1f);
 
-        // 确认按钮
-        addButton(new GuiButton(BTN_CONFIRM, cx + GUI_WIDTH / 2 - 40, cy + GUI_HEIGHT - 28, 80, 20, I18n.format("gui.done")));
+        // ---- 标题 ----
+        String title = I18n.format("gui.ae2enhanced.omni_tool_config.title");
+        drawCenteredString(fontRenderer, title, guiLeft + GUI_W / 2, guiTop + TITLE_Y, 0x333333);
 
-        updateButtonStates();
-    }
-
-    private void updateButtonStates() {
-        // 更新模式按钮状态
+        // ---- 模式选择（4个小按钮）----
+        String[] modeLabels = {"U", "W", "R", "T"}; // Universal / Wrench / Rotate / Travel
+        int modeTotalW = 4 * SMOL_W + 3 * 6;
+        int modeStartX = guiLeft + (GUI_W - modeTotalW) / 2;
         for (int i = 0; i < 4; i++) {
-            GuiButton btn = buttonList.get(i);
-            btn.enabled = (currentMode != i);
+            int bx = modeStartX + i * (SMOL_W + 6);
+            int by = guiTop + MODE_Y;
+            boolean selected = (currentMode == i);
+            drawTexturedModalRect(bx, by,
+                    selected ? SMOL_HL_U : SMOL_U,
+                    selected ? SMOL_HL_V : SMOL_V,
+                    SMOL_W, SMOL_H);
+            fontRenderer.drawString(modeLabels[i],
+                    bx + (SMOL_W - fontRenderer.getStringWidth(modeLabels[i])) / 2,
+                    by + 4,
+                    selected ? 0xFFFFFF : 0x333333);
         }
-        // 更新掉落模式按钮状态
+
+        // ---- 掉落模式（3个小按钮）----
+        String[] dropLabels = {"N", "I", "A"}; // Normal / Inventory / AE
+        int dropTotalW = 3 * SMOL_W + 2 * 10;
+        int dropStartX = guiLeft + (GUI_W - dropTotalW) / 2;
         for (int i = 0; i < 3; i++) {
-            GuiButton btn = buttonList.get(4 + i);
-            btn.enabled = (currentDropMode != i);
+            int bx = dropStartX + i * (SMOL_W + 10);
+            int by = guiTop + DROP_Y;
+            boolean selected = (currentDropMode == i);
+            drawTexturedModalRect(bx, by,
+                    selected ? SMOL_HL_U : SMOL_U,
+                    selected ? SMOL_HL_V : SMOL_V,
+                    SMOL_W, SMOL_H);
+            fontRenderer.drawString(dropLabels[i],
+                    bx + (SMOL_W - fontRenderer.getStringWidth(dropLabels[i])) / 2,
+                    by + 4,
+                    selected ? 0xFFFFFF : 0x333333);
         }
-        // 更新丝绸触摸按钮文本
-        GuiButton silkBtn = buttonList.get(7);
-        String silkText = currentSilk
-                ? I18n.format("item.ae2enhanced.me_omni_tool.silk_touch.on")
-                : I18n.format("item.ae2enhanced.me_omni_tool.silk_touch.off");
-        silkBtn.displayString = silkText;
+
+        // ---- 丝绸触摸（长条1 + 开关小按钮）----
+        drawTexturedModalRect(guiLeft + 3, guiTop + BAR1_Y,
+                BAR1_OUT_U, BAR1_OUT_V, BAR1_OUT_W, BAR1_OUT_H);
+        String silkLabel = I18n.format("gui.ae2enhanced.omni_tool_config.silk_touch");
+        fontRenderer.drawString(silkLabel, guiLeft + 10, guiTop + BAR1_Y + 4, 0x333333);
+        int silkBtnX = guiLeft + GUI_W - 10 - SMOL_W;
+        int silkBtnY = guiTop + BAR1_Y;
+        drawTexturedModalRect(silkBtnX, silkBtnY,
+                currentSilk ? SMOL_HL_U : SMOL_U,
+                currentSilk ? SMOL_HL_V : SMOL_V,
+                SMOL_W, SMOL_H);
+
+        // ---- 三个滑条（长条2 + 滑块）----
+        boolean hasFortune = !toolStack.isEmpty() && ItemAdvancedMEOmniTool.getFortuneLevel(toolStack) >= 0;
+        boolean hasTravel = !toolStack.isEmpty() && ItemAdvancedMEOmniTool.hasTravelStaff(toolStack);
+        drawSlider(SLIDER_1_Y, "gui.ae2enhanced.omni_tool_config.fortune", 0, hasFortune);
+        drawSlider(SLIDER_2_Y, "gui.ae2enhanced.omni_tool_config.blink_dist", 1, hasTravel);
+        drawSlider(SLIDER_3_Y, "gui.ae2enhanced.omni_tool_config.break_cooldown", 2, true);
+
+        // ---- 确认按钮（高亮大按钮）----
+        int cfx = guiLeft + (GUI_W - BIG_HL_W) / 2;
+        int cfy = guiTop + CONFIRM_Y;
+        drawTexturedModalRect(cfx, cfy, BIG_HL_U, BIG_HL_V, BIG_HL_W, BIG_HL_H);
+        String confirmText = I18n.format("gui.done");
+        drawCenteredString(fontRenderer, confirmText, guiLeft + GUI_W / 2, cfy + 4, 0xFFFFFF);
+
+        super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
-    @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        super.actionPerformed(button);
-        switch (button.id) {
-            case BTN_MODE_0: currentMode = 0; break;
-            case BTN_MODE_1: currentMode = 1; break;
-            case BTN_MODE_2: currentMode = 2; break;
-            case BTN_MODE_3: currentMode = 3; break;
-            case BTN_DROP_0: currentDropMode = 0; break;
-            case BTN_DROP_1: currentDropMode = 1; break;
-            case BTN_DROP_2: currentDropMode = 2; break;
-            case BTN_SILK: currentSilk = !currentSilk; break;
-            case BTN_CONFIRM:
-                sendConfigToServer();
-                mc.displayGuiScreen(null);
-                return;
+    /**
+     * 绘制单个滑条（长条2背景 + 滑块 + 标签 + 数值）
+     */
+    private void drawSlider(int y, String labelKey, int idx, boolean enabled) {
+        int barX = guiLeft + 3;
+        drawTexturedModalRect(barX, guiTop + y,
+                BAR2_OUT_U, BAR2_OUT_V, BAR2_OUT_W, BAR2_OUT_H);
+
+        String label = I18n.format(labelKey);
+        int textColor = enabled ? 0x333333 : 0x888888;
+        fontRenderer.drawString(label, barX + 8, guiTop + y + 4, textColor);
+
+        if (!enabled) {
+            String disabled = I18n.format("gui.ae2enhanced.omni_tool_config.not_installed");
+            int dw = fontRenderer.getStringWidth(disabled);
+            fontRenderer.drawString(disabled, barX + BAR2_OUT_W - 8 - dw, guiTop + y + 4, 0x888888);
+            return;
         }
-        updateButtonStates();
+
+        // 滑块轨道：长条2内部右侧区域
+        int trackX = barX + 70;
+        int trackW = BAR2_OUT_W - 90; // 留给标签和数值的空间
+        float ratio = (sliderValues[idx] - sliderMin[idx]) / (float) (sliderMax[idx] - sliderMin[idx]);
+        int knobX = trackX + Math.round(ratio * (trackW - KNOB_W));
+
+        // 绘制滑块
+        drawTexturedModalRect(knobX, guiTop + y, KNOB_U, KNOB_V, KNOB_W, KNOB_H);
+
+        // 数值
+        String valStr = String.valueOf(sliderValues[idx]);
+        fontRenderer.drawString(valStr, barX + BAR2_OUT_W - 22, guiTop + y + 4, 0x333333);
     }
+
+    // ==================== 鼠标交互 ====================
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
-        int cx = (width - GUI_WIDTH) / 2;
-        int cy = (height - GUI_HEIGHT) / 2;
 
-        // 检查是否点击了滑条
-        for (int i = 0; i < 3; i++) {
-            int sliderX = cx + 80;
-            int sliderY = cy + 125 + i * 28;
-            int sliderW = 100;
-            int sliderH = 12;
-            if (mouseX >= sliderX && mouseX <= sliderX + sliderW && mouseY >= sliderY && mouseY <= sliderY + sliderH) {
-                draggingSlider = i;
-                updateSliderValue(i, mouseX, sliderX, sliderW);
-                break;
+        // 模式按钮检测
+        int modeTotalW = 4 * SMOL_W + 3 * 6;
+        int modeStartX = guiLeft + (GUI_W - modeTotalW) / 2;
+        for (int i = 0; i < 4; i++) {
+            int bx = modeStartX + i * (SMOL_W + 6);
+            int by = guiTop + MODE_Y;
+            if (isInside(mouseX, mouseY, bx, by, SMOL_W, SMOL_H)) {
+                currentMode = i;
+                return;
             }
+        }
+
+        // 掉落模式按钮检测
+        int dropTotalW = 3 * SMOL_W + 2 * 10;
+        int dropStartX = guiLeft + (GUI_W - dropTotalW) / 2;
+        for (int i = 0; i < 3; i++) {
+            int bx = dropStartX + i * (SMOL_W + 10);
+            int by = guiTop + DROP_Y;
+            if (isInside(mouseX, mouseY, bx, by, SMOL_W, SMOL_H)) {
+                currentDropMode = i;
+                return;
+            }
+        }
+
+        // 丝绸触摸开关检测
+        int silkBtnX = guiLeft + GUI_W - 10 - SMOL_W;
+        int silkBtnY = guiTop + BAR1_Y;
+        if (isInside(mouseX, mouseY, silkBtnX, silkBtnY, SMOL_W, SMOL_H)) {
+            currentSilk = !currentSilk;
+            return;
+        }
+
+        // 滑条检测
+        int[] sliderYs = {SLIDER_1_Y, SLIDER_2_Y, SLIDER_3_Y};
+        for (int i = 0; i < 3; i++) {
+            int barX = guiLeft + 3;
+            int trackX = barX + 70;
+            int trackW = BAR2_OUT_W - 90;
+            int by = guiTop + sliderYs[i];
+            if (isInside(mouseX, mouseY, trackX, by, trackW, BAR2_OUT_H)) {
+                draggingSlider = i;
+                updateSliderValue(i, mouseX, trackX, trackW);
+                return;
+            }
+        }
+
+        // 确认按钮检测
+        int cfx = guiLeft + (GUI_W - BIG_HL_W) / 2;
+        int cfy = guiTop + CONFIRM_Y;
+        if (isInside(mouseX, mouseY, cfx, cfy, BIG_HL_W, BIG_HL_H)) {
+            sendConfigToServer();
+            mc.displayGuiScreen(null);
         }
     }
 
@@ -182,15 +332,15 @@ public class GuiOmniToolConfig extends GuiScreen {
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
         if (draggingSlider >= 0) {
-            int cx = (width - GUI_WIDTH) / 2;
-            int sliderX = cx + 80;
-            int sliderW = 100;
-            updateSliderValue(draggingSlider, mouseX, sliderX, sliderW);
+            int barX = guiLeft + 3;
+            int trackX = barX + 70;
+            int trackW = BAR2_OUT_W - 90;
+            updateSliderValue(draggingSlider, mouseX, trackX, trackW);
         }
     }
 
-    private void updateSliderValue(int idx, int mouseX, int sliderX, int sliderW) {
-        float ratio = MathHelper.clamp((mouseX - sliderX) / (float) sliderW, 0f, 1f);
+    private void updateSliderValue(int idx, int mouseX, int trackX, int trackW) {
+        float ratio = MathHelper.clamp((mouseX - trackX) / (float) (trackW - KNOB_W), 0f, 1f);
         sliderValues[idx] = sliderMin[idx] + Math.round(ratio * (sliderMax[idx] - sliderMin[idx]));
         switch (idx) {
             case 0: currentFortune = sliderValues[0]; break;
@@ -199,68 +349,8 @@ public class GuiOmniToolConfig extends GuiScreen {
         }
     }
 
-    @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
-
-        int cx = (width - GUI_WIDTH) / 2;
-        int cy = (height - GUI_HEIGHT) / 2;
-
-        // 绘制GUI背景（默认矩形，等UV文档后替换为纹理）
-        GlStateManager.color(1f, 1f, 1f, 1f);
-        drawRect(cx, cy, cx + GUI_WIDTH, cy + GUI_HEIGHT, 0xCC000000);
-        drawRect(cx + 1, cy + 1, cx + GUI_WIDTH - 1, cy + GUI_HEIGHT - 1, 0xFF2B2B2B);
-        drawRect(cx + 2, cy + 2, cx + GUI_WIDTH - 2, cy + 16, 0xFF3C3C3C);
-
-        // 标题
-        String title = I18n.format("gui.ae2enhanced.omni_tool_config.title");
-        fontRenderer.drawStringWithShadow(title, cx + GUI_WIDTH / 2 - fontRenderer.getStringWidth(title) / 2, cy + 5, 0xFFFFFF);
-
-        // 绘制标签
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.omni_tool_config.mode"), cx + 10, cy + 14, 0xAAAAAA);
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.omni_tool_config.drop_mode"), cx + 10, cy + 54, 0xAAAAAA);
-        fontRenderer.drawString(I18n.format("gui.ae2enhanced.omni_tool_config.silk_touch"), cx + 10, cy + 99, 0xAAAAAA);
-
-        // 绘制滑条标签和数值
-        boolean hasFortune = toolStack != null && ItemAdvancedMEOmniTool.getFortuneLevel(toolStack) >= 0;
-        boolean hasTravel = toolStack != null && ItemAdvancedMEOmniTool.hasTravelStaff(toolStack);
-
-        drawSlider(cx, cy, 0, I18n.format("gui.ae2enhanced.omni_tool_config.fortune"), sliderValues[0], hasFortune);
-        drawSlider(cx, cy, 1, I18n.format("gui.ae2enhanced.omni_tool_config.blink_dist"), sliderValues[1], hasTravel);
-        drawSlider(cx, cy, 2, I18n.format("gui.ae2enhanced.omni_tool_config.break_cooldown"), sliderValues[2], true);
-
-        super.drawScreen(mouseX, mouseY, partialTicks);
-    }
-
-    private void drawSlider(int cx, int cy, int idx, String label, int value, boolean enabled) {
-        int sliderX = cx + 80;
-        int sliderY = cy + 125 + idx * 28;
-        int sliderW = 100;
-        int sliderH = 12;
-        int labelY = sliderY + 2;
-
-        int color = enabled ? 0xAAAAAA : 0x555555;
-        fontRenderer.drawString(label, cx + 10, labelY, color);
-
-        if (!enabled) {
-            drawRect(sliderX, sliderY, sliderX + sliderW, sliderY + sliderH, 0xFF1A1A1A);
-            String disabledText = I18n.format("gui.ae2enhanced.omni_tool_config.not_installed");
-            fontRenderer.drawString(disabledText, sliderX + 2, labelY, 0x555555);
-            return;
-        }
-
-        // 滑条轨道
-        drawRect(sliderX, sliderY, sliderX + sliderW, sliderY + sliderH, 0xFF1A1A1A);
-        drawRect(sliderX + 1, sliderY + 1, sliderX + sliderW - 1, sliderY + sliderH - 1, 0xFF3C3C3C);
-
-        // 滑块位置
-        float ratio = (float)(value - sliderMin[idx]) / (sliderMax[idx] - sliderMin[idx]);
-        int knobX = sliderX + Math.round(ratio * (sliderW - 8));
-        drawRect(knobX, sliderY - 1, knobX + 8, sliderY + sliderH + 1, 0xFF888888);
-        drawRect(knobX + 1, sliderY, knobX + 7, sliderY + sliderH, 0xFFAAAAAA);
-
-        // 数值
-        fontRenderer.drawString(String.valueOf(value), sliderX + sliderW + 4, labelY, 0xFFFFFF);
+    private static boolean isInside(int mx, int my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
     private void sendConfigToServer() {
