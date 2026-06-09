@@ -177,6 +177,11 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             long now = player.world.getTotalWorldTime();
             long last = getLastBreakTick(stack);
             if (now - last < cooldown) {
+                // 同步方块状态到客户端，防止幽灵方块
+                if (!player.world.isRemote && player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                    ((net.minecraft.entity.player.EntityPlayerMP) player).connection.sendPacket(
+                            new net.minecraft.network.play.server.SPacketBlockChange(player.world, pos));
+                }
                 return true;
             }
             setLastBreakTick(stack, now);
