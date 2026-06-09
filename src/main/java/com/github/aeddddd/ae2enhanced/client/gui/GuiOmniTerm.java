@@ -106,6 +106,11 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     // 搜索框缓存(避免 keyTyped 中重复反射)
     private MEGuiTextField omniSearchField;
 
+    // V3：搜索防抖
+    private long lastSearchInputTime = 0;
+    private static final long SEARCH_DEBOUNCE_MS = 150;
+    private boolean pendingSearchUpdate = false;
+
     // View Cell 缓存
     private final net.minecraft.item.ItemStack[] omniViewCells = new net.minecraft.item.ItemStack[5];
     private boolean cachedHasViewCell = false;
@@ -554,6 +559,13 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                     .setActiveCrafting(this.container.getClientActiveCrafting());
         }
 
+        // V3：搜索防抖——延迟触发 updateView()
+        if (this.pendingSearchUpdate && System.currentTimeMillis() - this.lastSearchInputTime > SEARCH_DEBOUNCE_MS) {
+            this.repo.updateView();
+            this.updateItemScrollRange();
+            this.pendingSearchUpdate = false;
+        }
+
         super.updateScreen();
         // 修复物品库滚动条位置和范围(super.updateScreen 中的 setScrollBar 会重置它们)
         GuiScrollbar bar = this.getScrollBar();
@@ -626,8 +638,8 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 }
                 if (searchField.textboxKeyTyped(character, key)) {
                     this.repo.setSearchString(searchField.getText());
-                    this.repo.updateView();
-                    this.updateItemScrollRange();
+                    this.pendingSearchUpdate = true;
+                    this.lastSearchInputTime = System.currentTimeMillis();
                 } else {
                     if (!wasSearchFieldFocused) {
                         searchField.setFocused(false);
@@ -686,7 +698,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
 
         switch (mode) {
             case FULL_INIT:
+                omniRepo.setBulkLoading(true);
                 omniRepo.handleFullInit(entries);
+                omniRepo.setBulkLoading(false);
                 break;
             case FULL_CONTINUE:
                 omniRepo.handleFullContinue(entries);
