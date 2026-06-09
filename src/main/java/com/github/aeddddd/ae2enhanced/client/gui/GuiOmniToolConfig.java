@@ -138,19 +138,18 @@ public class GuiOmniToolConfig extends GuiContainer {
         // 1. 完整背景
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_W, GUI_H);
 
-        // 2. 顶部参数按钮 — 选中或hover时叠加纹理
+        // 2. 顶部参数按钮 — 默认覆盖普通小按钮，选中时覆盖高亮小按钮
         for (int i = 0; i < PARAM_COUNT; i++) {
             int bx = (i < 3) ? LEFT_BTN_X : RIGHT_BTN_X;
             int by = BTN_Y0 + (i % 3) * BTN_STEP;
             int absX = this.guiLeft + bx;
             int absY = this.guiTop + by;
             boolean selected = (selParam == i);
-            boolean hovered = in(mouseX, mouseY, absX, absY, BTN_W, BTN_H);
 
             if (selected) {
                 this.drawTexturedModalRect(absX, absY,
                         TEX_HIGHLIGHT_BTN_U, TEX_HIGHLIGHT_BTN_V, BTN_W, BTN_H);
-            } else if (hovered) {
+            } else {
                 this.drawTexturedModalRect(absX, absY,
                         TEX_NORMAL_BTN_U, TEX_NORMAL_BTN_V, BTN_W, BTN_H);
             }
