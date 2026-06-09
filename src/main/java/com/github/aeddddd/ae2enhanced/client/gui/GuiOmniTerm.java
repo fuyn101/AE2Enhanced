@@ -718,6 +718,10 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             case FULL_CONTINUE:
                 omniRepo.handleFullContinue(entries);
                 break;
+            case FULL_END:
+                omniRepo.syncFlatList();
+                omniRepo.updateView();
+                break;
             case ITEM_REGISTER:
                 for (PacketOmniInventoryUpdate.Entry e : entries) {
                     omniRepo.handleItemRegister(e.id, e.stack);

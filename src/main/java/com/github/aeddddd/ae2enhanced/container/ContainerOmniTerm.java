@@ -1605,6 +1605,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.omniIsFullSyncing = false;
             this.omniNeedsFullSync = false;
             this.omniFullSyncOffset = 0;
+
+            // 发送 FULL_END 通知客户端同步完成
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                    new PacketOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode.FULL_END, java.util.Collections.emptyList()),
+                    (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
             return;
         }
 

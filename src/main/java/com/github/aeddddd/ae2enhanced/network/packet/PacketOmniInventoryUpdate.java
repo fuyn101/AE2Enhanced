@@ -31,6 +31,7 @@ public class PacketOmniInventoryUpdate implements IMessage {
     public enum Mode {
         FULL_INIT,
         FULL_CONTINUE,
+        FULL_END,
         ITEM_REGISTER,
         DELTA_COUNT
     }

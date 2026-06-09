@@ -100,8 +100,9 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== V4：扁平化缓存 ====================
     private final List<IAEItemStack> flatList = new ArrayList<>();
-    private final Object2IntOpenHashMap<IAEItemStack> flatIndex = new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<IAEItemStack> flatIndex = new Object2IntOpenHashMap<>(-1);
     private long flatListVersion = 0;
+    private final Object flatListLock = new Object();
 
     // ==================== V4：倒排索引 ====================
     private final Object2ObjectOpenHashMap<String, IntList> nameIndex = new Object2ObjectOpenHashMap<>();
@@ -200,8 +201,12 @@ public class OmniItemRepo extends ItemRepo {
     public void handleFullInit(List<PacketOmniInventoryUpdate.Entry> entries) {
         this.registry.clear();
         clearList();
-        this.flatList.clear();
-        this.flatIndex.clear();
+        synchronized (this.flatListLock) {
+            this.flatList.clear();
+            this.flatIndex.clear();
+            this.nameIndex.clear();
+            this.modIndex.clear();
+        }
         this.viewSnapshot.view.clear();
         this.normalView.clear();
 
@@ -224,11 +229,9 @@ public class OmniItemRepo extends ItemRepo {
                 this.postUpdate(e.stack.copy());
             }
         }
-        setChanged(true);
-        syncFlatList();
-        if (!this.isBulkLoading) {
-            this.updateView();
-        }
+        // FULL_CONTINUE 期间不调用 syncFlatList() 和 updateView()
+        // 避免 O(N^2) 遍历和频繁 renderView 替换导致闪烁
+        // 等 FULL_END 后再统一处理
     }
 
     public void handleItemRegister(int id, IAEItemStack stack) {
@@ -237,6 +240,7 @@ public class OmniItemRepo extends ItemRepo {
 
     public void handleDeltaCount(List<PacketOmniInventoryUpdate.Entry> entries) {
         boolean anyChange = false;
+        boolean structuralChange = false;
 
         for (PacketOmniInventoryUpdate.Entry e : entries) {
             long oldCount = this.registry.getCount(e.id);
@@ -245,16 +249,37 @@ public class OmniItemRepo extends ItemRepo {
             IAEItemStack stack = this.registry.getStack(e.id);
             if (stack == null) continue;
 
-            this.postUpdate(stack.copy());
+            int idx = this.flatIndex.getInt(stack);
+            if (idx >= 0) {
+                // 已有物品
+                if (e.count <= 0) {
+                    // 数量变为 0：结构性变化（需要从 flatList 移除）
+                    structuralChange = true;
+                } else {
+                    // 数量变化：直接更新 flatList，无需重建索引
+                    this.flatList.get(idx).setStackSize(e.count);
+                    anyChange = true;
+                }
+                this.postUpdate(stack.copy());
+            } else if (e.count > 0) {
+                // 新物品：需要重建 flatList 和索引
+                this.postUpdate(stack.copy());
+                structuralChange = true;
+            }
 
             if (oldCount != e.count) {
                 anyChange = true;
             }
         }
 
-        if (anyChange) {
-            setChanged(true);
+        if (structuralChange) {
             syncFlatList();
+            setChanged(true);
+            if (!this.isBulkLoading) {
+                this.updateView();
+            }
+        } else if (anyChange) {
+            setChanged(true);
             if (!this.isBulkLoading) {
                 updateViewIfNeeded();
             }
@@ -263,25 +288,27 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== flatList 同步 ====================
 
-    private void syncFlatList() {
-        try {
-            @SuppressWarnings("unchecked")
-            appeng.api.storage.data.IItemList<IAEItemStack> list =
-                    (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
+    public void syncFlatList() {
+        synchronized (this.flatListLock) {
+            try {
+                @SuppressWarnings("unchecked")
+                appeng.api.storage.data.IItemList<IAEItemStack> list =
+                        (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
 
-            this.flatList.clear();
-            this.flatIndex.clear();
-            int idx = 0;
-            for (IAEItemStack stack : list) {
-                if (stack.isMeaningful()) {
-                    this.flatList.add(stack);
-                    this.flatIndex.put(stack, idx++);
+                this.flatList.clear();
+                this.flatIndex.clear();
+                int idx = 0;
+                for (IAEItemStack stack : list) {
+                    if (stack.isMeaningful()) {
+                        this.flatList.add(stack);
+                        this.flatIndex.put(stack, idx++);
+                    }
                 }
+                this.flatListVersion++;
+                rebuildIndex();
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
             }
-            this.flatListVersion++;
-            rebuildIndex();
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -291,38 +318,88 @@ public class OmniItemRepo extends ItemRepo {
 
         for (int i = 0; i < this.flatList.size(); i++) {
             IAEItemStack stack = this.flatList.get(i);
-            String name = Platform.getItemDisplayName(stack).toLowerCase();
-            String modId = Platform.getModId(stack).toLowerCase();
+            int id = this.registry.getId(stack);
 
-            for (String word : splitWords(name)) {
-                this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+            String[] words = (id > 0) ? this.registry.getNameWords(id) : null;
+            String modId = (id > 0) ? this.registry.getModId(id) : null;
+
+            if (words != null) {
+                for (String word : words) {
+                    this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+                }
+            } else {
+                // fallback：直接分词（新物品尚未在 registry 中缓存时）
+                String name = Platform.getItemDisplayName(stack).toLowerCase();
+                for (String word : splitWordsFallback(name)) {
+                    this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+                }
             }
 
-            this.modIndex.computeIfAbsent(modId, k -> new IntArrayList()).add(i);
+            if (modId != null) {
+                this.modIndex.computeIfAbsent(modId, k -> new IntArrayList()).add(i);
+            } else {
+                this.modIndex.computeIfAbsent(Platform.getModId(stack).toLowerCase(), k -> new IntArrayList()).add(i);
+            }
         }
     }
 
     /**
-     * 将物品名称分词，支持：空格分隔、下划线分隔、驼峰拆分
+     * fallback 分词（当 registry 缓存不可用时使用），支持中文。
      */
-    private static List<String> splitWords(String input) {
+    private static List<String> splitWordsFallback(String input) {
         List<String> words = new ArrayList<>();
         if (input == null || input.isEmpty()) return words;
 
-        // 按非字母数字字符分割
-        String[] tokens = input.split("[^a-z0-9]+");
+        StringBuilder asciiPart = new StringBuilder();
+        StringBuilder cnPart = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (isChinese(c)) {
+                if (asciiPart.length() > 0) {
+                    processAsciiPart(asciiPart.toString(), words);
+                    asciiPart.setLength(0);
+                }
+                cnPart.append(c);
+            } else {
+                if (cnPart.length() > 0) {
+                    processCnPart(cnPart.toString(), words);
+                    cnPart.setLength(0);
+                }
+                asciiPart.append(c);
+            }
+        }
+
+        if (asciiPart.length() > 0) {
+            processAsciiPart(asciiPart.toString(), words);
+        }
+        if (cnPart.length() > 0) {
+            processCnPart(cnPart.toString(), words);
+        }
+
+        return words;
+    }
+
+    private static boolean isChinese(char c) {
+        return (c >= '\u4e00' && c <= '\u9fa5')
+            || (c >= '\u3400' && c <= '\u4dbf')
+            || (c >= '\u2e80' && c <= '\u2eff');
+    }
+
+    private static void processAsciiPart(String input, List<String> words) {
+        String[] tokens = input.split("[^a-zA-Z0-9]+");
         for (String token : tokens) {
             if (token.length() <= 1) continue;
-            words.add(token);
+            String lower = token.toLowerCase();
+            words.add(lower);
 
-            // 驼峰拆分：IronSword → iron, sword
             if (token.length() > 2) {
                 StringBuilder current = new StringBuilder();
                 current.append(token.charAt(0));
                 for (int i = 1; i < token.length(); i++) {
                     char c = token.charAt(i);
                     if (Character.isUpperCase(c)) {
-                        String word = current.toString();
+                        String word = current.toString().toLowerCase();
                         if (word.length() > 1) {
                             words.add(word);
                         }
@@ -330,13 +407,20 @@ public class OmniItemRepo extends ItemRepo {
                     }
                     current.append(Character.toLowerCase(c));
                 }
-                String last = current.toString();
-                if (last.length() > 1 && !last.equals(token)) {
+                String last = current.toString().toLowerCase();
+                if (last.length() > 1 && !last.equals(lower)) {
                     words.add(last);
                 }
             }
         }
-        return words;
+    }
+
+    private static void processCnPart(String input, List<String> words) {
+        if (input.length() <= 1) return;
+        words.add(input);
+        for (int i = 0; i < input.length(); i++) {
+            words.add(String.valueOf(input.charAt(i)));
+        }
     }
 
     // ==================== V4 核心：后台线程 + 双缓冲 ====================
@@ -379,21 +463,36 @@ public class OmniItemRepo extends ItemRepo {
                 return;
             }
 
+            // 在锁内获取 flatList / 索引的快照，避免与 syncFlatList 竞态
+            final List<IAEItemStack> flatSnapshot;
+            final Object2ObjectOpenHashMap<String, IntList> nameSnapshot;
+            final Object2ObjectOpenHashMap<String, IntList> modSnapshot;
+            final Object2IntOpenHashMap<IAEItemStack> indexSnapshot;
+            final long currentVersion;
+
+            synchronized (this.flatListLock) {
+                flatSnapshot = new ArrayList<>(this.flatList);
+                nameSnapshot = deepCopyIndex(this.nameIndex);
+                modSnapshot = deepCopyIndex(this.modIndex);
+                indexSnapshot = new Object2IntOpenHashMap<>(this.flatIndex);
+                indexSnapshot.defaultReturnValue(-1);
+                currentVersion = this.flatListVersion;
+            }
+
             List<IAEItemStack> newView;
 
             if (!needRebuild && changed && !resort && sortBy != SortOrder.AMOUNT) {
                 // 只有数量变化，非按数量排序：复用现有 view，只更新数量
                 newView = new ArrayList<>(this.viewSnapshot.view.size());
                 for (IAEItemStack old : this.viewSnapshot.view) {
-                    int idx = this.flatIndex.getInt(old);
+                    int idx = indexSnapshot.getInt(old);
                     if (idx >= 0) {
-                        IAEItemStack real = this.flatList.get(idx);
-                        newView.add(real.copy());
+                        newView.add(flatSnapshot.get(idx).copy());
                     }
                 }
             } else {
                 // 需要全量重建
-                newView = buildFullView(viewMode, sortBy, sortDir);
+                newView = buildFullView(viewMode, sortBy, sortDir, flatSnapshot, nameSnapshot, modSnapshot);
             }
 
             // 更新快照
@@ -406,7 +505,7 @@ public class OmniItemRepo extends ItemRepo {
 
             // 双缓冲原子替换
             this.renderView = newView;
-            this.renderViewVersion = this.flatListVersion;
+            this.renderViewVersion = currentVersion;
 
             // 同步到父类字段
             VIEW_FIELD.set(this, newView);
@@ -428,15 +527,27 @@ public class OmniItemRepo extends ItemRepo {
         }
     }
 
-    private List<IAEItemStack> buildFullView(Enum<?> viewMode, Enum<?> sortBy, Enum<?> sortDir) {
-        // 1. 搜索过滤（使用索引）
+    private static Object2ObjectOpenHashMap<String, IntList> deepCopyIndex(
+            Object2ObjectOpenHashMap<String, IntList> src) {
+        Object2ObjectOpenHashMap<String, IntList> dst = new Object2ObjectOpenHashMap<>(src.size());
+        for (java.util.Map.Entry<String, IntList> e : src.entrySet()) {
+            dst.put(e.getKey(), new IntArrayList(e.getValue()));
+        }
+        return dst;
+    }
+
+    private List<IAEItemStack> buildFullView(Enum<?> viewMode, Enum<?> sortBy, Enum<?> sortDir,
+            List<IAEItemStack> flatSnapshot,
+            Object2ObjectOpenHashMap<String, IntList> nameSnapshot,
+            Object2ObjectOpenHashMap<String, IntList> modSnapshot) {
+        // 1. 搜索过滤（使用索引快照）
         List<IAEItemStack> candidates;
         if (!searchCache.valid) {
-            candidates = new ArrayList<>(this.flatList);
+            candidates = new ArrayList<>(flatSnapshot);
         } else if (searchCache.isModSearch) {
-            candidates = searchByMod(searchCache.lower);
+            candidates = searchByModIndex(searchCache.lower, modSnapshot, flatSnapshot);
         } else {
-            candidates = searchByNameIndex(searchCache);
+            candidates = searchByNameIndex(searchCache, nameSnapshot, flatSnapshot);
         }
 
         // 2. ViewMode 过滤
@@ -465,9 +576,11 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== 搜索索引查询 ====================
 
-    private List<IAEItemStack> searchByNameIndex(SearchCache cache) {
+    private List<IAEItemStack> searchByNameIndex(SearchCache cache,
+            Object2ObjectOpenHashMap<String, IntList> nameSnapshot,
+            List<IAEItemStack> flatSnapshot) {
         if (cache.terms.length == 0) {
-            return new ArrayList<>(this.flatList);
+            return new ArrayList<>(flatSnapshot);
         }
 
         IntList[] sets = new IntList[cache.terms.length];
@@ -475,7 +588,7 @@ public class OmniItemRepo extends ItemRepo {
         int minIdx = 0;
 
         for (int i = 0; i < cache.terms.length; i++) {
-            sets[i] = this.nameIndex.get(cache.terms[i]);
+            sets[i] = nameSnapshot.get(cache.terms[i]);
             if (sets[i] == null) {
                 return Collections.emptyList();
             }
@@ -496,7 +609,7 @@ public class OmniItemRepo extends ItemRepo {
 
         List<IAEItemStack> matches = new ArrayList<>(result.size());
         for (int idx : result) {
-            IAEItemStack stack = this.flatList.get(idx);
+            IAEItemStack stack = flatSnapshot.get(idx);
             if (matchesName(stack)) {
                 matches.add(stack);
             }
@@ -504,14 +617,16 @@ public class OmniItemRepo extends ItemRepo {
         return matches;
     }
 
-    private List<IAEItemStack> searchByMod(String modSearch) {
-        IntList indices = this.modIndex.get(modSearch);
+    private List<IAEItemStack> searchByModIndex(String modSearch,
+            Object2ObjectOpenHashMap<String, IntList> modSnapshot,
+            List<IAEItemStack> flatSnapshot) {
+        IntList indices = modSnapshot.get(modSearch);
         if (indices == null) {
             return Collections.emptyList();
         }
         List<IAEItemStack> matches = new ArrayList<>(indices.size());
         for (int i = 0; i < indices.size(); i++) {
-            matches.add(this.flatList.get(indices.getInt(i)));
+            matches.add(flatSnapshot.get(indices.getInt(i)));
         }
         return matches;
     }
@@ -565,17 +680,29 @@ public class OmniItemRepo extends ItemRepo {
     }
 
     private void updateViewCountsOnly() {
+        // 快照避免竞态
+        final List<IAEItemStack> flatSnapshot;
+        final Object2IntOpenHashMap<IAEItemStack> indexSnapshot;
+        final long currentVersion;
+
+        synchronized (this.flatListLock) {
+            flatSnapshot = new ArrayList<>(this.flatList);
+            indexSnapshot = new Object2IntOpenHashMap<>(this.flatIndex);
+            indexSnapshot.defaultReturnValue(-1);
+            currentVersion = this.flatListVersion;
+        }
+
         List<IAEItemStack> newView = new ArrayList<>(this.viewSnapshot.view.size());
         for (IAEItemStack old : this.viewSnapshot.view) {
-            int idx = this.flatIndex.getInt(old);
+            int idx = indexSnapshot.getInt(old);
             if (idx >= 0) {
-                newView.add(this.flatList.get(idx).copy());
+                newView.add(flatSnapshot.get(idx).copy());
             }
         }
 
         this.viewSnapshot.view = newView;
         this.renderView = newView;
-        this.renderViewVersion = this.flatListVersion;
+        this.renderViewVersion = currentVersion;
 
         try {
             VIEW_FIELD.set(this, newView);
@@ -586,9 +713,9 @@ public class OmniItemRepo extends ItemRepo {
 
         // activeCrafting 数量同步
         for (CraftingStatus status : this.activeCrafting) {
-            int idx = this.flatIndex.getInt(status.output);
+            int idx = indexSnapshot.getInt(status.output);
             if (idx >= 0) {
-                status.output.setStackSize(this.flatList.get(idx).getStackSize());
+                status.output.setStackSize(flatSnapshot.get(idx).getStackSize());
             }
         }
     }
