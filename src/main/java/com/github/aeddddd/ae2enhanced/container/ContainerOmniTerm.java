@@ -50,6 +50,11 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -115,6 +120,22 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private int craftingUpdateCooldown = 0;
     private List<CraftingStatus> clientActiveCrafting = Collections.emptyList();
 
+    // === 本地 monitor 引用（父类 monitor 为 private，无法直接访问）===
+    private final appeng.api.storage.IMEMonitor<IAEItemStack> omniMonitor;
+
+    // === Omni Terminal 自定义物品同步状态 ===
+    private final appeng.api.storage.data.IItemList<IAEItemStack> omniItems =
+            AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
+    private boolean omniNeedsFullSync = false;
+    private boolean omniIsFullSyncing = false;
+    private int omniFullSyncOffset = 0;
+    private static final int OMNI_FULL_SYNC_BATCH = 500;
+
+    // === Item ID 映射表（per-session）===
+    private final Object2IntOpenHashMap<IAEItemStack> omniItemToId = new Object2IntOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<IAEItemStack> omniIdToItem = new Int2ObjectOpenHashMap<>();
+    private int omniNextItemId = 1;
+
     // === 编码区布局常量(可扩展) ===
     public static final int CRAFTING_GRID_BASE_X = 187;
     public static final int PROCESSING_GRID_BASE_X = 196;
@@ -133,6 +154,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         super(ip, host, (appeng.api.implementations.guiobjects.IGuiItemObject) (Object) host, false);
         this.terminalHost = host;
         this.wirelessObject = host instanceof WirelessTerminalGuiObject ? (WirelessTerminalGuiObject) host : null;
+        this.omniMonitor = host.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
         // === 从 WorldSavedData 获取持久化存储 ===
         if (host instanceof WirelessTerminalGuiObject) {
@@ -1254,6 +1276,63 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     /**
+     * 【关键覆盖】拦截 NetworkMonitor 的增量事件，阻止原版将变化写入 this.items。
+     * 改为将变化累积到 omniItems，由自定义同步通道发送。
+     */
+    @Override
+    public void postChange(appeng.api.networking.storage.IBaseMonitor<IAEItemStack> monitor,
+                           Iterable<IAEItemStack> change,
+                           appeng.api.networking.security.IActionSource source) {
+        // 不调用 super.postChange() —— 阻止原版增量进入 this.items
+        for (IAEItemStack is : change) {
+            this.omniItems.add(is);
+        }
+    }
+
+    /**
+     * 【关键覆盖】拦截 NetworkMonitor 的 forceUpdate 全量刷新事件，
+     * 阻止原版立即调用 queueInventory() 发送致命大包。
+     * 改为标记 omniNeedsFullSync，由自定义通道在后续 tick 中分批处理。
+     */
+    @Override
+    public void onListUpdate() {
+        // 不调用 super.onListUpdate() —— 阻止 forceUpdate 触发 queueInventory 全量
+        this.omniNeedsFullSync = true;
+    }
+
+    /**
+     * 【关键覆盖】玩家打开 GUI 时触发。跳过 ContainerMEMonitorable 的 queueInventory() 全量同步，
+     * 改为触发 Omni Terminal 自己的分批全量同步。
+     */
+    @Override
+    public void func_75132_a(net.minecraft.inventory.IContainerListener c) {
+        try {
+            Method m = appeng.container.AEBaseContainer.class
+                    .getDeclaredMethod("func_75132_a", net.minecraft.inventory.IContainerListener.class);
+            m.setAccessible(true);
+            m.invoke(this, c);
+        } catch (NoSuchMethodException e) {
+            if (this.listeners.contains(c)) {
+                throw new IllegalArgumentException("Listener already listening");
+            }
+            this.listeners.add(c);
+            c.sendAllContents(this, this.getInventory());
+            this.detectAndSendChanges();
+        } catch (Exception e) {
+            appeng.core.AELog.error(e);
+        }
+
+        // 重置 ID 映射表（新 session）
+        this.omniItemToId.clear();
+        this.omniIdToItem.clear();
+        this.omniNextItemId = 1;
+
+        this.omniNeedsFullSync = true;
+        this.omniIsFullSyncing = true;
+        this.omniFullSyncOffset = 0;
+    }
+
+    /**
      * 覆盖 mergeItemStack 以突破 ItemStack.getMaxStackSize() 的 64 上限.
      * 原版 Container.mergeItemStack 使用 Math.min(slot.getSlotStackLimit(), stack.getMaxStackSize())
      * 计算最大合并数量,导致即使 slot 支持 4096,shift+点击仍被截断为 64.
@@ -1378,6 +1457,19 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
         super.detectAndSendChanges();
         if (!Platform.isServer()) return;
+
+        // === Omni Terminal 自定义物品同步 ===
+        if (this.omniIsFullSyncing) {
+            this.sendOmniFullSyncBatch();
+        } else if (this.omniNeedsFullSync) {
+            this.omniIsFullSyncing = true;
+            this.omniFullSyncOffset = 0;
+            this.sendOmniFullSyncBatch();
+        } else if (!this.omniItems.isEmpty()) {
+            this.sendOmniDeltaSync();
+            this.omniItems.resetStatus();
+        }
+
         if (--this.craftingUpdateCooldown > 0) return;
         this.craftingUpdateCooldown = 20;
 
@@ -1481,5 +1573,88 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
         return false;
+    }
+
+    // ==================== Omni Terminal 自定义同步方法 ====================
+
+    private int getOrAllocateId(IAEItemStack stack) {
+        int id = this.omniItemToId.getInt(stack);
+        if (id == 0) {
+            id = this.omniNextItemId++;
+            IAEItemStack key = stack.copy();
+            this.omniItemToId.put(key, id);
+            this.omniIdToItem.put(id, key);
+        }
+        return id;
+    }
+
+    private void sendOmniFullSyncBatch() {
+        appeng.api.storage.data.IItemList<IAEItemStack> storage = this.omniMonitor.getStorageList();
+        List<PacketOmniInventoryUpdate.Entry> batch = new ArrayList<>();
+        int count = 0;
+
+        for (IAEItemStack stack : storage) {
+            if (count++ < this.omniFullSyncOffset) continue;
+            if (batch.size() >= OMNI_FULL_SYNC_BATCH) break;
+
+            int id = this.getOrAllocateId(stack);
+            batch.add(new PacketOmniInventoryUpdate.Entry(id, stack, stack.getStackSize()));
+        }
+
+        if (batch.isEmpty()) {
+            this.omniIsFullSyncing = false;
+            this.omniNeedsFullSync = false;
+            this.omniFullSyncOffset = 0;
+            return;
+        }
+
+        PacketOmniInventoryUpdate.Mode mode =
+                (this.omniFullSyncOffset == 0)
+                        ? PacketOmniInventoryUpdate.Mode.FULL_INIT
+                        : PacketOmniInventoryUpdate.Mode.FULL_CONTINUE;
+
+        com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                new PacketOmniInventoryUpdate(mode, batch),
+                (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
+
+        this.omniFullSyncOffset += batch.size();
+    }
+
+    private void sendOmniDeltaSync() {
+        List<PacketOmniInventoryUpdate.Entry> counts = new ArrayList<>();
+        List<PacketOmniInventoryUpdate.Entry> registers = new ArrayList<>();
+        appeng.api.storage.data.IItemList<IAEItemStack> storage = this.omniMonitor.getStorageList();
+
+        for (IAEItemStack stack : this.omniItems) {
+            boolean isNew = (this.omniItemToId.getInt(stack) == 0);
+            int id = this.getOrAllocateId(stack);
+            IAEItemStack current = storage.findPrecise(stack);
+
+            if (isNew) {
+                // 新类型：发送 REGISTER（带 definition）
+                registers.add(new PacketOmniInventoryUpdate.Entry(
+                        id, current != null ? current : stack, current != null ? current.getStackSize() : 0));
+            } else {
+                // 已有类型：发送 DELTA_COUNT（仅 id + count）
+                long count = (current != null) ? current.getStackSize() : 0;
+                counts.add(new PacketOmniInventoryUpdate.Entry(id, null, count));
+            }
+        }
+
+        // 先发送 REGISTER（如有），再发送 DELTA_COUNT
+        if (!registers.isEmpty()) {
+            for (PacketOmniInventoryUpdate.Entry reg : registers) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                        new PacketOmniInventoryUpdate(
+                                PacketOmniInventoryUpdate.Mode.ITEM_REGISTER,
+                                java.util.Collections.singletonList(reg)),
+                        (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
+            }
+        }
+        if (!counts.isEmpty()) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                    new PacketOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode.DELTA_COUNT, counts),
+                    (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
+        }
     }
 }

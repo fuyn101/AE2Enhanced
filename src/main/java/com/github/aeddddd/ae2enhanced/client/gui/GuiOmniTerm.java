@@ -30,6 +30,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.util.SlotPositionManager;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniTermAction;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
@@ -671,6 +672,36 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             }
         }
         super.handleMouseInput();
+    }
+
+    /**
+     * 接收 Omni Terminal 自定义物品同步包
+     */
+    public void handleOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode mode,
+                                          List<PacketOmniInventoryUpdate.Entry> entries) {
+        if (!(this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo)) return;
+
+        com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+
+        switch (mode) {
+            case FULL_INIT:
+                omniRepo.handleFullInit(entries);
+                break;
+            case FULL_CONTINUE:
+                omniRepo.handleFullContinue(entries);
+                break;
+            case ITEM_REGISTER:
+                for (PacketOmniInventoryUpdate.Entry e : entries) {
+                    omniRepo.handleItemRegister(e.id, e.stack);
+                }
+                break;
+            case DELTA_COUNT:
+                omniRepo.handleDeltaCount(entries);
+                break;
+        }
+
+        this.updateItemScrollRange();
     }
 
     private void updateItemScrollRange() {
