@@ -111,6 +111,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     private static final long SEARCH_DEBOUNCE_MS = 150;
     private boolean pendingSearchUpdate = false;
 
+    // V4：renderView 版本追踪（避免重复更新滚动条）
+    private long lastRenderedViewVersion = 0;
+
     // View Cell 缓存
     private final net.minecraft.item.ItemStack[] omniViewCells = new net.minecraft.item.ItemStack[5];
     private boolean cachedHasViewCell = false;
@@ -562,8 +565,18 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         // V3：搜索防抖——延迟触发 updateView()
         if (this.pendingSearchUpdate && System.currentTimeMillis() - this.lastSearchInputTime > SEARCH_DEBOUNCE_MS) {
             this.repo.updateView();
-            this.updateItemScrollRange();
             this.pendingSearchUpdate = false;
+        }
+
+        // V4：检测 renderView 版本变化，只在视图真正更新时才更新滚动条
+        if (this.isOmniRepo) {
+            com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                    (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            long currentVersion = omniRepo.getRenderViewVersion();
+            if (currentVersion != this.lastRenderedViewVersion) {
+                this.lastRenderedViewVersion = currentVersion;
+                this.updateItemScrollRange();
+            }
         }
 
         super.updateScreen();
@@ -715,7 +728,6 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 break;
         }
 
-        this.updateItemScrollRange();
     }
 
     private void updateItemScrollRange() {

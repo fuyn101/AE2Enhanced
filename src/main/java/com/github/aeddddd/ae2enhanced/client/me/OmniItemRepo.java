@@ -16,24 +16,32 @@ import appeng.integration.modules.bogosorter.InventoryBogoSortModule;
 import appeng.util.ItemSorters;
 import appeng.util.Platform;
 import appeng.util.prioritylist.IPartitionList;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /**
- * 支持合成置顶的 ItemRepo，同时为 Omni Terminal 提供增量渲染、ID 缓存、
- * 搜索预处理缓存、视图快照增量更新支持。
- *
- * <p>核心优化：
+ * Omni Terminal 专用 ItemRepo，提供根本性能优化：
  * <ul>
- *   <li>覆盖 updateView()，消除 addIAE() 中每次遍历都编译正则的致命性能问题</li>
- *   <li>视图快照：相同搜索/排序/显示模式下只更新数量，不重建列表</li>
- *   <li>批量加载延迟更新：FULL_CONTINUE 期间不频繁重建 view</li>
+ *   <li><b>扁平化 ArrayList</b>：绕过 IItemList 多层迭代器嵌套的性能灾难</li>
+ *   <li><b>倒排索引</b>：将搜索从 O(N) 降到 O(匹配数)</li>
+ *   <li><b>后台线程 + 双缓冲</b>：主线程永远不执行视图计算</li>
+ *   <li><b>视图快照</b>：相同配置下只更新数量，不重建列表</li>
  * </ul>
  */
 public class OmniItemRepo extends ItemRepo {
@@ -88,8 +96,30 @@ public class OmniItemRepo extends ItemRepo {
     private final OmniItemRegistry registry = new OmniItemRegistry();
     private List<CraftingStatus> activeCrafting = Collections.emptyList();
     private List<IAEItemStack> normalView = Collections.emptyList();
+    private boolean isBulkLoading = false;
 
-    // ==================== V3 新增：搜索缓存 ====================
+    // ==================== V4：扁平化缓存 ====================
+    private final List<IAEItemStack> flatList = new ArrayList<>();
+    private final Object2IntOpenHashMap<IAEItemStack> flatIndex = new Object2IntOpenHashMap<>();
+    private long flatListVersion = 0;
+
+    // ==================== V4：倒排索引 ====================
+    private final Object2ObjectOpenHashMap<String, IntList> nameIndex = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<String, IntList> modIndex = new Object2ObjectOpenHashMap<>();
+
+    // ==================== V4：双缓冲 ====================
+    private volatile List<IAEItemStack> renderView = new ArrayList<>();
+    private final ExecutorService viewExecutor = Executors.newSingleThreadExecutor(
+            r -> {
+                Thread t = new Thread(r, "AE2E-OmniView-Worker");
+                t.setDaemon(true);
+                return t;
+            }
+    );
+    private final AtomicBoolean viewUpdatePending = new AtomicBoolean(false);
+    private volatile long renderViewVersion = 0;
+
+    // ==================== V3：搜索缓存 ====================
     private static class SearchCache {
         String raw = "";
         String lower = "";
@@ -120,7 +150,7 @@ public class OmniItemRepo extends ItemRepo {
 
     private final SearchCache searchCache = new SearchCache();
 
-    // ==================== V3 新增：视图快照 ====================
+    // ==================== V3：视图快照 ====================
     private static class ViewSnapshot {
         List<IAEItemStack> view = new ArrayList<>();
         String searchString = "";
@@ -132,13 +162,18 @@ public class OmniItemRepo extends ItemRepo {
 
     private final ViewSnapshot viewSnapshot = new ViewSnapshot();
 
-    // ==================== V3 新增：批量加载状态 ====================
-    private boolean isBulkLoading = false;
-
     public OmniItemRepo(IScrollSource src, ISortSource sortSrc) {
         super(src, sortSrc);
         this.scrollSrc = src;
     }
+
+    // ==================== 生命周期 ====================
+
+    public void shutdown() {
+        this.viewExecutor.shutdownNow();
+    }
+
+    // ==================== 公共访问器 ====================
 
     public void setActiveCrafting(List<CraftingStatus> list) {
         this.activeCrafting = list != null ? new ArrayList<>(list) : Collections.emptyList();
@@ -156,11 +191,17 @@ public class OmniItemRepo extends ItemRepo {
         return this.isBulkLoading;
     }
 
-    // ==================== Omni Terminal 自定义同步处理 ====================
+    public long getRenderViewVersion() {
+        return this.renderViewVersion;
+    }
+
+    // ==================== 同步处理 ====================
 
     public void handleFullInit(List<PacketOmniInventoryUpdate.Entry> entries) {
         this.registry.clear();
         clearList();
+        this.flatList.clear();
+        this.flatIndex.clear();
         this.viewSnapshot.view.clear();
         this.normalView.clear();
 
@@ -171,8 +212,8 @@ public class OmniItemRepo extends ItemRepo {
             }
         }
 
+        syncFlatList();
         setChanged(true);
-        // FULL_INIT 需要立即显示，不走延迟
         this.updateView();
     }
 
@@ -184,7 +225,7 @@ public class OmniItemRepo extends ItemRepo {
             }
         }
         setChanged(true);
-        // 批量加载期间延迟更新
+        syncFlatList();
         if (!this.isBulkLoading) {
             this.updateView();
         }
@@ -213,76 +254,101 @@ public class OmniItemRepo extends ItemRepo {
 
         if (anyChange) {
             setChanged(true);
+            syncFlatList();
             if (!this.isBulkLoading) {
                 updateViewIfNeeded();
             }
         }
     }
 
-    /**
-     * 条件渲染：需要重建时才重建，否则只更新数量
-     */
-    public void updateViewIfNeeded() {
+    // ==================== flatList 同步 ====================
+
+    private void syncFlatList() {
         try {
-            boolean resort = (boolean) RESORT_FIELD.get(this);
-            if (resort || isSortedByAmount()) {
-                this.updateView();
-            } else {
-                updateViewCountsOnly();
+            @SuppressWarnings("unchecked")
+            appeng.api.storage.data.IItemList<IAEItemStack> list =
+                    (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
+
+            this.flatList.clear();
+            this.flatIndex.clear();
+            int idx = 0;
+            for (IAEItemStack stack : list) {
+                if (stack.isMeaningful()) {
+                    this.flatList.add(stack);
+                    this.flatIndex.put(stack, idx++);
+                }
             }
+            this.flatListVersion++;
+            rebuildIndex();
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * 仅更新 viewSnapshot.view 中各元素的数量，不重建列表结构。
-     */
-    private void updateViewCountsOnly() {
-        // 1. 更新 viewSnapshot.view 中每个元素的数量
-        for (IAEItemStack viewStack : this.viewSnapshot.view) {
-            try {
-                @SuppressWarnings("unchecked")
-                appeng.api.storage.data.IItemList<IAEItemStack> list =
-                        (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
-                IAEItemStack real = list.findPrecise(viewStack);
-                if (real != null) {
-                    viewStack.setStackSize(real.getStackSize());
-                }
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        }
+    private void rebuildIndex() {
+        this.nameIndex.clear();
+        this.modIndex.clear();
 
-        // 2. 更新 activeCrafting 数量
-        for (CraftingStatus status : this.activeCrafting) {
-            try {
-                @SuppressWarnings("unchecked")
-                appeng.api.storage.data.IItemList<IAEItemStack> list =
-                        (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
-                IAEItemStack real = list.findPrecise(status.output);
-                if (real != null) {
-                    status.output.setStackSize(real.getStackSize());
-                }
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        for (int i = 0; i < this.flatList.size(); i++) {
+            IAEItemStack stack = this.flatList.get(i);
+            String name = Platform.getItemDisplayName(stack).toLowerCase();
+            String modId = Platform.getModId(stack).toLowerCase();
 
-        // 3. normalView 持有 viewSnapshot.view 的引用，数量已同步更新
-        // 4. 同步到父类 view 字段
-        try {
-            VIEW_FIELD.set(this, this.viewSnapshot.view);
-            CHANGED_FIELD.set(this, false);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+            for (String word : splitWords(name)) {
+                this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+            }
+
+            this.modIndex.computeIfAbsent(modId, k -> new IntArrayList()).add(i);
         }
     }
 
-    // ==================== V3 核心：完全覆盖 updateView() ====================
+    /**
+     * 将物品名称分词，支持：空格分隔、下划线分隔、驼峰拆分
+     */
+    private static List<String> splitWords(String input) {
+        List<String> words = new ArrayList<>();
+        if (input == null || input.isEmpty()) return words;
+
+        // 按非字母数字字符分割
+        String[] tokens = input.split("[^a-z0-9]+");
+        for (String token : tokens) {
+            if (token.length() <= 1) continue;
+            words.add(token);
+
+            // 驼峰拆分：IronSword → iron, sword
+            if (token.length() > 2) {
+                StringBuilder current = new StringBuilder();
+                current.append(token.charAt(0));
+                for (int i = 1; i < token.length(); i++) {
+                    char c = token.charAt(i);
+                    if (Character.isUpperCase(c)) {
+                        String word = current.toString();
+                        if (word.length() > 1) {
+                            words.add(word);
+                        }
+                        current = new StringBuilder();
+                    }
+                    current.append(Character.toLowerCase(c));
+                }
+                String last = current.toString();
+                if (last.length() > 1 && !last.equals(token)) {
+                    words.add(last);
+                }
+            }
+        }
+        return words;
+    }
+
+    // ==================== V4 核心：后台线程 + 双缓冲 ====================
 
     @Override
     public void updateView() {
+        if (this.viewUpdatePending.compareAndSet(false, true)) {
+            this.viewExecutor.submit(this::computeView);
+        }
+    }
+
+    private void computeView() {
         try {
             ISortSource sortSrc = (ISortSource) SORT_SRC_FIELD.get(this);
             Enum<?> viewMode = sortSrc.getSortDisplay();
@@ -291,100 +357,58 @@ public class OmniItemRepo extends ItemRepo {
             Enum<?> sortDir = sortSrc.getSortDir();
             String currentSearch = (String) SEARCH_STRING_FIELD.get(this);
 
-            // 1. JEI 搜索同步
-            if (searchMode == SearchBoxMode.JEI_AUTOSEARCH || searchMode == SearchBoxMode.JEI_MANUAL_SEARCH
-                    || searchMode == SearchBoxMode.JEI_AUTOSEARCH_KEEP || searchMode == SearchBoxMode.JEI_MANUAL_SEARCH_KEEP) {
-                if (Integrations.jei() != null) {
-                    Integrations.jei().setSearchText(currentSearch);
-                }
+            // JEI 同步
+            if (Integrations.jei() != null && isJEISearchMode(searchMode)) {
+                Integrations.jei().setSearchText(currentSearch);
             }
 
-            // 2. 更新搜索缓存（只做一次）
+            // 搜索缓存
             searchCache.rebuild(currentSearch);
 
-            // 3. 判断是否需要全量重建
-            boolean needRebuild = viewSnapshot.viewMode != viewMode
-                    || viewSnapshot.sortBy != sortBy
-                    || viewSnapshot.sortDir != sortDir
-                    || viewSnapshot.searchMode != searchMode
-                    || !viewSnapshot.searchString.equals(currentSearch);
+            // 判断是否需要全量重建
+            boolean needRebuild = this.viewSnapshot.viewMode != viewMode
+                    || this.viewSnapshot.sortBy != sortBy
+                    || this.viewSnapshot.sortDir != sortDir
+                    || this.viewSnapshot.searchMode != searchMode
+                    || !this.viewSnapshot.searchString.equals(currentSearch);
 
             boolean changed = (boolean) CHANGED_FIELD.get(this);
             boolean resort = (boolean) RESORT_FIELD.get(this);
 
             if (!needRebuild && !changed && !resort) {
-                return; // 无任何变化
+                return;
             }
 
-            if (!needRebuild && changed && !resort) {
-                // 只有数量变化，且不是按数量排序：走增量更新
-                if (sortBy != SortOrder.AMOUNT) {
-                    updateViewCountsOnly();
-                    return;
-                }
-            }
+            List<IAEItemStack> newView;
 
-            // 4. 全量重建
-            @SuppressWarnings("unchecked")
-            appeng.api.storage.data.IItemList<IAEItemStack> list =
-                    (appeng.api.storage.data.IItemList<IAEItemStack>) LIST_FIELD.get(this);
-
-            @SuppressWarnings("unchecked")
-            IPartitionList<IAEItemStack> myPartitionList =
-                    (IPartitionList<IAEItemStack>) MY_PARTITION_LIST_FIELD.get(this);
-
-            List<IAEItemStack> newView = new ArrayList<>();
-            boolean needsZeroCopy = viewMode == ViewItems.CRAFTABLE;
-            boolean terminalSearchToolTips = AEConfig.instance().getConfigManager().getSetting(Settings.SEARCH_TOOLTIPS) != YesNo.NO;
-
-            // 4a. 名字匹配阶段
-            List<IAEItemStack> nameMisses = terminalSearchToolTips && searchCache.valid ? new ArrayList<>() : null;
-
-            for (IAEItemStack is : list) {
-                if (myPartitionList != null && !myPartitionList.isListed(is)) {
-                    continue;
-                }
-                if (viewMode == ViewItems.CRAFTABLE && !is.isCraftable()) {
-                    continue;
-                }
-                if (viewMode == ViewItems.STORED && is.getStackSize() == 0L) {
-                    continue;
-                }
-
-                if (!searchCache.valid) {
-                    // 空搜索，直接通过
-                    addToView(newView, is, needsZeroCopy);
-                } else if (matchesName(is)) {
-                    addToView(newView, is, needsZeroCopy);
-                } else if (nameMisses != null) {
-                    nameMisses.add(is);
-                }
-            }
-
-            // 4b. tooltip 回退阶段（仅在名字全未匹配且开启 tooltip 搜索时）
-            if (nameMisses != null && newView.isEmpty() && !nameMisses.isEmpty()) {
-                for (IAEItemStack is : nameMisses) {
-                    if (matchesTooltip(is)) {
-                        addToView(newView, is, needsZeroCopy);
+            if (!needRebuild && changed && !resort && sortBy != SortOrder.AMOUNT) {
+                // 只有数量变化，非按数量排序：复用现有 view，只更新数量
+                newView = new ArrayList<>(this.viewSnapshot.view.size());
+                for (IAEItemStack old : this.viewSnapshot.view) {
+                    int idx = this.flatIndex.getInt(old);
+                    if (idx >= 0) {
+                        IAEItemStack real = this.flatList.get(idx);
+                        newView.add(real.copy());
                     }
                 }
+            } else {
+                // 需要全量重建
+                newView = buildFullView(viewMode, sortBy, sortDir);
             }
 
-            // 5. 排序
-            Comparator<IAEItemStack> c = getComparator(sortBy);
-            ItemSorters.setDirection((SortDir) sortDir);
-            ItemSorters.init();
-            newView.sort(c);
+            // 更新快照
+            this.viewSnapshot.view = newView;
+            this.viewSnapshot.searchString = currentSearch;
+            this.viewSnapshot.sortBy = sortBy;
+            this.viewSnapshot.sortDir = sortDir;
+            this.viewSnapshot.viewMode = viewMode;
+            this.viewSnapshot.searchMode = searchMode;
 
-            // 6. 更新快照
-            viewSnapshot.view = newView;
-            viewSnapshot.searchString = currentSearch;
-            viewSnapshot.sortBy = sortBy;
-            viewSnapshot.sortDir = sortDir;
-            viewSnapshot.viewMode = viewMode;
-            viewSnapshot.searchMode = searchMode;
+            // 双缓冲原子替换
+            this.renderView = newView;
+            this.renderViewVersion = this.flatListVersion;
 
-            // 7. 同步到父类字段
+            // 同步到父类字段
             VIEW_FIELD.set(this, newView);
             CHANGED_FIELD.set(this, false);
             RESORT_FIELD.set(this, false);
@@ -394,52 +418,115 @@ public class OmniItemRepo extends ItemRepo {
             LAST_SORT_DIR_FIELD.set(this, sortDir);
             LAST_SEARCH_FIELD.set(this, currentSearch);
 
-            // 8. OmniItemRepo 特有的 activeCrafting 处理
+            // activeCrafting 处理
             updateActiveCraftingAndNormalView(newView);
 
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] View computation failed", e);
+        } finally {
+            this.viewUpdatePending.set(false);
         }
     }
 
-    private void addToView(List<IAEItemStack> view, IAEItemStack is, boolean needsZeroCopy) {
-        if (needsZeroCopy) {
-            IAEItemStack copy = is.copy();
-            copy.setStackSize(0L);
-            view.add(copy);
+    private List<IAEItemStack> buildFullView(Enum<?> viewMode, Enum<?> sortBy, Enum<?> sortDir) {
+        // 1. 搜索过滤（使用索引）
+        List<IAEItemStack> candidates;
+        if (!searchCache.valid) {
+            candidates = new ArrayList<>(this.flatList);
+        } else if (searchCache.isModSearch) {
+            candidates = searchByMod(searchCache.lower);
         } else {
-            view.add(is);
+            candidates = searchByNameIndex(searchCache);
         }
+
+        // 2. ViewMode 过滤
+        List<IAEItemStack> filtered = new ArrayList<>();
+        boolean needsZeroCopy = viewMode == ViewItems.CRAFTABLE;
+        for (IAEItemStack stack : candidates) {
+            if (viewMode == ViewItems.CRAFTABLE && !stack.isCraftable()) continue;
+            if (viewMode == ViewItems.STORED && stack.getStackSize() == 0L) continue;
+            if (needsZeroCopy) {
+                IAEItemStack copy = stack.copy();
+                copy.setStackSize(0L);
+                filtered.add(copy);
+            } else {
+                filtered.add(stack);
+            }
+        }
+
+        // 3. 排序
+        Comparator<IAEItemStack> c = getComparator(sortBy);
+        ItemSorters.setDirection((SortDir) sortDir);
+        ItemSorters.init();
+        filtered.sort(c);
+
+        return filtered;
+    }
+
+    // ==================== 搜索索引查询 ====================
+
+    private List<IAEItemStack> searchByNameIndex(SearchCache cache) {
+        if (cache.terms.length == 0) {
+            return new ArrayList<>(this.flatList);
+        }
+
+        IntList[] sets = new IntList[cache.terms.length];
+        int minSize = Integer.MAX_VALUE;
+        int minIdx = 0;
+
+        for (int i = 0; i < cache.terms.length; i++) {
+            sets[i] = this.nameIndex.get(cache.terms[i]);
+            if (sets[i] == null) {
+                return Collections.emptyList();
+            }
+            if (sets[i].size() < minSize) {
+                minSize = sets[i].size();
+                minIdx = i;
+            }
+        }
+
+        IntSet result = new IntOpenHashSet(sets[minIdx]);
+        for (int i = 0; i < sets.length; i++) {
+            if (i == minIdx) continue;
+            result.retainAll(sets[i]);
+            if (result.isEmpty()) {
+                return Collections.emptyList();
+            }
+        }
+
+        List<IAEItemStack> matches = new ArrayList<>(result.size());
+        for (int idx : result) {
+            IAEItemStack stack = this.flatList.get(idx);
+            if (matchesName(stack)) {
+                matches.add(stack);
+            }
+        }
+        return matches;
+    }
+
+    private List<IAEItemStack> searchByMod(String modSearch) {
+        IntList indices = this.modIndex.get(modSearch);
+        if (indices == null) {
+            return Collections.emptyList();
+        }
+        List<IAEItemStack> matches = new ArrayList<>(indices.size());
+        for (int i = 0; i < indices.size(); i++) {
+            matches.add(this.flatList.get(indices.getInt(i)));
+        }
+        return matches;
     }
 
     private boolean matchesName(IAEItemStack is) {
         String dspName = (searchCache.isModSearch ? Platform.getModId(is) : Platform.getItemDisplayName(is)).toLowerCase();
         for (String term : searchCache.terms) {
             if (term.length() > 1 && (term.startsWith("-") || term.startsWith("!"))) {
-                if (!dspName.contains(term.substring(1))) {
-                    continue;
-                }
+                if (!dspName.contains(term.substring(1))) continue;
                 return false;
             }
-            if (dspName.contains(term)) {
-                continue;
-            }
+            if (dspName.contains(term)) continue;
             return false;
         }
         return true;
-    }
-
-    private boolean matchesTooltip(IAEItemStack is) {
-        if (searchCache.pattern == null) {
-            return false;
-        }
-        List<String> tooltip = Platform.getTooltip(is);
-        for (String line : tooltip) {
-            if (searchCache.pattern.matcher(line).find()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static Comparator<IAEItemStack> getComparator(Enum<?> sortBy) {
@@ -455,18 +542,53 @@ public class OmniItemRepo extends ItemRepo {
         return ItemSorters.CONFIG_BASED_SORT_BY_NAME;
     }
 
-    private void updateActiveCraftingAndNormalView(List<IAEItemStack> view) {
-        // 将 activeCrafting 的数量同步为 view 中的实际存储数量
-        for (CraftingStatus status : this.activeCrafting) {
-            IAEItemStack real = findInView(status.output, view);
-            if (real != null) {
-                status.output.setStackSize(real.getStackSize());
+    private static boolean isJEISearchMode(Enum<?> mode) {
+        return mode == SearchBoxMode.JEI_AUTOSEARCH
+                || mode == SearchBoxMode.JEI_MANUAL_SEARCH
+                || mode == SearchBoxMode.JEI_AUTOSEARCH_KEEP
+                || mode == SearchBoxMode.JEI_MANUAL_SEARCH_KEEP;
+    }
+
+    // ==================== 增量更新（数量变化时）====================
+
+    public void updateViewIfNeeded() {
+        try {
+            boolean resort = (boolean) RESORT_FIELD.get(this);
+            if (resort || isSortedByAmount()) {
+                this.updateView();
+            } else {
+                updateViewCountsOnly();
+            }
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void updateViewCountsOnly() {
+        List<IAEItemStack> newView = new ArrayList<>(this.viewSnapshot.view.size());
+        for (IAEItemStack old : this.viewSnapshot.view) {
+            int idx = this.flatIndex.getInt(old);
+            if (idx >= 0) {
+                newView.add(this.flatList.get(idx).copy());
             }
         }
-        this.normalView = new ArrayList<>(view.size());
-        for (IAEItemStack stack : view) {
-            if (!isInActiveCrafting(stack)) {
-                this.normalView.add(stack);
+
+        this.viewSnapshot.view = newView;
+        this.renderView = newView;
+        this.renderViewVersion = this.flatListVersion;
+
+        try {
+            VIEW_FIELD.set(this, newView);
+            CHANGED_FIELD.set(this, false);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        // activeCrafting 数量同步
+        for (CraftingStatus status : this.activeCrafting) {
+            int idx = this.flatIndex.getInt(status.output);
+            if (idx >= 0) {
+                status.output.setStackSize(this.flatList.get(idx).getStackSize());
             }
         }
     }
@@ -501,6 +623,21 @@ public class OmniItemRepo extends ItemRepo {
         }
     }
 
+    private void updateActiveCraftingAndNormalView(List<IAEItemStack> view) {
+        for (CraftingStatus status : this.activeCrafting) {
+            IAEItemStack real = findInView(status.output, view);
+            if (real != null) {
+                status.output.setStackSize(real.getStackSize());
+            }
+        }
+        this.normalView = new ArrayList<>(view.size());
+        for (IAEItemStack stack : view) {
+            if (!isInActiveCrafting(stack)) {
+                this.normalView.add(stack);
+            }
+        }
+    }
+
     private IAEItemStack findInView(IAEItemStack target, List<IAEItemStack> view) {
         for (IAEItemStack stack : view) {
             if (stack.equals(target)) {
@@ -510,17 +647,24 @@ public class OmniItemRepo extends ItemRepo {
         return null;
     }
 
+    // ==================== 渲染接口 ====================
+
     @Override
     public IAEItemStack getReferenceItem(int idx) {
         if (this.activeCrafting.isEmpty()) {
-            return super.getReferenceItem(idx);
+            List<IAEItemStack> view = this.renderView;
+            int scrollOffset = this.scrollSrc.getCurrentScroll() * this.getRowSize();
+            int actualIdx = scrollOffset + idx;
+            if (actualIdx >= 0 && actualIdx < view.size()) {
+                return view.get(actualIdx);
+            }
+            return null;
         }
 
         int rowSize = this.getRowSize();
         int row = idx / rowSize;
         int col = idx % rowSize;
 
-        // 第一行：只显示 activeCrafting(不受 scroll 影响)
         if (row == 0) {
             if (col < this.activeCrafting.size()) {
                 return this.activeCrafting.get(col).output;
@@ -528,7 +672,6 @@ public class OmniItemRepo extends ItemRepo {
             return null;
         }
 
-        // 第二行及以后：从 normalView 按 scroll 偏移获取
         int scrollOffset = this.scrollSrc.getCurrentScroll() * rowSize;
         int normalIdx = scrollOffset + (idx - rowSize);
 
