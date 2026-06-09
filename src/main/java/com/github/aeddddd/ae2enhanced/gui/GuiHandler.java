@@ -336,7 +336,7 @@ public class GuiHandler implements IGuiHandler {
             }
         }
         if (ID == GUI_OMNI_TOOL_CONFIG) {
-            return new GuiOmniToolConfig(player);
+            return new GuiOmniToolConfig(player, new ContainerOmniToolConfig());
         }
 
         return null;
