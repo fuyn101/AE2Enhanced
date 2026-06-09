@@ -31,7 +31,7 @@ public class GuiOmniToolConfig extends GuiContainer {
     // ---- 纹理UV：小按钮与滑块（y=221状态区）----
     private static final int SMOL_U = 0, SMOL_V = 221;
     private static final int SMOL_HL_U = 75, SMOL_HL_V = 221;
-    private static final int SMOL_W = 12, SMOL_H = 17;
+    private static final int SMOL_W = 12, SMOL_H = 18;
     private static final int KNOB_U = 150, KNOB_V = 221;
     private static final int KNOB_W = 12, KNOB_H = 17;
 
@@ -45,11 +45,11 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int VERT_BAR_W = 33;   // 竖条宽
     private static final int VERT_BAR_Y = 25;   // 竖条起始y
     private static final int VERT_BAR_H = 75;   // 竖条高
-    private static final int SMALL_LEFT_X = 67; // 81 - 2 - 12
-    private static final int SMALL_RIGHT_X = 116; // 114 + 2
-    private static final int SMALL_Y0 = 25;
-    private static final int SMALL_H = 17;
-    private static final int SMALL_GAP = 2;
+    private static final int SMALL_LEFT_X = 35;  // 4 + (75-12)/2, 左区域内居中
+    private static final int SMALL_RIGHT_X = 147; // 116 + (75-12)/2, 右区域内居中
+    private static final int SMALL_Y0 = 24;       // 适配 4×18+3×2=78 在 75px 竖条区域
+    private static final int SMALL_H = 18;        // 文档明确 12×18
+    private static final int SMALL_GAP = 2;       // 按钮相互间隔 2px
     private static final int SMALL_PER_SIDE = 4;
 
     // 长条
@@ -151,11 +151,7 @@ public class GuiOmniToolConfig extends GuiContainer {
                     BAR_HL_U, BAR_HL_V, BAR_HL_W, BAR_HL_H);
         }
 
-        // 4. 长条2：滑块 — 悬停或拖拽时叠加高亮纹理
-        if (in(mouseX, mouseY, this.guiLeft + BAR2_X, this.guiTop + BAR2_Y, BAR2_W, BAR2_H) || drag >= 0) {
-            this.drawTexturedModalRect(this.guiLeft + BAR2_X, this.guiTop + BAR2_Y,
-                    BAR_HL_U, BAR_HL_V, BAR_HL_W, BAR_HL_H);
-        }
+        // 4. 长条2：滑块 — 不叠加高亮纹理
         // 滑块旋钮
         int trackX = this.guiLeft + BAR2_X + 65;
         int trackW = 100;
