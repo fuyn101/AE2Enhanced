@@ -352,6 +352,7 @@ item.ae2enhanced.me_omni_tool.silk_touch.off=§c精准采集: 关闭
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6混沌核心
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§a时运 %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§d旅行手杖
+item.ae2enhanced.me_omni_tool.upgrade.conformal=§b共形不变荷
 item.ae2enhanced.me_omni_tool.no_upgrades=§7未安装升级
 item.ae2enhanced.me_omni_tool.blink_dist=§7位移距离: §e%.1f
 item.ae2enhanced.me_omni_tool.break_cooldown=§7破坏冷却: §e%d tick

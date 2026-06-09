@@ -11,12 +11,16 @@ import appeng.api.util.AEPartLocation;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.common.util.Constants;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
@@ -26,6 +30,8 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.player.PlayerDropsEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -253,5 +259,75 @@ public final class ModEventHandler {
                 }
             }
         }
+    }
+
+    // ==================== Conformal Charge Upgrade ====================
+
+    /**
+     * 合成共形不变荷升级时保留原 ME 工具的全部 NBT（附魔、混沌核心、时运等）。
+     */
+    @SubscribeEvent
+    public void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
+        ItemStack result = event.crafting;
+        if (!(result.getItem() instanceof ItemAdvancedMEOmniTool)) return;
+
+        boolean hasOmniTool = false;
+        boolean hasConformal = false;
+        ItemStack original = ItemStack.EMPTY;
+
+        for (int i = 0; i < event.craftMatrix.getSizeInventory(); i++) {
+            ItemStack input = event.craftMatrix.getStackInSlot(i);
+            if (input.isEmpty()) continue;
+            if (input.getItem() instanceof ItemAdvancedMEOmniTool) {
+                hasOmniTool = true;
+                original = input;
+            } else if (input.getItem() instanceof ItemConformalCharge) {
+                hasConformal = true;
+            }
+        }
+
+        if (hasOmniTool && hasConformal) {
+            if (!original.isEmpty() && original.hasTagCompound()) {
+                result.setTagCompound(original.getTagCompound().copy());
+            }
+            ItemAdvancedMEOmniTool.setConformalCharge(result, true);
+        }
+    }
+
+    /**
+     * 玩家死亡时，共形不变荷升级的 ME 工具不掉落，而是保留在死亡数据中待重生后恢复。
+     */
+    @SubscribeEvent
+    public void onPlayerDrops(PlayerDropsEvent event) {
+        java.util.Iterator<EntityItem> it = event.getDrops().iterator();
+        NBTTagList preserved = new NBTTagList();
+        while (it.hasNext()) {
+            EntityItem drop = it.next();
+            ItemStack stack = drop.getItem();
+            if (stack.getItem() instanceof ItemAdvancedMEOmniTool && ItemAdvancedMEOmniTool.hasConformalCharge(stack)) {
+                it.remove();
+                preserved.appendTag(stack.writeToNBT(new NBTTagCompound()));
+            }
+        }
+        if (preserved.tagCount() > 0) {
+            event.getEntityPlayer().getEntityData().setTag("AE2E_ConformalPreserved", preserved);
+        }
+    }
+
+    /**
+     * 玩家重生时，将死亡前保留的共形不变荷 ME 工具恢复到背包。
+     */
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        NBTTagCompound entityData = event.player.getEntityData();
+        if (!entityData.hasKey("AE2E_ConformalPreserved", Constants.NBT.TAG_LIST)) return;
+        NBTTagList preserved = entityData.getTagList("AE2E_ConformalPreserved", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < preserved.tagCount(); i++) {
+            ItemStack stack = new ItemStack(preserved.getCompoundTagAt(i));
+            if (!stack.isEmpty()) {
+                event.player.inventory.addItemStackToInventory(stack);
+            }
+        }
+        entityData.removeTag("AE2E_ConformalPreserved");
     }
 }

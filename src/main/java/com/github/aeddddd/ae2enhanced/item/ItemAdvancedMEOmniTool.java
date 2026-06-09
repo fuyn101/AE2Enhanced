@@ -21,6 +21,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -72,6 +73,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_AE_Z = "AEZ";
     public static final String NBT_AE_DIM = "AEDim";
     public static final String NBT_ANTI_HEAL = "AE2E_AntiHeal";
+    public static final String NBT_CONFORMAL = "ConformalCharge";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -274,6 +276,15 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     public static void clearAntiHeal(EntityLivingBase entity) {
         entity.getEntityData().removeTag(NBT_ANTI_HEAL);
+    }
+
+    public static boolean hasConformalCharge(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_CONFORMAL);
+    }
+
+    public static void setConformalCharge(ItemStack stack, boolean has) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setBoolean(NBT_CONFORMAL, has);
     }
 
     private static boolean isChaosCrystal(World world, BlockPos pos) {
@@ -803,6 +814,10 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             tooltip.add(TextFormatting.LIGHT_PURPLE + "● " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.upgrade.travel"));
             hasUpgrades = true;
         }
+        if (hasConformalCharge(stack)) {
+            tooltip.add(TextFormatting.AQUA + "● " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.upgrade.conformal"));
+            hasUpgrades = true;
+        }
         if (!hasUpgrades) {
             tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2enhanced.me_omni_tool.no_upgrades"));
         }
@@ -882,6 +897,39 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public boolean showOverlay(ItemStack stack, EntityPlayer player) {
         int mode = getMode(stack);
         return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+    }
+
+    // ==================== Item Entity Protection (Conformal Charge) ====================
+
+    private static final java.lang.reflect.Field ENTITY_IMMUNE_TO_FIRE;
+    static {
+        java.lang.reflect.Field f = null;
+        try {
+            f = Entity.class.getDeclaredField("isImmuneToFire");
+            f.setAccessible(true);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to cache isImmuneToFire field", e);
+        }
+        ENTITY_IMMUNE_TO_FIRE = f;
+    }
+
+    @Override
+    public boolean onEntityItemUpdate(EntityItem entityItem) {
+        ItemStack stack = entityItem.getItem();
+        if (hasConformalCharge(stack)) {
+            if (!entityItem.getEntityData().getBoolean("AE2E_ConformalInit")) {
+                entityItem.getEntityData().setBoolean("AE2E_ConformalInit", true);
+                if (ENTITY_IMMUNE_TO_FIRE != null) {
+                    try {
+                        ENTITY_IMMUNE_TO_FIRE.setBoolean(entityItem, true);
+                    } catch (Exception ignored) {}
+                }
+                entityItem.setEntityInvulnerable(true);
+                entityItem.setNoDespawn();
+            }
+            entityItem.setNoPickupDelay();
+        }
+        return false;
     }
 
     // ==================== Attribute Modifiers ====================

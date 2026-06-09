@@ -241,6 +241,7 @@ item.ae2enhanced.me_omni_tool.silk_touch.off=§cSilk Touch: OFF
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6Chaos Core
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§aFortune %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§dTravel Staff
+item.ae2enhanced.me_omni_tool.upgrade.conformal=§bConformal Invariant Charge
 item.ae2enhanced.me_omni_tool.no_upgrades=§7No upgrades installed
 item.ae2enhanced.me_omni_tool.blink_dist=§7Displacement Distance: §e%.1f
 item.ae2enhanced.me_omni_tool.break_cooldown=§7Break Cooldown: §e%d tick
