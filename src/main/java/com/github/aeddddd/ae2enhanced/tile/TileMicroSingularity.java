@@ -72,28 +72,39 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
                     }
                 }
 
-                // 强制击杀：先绕过内部保护开关，再尝试标准伤害；若被拦截则暴力补刀
-                ForceKillHelper.forceBypassProtection(entity);
-                entity.hurtResistantTime = 0;
-                entity.hurtTime = 0;
-                boolean killed = false;
-                if (entity.attackEntityFrom(SPACETIME, Float.MAX_VALUE)) {
-                    if (!entity.isEntityAlive()) killed = true;
-                }
-                if (!killed) {
-                    entity.setHealth(0.0f);
-                    entity.onDeath(SPACETIME);
-                }
-                // 兜底：若实体被复活或 setDead 被覆盖，使用 ForceKillHelper 强制移除
-                if (entity.isEntityAlive()) {
-                    ForceKillHelper.forceSetHealthViaDataManager(entity, 0.0f);
-                    entity.onDeath(SPACETIME);
-                    if (!entity.isDead) {
-                        entity.setDead();
-                        ForceKillHelper.forceSetIsDead(entity, true);
+                // 玩家与实体分路处理：玩家的保护机制来自装备（如神龙套/无尽套），
+                // ForceKillHelper 的反射强制方法对此无效且可能触发后续异常
+                if (entity instanceof EntityPlayer) {
+                    entity.hurtResistantTime = 0;
+                    entity.hurtTime = 0;
+                    if (!entity.attackEntityFrom(SPACETIME, Float.MAX_VALUE)) {
+                        entity.setHealth(0.0f);
+                        entity.onDeath(SPACETIME);
                     }
-                    ForceKillHelper.removeMultipartChildren(entity);
-                    ForceKillHelper.tryNotifyBossManager(entity);
+                } else {
+                    // 非玩家实体：使用完整三层递进流程
+                    ForceKillHelper.forceBypassProtection(entity);
+                    entity.hurtResistantTime = 0;
+                    entity.hurtTime = 0;
+                    boolean killed = false;
+                    if (entity.attackEntityFrom(SPACETIME, Float.MAX_VALUE)) {
+                        if (!entity.isEntityAlive()) killed = true;
+                    }
+                    if (!killed) {
+                        entity.setHealth(0.0f);
+                        entity.onDeath(SPACETIME);
+                    }
+                    // 兜底：若实体被复活或 setDead 被覆盖，使用 ForceKillHelper 强制移除
+                    if (entity.isEntityAlive()) {
+                        ForceKillHelper.forceSetHealthViaDataManager(entity, 0.0f);
+                        entity.onDeath(SPACETIME);
+                        if (!entity.isDead) {
+                            entity.setDead();
+                            ForceKillHelper.forceSetIsDead(entity, true);
+                        }
+                        ForceKillHelper.removeMultipartChildren(entity);
+                        ForceKillHelper.tryNotifyBossManager(entity);
+                    }
                 }
             }
         }
