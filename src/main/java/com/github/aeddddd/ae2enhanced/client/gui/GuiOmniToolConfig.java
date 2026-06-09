@@ -23,6 +23,8 @@ public class GuiOmniToolConfig extends GuiContainer {
 
     private static final ResourceLocation TEXTURE = new ResourceLocation(
             AE2Enhanced.MOD_ID, "textures/gui/me_omni_tool_gui.png");
+    private static final ResourceLocation TEXTURE_DREAM = new ResourceLocation(
+            AE2Enhanced.MOD_ID, "textures/gui/me_omni_tool_gui_dream.png");
 
     // GUI尺寸
     private static final int GUI_W = 195;
@@ -79,6 +81,8 @@ public class GuiOmniToolConfig extends GuiContainer {
     private final int[] values = new int[PARAM_COUNT];
     private int paramEnabledMask = 0x3F; // 默认全部启用
     private int dragParam = -1;
+    private int verticalBarClicks = 0;
+    private boolean dreamMode = false;
 
     public GuiOmniToolConfig(EntityPlayer player, ContainerOmniToolConfig container) {
         super(container);
@@ -136,7 +140,11 @@ public class GuiOmniToolConfig extends GuiContainer {
         this.mc.getTextureManager().bindTexture(TEXTURE);
 
         // 1. 完整背景
+        if (dreamMode) {
+            this.mc.getTextureManager().bindTexture(TEXTURE_DREAM);
+        }
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_W, GUI_H);
+        this.mc.getTextureManager().bindTexture(TEXTURE);
 
         // 2. 顶部参数按钮 — 默认覆盖普通小按钮，选中时覆盖高亮小按钮
         for (int i = 0; i < PARAM_COUNT; i++) {
