@@ -72,9 +72,19 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         String modId = descriptor.getModId((IItemStorageChannel) channel).toLowerCase();
 
         for (String word : splitWords(name)) {
-            this.nameIndex.computeIfAbsent(word, k -> new ObjectOpenHashSet<>()).add(descriptor);
+            ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(word);
+            if (set == null) {
+                set = new ObjectOpenHashSet<>();
+                this.nameIndex.put(word, set);
+            }
+            set.add(descriptor);
         }
-        this.modIndex.computeIfAbsent(modId, k -> new ObjectOpenHashSet<>()).add(descriptor);
+        ObjectOpenHashSet<ItemDescriptor> modSet = this.modIndex.get(modId);
+        if (modSet == null) {
+            modSet = new ObjectOpenHashSet<>();
+            this.modIndex.put(modId, modSet);
+        }
+        modSet.add(descriptor);
     }
 
     @Override

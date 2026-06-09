@@ -383,20 +383,41 @@ public class OmniItemRepo extends ItemRepo {
 
             if (words != null) {
                 for (String word : words) {
-                    this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+                    IntList list = this.nameIndex.get(word);
+                    if (list == null) {
+                        list = new IntArrayList();
+                        this.nameIndex.put(word, list);
+                    }
+                    list.add(i);
                 }
             } else {
                 // fallback：直接分词（新物品尚未在 registry 中缓存时）
                 String name = Platform.getItemDisplayName(stack).toLowerCase();
                 for (String word : splitWordsFallback(name)) {
-                    this.nameIndex.computeIfAbsent(word, k -> new IntArrayList()).add(i);
+                    IntList list = this.nameIndex.get(word);
+                    if (list == null) {
+                        list = new IntArrayList();
+                        this.nameIndex.put(word, list);
+                    }
+                    list.add(i);
                 }
             }
 
             if (modId != null) {
-                this.modIndex.computeIfAbsent(modId, k -> new IntArrayList()).add(i);
+                IntList list = this.modIndex.get(modId);
+                if (list == null) {
+                    list = new IntArrayList();
+                    this.modIndex.put(modId, list);
+                }
+                list.add(i);
             } else {
-                this.modIndex.computeIfAbsent(Platform.getModId(stack).toLowerCase(), k -> new IntArrayList()).add(i);
+                String mid = Platform.getModId(stack).toLowerCase();
+                IntList list = this.modIndex.get(mid);
+                if (list == null) {
+                    list = new IntArrayList();
+                    this.modIndex.put(mid, list);
+                }
+                list.add(i);
             }
         }
     }
