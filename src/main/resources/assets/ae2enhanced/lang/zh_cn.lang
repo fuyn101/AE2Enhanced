@@ -370,3 +370,13 @@ message.ae2enhanced.omnitool.silk_on=§b[ME工具] §a精准采集: 开启
 message.ae2enhanced.omnitool.silk_off=§b[ME工具] §c精准采集: 关闭
 message.ae2enhanced.omnitool.drop_changed=§b[ME工具] §f掉落模式: §e%s
 message.ae2enhanced.omnitool.ae_bound=§b[ME工具] §a已绑定到AE发射器 [%d, %d, %d]
+
+gui.ae2enhanced.omni_tool_config.title=先进ME工具配置
+gui.ae2enhanced.omni_tool_config.mode=模式
+gui.ae2enhanced.omni_tool_config.drop_mode=掉落模式
+gui.ae2enhanced.omni_tool_config.silk_touch=精准采集
+gui.ae2enhanced.omni_tool_config.fortune=时运等级
+gui.ae2enhanced.omni_tool_config.blink_dist=闪烁距离
+gui.ae2enhanced.omni_tool_config.break_cooldown=破坏冷却
+gui.ae2enhanced.omni_tool_config.not_installed=未安装
+key.ae2enhanced.omnitool_config=ME工具: 打开配置界面

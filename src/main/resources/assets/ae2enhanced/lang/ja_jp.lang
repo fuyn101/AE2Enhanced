@@ -259,3 +259,13 @@ message.ae2enhanced.omnitool.silk_on=§b[ME Tool] §aSilk Touch: ON
 message.ae2enhanced.omnitool.silk_off=§b[ME Tool] §cSilk Touch: OFF
 message.ae2enhanced.omnitool.drop_changed=§b[ME Tool] §fDrop Mode: §e%s
 message.ae2enhanced.omnitool.ae_bound=§b[ME Tool] §aBound to AE transmitter at [%d, %d, %d]
+
+gui.ae2enhanced.omni_tool_config.title=ME Omni Tool Configuration
+gui.ae2enhanced.omni_tool_config.mode=Mode
+gui.ae2enhanced.omni_tool_config.drop_mode=Drop Mode
+gui.ae2enhanced.omni_tool_config.silk_touch=Silk Touch
+gui.ae2enhanced.omni_tool_config.fortune=Fortune
+gui.ae2enhanced.omni_tool_config.blink_dist=Blink Distance
+gui.ae2enhanced.omni_tool_config.break_cooldown=Break Cooldown
+gui.ae2enhanced.omni_tool_config.not_installed=Not Installed
+key.ae2enhanced.omnitool_config=ME Omni Tool: Open Config GUI

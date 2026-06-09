@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu;
 
@@ -26,6 +27,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnforme
 import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
@@ -66,6 +68,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_SMART_PATTERN_INTERFACE = 13;
     public static final int GUI_ADVANCED_PLATFORM_CONTROLLER = 24;
     public static final int GUI_ADVANCED_PLATFORM_SUBMENU = 25;
+    public static final int GUI_OMNI_TOOL_CONFIG = 26;
 
     /** 编码二级菜单 GUI ID：低8位为 base ID,bit8-31为子网 ID */
     public static int encodeSubmenuId(int subnetId) {
@@ -215,6 +218,9 @@ public class GuiHandler implements IGuiHandler {
                 return new ContainerAdvancedPlatformSubmenu(player.inventory, controller, subnetId);
             }
         }
+        if (ID == GUI_OMNI_TOOL_CONFIG) {
+            return new ContainerOmniToolConfig();
+        }
 
         return null;
     }
@@ -328,6 +334,9 @@ public class GuiHandler implements IGuiHandler {
                 int subnetId = decodeSubmenuSubnetId(ID);
                 return new GuiAdvancedPlatformSubmenu(player.inventory, (TileAdvancedPlatformController) te, subnetId);
             }
+        }
+        if (ID == GUI_OMNI_TOOL_CONFIG) {
+            return new GuiOmniToolConfig(player);
         }
 
         return null;

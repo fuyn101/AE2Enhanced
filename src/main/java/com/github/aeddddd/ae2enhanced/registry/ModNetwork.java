@@ -31,6 +31,10 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolSilkTouch;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolSilkTouchHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolDropMode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolDropModeHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGui;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGuiHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformStatus;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
@@ -83,5 +87,7 @@ public final class ModNetwork {
         nw.registerMessage(PacketOmniToolModeHandler.class, PacketOmniToolMode.class, 28, Side.SERVER);
         nw.registerMessage(PacketOmniToolSilkTouchHandler.class, PacketOmniToolSilkTouch.class, 29, Side.SERVER);
         nw.registerMessage(PacketOmniToolDropModeHandler.class, PacketOmniToolDropMode.class, 30, Side.SERVER);
+        nw.registerMessage(PacketOpenOmniToolGuiHandler.class, PacketOpenOmniToolGui.class, 31, Side.SERVER);
+        nw.registerMessage(PacketOmniToolConfigHandler.class, PacketOmniToolConfig.class, 32, Side.SERVER);
     }
 }

@@ -43,15 +43,34 @@ public class KeyHandlerOmniTool {
         "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding KEY_CONFIG = new KeyBinding(
+        "key.ae2enhanced.omnitool_config",
+        KeyConflictContext.IN_GAME,
+        KeyModifier.NONE,
+        Keyboard.KEY_C,
+        "key.categories.ae2enhanced"
+    );
+
     public static void init() {
         ClientRegistry.registerKeyBinding(KEY_MODE);
         ClientRegistry.registerKeyBinding(KEY_SILK);
         ClientRegistry.registerKeyBinding(KEY_DROP);
+        ClientRegistry.registerKeyBinding(KEY_CONFIG);
     }
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (KEY_DROP.isPressed()) {
+        if (KEY_CONFIG.isPressed()) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+            if (mc.player != null) {
+                for (net.minecraft.util.EnumHand hand : net.minecraft.util.EnumHand.values()) {
+                    if (mc.player.getHeldItem(hand).getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool) {
+                        AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGui(hand.ordinal()));
+                        break;
+                    }
+                }
+            }
+        } else if (KEY_DROP.isPressed()) {
             AE2Enhanced.network.sendToServer(new PacketOmniToolDropMode());
         } else if (KEY_SILK.isPressed()) {
             AE2Enhanced.network.sendToServer(new PacketOmniToolSilkTouch());
