@@ -223,6 +223,57 @@ public final class ForceKillHelper {
     }
 
     /**
+     * 环境型强制击杀（黑洞 / 微型奇点等）。
+     * <p>
+     * 针对玩家和非玩家实体采用不同策略：
+     * <ul>
+     *   <li>玩家：仅使用标准 {@code attackEntityFrom} / {@code setHealth(0)} + {@code onDeath}，
+     *       避免触发强力装备（如神龙套 / 无尽套）的复活、拦截或反伤副作用。</li>
+     *   <li>非玩家实体：使用完整三层递进流程（绕过保护 → 标准伤害 → DataManager / isDead 强制移除
+     *       → 多碰撞箱子清理 → Boss 管理器通知），确保混沌守卫等受保护实体被彻底移除。</li>
+     * </ul>
+     *
+     * @param target 目标实体
+     * @param source 伤害源
+     * @param damage 伤害值
+     */
+    public static void applyEnvironmentDamage(EntityLivingBase target, net.minecraft.util.DamageSource source, float damage) {
+        if (target.world.isRemote) return;
+        if (target.getHealth() <= 0.0f) return;
+
+        if (target instanceof net.minecraft.entity.player.EntityPlayer) {
+            target.hurtResistantTime = 0;
+            target.hurtTime = 0;
+            if (!target.attackEntityFrom(source, damage)) {
+                target.setHealth(0.0f);
+                target.onDeath(source);
+            }
+        } else {
+            forceBypassProtection(target);
+            target.hurtResistantTime = 0;
+            target.hurtTime = 0;
+            boolean killed = false;
+            if (target.attackEntityFrom(source, damage)) {
+                if (!target.isEntityAlive()) killed = true;
+            }
+            if (!killed) {
+                target.setHealth(0.0f);
+                target.onDeath(source);
+            }
+            if (target.isEntityAlive()) {
+                forceSetHealthViaDataManager(target, 0.0f);
+                target.onDeath(source);
+                if (!target.isDead) {
+                    target.setDead();
+                    forceSetIsDead(target, true);
+                }
+                removeMultipartChildren(target);
+                tryNotifyBossManager(target);
+            }
+        }
+    }
+
+    /**
      * 强制绕过实体的内部保护机制。
      * <p>
      * 某些实体类通过私有布尔开关阻止外部对其血量或存活状态的修改；
