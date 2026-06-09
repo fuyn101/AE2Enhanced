@@ -86,8 +86,12 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         BigInteger amount = BigInteger.valueOf(input.getStackSize());
 
         if (type == Actionable.MODULATE) {
+            boolean isNew = !storage.containsKey(key);
             storage.merge(key, amount, BigInteger::add);
             totalCount.updateAndGet(t -> t.add(amount));
+            if (isNew) {
+                onDescriptorAdded(key);
+            }
             file.markDirty();
             notifyPostChange(input.copy(), src);
             return null; // 无限容量,全部接受
@@ -105,6 +109,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
         if (type == Actionable.MODULATE) {
             final BigInteger[] extracted = new BigInteger[1];
+            final boolean[] removed = {false};
             storage.compute(key, (k, available) -> {
                 BigInteger avail = available == null ? BigInteger.ZERO : available;
                 BigInteger extract = avail.min(requested);
@@ -113,13 +118,20 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
                 }
                 extracted[0] = extract;
                 BigInteger remaining = avail.subtract(extract);
-                return remaining.signum() <= 0 ? null : remaining;
+                if (remaining.signum() <= 0) {
+                    removed[0] = true;
+                    return null;
+                }
+                return remaining;
             });
             toExtract = extracted[0];
             if (toExtract == null) {
                 return null;
             }
             totalCount.updateAndGet(t -> t.subtract(toExtract));
+            if (removed[0]) {
+                onDescriptorRemoved(key);
+            }
             file.markDirty();
             T change = request.copy();
             change.setStackSize(-toExtract.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
@@ -234,6 +246,14 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
     public void setPostChangeCallback(BiConsumer<T, IActionSource> callback) {
         this.postChangeCallback = callback;
+    }
+
+    // ---- 索引 Hook（子类可覆盖） ----
+
+    protected void onDescriptorAdded(D descriptor) {
+    }
+
+    protected void onDescriptorRemoved(D descriptor) {
     }
 
     // ---- 内部辅助 ----

@@ -20,6 +20,9 @@ public class ItemDescriptor implements Descriptor {
     private final NBTTagCompound nbt;
     // 缓存 AE2 的 IAEItemStack 模板,避免终端刷新时重复创建
     private transient volatile IAEItemStack aeTemplate;
+    // 缓存显示名称和 modId，避免搜索时重复计算
+    private transient volatile String displayName;
+    private transient volatile String modId;
 
     public ItemDescriptor(ItemStack stack) {
         this.item = stack.getItem();
@@ -97,6 +100,32 @@ public class ItemDescriptor implements Descriptor {
 
     public NBTTagCompound getNbt() {
         return nbt;
+    }
+
+    /**
+     * 获取缓存的显示名称（首次调用时计算并缓存）.
+     */
+    public String getDisplayName(IItemStorageChannel channel) {
+        String result = displayName;
+        if (result == null) {
+            IAEItemStack template = getAETemplate(channel);
+            result = appeng.util.Platform.getItemDisplayName(template);
+            displayName = result;
+        }
+        return result;
+    }
+
+    /**
+     * 获取缓存的 modId（首次调用时计算并缓存）.
+     */
+    public String getModId(IItemStorageChannel channel) {
+        String result = modId;
+        if (result == null) {
+            IAEItemStack template = getAETemplate(channel);
+            result = appeng.util.Platform.getModId(template);
+            modId = result;
+        }
+        return result;
     }
 
     @Override
