@@ -40,14 +40,17 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int BAR_HL_W = 188, BAR_HL_H = 17;
 
     // ---- 屏幕坐标（相对于guiTop/guiLeft）----
-    // 顶部小按钮区域（在75×17大按钮框内居中排列）
-    private static final int TOP_BTN_Y = 25;
-    private static final int LEFT_BTN_X = 4;   // 左大按钮起始
-    private static final int RIGHT_BTN_X = 116; // 右大按钮起始
-    private static final int BIG_BTN_W = 75;
+    // 小按钮竖向排列在竖条两侧，与竖条间距2px
+    private static final int VERT_BAR_X = 81;   // 竖条起始x
+    private static final int VERT_BAR_W = 33;   // 竖条宽
+    private static final int VERT_BAR_Y = 25;   // 竖条起始y
+    private static final int VERT_BAR_H = 75;   // 竖条高
+    private static final int SMALL_LEFT_X = 67; // 81 - 2 - 12
+    private static final int SMALL_RIGHT_X = 116; // 114 + 2
+    private static final int SMALL_Y0 = 25;
+    private static final int SMALL_H = 17;
     private static final int SMALL_GAP = 2;
     private static final int SMALL_PER_SIDE = 4;
-    private static final int SMALL_ROW_W = SMALL_PER_SIDE * SMOL_W + (SMALL_PER_SIDE - 1) * SMALL_GAP; // 54
 
     // 长条
     private static final int BAR1_X = 4, BAR1_Y = 102, BAR1_W = 188, BAR1_H = 17;
@@ -118,25 +121,25 @@ public class GuiOmniToolConfig extends GuiContainer {
         // 1. 绘制完整背景（纹理 0,0 -> 195,221）
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_W, GUI_H);
 
-        // 2. 顶部小按钮（覆盖在背景的大按钮区域上）
-        int left0 = this.guiLeft + LEFT_BTN_X + (BIG_BTN_W - SMALL_ROW_W) / 2;
+        // 2. 顶部小按钮（竖向排列在竖条两侧）
         for (int i = 0; i < SMALL_PER_SIDE; i++) {
             int idx = i;
             if (idx >= 6) break;
-            int x = left0 + i * (SMOL_W + SMALL_GAP);
+            int x = this.guiLeft + SMALL_LEFT_X;
+            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
             boolean on = (selParam == idx);
-            this.drawTexturedModalRect(x, this.guiTop + TOP_BTN_Y,
+            this.drawTexturedModalRect(x, y,
                     on ? SMOL_HL_U : SMOL_U,
                     on ? SMOL_HL_V : SMOL_V,
                     SMOL_W, SMOL_H);
         }
-        int right0 = this.guiLeft + RIGHT_BTN_X + (BIG_BTN_W - SMALL_ROW_W) / 2;
         for (int i = 0; i < SMALL_PER_SIDE; i++) {
             int idx = 4 + i;
             if (idx >= 6) break;
-            int x = right0 + i * (SMOL_W + SMALL_GAP);
+            int x = this.guiLeft + SMALL_RIGHT_X;
+            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
             boolean on = (selParam == idx);
-            this.drawTexturedModalRect(x, this.guiTop + TOP_BTN_Y,
+            this.drawTexturedModalRect(x, y,
                     on ? SMOL_HL_U : SMOL_U,
                     on ? SMOL_HL_V : SMOL_V,
                     SMOL_W, SMOL_H);
@@ -196,22 +199,24 @@ public class GuiOmniToolConfig extends GuiContainer {
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        // 顶部左边小按钮
-        int left0 = this.guiLeft + LEFT_BTN_X + (BIG_BTN_W - SMALL_ROW_W) / 2;
+        // 顶部左边小按钮（竖向）
         for (int i = 0; i < SMALL_PER_SIDE; i++) {
             int idx = i;
             if (idx >= 6) break;
-            if (in(mouseX, mouseY, left0 + i * (SMOL_W + SMALL_GAP), this.guiTop + TOP_BTN_Y, SMOL_W, SMOL_H)) {
+            int x = this.guiLeft + SMALL_LEFT_X;
+            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
+            if (in(mouseX, mouseY, x, y, SMOL_W, SMALL_H)) {
                 selParam = idx;
                 return;
             }
         }
-        // 顶部右边小按钮
-        int right0 = this.guiLeft + RIGHT_BTN_X + (BIG_BTN_W - SMALL_ROW_W) / 2;
+        // 顶部右边小按钮（竖向）
         for (int i = 0; i < SMALL_PER_SIDE; i++) {
             int idx = 4 + i;
             if (idx >= 6) break;
-            if (in(mouseX, mouseY, right0 + i * (SMOL_W + SMALL_GAP), this.guiTop + TOP_BTN_Y, SMOL_W, SMOL_H)) {
+            int x = this.guiLeft + SMALL_RIGHT_X;
+            int y = this.guiTop + SMALL_Y0 + i * (SMALL_H + SMALL_GAP);
+            if (in(mouseX, mouseY, x, y, SMOL_W, SMALL_H)) {
                 selParam = idx;
                 return;
             }
