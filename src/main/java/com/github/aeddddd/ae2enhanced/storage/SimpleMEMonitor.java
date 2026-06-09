@@ -25,6 +25,10 @@ public class SimpleMEMonitor implements IMEMonitor<IAEItemStack> {
         this.adapter = adapter;
     }
 
+    public ItemStorageAdapter getAdapter() {
+        return adapter;
+    }
+
     @Override
     public IAEItemStack injectItems(IAEItemStack input, appeng.api.config.Actionable type, IActionSource src) {
         IAEItemStack result = adapter.injectItems(input, type, src);

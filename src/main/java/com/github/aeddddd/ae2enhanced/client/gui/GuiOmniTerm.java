@@ -3,7 +3,10 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import appeng.api.config.ActionItems;
 import appeng.api.config.ItemSubstitution;
 import appeng.api.config.Settings;
+import appeng.api.config.SortDir;
+import appeng.api.config.SortOrder;
 import appeng.api.config.TerminalStyle;
+import appeng.api.config.ViewItems;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.IConfigManager;
@@ -31,6 +34,8 @@ import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchRequest;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniTermAction;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
@@ -562,9 +567,35 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                     .setActiveCrafting(this.container.getClientActiveCrafting());
         }
 
-        // V3：搜索防抖——延迟触发 updateView()
+        // V3/V5：搜索防抖——根据是否有搜索词决定本地计算还是服务端请求
         if (this.pendingSearchUpdate && System.currentTimeMillis() - this.lastSearchInputTime > SEARCH_DEBOUNCE_MS) {
-            this.repo.updateView();
+            String searchText = this.omniSearchField != null ? this.omniSearchField.getText() : "";
+            if (!searchText.isEmpty() && this.isOmniRepo) {
+                // 有搜索词：发送服务端搜索请求
+                com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                        (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+                omniRepo.setServerSearchActive(true);
+
+                boolean isModSearch = searchText.startsWith("@");
+                String query = isModSearch ? searchText.substring(1).toLowerCase() : searchText.toLowerCase();
+
+                Enum<?> viewModeEnum = this.getSortDisplay();
+                Enum<?> sortByEnum = this.getSortBy();
+                Enum<?> sortDirEnum = this.getSortDir();
+
+                AE2Enhanced.network.sendToServer(
+                        new PacketOmniSearchRequest(query, isModSearch,
+                                viewModeEnum != null ? viewModeEnum.ordinal() : 0,
+                                sortByEnum != null ? sortByEnum.ordinal() : 0,
+                                sortDirEnum != null ? sortDirEnum.ordinal() : 0,
+                                500));
+            } else {
+                // 无搜索词：本地计算（显示全部）
+                if (this.isOmniRepo) {
+                    ((com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo).setServerSearchActive(false);
+                }
+                this.repo.updateView();
+            }
             this.pendingSearchUpdate = false;
         }
 
@@ -732,6 +763,20 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 break;
         }
 
+    }
+
+    /**
+     * 接收服务端搜索结果，直接替换 renderView。
+     */
+    public void handleOmniSearchResult(List<PacketOmniSearchResult.Entry> entries) {
+        if (!(this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo)) return;
+
+        com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+
+        omniRepo.setServerSearchActive(false);
+        omniRepo.handleSearchResult(entries);
+        this.updateItemScrollRange();
     }
 
     private void updateItemScrollRange() {

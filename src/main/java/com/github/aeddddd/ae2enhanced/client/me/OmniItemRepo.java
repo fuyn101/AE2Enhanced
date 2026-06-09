@@ -119,6 +119,7 @@ public class OmniItemRepo extends ItemRepo {
     );
     private final AtomicBoolean viewUpdatePending = new AtomicBoolean(false);
     private volatile long renderViewVersion = 0;
+    private volatile boolean serverSearchActive = false;
 
     // ==================== V3：搜索缓存 ====================
     private static class SearchCache {
@@ -196,6 +197,10 @@ public class OmniItemRepo extends ItemRepo {
         return this.renderViewVersion;
     }
 
+    public void setServerSearchActive(boolean active) {
+        this.serverSearchActive = active;
+    }
+
     // ==================== 同步处理 ====================
 
     public void handleFullInit(List<PacketOmniInventoryUpdate.Entry> entries) {
@@ -236,6 +241,59 @@ public class OmniItemRepo extends ItemRepo {
 
     public void handleItemRegister(int id, IAEItemStack stack) {
         this.registry.register(id, stack, 0);
+    }
+
+    /**
+     * 接收服务端搜索结果，直接替换 renderView（服务端已完成搜索/排序/过滤）.
+     */
+    public void handleSearchResult(List<com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult.Entry> entries) {
+        // 1. 更新 registry
+        for (com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult.Entry e : entries) {
+            if (this.registry.getStack(e.id) == null && e.stack != null) {
+                this.registry.register(e.id, e.stack, e.count);
+            } else {
+                this.registry.updateCount(e.id, e.count);
+            }
+        }
+
+        // 2. 清空 IItemList 并重新填充（保持 flatList 一致性）
+        clearList();
+        for (com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult.Entry e : entries) {
+            IAEItemStack stack = this.registry.getStack(e.id);
+            if (stack != null) {
+                this.postUpdate(stack.copy());
+            }
+        }
+
+        // 3. 同步 flatList
+        syncFlatList();
+        setChanged(true);
+
+        // 4. 直接构建 renderView（服务端已搜索/排序，无需客户端再计算）
+        List<IAEItemStack> newView = new ArrayList<>(entries.size());
+        for (com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult.Entry e : entries) {
+            IAEItemStack stack = this.registry.getStack(e.id);
+            if (stack != null) {
+                newView.add(stack.copy());
+            }
+        }
+
+        // 5. 原子替换 renderView
+        this.viewSnapshot.view = newView;
+        this.renderView = newView;
+        this.renderViewVersion = this.flatListVersion;
+
+        // 6. 同步到父类字段
+        try {
+            VIEW_FIELD.set(this, newView);
+            CHANGED_FIELD.set(this, false);
+            RESORT_FIELD.set(this, false);
+        } catch (IllegalAccessException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        // 7. activeCrafting 处理
+        updateActiveCraftingAndNormalView(newView);
     }
 
     public void handleDeltaCount(List<PacketOmniInventoryUpdate.Entry> entries) {
@@ -460,6 +518,11 @@ public class OmniItemRepo extends ItemRepo {
             boolean resort = (boolean) RESORT_FIELD.get(this);
 
             if (!needRebuild && !changed && !resort) {
+                return;
+            }
+
+            if (this.serverSearchActive) {
+                this.viewUpdatePending.set(false);
                 return;
             }
 

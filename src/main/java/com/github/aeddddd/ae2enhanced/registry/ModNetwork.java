@@ -13,6 +13,8 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniTermAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketLoadOmniRecipe;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniCraftingUpdate;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchRequest;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniTerminal;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction;
@@ -66,6 +68,8 @@ public final class ModNetwork {
         nw.registerMessage(PacketSetSlotAmount.Handler.class, PacketSetSlotAmount.class, 9, Side.SERVER);
         nw.registerMessage(PacketOmniCraftingUpdate.Handler.class, PacketOmniCraftingUpdate.class, 10, Side.CLIENT);
         nw.registerMessage(PacketOmniInventoryUpdate.Handler.class, PacketOmniInventoryUpdate.class, 33, Side.CLIENT);
+        nw.registerMessage(PacketOmniSearchRequest.Handler.class, PacketOmniSearchRequest.class, 34, Side.SERVER);
+        nw.registerMessage(PacketOmniSearchResult.Handler.class, PacketOmniSearchResult.class, 35, Side.CLIENT);
         nw.registerMessage(PacketOpenOmniTerminal.Handler.class, PacketOpenOmniTerminal.class, 11, Side.SERVER);
         nw.registerMessage(PacketToggleMagnet.Handler.class, PacketToggleMagnet.class, 12, Side.SERVER);
         nw.registerMessage(PacketPickerAction.Handler.class, PacketPickerAction.class, 13, Side.SERVER);
