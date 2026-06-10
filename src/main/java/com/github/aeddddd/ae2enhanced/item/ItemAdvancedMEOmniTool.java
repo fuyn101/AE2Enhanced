@@ -121,6 +121,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     // ---- Constants ----
     private static final float DESTROY_SPEED = 1_000_000.0f;
+    private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
     private static final int BLINK_COOLDOWN_TICKS = 1;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
@@ -311,8 +312,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         applyAntiHeal(target);
 
         // 核心强制击杀逻辑
-        float chaosDamage = (float) com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.chaosDamage;
-        ForceKillHelper.applyForceKill(target, player, chaosDamage, CHAOS_DAMAGE);
+        ForceKillHelper.applyForceKill(target, player, CHAOS_DAMAGE_VALUE, CHAOS_DAMAGE);
 
         // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
         if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
