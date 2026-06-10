@@ -162,6 +162,8 @@ tile.ae2enhanced.wireless_channel_transmitter.name=Генератор беспр
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eГенератор беспроводного канала §7— Транслирует 32 канала для удаленных приемников
 tile.ae2enhanced.chunk_power_node.name=Узел питания чанка
 tile.ae2enhanced.chunk_power_node.tooltip=§eУзел питания чанка §7— Питает все машины в чанке через RF-хранилище ME-сети
+tile.ae2enhanced.compressed_chunk_power_node.name=Сжатый узел питания чанка
+tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eСжатый узел питания чанка §7— Питает все машины в 3×3 чанках через RF-хранилище ME-сети
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Генератор беспроводного канала
 

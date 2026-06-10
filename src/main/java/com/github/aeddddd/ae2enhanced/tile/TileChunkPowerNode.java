@@ -60,7 +60,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     private MachineSource machineSource;
 
     // 目标设备缓存(只存 BlockPos,每 tick 重新获取 TE 和 cap)
-    private final List<BlockPos> cachedTargets = new ArrayList<>();
+    protected final List<BlockPos> cachedTargets = new ArrayList<>();
     private int cacheRefreshCooldown = 0;
 
     // 客户端同步
@@ -212,7 +212,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
      * 上暴露为可接收({@code canReceive() == true}).因此需要遍历 6 个面查找有效输入面,
      * 而非直接传 {@code null}.</p>
      */
-    private void refreshTargetCache() {
+    protected void refreshTargetCache() {
         cachedTargets.clear();
         int chunkX = pos.getX() >> 4;
         int chunkZ = pos.getZ() >> 4;

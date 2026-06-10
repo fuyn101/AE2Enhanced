@@ -178,6 +178,8 @@ tile.ae2enhanced.wireless_channel_transmitter.name=Wireless Channel Transmitter
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§eWireless Channel Transmitter §7— Broadcasts 32 channels for remote receivers
 tile.ae2enhanced.chunk_power_node.name=Chunk Power Node
 tile.ae2enhanced.chunk_power_node.tooltip=§eChunk Power Node §7— Powers all machines in the chunk via ME network RF storage
+tile.ae2enhanced.compressed_chunk_power_node.name=Compressed Chunk Power Node
+tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eCompressed Chunk Power Node §7— Powers all machines in 3×3 chunks via ME network RF storage
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 
