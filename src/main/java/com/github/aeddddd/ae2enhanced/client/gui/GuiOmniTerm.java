@@ -291,10 +291,11 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         });
         this.container.setGui(this);
 
-        // R3: 打开终端时发送初始分页请求
+        // R3: 配置每页槽位数并发送初始分页请求
         if (this.isOmniRepo) {
             com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
                     (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            omniRepo.setSlotsPerPage(18 * this.omniRows);
             Enum<?> viewMode = this.getSortDisplay();
             Enum<?> sortBy = this.getSortBy();
             Enum<?> sortDir = this.getSortDir();

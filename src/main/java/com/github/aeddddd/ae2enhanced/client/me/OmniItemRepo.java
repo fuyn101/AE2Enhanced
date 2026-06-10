@@ -33,9 +33,8 @@ import java.util.List;
 public class OmniItemRepo extends ItemRepo {
 
     // ==================== 常量 ====================
-    public static final int SLOTS_PER_PAGE = 45;   // 5x9
-    public static final int CACHE_PAGES = 3;       // 当前页 + 上一页 + 下一页
-    public static final int CACHE_SIZE = SLOTS_PER_PAGE * CACHE_PAGES; // 135
+    public static final int CACHE_PAGES = 3;             // 当前页 + 上一页 + 下一页
+    public static final int MAX_CACHE_SIZE = 540;        // 18 col * 10 row * 3 pages
     private static final long REFRESH_COOLDOWN_MS = 200;
 
     // ==================== 反射字段 ====================
@@ -66,10 +65,11 @@ public class OmniItemRepo extends ItemRepo {
     }
 
     // ==================== R3: 三页缓存 ====================
-    private final IAEItemStack[] cache = new IAEItemStack[CACHE_SIZE];
+    private final IAEItemStack[] cache = new IAEItemStack[MAX_CACHE_SIZE];
     private int cacheOffset = -1;   // cache[0] 对应服务端列表的哪个 offset，-1 表示未初始化
     private int totalCount = 0;
     private int scrollOffset = 0;   // 当前 GUI 滚动位置（物品索引，不是页数）
+    private int slotsPerPage = 90;  // 每页可见槽位数（默认 18 col * 5 row）
 
     // ==================== 当前查询参数 ====================
     private String currentSearch = "";
@@ -109,6 +109,10 @@ public class OmniItemRepo extends ItemRepo {
 
     public boolean hasPendingRefresh() {
         return this.pendingRefresh;
+    }
+
+    public void setSlotsPerPage(int slotsPerPage) {
+        this.slotsPerPage = Math.max(1, slotsPerPage);
     }
 
     // ==================== R3: 槽位数据获取 ====================
@@ -189,7 +193,7 @@ public class OmniItemRepo extends ItemRepo {
         }
         this.lastRefreshTime = now;
         this.pendingRefresh = false;
-        requestPage(this.scrollOffset, CACHE_SIZE);
+        requestPage(this.scrollOffset, MAX_CACHE_SIZE);
     }
 
     /**
@@ -198,19 +202,19 @@ public class OmniItemRepo extends ItemRepo {
     public void onScrollChanged(int newOffset) {
         this.scrollOffset = newOffset;
         int visibleStart = newOffset;
-        int visibleEnd = newOffset + SLOTS_PER_PAGE;
+        int visibleEnd = newOffset + this.slotsPerPage;
         int cacheStart = this.cacheOffset;
         int cacheEnd = (this.cacheOffset < 0) ? -1 : this.cacheOffset + this.cache.length;
 
         // 缓存未覆盖可见区域
         if (this.cacheOffset < 0 || visibleStart < cacheStart || visibleEnd > cacheEnd) {
-            requestPage(newOffset, CACHE_SIZE);
+            requestPage(newOffset, MAX_CACHE_SIZE);
             return;
         }
 
         // 接近缓存末尾，预加载下一页
-        if (visibleEnd > cacheEnd - SLOTS_PER_PAGE && cacheEnd < this.totalCount) {
-            requestPage(cacheEnd, CACHE_SIZE);
+        if (visibleEnd > cacheEnd - this.slotsPerPage && cacheEnd < this.totalCount) {
+            requestPage(cacheEnd, MAX_CACHE_SIZE);
         }
     }
 
@@ -229,7 +233,7 @@ public class OmniItemRepo extends ItemRepo {
         this.cacheOffset = -1;
         this.scrollOffset = 0;
         Arrays.fill(this.cache, null);
-        requestPage(0, CACHE_SIZE);
+        requestPage(0, MAX_CACHE_SIZE);
     }
 
     private void requestPage(int offset, int limit) {
@@ -252,7 +256,7 @@ public class OmniItemRepo extends ItemRepo {
             this.cacheOffset = -1;
             this.scrollOffset = 0;
             Arrays.fill(this.cache, null);
-            requestPage(0, CACHE_SIZE);
+            requestPage(0, MAX_CACHE_SIZE);
         }
     }
 
