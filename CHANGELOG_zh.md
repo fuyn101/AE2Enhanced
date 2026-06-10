@@ -35,6 +35,7 @@
 - **Omni Terminal 兼容性修复**：Object2IntOpenHashMap<>(-1) IllegalArgumentException；fastutil Object2ObjectOpenHashMap.computeIfAbsent NoSuchMethodError
 - **Omni Terminal 滚动修复**：`OmniItemRepo.size()` 改为返回服务端 `totalCount`，修复大网络下无法滚动的问题
 - **Omni Terminal 双向滚动缓存**：缓存改为以当前可见页为中心（上一页 + 当前页 + 下一页），消除向上滚动时的延迟；`getRowSize()` 改为调用 `super.getRowSize()`，修复反射错误导致行宽恒为 9 的 bug
+- **Omni Terminal 外部存储丢失修复**：终端现在能正确合并显示超维度仓储与普通 ME 网络存储（驱动器、外部存储总线等）。`ItemStorageAdapter` 新增 `externalMonitor` 引用，在查询/搜索/排序列表构建时合并外部存储数据
 
 ---
 

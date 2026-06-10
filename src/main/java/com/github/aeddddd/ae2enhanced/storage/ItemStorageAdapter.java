@@ -42,6 +42,9 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     private final Set<net.minecraft.entity.player.EntityPlayerMP> openPlayers =
             Collections.newSetFromMap(new WeakHashMap<>());
 
+    // 外部 ME 网络 monitor（普通驱动器、外部存储等）
+    private appeng.api.storage.IMEMonitor<IAEItemStack> externalMonitor;
+
     public ItemStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
         this.channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
@@ -75,6 +78,27 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     @Override
     public IStorageChannel<IAEItemStack> getChannel() {
         return (IStorageChannel<IAEItemStack>) channel;
+    }
+
+    public void setExternalMonitor(appeng.api.storage.IMEMonitor<IAEItemStack> monitor) {
+        this.externalMonitor = monitor;
+    }
+
+    public appeng.api.storage.IMEMonitor<IAEItemStack> getExternalMonitor() {
+        return this.externalMonitor;
+    }
+
+    public void markSortedListDirty() {
+        this.sortedListDirty = true;
+    }
+
+    /**
+     * 检查指定 AE 堆叠是否已在 adapter 的 storage 中（基于 ItemDescriptor 匹配）。
+     */
+    public boolean containsItem(IAEItemStack stack) {
+        if (stack == null || this.storage.isEmpty()) return false;
+        ItemDescriptor desc = createDescriptor(stack);
+        return this.storage.containsKey(desc);
     }
 
     // ---- 索引维护 ----
@@ -224,6 +248,41 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 if (results.size() >= limit) break;
             }
         }
+
+        // 合并外部 ME 网络 monitor 的匹配结果
+        if (this.externalMonitor != null && results.size() < limit) {
+            if (isModSearch) {
+                boolean fuzzyEnabled = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
+                        || this.storage.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold;
+                for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                    if (!stack.isMeaningful()) continue;
+                    if (containsItem(stack)) continue;
+                    String modId = Platform.getModId(stack).toLowerCase();
+                    if (fuzzyEnabled ? !modId.contains(query) : !modId.equals(query)) continue;
+                    results.add(stack.copy());
+                    if (results.size() >= limit) break;
+                }
+            } else {
+                String[] terms = query.split(" ");
+                for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                    if (!stack.isMeaningful()) continue;
+                    if (containsItem(stack)) continue;
+                    String name = Platform.getItemDisplayName(stack).toLowerCase();
+                    boolean matches = true;
+                    for (String term : terms) {
+                        if (term.isEmpty()) continue;
+                        if (!name.contains(term)) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (!matches) continue;
+                    results.add(stack.copy());
+                    if (results.size() >= limit) break;
+                }
+            }
+        }
+
         return results;
     }
 
@@ -246,7 +305,18 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             }
             results.add(stack);
             if (results.size() >= limit) {
-                break;
+                return results;
+            }
+        }
+        // 合并外部 ME 网络 monitor 的物品
+        if (this.externalMonitor != null) {
+            for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                if (!stack.isMeaningful()) continue;
+                if (containsItem(stack)) continue;
+                results.add(stack.copy());
+                if (results.size() >= limit) {
+                    break;
+                }
             }
         }
         return results;
@@ -387,6 +457,18 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             this.sortedList.add(stack);
         }
 
+        // 合并外部 ME 网络 monitor 的物品（普通驱动器、外部存储等）
+        if (this.externalMonitor != null) {
+            for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                if (!stack.isMeaningful()) continue;
+                if (containsItem(stack)) continue; // 避免与超维度仓储重复
+                IAEItemStack copy = stack.copy();
+                if (viewMode == 2 && !copy.isCraftable()) continue;
+                if (viewMode == 0 && copy.getStackSize() <= 0L) continue;
+                this.sortedList.add(copy);
+            }
+        }
+
         Comparator<IAEItemStack> comparator = getComparator(sortBy);
         appeng.util.ItemSorters.setDirection(sortDir == 1 ? appeng.api.config.SortDir.DESCENDING : appeng.api.config.SortDir.ASCENDING);
         appeng.util.ItemSorters.init();
@@ -399,107 +481,89 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     }
 
     /**
-     * 分页搜索，只构建指定范围内的结果，避免构建完整列表.
+     * 分页搜索：合并 adapter（超维度仓储）与 externalMonitor（普通 ME 网络存储）的匹配结果，
+     * 统一排序后分页，确保终端能看到全部存储。
      */
     private PageResult performSearchPaged(String search, byte searchMode, int offset, int limit) {
-        List<IAEItemStack> result = new ArrayList<>(limit);
+        List<IAEItemStack> allMatched = new ArrayList<>();
         String query = search.toLowerCase();
-        int total = 0;
-        int skipped = 0;
-        int added = 0;
 
         if (searchMode == 1) {
             boolean fuzzyEnabled = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
                     || this.storage.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold;
 
+            // 1. adapter MOD 搜索
             if (fuzzyEnabled) {
-                // MOD 模糊搜索：遍历所有 modId 做 contains 匹配
                 for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
                     if (!entry.getKey().contains(query)) continue;
                     for (ItemDescriptor desc : entry.getValue()) {
                         BigInteger count = storage.get(desc);
                         if (count == null || count.signum() <= 0) continue;
-
-                        total++;
-
-                        if (skipped < offset) {
-                            skipped++;
-                            continue;
+                        IAEItemStack stack = getAETemplate(desc);
+                        if (stack == null) continue;
+                        stack = stack.copy();
+                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            stack.setStackSize(Long.MAX_VALUE);
+                        } else {
+                            stack.setStackSize(count.longValue());
                         }
-
-                        if (added < limit) {
-                            IAEItemStack stack = getAETemplate(desc);
-                            if (stack == null) continue;
-                            stack = stack.copy();
-                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                                stack.setStackSize(Long.MAX_VALUE);
-                            } else {
-                                stack.setStackSize(count.longValue());
-                            }
-                            result.add(stack);
-                            added++;
-                        }
+                        allMatched.add(stack);
                     }
                 }
             } else {
-                // MOD 精确搜索：大网络下禁用模糊匹配，仅做精确 modId 匹配
                 ObjectOpenHashSet<ItemDescriptor> set = this.modIndex.get(query);
                 if (set != null) {
                     for (ItemDescriptor desc : set) {
                         BigInteger count = storage.get(desc);
                         if (count == null || count.signum() <= 0) continue;
-
-                        total++;
-
-                        if (skipped < offset) {
-                            skipped++;
-                            continue;
+                        IAEItemStack stack = getAETemplate(desc);
+                        if (stack == null) continue;
+                        stack = stack.copy();
+                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            stack.setStackSize(Long.MAX_VALUE);
+                        } else {
+                            stack.setStackSize(count.longValue());
                         }
-
-                        if (added < limit) {
-                            IAEItemStack stack = getAETemplate(desc);
-                            if (stack == null) continue;
-                            stack = stack.copy();
-                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                                stack.setStackSize(Long.MAX_VALUE);
-                            } else {
-                                stack.setStackSize(count.longValue());
-                            }
-                            result.add(stack);
-                            added++;
-                        }
+                        allMatched.add(stack);
                     }
                 }
             }
+
+            // 2. externalMonitor MOD 搜索
+            if (this.externalMonitor != null) {
+                for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                    if (!stack.isMeaningful()) continue;
+                    if (containsItem(stack)) continue;
+                    String modId = Platform.getModId(stack).toLowerCase();
+                    if (fuzzyEnabled ? !modId.contains(query) : !modId.equals(query)) continue;
+                    allMatched.add(stack.copy());
+                }
+            }
         } else {
-            // NAME 搜索：需要交集，仍构建 candidates
+            // 1. adapter NAME 搜索
             String[] terms = query.split(" ");
             ObjectOpenHashSet<ItemDescriptor> candidates = null;
             for (String term : terms) {
                 if (term.isEmpty()) continue;
                 ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(term);
-                if (set == null) return new PageResult(0, offset, result);
+                if (set == null) {
+                    candidates = null;
+                    break;
+                }
                 if (candidates == null) {
                     candidates = new ObjectOpenHashSet<>(set);
                 } else {
                     candidates.retainAll(set);
-                    if (candidates.isEmpty()) return new PageResult(0, offset, result);
+                    if (candidates.isEmpty()) {
+                        candidates = null;
+                        break;
+                    }
                 }
             }
-            if (candidates == null) return new PageResult(0, offset, result);
-
-            for (ItemDescriptor desc : candidates) {
-                BigInteger count = storage.get(desc);
-                if (count == null || count.signum() <= 0) continue;
-
-                total++;
-
-                if (skipped < offset) {
-                    skipped++;
-                    continue;
-                }
-
-                if (added < limit) {
+            if (candidates != null) {
+                for (ItemDescriptor desc : candidates) {
+                    BigInteger count = storage.get(desc);
+                    if (count == null || count.signum() <= 0) continue;
                     IAEItemStack stack = getAETemplate(desc);
                     if (stack == null) continue;
                     stack = stack.copy();
@@ -508,12 +572,45 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                     } else {
                         stack.setStackSize(count.longValue());
                     }
-                    result.add(stack);
-                    added++;
+                    allMatched.add(stack);
+                }
+            }
+
+            // 2. externalMonitor NAME 搜索
+            if (this.externalMonitor != null) {
+                for (IAEItemStack stack : this.externalMonitor.getStorageList()) {
+                    if (!stack.isMeaningful()) continue;
+                    if (containsItem(stack)) continue;
+                    String name = Platform.getItemDisplayName(stack).toLowerCase();
+                    boolean matches = true;
+                    for (String term : terms) {
+                        if (term.isEmpty()) continue;
+                        if (!name.contains(term)) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (!matches) continue;
+                    allMatched.add(stack.copy());
                 }
             }
         }
-        return new PageResult(total, offset, result);
+
+        // 统一排序（使用当前缓存的排序参数）
+        Comparator<IAEItemStack> comparator = getComparator((byte) this.cachedSortBy);
+        appeng.util.ItemSorters.setDirection(this.cachedSortDir == 1 ? appeng.api.config.SortDir.DESCENDING : appeng.api.config.SortDir.ASCENDING);
+        appeng.util.ItemSorters.init();
+        allMatched.sort(comparator);
+
+        // 分页
+        int total = allMatched.size();
+        int start = Math.min(offset, total);
+        int end = Math.min(offset + limit, total);
+        List<IAEItemStack> page = new ArrayList<>(Math.max(0, end - start));
+        for (int i = start; i < end; i++) {
+            page.add(allMatched.get(i).copy());
+        }
+        return new PageResult(total, offset, page);
     }
 
     private static Comparator<IAEItemStack> getComparator(byte sortBy) {

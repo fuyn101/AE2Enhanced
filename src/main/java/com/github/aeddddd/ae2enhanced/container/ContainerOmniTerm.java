@@ -1336,6 +1336,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (IAEItemStack is : change) {
             this.omniItems.add(is);
         }
+        // 外部 ME 网络存储变化时，通知 adapter 刷新 sortedList
+        ItemStorageAdapter adapter = findItemStorageAdapter();
+        if (adapter != null) {
+            adapter.markSortedListDirty();
+        }
     }
 
     /**
@@ -1791,30 +1796,41 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     private ItemStorageAdapter findItemStorageAdapter() {
+        ItemStorageAdapter adapter = null;
+
         // 方案 1：如果 omniMonitor 直接是 SimpleMEMonitor
         if (this.omniMonitor instanceof SimpleMEMonitor) {
-            return ((SimpleMEMonitor) this.omniMonitor).getAdapter();
+            adapter = ((SimpleMEMonitor) this.omniMonitor).getAdapter();
         }
 
         // 方案 2：遍历网络节点找到 TileHyperdimensionalController
-        try {
-            appeng.api.networking.IGridNode node = getNetworkNode();
-            if (node == null || node.getGrid() == null) return null;
-            appeng.api.networking.IGrid grid = node.getGrid();
+        if (adapter == null) {
+            try {
+                appeng.api.networking.IGridNode node = getNetworkNode();
+                if (node == null || node.getGrid() == null) return null;
+                appeng.api.networking.IGrid grid = node.getGrid();
 
-            for (appeng.api.networking.IGridNode gridNode : grid.getNodes()) {
-                Object machine = gridNode.getMachine();
-                if (machine instanceof TileHyperdimensionalController) {
-                    TileHyperdimensionalController controller = (TileHyperdimensionalController) machine;
-                    if (controller.isFormed()) {
-                        return controller.getItemAdapter();
+                for (appeng.api.networking.IGridNode gridNode : grid.getNodes()) {
+                    Object machine = gridNode.getMachine();
+                    if (machine instanceof TileHyperdimensionalController) {
+                        TileHyperdimensionalController controller = (TileHyperdimensionalController) machine;
+                        if (controller.isFormed()) {
+                            adapter = controller.getItemAdapter();
+                            break;
+                        }
                     }
                 }
+            } catch (Exception e) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error("[AE2E] Failed to find ItemStorageAdapter", e);
             }
-        } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error("[AE2E] Failed to find ItemStorageAdapter", e);
         }
-        return null;
+
+        // 将网络 monitor 设为 adapter 的外部存储源，确保终端能看到全部物品
+        if (adapter != null && adapter.getExternalMonitor() != this.omniMonitor) {
+            adapter.setExternalMonitor(this.omniMonitor);
+        }
+
+        return adapter;
     }
 
     private List<IAEItemStack> fallbackSearch(PacketOmniSearchRequest request) {
