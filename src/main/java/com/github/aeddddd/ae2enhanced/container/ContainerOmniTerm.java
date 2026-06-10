@@ -1674,6 +1674,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     /**
      * 处理客户端发来的搜索请求，利用超维度仓储的预构建索引快速筛选。
      */
+    /**
+     * R3: 处理客户端发来的分页请求。
+     */
+    public void handlePageRequest(com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest request) {
+        // TODO: R3 实现
+    }
+
     public void handleSearchRequest(PacketOmniSearchRequest request) {
         ItemStorageAdapter adapter = findItemStorageAdapter();
         List<IAEItemStack> results;
