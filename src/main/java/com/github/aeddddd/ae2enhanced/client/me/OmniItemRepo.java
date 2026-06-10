@@ -193,11 +193,16 @@ public class OmniItemRepo extends ItemRepo {
         }
         this.lastRefreshTime = now;
         this.pendingRefresh = false;
-        requestPage(this.scrollOffset, MAX_CACHE_SIZE);
+        // 以当前可见页为中心刷新，确保上下都有缓冲
+        int targetOffset = Math.max(0, this.scrollOffset - this.slotsPerPage);
+        requestPage(targetOffset, MAX_CACHE_SIZE);
     }
 
     /**
      * 滚动条变化时调用。
+     * <p>
+     * 缓存策略：始终以当前可见页为中心，覆盖「上一页 + 当前页 + 下一页」。
+     * 避免向上或向下滚动到缓存边界时出现空白延迟。
      */
     public void onScrollChanged(int newOffset) {
         this.scrollOffset = newOffset;
@@ -206,15 +211,24 @@ public class OmniItemRepo extends ItemRepo {
         int cacheStart = this.cacheOffset;
         int cacheEnd = (this.cacheOffset < 0) ? -1 : this.cacheOffset + this.cache.length;
 
-        // 缓存未覆盖可见区域
+        // 缓存未覆盖可见区域：以当前可见页为中心重新请求（确保上下都有缓冲）
         if (this.cacheOffset < 0 || visibleStart < cacheStart || visibleEnd > cacheEnd) {
-            requestPage(newOffset, MAX_CACHE_SIZE);
+            int targetOffset = Math.max(0, visibleStart - this.slotsPerPage);
+            requestPage(targetOffset, MAX_CACHE_SIZE);
             return;
         }
 
-        // 接近缓存末尾，预加载下一页
+        // 接近缓存末尾，预加载下一页（以当前可见页为中心）
         if (visibleEnd > cacheEnd - this.slotsPerPage && cacheEnd < this.totalCount) {
-            requestPage(cacheEnd, MAX_CACHE_SIZE);
+            int targetOffset = Math.max(0, cacheEnd - this.slotsPerPage);
+            requestPage(targetOffset, MAX_CACHE_SIZE);
+            return;
+        }
+
+        // 接近缓存开头，预加载上一页（以当前可见页为中心）
+        if (visibleStart < cacheStart + this.slotsPerPage && cacheStart > 0) {
+            int targetOffset = Math.max(0, visibleStart - this.slotsPerPage);
+            requestPage(targetOffset, MAX_CACHE_SIZE);
         }
     }
 
@@ -319,11 +333,8 @@ public class OmniItemRepo extends ItemRepo {
 
     @Override
     public int getRowSize() {
-        try {
-            return (Integer) ItemRepo.class.getDeclaredField("rowSize").get(this);
-        } catch (Exception e) {
-            return 9;
-        }
+        // 直接调用父类方法，避免反射访问私有字段时因缺少 setAccessible(true) 而 fallback 到 9
+        return super.getRowSize();
     }
 
     private void setChanged(boolean value) {
