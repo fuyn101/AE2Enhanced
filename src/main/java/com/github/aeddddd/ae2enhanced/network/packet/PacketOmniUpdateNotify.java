@@ -32,7 +32,12 @@ public class PacketOmniUpdateNotify implements IMessage {
     public static class Handler implements IMessageHandler<PacketOmniUpdateNotify, IMessage> {
         @Override
         public IMessage onMessage(PacketOmniUpdateNotify message, MessageContext ctx) {
-            // 客户端处理在 GuiOmniTerm#handleUpdateNotify
+            net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
+                net.minecraft.client.gui.GuiScreen gui = net.minecraft.client.Minecraft.getMinecraft().currentScreen;
+                if (gui instanceof com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm) {
+                    ((com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm) gui).handleUpdateNotify();
+                }
+            });
             return null;
         }
     }

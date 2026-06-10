@@ -91,7 +91,12 @@ public class PacketOmniPageResult implements IMessage {
     public static class Handler implements IMessageHandler<PacketOmniPageResult, IMessage> {
         @Override
         public IMessage onMessage(PacketOmniPageResult message, MessageContext ctx) {
-            // 客户端处理在 GuiOmniTerm#handlePageResult
+            net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
+                net.minecraft.client.gui.GuiScreen gui = net.minecraft.client.Minecraft.getMinecraft().currentScreen;
+                if (gui instanceof com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm) {
+                    ((com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm) gui).handlePageResult(message);
+                }
+            });
             return null;
         }
     }

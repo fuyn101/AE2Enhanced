@@ -34,9 +34,11 @@ import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchRequest;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniTermAction;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniUpdateNotify;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -285,6 +287,20 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             this.updateItemScrollRange();
         });
         this.container.setGui(this);
+
+        // R3: 打开终端时发送初始分页请求
+        if (this.isOmniRepo) {
+            com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                    (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            Enum<?> viewMode = this.getSortDisplay();
+            Enum<?> sortBy = this.getSortBy();
+            Enum<?> sortDir = this.getSortDir();
+            omniRepo.onQueryParamsChanged("",
+                    (byte) 0,
+                    (byte) (sortBy != null ? sortBy.ordinal() : 0),
+                    (byte) (sortDir != null ? sortDir.ordinal() : 0),
+                    (byte) (viewMode != null ? viewMode.ordinal() : 0));
+        }
     }
 
     private void setupPatternButtons() {
@@ -567,15 +583,12 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                     .setActiveCrafting(this.container.getClientActiveCrafting());
         }
 
-        // V3/V5：搜索防抖——根据是否有搜索词决定本地计算还是服务端请求
+        // R3: 搜索防抖——搜索词变化时发送分页请求
         if (this.pendingSearchUpdate && System.currentTimeMillis() - this.lastSearchInputTime > SEARCH_DEBOUNCE_MS) {
             String searchText = this.omniSearchField != null ? this.omniSearchField.getText() : "";
-            if (!searchText.isEmpty() && this.isOmniRepo) {
-                // 有搜索词：发送服务端搜索请求
+            if (this.isOmniRepo) {
                 com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
                         (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
-                omniRepo.setServerSearchActive(true);
-
                 boolean isModSearch = searchText.startsWith("@");
                 String query = isModSearch ? searchText.substring(1).toLowerCase() : searchText.toLowerCase();
 
@@ -583,26 +596,23 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 Enum<?> sortByEnum = this.getSortBy();
                 Enum<?> sortDirEnum = this.getSortDir();
 
-                AE2Enhanced.network.sendToServer(
-                        new PacketOmniSearchRequest(query, isModSearch,
-                                viewModeEnum != null ? viewModeEnum.ordinal() : 0,
-                                sortByEnum != null ? sortByEnum.ordinal() : 0,
-                                sortDirEnum != null ? sortDirEnum.ordinal() : 0,
-                                500));
-            } else {
-                // 无搜索词：本地计算（显示全部）
-                if (this.isOmniRepo) {
-                    ((com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo).setServerSearchActive(false);
-                }
-                this.repo.updateView();
+                omniRepo.onQueryParamsChanged(query,
+                        (byte) (isModSearch ? 1 : 0),
+                        (byte) (sortByEnum != null ? sortByEnum.ordinal() : 0),
+                        (byte) (sortDirEnum != null ? sortDirEnum.ordinal() : 0),
+                        (byte) (viewModeEnum != null ? viewModeEnum.ordinal() : 0));
             }
             this.pendingSearchUpdate = false;
         }
 
-        // V4：检测 renderView 版本变化，只在视图真正更新时才更新滚动条
+        // R3: 检测是否有待处理的刷新请求（UPDATE_NOTIFY 节流）
         if (this.isOmniRepo) {
             com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
                     (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            if (omniRepo.hasPendingRefresh()) {
+                omniRepo.handleUpdateNotify();
+            }
+            // 检测 totalCount 变化更新滚动条
             long currentVersion = omniRepo.getRenderViewVersion();
             if (currentVersion != this.lastRenderedViewVersion) {
                 this.lastRenderedViewVersion = currentVersion;
@@ -731,52 +741,38 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     }
 
     /**
-     * 接收 Omni Terminal 自定义物品同步包
+     * R3: 接收分页结果，更新缓存和滚动条。
      */
-    public void handleOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode mode,
-                                          List<PacketOmniInventoryUpdate.Entry> entries) {
+    public void handlePageResult(PacketOmniPageResult packet) {
         if (!(this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo)) return;
 
         com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
                 (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
-
-        switch (mode) {
-            case FULL_INIT:
-                omniRepo.setBulkLoading(true);
-                omniRepo.handleFullInit(entries);
-                omniRepo.setBulkLoading(false);
-                break;
-            case FULL_CONTINUE:
-                omniRepo.handleFullContinue(entries);
-                break;
-            case FULL_END:
-                omniRepo.syncFlatList();
-                omniRepo.updateView();
-                break;
-            case ITEM_REGISTER:
-                for (PacketOmniInventoryUpdate.Entry e : entries) {
-                    omniRepo.handleItemRegister(e.id, e.stack);
-                }
-                break;
-            case DELTA_COUNT:
-                omniRepo.handleDeltaCount(entries);
-                break;
-        }
-
+        omniRepo.handlePageResult(packet.getTotalCount(), packet.getOffset(), packet.getEntries());
+        this.updateItemScrollRange();
     }
 
     /**
-     * 接收服务端搜索结果，直接替换 renderView。
+     * R3: 接收变化通知，触发刷新。
+     */
+    public void handleUpdateNotify() {
+        if (!(this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo)) return;
+        ((com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo).handleUpdateNotify();
+    }
+
+    /**
+     * 旧协议兼容（已废弃）。
+     */
+    public void handleOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode mode,
+                                          List<PacketOmniInventoryUpdate.Entry> entries) {
+        // R3: 旧全量同步协议已废弃
+    }
+
+    /**
+     * 旧协议兼容（已废弃）。
      */
     public void handleOmniSearchResult(List<PacketOmniSearchResult.Entry> entries) {
-        if (!(this.repo instanceof com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo)) return;
-
-        com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
-                (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
-
-        omniRepo.setServerSearchActive(false);
-        omniRepo.handleSearchResult(entries);
-        this.updateItemScrollRange();
+        // R3: 旧搜索协议已废弃
     }
 
     private void updateItemScrollRange() {

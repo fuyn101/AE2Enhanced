@@ -1479,15 +1479,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         super.detectAndSendChanges();
         if (!Platform.isServer()) return;
 
-        // === Omni Terminal 自定义物品同步 ===
-        if (this.omniIsFullSyncing) {
-            this.sendOmniFullSyncBatch();
-        } else if (this.omniNeedsFullSync) {
-            this.omniIsFullSyncing = true;
-            this.omniFullSyncOffset = 0;
-            this.sendOmniFullSyncBatch();
-        } else if (!this.omniItems.isEmpty()) {
-            this.sendOmniDeltaSync();
+        // === R3: Omni Terminal 增量更新通知 ===
+        // 客户端主动发送 PAGE_REQUEST，服务端只需在变化时通知客户端刷新
+        boolean hasChanges = this.omniNeedsFullSync || !this.omniItems.isEmpty();
+        if (hasChanges) {
+            ItemStorageAdapter adapter = findItemStorageAdapter();
+            if (adapter != null) {
+                adapter.onStorageChanged();
+            }
+            this.omniNeedsFullSync = false;
             this.omniItems.resetStatus();
         }
 
