@@ -732,6 +732,23 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     @Override
     public void updateSetting(IConfigManager manager, Enum settingName, Enum newValue) {
         this.repo.updateView();
+
+        // R3: 排序/视图模式/搜索模式变化时，重新发送分页请求
+        if (this.isOmniRepo && (settingName == Settings.SORT_BY
+                || settingName == Settings.SORT_DIRECTION
+                || settingName == Settings.VIEW_MODE)) {
+            com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                    (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            String searchText = this.omniSearchField != null ? this.omniSearchField.getText() : "";
+            boolean isModSearch = searchText.startsWith("@");
+            String query = isModSearch ? searchText.substring(1).toLowerCase() : searchText.toLowerCase();
+
+            omniRepo.onQueryParamsChanged(query,
+                    (byte) (isModSearch ? 1 : 0),
+                    (byte) (this.getSortBy() != null ? this.getSortBy().ordinal() : 0),
+                    (byte) (this.getSortDir() != null ? this.getSortDir().ordinal() : 0),
+                    (byte) (this.getSortDisplay() != null ? this.getSortDisplay().ordinal() : 0));
+        }
     }
 
     @Override

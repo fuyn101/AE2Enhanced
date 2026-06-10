@@ -133,9 +133,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     private final appeng.api.storage.data.IItemList<IAEItemStack> omniItems =
             AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
     private boolean omniNeedsFullSync = false;
-    private boolean omniIsFullSyncing = false;
-    private int omniFullSyncOffset = 0;
-    private static final int OMNI_FULL_SYNC_BATCH = 500;
 
     // === Item ID 映射表（per-session）===
     private final Object2IntOpenHashMap<IAEItemStack> omniItemToId = new Object2IntOpenHashMap<>();
@@ -1349,8 +1346,6 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         this.omniNextItemId = 1;
 
         this.omniNeedsFullSync = true;
-        this.omniIsFullSyncing = true;
-        this.omniFullSyncOffset = 0;
     }
 
     /**
@@ -1609,80 +1604,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         return id;
     }
 
-    private void sendOmniFullSyncBatch() {
-        appeng.api.storage.data.IItemList<IAEItemStack> storage = this.omniMonitor.getStorageList();
-        List<PacketOmniInventoryUpdate.Entry> batch = new ArrayList<>();
-        int count = 0;
-
-        for (IAEItemStack stack : storage) {
-            if (count++ < this.omniFullSyncOffset) continue;
-            if (batch.size() >= OMNI_FULL_SYNC_BATCH) break;
-
-            int id = this.getOrAllocateId(stack);
-            batch.add(new PacketOmniInventoryUpdate.Entry(id, stack, stack.getStackSize()));
-        }
-
-        if (batch.isEmpty()) {
-            this.omniIsFullSyncing = false;
-            this.omniNeedsFullSync = false;
-            this.omniFullSyncOffset = 0;
-
-            // 发送 FULL_END 通知客户端同步完成
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
-                    new PacketOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode.FULL_END, java.util.Collections.emptyList()),
-                    (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
-            return;
-        }
-
-        PacketOmniInventoryUpdate.Mode mode =
-                (this.omniFullSyncOffset == 0)
-                        ? PacketOmniInventoryUpdate.Mode.FULL_INIT
-                        : PacketOmniInventoryUpdate.Mode.FULL_CONTINUE;
-
-        com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
-                new PacketOmniInventoryUpdate(mode, batch),
-                (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
-
-        this.omniFullSyncOffset += batch.size();
-    }
-
-    private void sendOmniDeltaSync() {
-        List<PacketOmniInventoryUpdate.Entry> counts = new ArrayList<>();
-        List<PacketOmniInventoryUpdate.Entry> registers = new ArrayList<>();
-        appeng.api.storage.data.IItemList<IAEItemStack> storage = this.omniMonitor.getStorageList();
-
-        for (IAEItemStack stack : this.omniItems) {
-            boolean isNew = (this.omniItemToId.getInt(stack) == 0);
-            int id = this.getOrAllocateId(stack);
-            IAEItemStack current = storage.findPrecise(stack);
-
-            if (isNew) {
-                // 新类型：发送 REGISTER（带 definition）
-                registers.add(new PacketOmniInventoryUpdate.Entry(
-                        id, current != null ? current : stack, current != null ? current.getStackSize() : 0));
-            } else {
-                // 已有类型：发送 DELTA_COUNT（仅 id + count）
-                long count = (current != null) ? current.getStackSize() : 0;
-                counts.add(new PacketOmniInventoryUpdate.Entry(id, null, count));
-            }
-        }
-
-        // 先发送 REGISTER（如有），再发送 DELTA_COUNT
-        if (!registers.isEmpty()) {
-            for (PacketOmniInventoryUpdate.Entry reg : registers) {
-                com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
-                        new PacketOmniInventoryUpdate(
-                                PacketOmniInventoryUpdate.Mode.ITEM_REGISTER,
-                                java.util.Collections.singletonList(reg)),
-                        (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
-            }
-        }
-        if (!counts.isEmpty()) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
-                    new PacketOmniInventoryUpdate(PacketOmniInventoryUpdate.Mode.DELTA_COUNT, counts),
-                    (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
-        }
-    }
+    // R3: sendOmniFullSyncBatch() / sendOmniDeltaSync() 已删除
+    // 客户端主动发送 PAGE_REQUEST，服务端通过 UPDATE_NOTIFY 通知变化
 
     // ================== 服务端搜索（基于超维度仓储索引）====================
 
