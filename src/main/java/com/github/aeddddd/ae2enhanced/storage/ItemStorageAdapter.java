@@ -248,7 +248,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         }
 
         List<IAEItemStack> results = new ArrayList<>(Math.min(1000, limit));
-        HashSet<ItemDescriptor> seen = new HashSet<>();
 
         if (isModSearch) {
             boolean fuzzyEnabled = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
@@ -260,7 +259,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
                     if (!entry.getKey().contains(query)) continue;
                     for (ItemDescriptor desc : entry.getValue()) {
-                        if (!seen.add(desc)) continue;
                         BigInteger count = storage.get(desc);
                         if (count == null || count.signum() <= 0) continue;
                         IAEItemStack stack = getAETemplate(desc);
@@ -279,7 +277,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 ObjectOpenHashSet<ItemDescriptor> set = this.modIndex.get(query);
                 if (set != null) {
                     for (ItemDescriptor desc : set) {
-                        if (!seen.add(desc)) continue;
                         BigInteger count = storage.get(desc);
                         if (count == null || count.signum() <= 0) continue;
                         IAEItemStack stack = getAETemplate(desc);
@@ -302,8 +299,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 for (IAEItemStack stack : this.externalOnlyCache) {
                     String modId = Platform.getModId(stack).toLowerCase();
                     if (fuzzyEnabled ? !modId.contains(query) : !modId.equals(query)) continue;
-                    ItemDescriptor desc = createDescriptor(stack);
-                    if (!seen.add(desc)) continue;
                     results.add(stack.copy());
                     if (results.size() >= limit) break;
                 }
@@ -330,7 +325,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             }
             if (candidates != null) {
                 for (ItemDescriptor desc : candidates) {
-                    if (!seen.add(desc)) continue;
                     BigInteger count = storage.get(desc);
                     if (count == null || count.signum() <= 0) continue;
                     IAEItemStack stack = getAETemplate(desc);
@@ -360,8 +354,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                         }
                     }
                     if (!matches) continue;
-                    ItemDescriptor desc = createDescriptor(stack);
-                    if (!seen.add(desc)) continue;
                     results.add(stack.copy());
                     if (results.size() >= limit) break;
                 }
@@ -381,7 +373,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
      */
     public List<IAEItemStack> getAllItems(int limit) {
         List<IAEItemStack> results = new ArrayList<>(Math.min(storage.size(), limit));
-        HashSet<ItemDescriptor> seen = new HashSet<>();
         for (java.util.Map.Entry<ItemDescriptor, BigInteger> entry : storage.entrySet()) {
             BigInteger count = entry.getValue();
             if (count.signum() <= 0) continue;
@@ -394,7 +385,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             } else {
                 stack.setStackSize(count.longValue());
             }
-            if (!seen.add(entry.getKey())) continue;
             results.add(stack);
             if (results.size() >= limit) {
                 return results;
@@ -405,8 +395,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             ensureExternalOnlyCache();
             for (IAEItemStack stack : this.externalOnlyCache) {
                 if (!stack.isMeaningful()) continue;
-                ItemDescriptor desc = createDescriptor(stack);
-                if (!seen.add(desc)) continue;
                 results.add(stack.copy());
                 if (results.size() >= limit) {
                     break;
@@ -531,7 +519,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         }
 
         this.sortedList.clear();
-        HashSet<ItemDescriptor> seen = new HashSet<>();
 
         for (java.util.Map.Entry<ItemDescriptor, BigInteger> entry : storage.entrySet()) {
             BigInteger count = entry.getValue();
@@ -549,7 +536,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             if (viewMode == 2 && !stack.isCraftable()) continue;
             if (viewMode == 0 && stack.getStackSize() <= 0L) continue;
 
-            if (!seen.add(entry.getKey())) continue;
             this.sortedList.add(stack);
         }
 
@@ -561,8 +547,6 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 IAEItemStack copy = stack.copy();
                 if (viewMode == 2 && !copy.isCraftable()) continue;
                 if (viewMode == 0 && copy.getStackSize() <= 0L) continue;
-                ItemDescriptor desc = createDescriptor(copy);
-                if (!seen.add(desc)) continue;
                 this.sortedList.add(copy);
             }
         }
