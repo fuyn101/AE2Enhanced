@@ -141,7 +141,26 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                             }
                         }
                         if (totalCount > 0) {
-                            ItemStack prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
+                            // 从第一个 drawer 获取包含 NBT 的原型，避免 new ItemStack 丢失 NBT
+                            ItemStack prototype = null;
+                            for (Object recordObj : metaEntry.getValue()) {
+                                IDrawerGroup group = (IDrawerGroup) SLOT_RECORD_GROUP_FIELD.get(recordObj);
+                                int slot = (int) SLOT_RECORD_SLOT_FIELD.get(recordObj);
+                                if (group != null) {
+                                    IDrawer drawer = group.getDrawer(slot);
+                                    if (drawer != null && !drawer.isEmpty()) {
+                                        prototype = drawer.getStoredItemPrototype();
+                                        if (prototype != null) {
+                                            prototype = prototype.copy();
+                                            prototype.setCount(1);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (prototype == null || prototype.isEmpty()) {
+                                prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
+                            }
                             IAEItemStack aeStack = this.channel.createStack(prototype);
                             if (aeStack != null) {
                                 aeStack.setStackSize(totalCount);

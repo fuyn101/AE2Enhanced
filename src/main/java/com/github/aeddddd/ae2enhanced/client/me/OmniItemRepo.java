@@ -249,9 +249,18 @@ public class OmniItemRepo extends ItemRepo {
     @Override
     public void setSearchString(String search) {
         super.setSearchString(search);
-        String newSearch = search != null ? search : "";
-        if (!newSearch.equals(this.currentSearch)) {
-            this.currentSearch = newSearch;
+        String rawSearch = search != null ? search : "";
+        byte newMode = 0;
+        if (rawSearch.startsWith("@")) {
+            newMode = 1; // MOD
+            rawSearch = rawSearch.substring(1).trim();
+        } else if (rawSearch.startsWith("#")) {
+            newMode = 2; // TOOLTIP
+            rawSearch = rawSearch.substring(1).trim();
+        }
+        if (!rawSearch.equals(this.currentSearch) || newMode != this.searchMode) {
+            this.currentSearch = rawSearch;
+            this.searchMode = newMode;
             // 搜索词变化时重新请求第一页
             this.cacheOffset = -1;
             this.scrollOffset = 0;

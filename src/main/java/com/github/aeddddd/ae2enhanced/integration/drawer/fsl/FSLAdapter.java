@@ -189,7 +189,20 @@ public class FSLAdapter implements IDrawerIndexAdapter {
                     totalCount += ref.handler.getStoredAmount(ref.slot);
                 }
                 if (totalCount > 0) {
-                    ItemStack prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
+                    // 从第一个槽位获取包含 NBT 的原型，避免 new ItemStack 丢失 NBT
+                    ItemStack prototype = null;
+                    for (SlotRef ref : metaEntry.getValue()) {
+                        if (ref.handler == null) continue;
+                        ItemStack stored = ref.handler.getStoredType(ref.slot);
+                        if (stored != null && !stored.isEmpty()) {
+                            prototype = stored.copy();
+                            prototype.setCount(1);
+                            break;
+                        }
+                    }
+                    if (prototype == null || prototype.isEmpty()) {
+                        prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
+                    }
                     IAEItemStack aeStack = this.channel.createStack(prototype);
                     if (aeStack != null) {
                         aeStack.setStackSize(totalCount);
