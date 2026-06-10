@@ -121,6 +121,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     // V4：renderView 版本追踪（避免重复更新滚动条）
     private long lastRenderedViewVersion = 0;
 
+    // R3：滚动位置追踪（用于发送 PAGE_REQUEST）
+    private int lastScrollPosition = -1;
+
     // View Cell 缓存
     private final net.minecraft.item.ItemStack[] omniViewCells = new net.minecraft.item.ItemStack[5];
     private boolean cachedHasViewCell = false;
@@ -617,6 +620,19 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             if (currentVersion != this.lastRenderedViewVersion) {
                 this.lastRenderedViewVersion = currentVersion;
                 this.updateItemScrollRange();
+            }
+        }
+
+        // R3: 检测滚动变化，发送 PAGE_REQUEST
+        GuiScrollbar scrollBar = this.getScrollBar();
+        if (this.isOmniRepo && scrollBar != null) {
+            int currentScroll = scrollBar.getCurrentScroll();
+            if (currentScroll != this.lastScrollPosition) {
+                this.lastScrollPosition = currentScroll;
+                com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
+                        (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+                int itemOffset = currentScroll * omniRepo.getRowSize();
+                omniRepo.onScrollChanged(itemOffset);
             }
         }
 
