@@ -34,7 +34,7 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== 常量 ====================
     public static final int CACHE_PAGES = 3;             // 当前页 + 上一页 + 下一页
-    public static final int MAX_CACHE_SIZE = 540;        // 18 col * 10 row * 3 pages
+    public static final int MAX_CACHE_SIZE = 540;        // 18 col * 30 row，覆盖 TALL 模式下的 3 页
     private static final long REFRESH_COOLDOWN_MS = 200;
 
     // ==================== 反射字段 ====================
@@ -232,6 +232,7 @@ public class OmniItemRepo extends ItemRepo {
         // 清空缓存，重新请求第一页
         this.cacheOffset = -1;
         this.scrollOffset = 0;
+        this.totalCount = 0;
         Arrays.fill(this.cache, null);
         requestPage(0, MAX_CACHE_SIZE);
     }
@@ -264,6 +265,7 @@ public class OmniItemRepo extends ItemRepo {
             // 搜索词变化时重新请求第一页
             this.cacheOffset = -1;
             this.scrollOffset = 0;
+            this.totalCount = 0;
             Arrays.fill(this.cache, null);
             requestPage(0, MAX_CACHE_SIZE);
         }
@@ -278,9 +280,8 @@ public class OmniItemRepo extends ItemRepo {
 
     @Override
     public int size() {
-        if (!this.activeCrafting.isEmpty()) {
-            return this.activeCrafting.size() + this.normalView.size();
-        }
+        // 必须返回服务端报告的总数，否则 GUI 滚动条范围会基于 local cache 大小，
+        // 导致 activeCrafting 存在时无法滚动到后面的物品。
         return this.totalCount;
     }
 
