@@ -33,6 +33,8 @@
 - **DefaultSingleBatchHandler.isIdle**：等待所有输入材料消耗完毕后才收集产物
 - **Omni Tool GUI 修复**：小按钮尺寸 12x18、顶部按钮垂直排列、移除 bar2 悬停高亮、默认状态使用正常按钮纹理
 - **Omni Terminal 兼容性修复**：Object2IntOpenHashMap<>(-1) IllegalArgumentException；fastutil Object2ObjectOpenHashMap.computeIfAbsent NoSuchMethodError
+- **Omni Terminal 滚动修复**：`OmniItemRepo.size()` 改为返回服务端 `totalCount`，修复大网络下无法滚动的问题
+- **Omni Terminal 双向滚动缓存**：缓存改为以当前可见页为中心（上一页 + 当前页 + 下一页），消除向上滚动时的延迟；`getRowSize()` 改为调用 `super.getRowSize()`，修复反射错误导致行宽恒为 9 的 bug
 
 ---
 
