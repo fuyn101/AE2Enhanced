@@ -1,5 +1,45 @@
 # AE2Enhanced 更新日志
 
+## 1.5.3-dev
+
+### Feature
+
+- **高级 ME 全能工具(Advanced ME Omni Tool)**
+  - 多模式工具：旅行模式（闪烁/穿墙瞬移，32 格距离）、攻击模式（真实固定伤害，绕过无敌与创造模式）
+  - 扳手兼容：AE2 / CoFH / Mekanism / Ender IO
+  - 升级系统与 C 键配置 GUI，采用 UV 纹理图集布局与参数选择架构
+- **高级精准采集(Advanced Silk Touch)**：破坏方块时保留完整 NBT 数据
+- **Omni Terminal 分页架构 R3**
+  - 服务端分页查询：搜索、过滤、排序、分页完全在服务端执行
+  - 客户端仅缓存当前可见页 ±1 页（上限 540 个物品），彻底消除 50万+ 物品类型场景下的同步瓶颈
+  - 新增网络包：`PacketOmniPageRequest`(C→S)、`PacketOmniPageResult`(S→C)、`PacketOmniUpdateNotify`(S→C 轻量通知)
+
+### Improve
+
+- **Omni Terminal 性能演进**：V3 自定义库存协议 → V4 flatList + 倒排索引 + 异步视图 → V4.2/V5 服务端搜索索引 → R3 服务端分页
+- **GUI 纹理重构**：所有 GUI 背景改用纹理图集（1.png/2.png/3.png）
+- **ForceKillHelper 提取**：将强制击杀工具从 Omni Tool 提取为独立工具类，统一处理反治疗、混沌伤害、DataManager 绕过，应用于微型奇点/装配控制器黑洞伤害
+- **装配枢纽 GUI 调整**：槽位偏移、标题颜色增亮、样板页面按钮纹理化
+- **超维度 GUI 适配新 2.png 布局**
+
+### Bug fix
+
+- **黑孔/混沌核心伤害修复**：混合伤害回退、multipart 实体击杀、反治疗永久化（EntityLivingBase.setHealth mixin）
+- **forceSetHealthViaDataManager 多项修复**：直接修改 DataEntry 值、多字段回退、捕获 InvocationTargetException、过滤 set/setEntry 候选方法
+- **强制实体移除**：当 onDeath/setDead 被子类覆盖时通过 removeEntityDangerously 保险移除
+- **ME Omni Tool 多项修复**：本地化键、纹理、同步、攻击冷却、旅行模式坠落伤害重置、闪烁安全检测放宽
+- **Conformal Charge 实体保护字段访问**：通过反射访问保护字段
+- **超维度源质存储修复**：loadSectionReflective 缺失长度字节解包导致 EssentiaDescriptor aspectTag 损坏；optionalStorage 为 null 时的 NPE
+- **SmartPatternStorageFile NPE**：world 为 null 时
+- **中枢 ME 接口样板丢失**：移除 proxy.isReady() 检查
+- **GhostIngredientTarget NoClassDefFoundError**：反射 FakeGases 时捕获 Throwable
+- **SmartRecipe 强制处理模式**：从 NBT 加载时强制 isCrafting=false，修复旧样板
+- **DefaultSingleBatchHandler.isIdle**：等待所有输入材料消耗完毕后才收集产物
+- **Omni Tool GUI 修复**：小按钮尺寸 12x18、顶部按钮垂直排列、移除 bar2 悬停高亮、默认状态使用正常按钮纹理
+- **Omni Terminal 兼容性修复**：Object2IntOpenHashMap<>(-1) IllegalArgumentException；fastutil Object2ObjectOpenHashMap.computeIfAbsent NoSuchMethodError
+
+---
+
 ## 1.5.2
 
 ### Feature
@@ -19,7 +59,12 @@
   - ME 网络新增 RF 存储频道,终端直接显示电量
   - 纯桥接模式,无本地缓存
   - 新增 ItemEnergyDrop 假物品,阻止玩家直接提取 RF
-  - 允许外部输入和提取, 目前输入上限为int,后续会提升
+  - 允许外部输入和提取
+  - 创造模式增强：long 级别注入绕过 int 上限，支持科学计数法配置
+- **区块能源节点(Chunk Power Node)**
+  - 通过 ME RF 存储频道为同区块内所有机器供电，消耗 1 个 AE 频道
+  - 红色无线频道发射器模型变体
+- **F 键 JEI 搜索支持所有 AE2 终端**：通过 `MixinGuiMEMonitorableKeyHandler` 实现，支持收藏栏叠加层
 
 ### Improve
 
@@ -52,6 +97,10 @@
 - **配置整理**：移除空的 `Client` 占位类别；将 `DamageMode` 枚举内聚到 `BlackHole` 内部
 - **JEI/HEI 隐藏**：先进中枢平台控制器与平台开发许可加入 JEI 黑名单(功能尚未完成)
 - **清理**：移除未使用的通用内存卡模式切换按键注册(`CYCLE_UMC_MODE_KEY`)及相关网络包/处理器代码
+- **能量适配器扩展**：龙研 `DEEnergyAdapter` 突破 `CraftingInjector` tick-rate 限制实现即时填充；热力 `TEEnergyAdapter` 绕过接收上限；Mekanism 覆盖生成器/工具子模组
+- **先进中枢平台 GUI v2**：主网络区域管理、解绑、删除 X 按钮、JEI 幽灵拖拽、6 方向提示、缩放重命名字段、256×224 尺寸
+- **Botania 20-tick `isIdle` 延迟移除**
+- **中枢 ME 接口防复制强化**：push revert、超时保护
 
 ### Bug fix
 
@@ -60,6 +109,15 @@
 - 虚拟合成核心 `CraftingCPUCluster.getCore` 类型转换崩溃
 - 气体假物品检查隔离到 `GasFakeItemChecks`,避免可选模组缺失时 `NoClassDefFoundError`
 - 构建系统：引入 fastutil 8.5.12
+- **专用服务器崩溃**：`ItemEnergyDrop` 使用了客户端专用 `I18n`
+- **Ender IO 机器电容**：UMC 粘贴后未识别电容，通过触发 `setInventorySlotContents` 更新电容数据
+- **RF 能量系统多项修复**：空物品替换、硬编码名称、通知去重、提取空合同、网格缓存方向、电容过期、NBT 累积
+- **装配枢纽样板槽物品丢失**
+- **先进中枢平台多项修复**：IO 引擎主网络区域 IO、子网过滤强制、输出刷新阈值降低；子菜单面模式同步、输入输出按钮提示和点击拦截；GUI 256×224 尺寸、UV 坐标精确匹配、移除玩家背包槽位
+- **ModEventHandler.onServerTick NPE**
+- **中枢 ME 接口升级卡 NBT 读写嵌套层级不匹配**
+- **RF 访问节点**：添加 blockstates、修复 ME 网络连接、重命名 `PlatformRFNode` → `RFAccessNode`、假物品提取漏洞修复
+- **区块能源节点**：修复缺失物品模型注册、Mekanism 机器朝向检测
 
 ---
 

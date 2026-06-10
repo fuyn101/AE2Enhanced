@@ -1,5 +1,45 @@
 # AE2Enhanced Changelog
 
+## 1.5.3-dev
+
+### Features
+
+- **Advanced ME Omni Tool**
+  - Multi-mode tool: travel mode (blink / wall-phasing blink, 32-block range), attack mode (true fixed damage, bypasses invulnerability and creative godmode)
+  - Wrench compatibility: AE2 / CoFH / Mekanism / Ender IO
+  - Upgrade system with C-key config GUI, UV texture atlas layout, and param-select architecture
+- **Advanced Silk Touch**: break blocks while preserving complete NBT data
+- **Omni Terminal Pagination Architecture R3**
+  - Server-side pagination: search, filter, sort, and paginate entirely on the server
+  - Client caches only current visible page ±1 page (max 540 items), completely eliminating sync bottlenecks at 500k+ item-type scales
+  - New network packets: `PacketOmniPageRequest` (C→S), `PacketOmniPageResult` (S→C), `PacketOmniUpdateNotify` (S→C lightweight notification)
+
+### Improvements
+
+- **Omni Terminal performance evolution**: V3 custom inventory protocol → V4 flatList + inverted index + async view → V4.2/V5 server-side search index → R3 server-side pagination
+- **GUI texture refactor**: all GUI backgrounds now use texture atlases (1.png/2.png/3.png)
+- **ForceKillHelper extraction**: extracted force-kill utilities from Omni Tool into standalone helper, unifying anti-heal, chaos damage, and DataManager bypass; applied to MicroSingularity and AssemblyController black hole damage
+- **Assembly hub GUI adjustments**: slot offsets, brighter title colors, pattern page button textures
+- **Hyperdimensional GUI adapted to new 2.png layout**
+
+### Bug Fixes
+
+- **Black hole / Chaos Core damage fixes**: hybrid damage revert, multipart entity kills, permanent anti-heal (EntityLivingBase.setHealth mixin)
+- **forceSetHealthViaDataManager fixes**: direct DataEntry modification, multi-field fallback, catch InvocationTargetException, filter set/setEntry candidate methods
+- **Forced entity removal**: removeEntityDangerously insurance when onDeath/setDead is blocked by subclass override
+- **ME Omni Tool fixes**: localization keys, texture, sync, attack cooldown, travel mode fall damage reset, relaxed blink safety check
+- **Conformal Charge entity protection field access**: via reflection
+- **Hyperdimensional essentia storage fixes**: loadSectionReflective missing length-bytes unwrap causing corrupted EssentiaDescriptor aspectTag; NPE when optionalStorage is null
+- **SmartPatternStorageFile NPE**: when world is null during TileEntity.readFromNBT
+- **Central ME Interface pattern loss**: removed proxy.isReady() check in updateCraftingList()
+- **GhostIngredientTarget NoClassDefFoundError**: catch Throwable when reflecting FakeGases
+- **SmartRecipe forced processing mode**: force isCrafting=false when loading from NBT to fix old patterns
+- **DefaultSingleBatchHandler.isIdle**: wait until all input materials are consumed before collecting products
+- **Omni Tool GUI fixes**: small button size 12x18, top buttons arranged vertically, remove bar2 hover highlight, default state uses normal button texture
+- **Omni Terminal compatibility fixes**: Object2IntOpenHashMap<>(-1) IllegalArgumentException; fastutil Object2ObjectOpenHashMap.computeIfAbsent NoSuchMethodError
+
+---
+
 ## 1.5.2
 
 ### Features
@@ -19,7 +59,12 @@
   - New RF storage channel for the ME network; terminals display power directly
   - Pure bridge mode with no local buffer
   - New `ItemEnergyDrop` dummy item to prevent players from extracting RF directly
-  - Allows external input and extraction; current input limit is `int`, will be raised later
+  - Allows external input and extraction
+  - Creative mode boost: long-level injection bypassing int limit; configurable via scientific notation
+- **Chunk Power Node**
+  - Powers all machines in the same chunk via ME RF storage channel; consumes 1 AE channel
+  - Red variant of wireless channel transmitter model
+- **F-key JEI search for all AE2 terminals**: implemented via `MixinGuiMEMonitorableKeyHandler`, supports bookmark overlay
 
 ### Improvements
 
@@ -52,6 +97,10 @@
 - **Config cleanup**: removed empty `Client` placeholder category; moved `DamageMode` enum into `BlackHole` for better cohesion.
 - **JEI/HEI hiding**: added Advanced Platform Controller and Platform Development License to JEI blacklist (features not yet complete).
 - **Cleanup**: removed unused Universal Memory Card mode-cycling keybinding (`CYCLE_UMC_MODE_KEY`) and related network packet/handler code.
+- **Energy adapter extensions**: Draconic Evolution `DEEnergyAdapter` bypasses `CraftingInjector` tick-rate limit for instant fill; Thermal Expansion `TEEnergyAdapter` bypasses receive limit; Mekanism coverage expanded to generators/tools submods
+- **Advanced Central Platform GUI v2**: main-network zone management, unbind, delete X buttons, JEI ghost drag, 6-direction tooltips, scaled rename field, 256×224 size
+- **Botania 20-tick `isIdle` delay removed**
+- **CentralInterface anti-duping hardening**: push revert, timeout guard
 
 ### Bug Fixes
 
@@ -60,6 +109,15 @@
 - Virtual crafting core `CraftingCPUCluster.getCore` type-cast crash
 - Gas dummy-item checks isolated to `GasFakeItemChecks`, preventing `NoClassDefFoundError` when optional mods are missing
 - Build system: introduced fastutil 8.5.12
+- **Dedicated server crash**: `ItemEnergyDrop` used client-only `I18n`
+- **Ender IO machine capacitor**: not recognized after UMC paste; fixed by triggering `setInventorySlotContents` to update capacitor data
+- **RF energy system fixes**: empty item replacement, hardcoded name, notification deduplication, extract null contract, grid cache direction, capacitor staleness, NBT accumulation
+- **Assembly hub pattern slot item loss**
+- **Advanced Central Platform fixes**: IO engine main-net zone IO, subnet filter enforcement, lowered output flush threshold; submenu face mode sync, input/output button tooltips and click interception; GUI 256×224 size, UV coordinate exact matching, removed player inventory slots
+- **ModEventHandler.onServerTick NPE**
+- **Central ME Interface upgrade card NBT read/write nesting level mismatch**
+- **RF Access Node**: added blockstates, fixed ME network connection, renamed `PlatformRFNode` → `RFAccessNode`, fake-item withdrawal exploit fixed
+- **Chunk Power Node**: fixed missing item model registration, Mekanism machine facing detection
 
 ---
 
