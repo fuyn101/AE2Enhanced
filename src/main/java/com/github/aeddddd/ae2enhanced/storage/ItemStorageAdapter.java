@@ -147,57 +147,57 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             return getAllItems(limit);
         }
 
-        ObjectOpenHashSet<ItemDescriptor> candidates = null;
+        List<IAEItemStack> results = new ArrayList<>(Math.min(1000, limit));
+
         if (isModSearch) {
+            // MOD 搜索：直接流式遍历，避免构建巨大的 candidates 集合
+            int added = 0;
+            outer:
             for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
-                if (entry.getKey().contains(query)) {
-                    if (candidates == null) {
-                        candidates = new ObjectOpenHashSet<>(entry.getValue());
+                if (!entry.getKey().contains(query)) continue;
+                for (ItemDescriptor desc : entry.getValue()) {
+                    BigInteger count = storage.get(desc);
+                    if (count == null || count.signum() <= 0) continue;
+                    IAEItemStack stack = getAETemplate(desc);
+                    if (stack == null) continue;
+                    stack = stack.copy();
+                    if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                        stack.setStackSize(Long.MAX_VALUE);
                     } else {
-                        candidates.addAll(entry.getValue());
+                        stack.setStackSize(count.longValue());
                     }
+                    results.add(stack);
+                    if (++added >= limit) break outer;
                 }
-            }
-            if (candidates == null) {
-                return Collections.emptyList();
             }
         } else {
             String[] terms = query.split(" ");
-            candidates = null;
+            ObjectOpenHashSet<ItemDescriptor> candidates = null;
             for (String term : terms) {
+                if (term.isEmpty()) continue;
                 ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(term);
-                if (set == null) {
-                    return Collections.emptyList();
-                }
+                if (set == null) return Collections.emptyList();
                 if (candidates == null) {
                     candidates = new ObjectOpenHashSet<>(set);
                 } else {
                     candidates.retainAll(set);
-                    if (candidates.isEmpty()) {
-                        return Collections.emptyList();
-                    }
+                    if (candidates.isEmpty()) return Collections.emptyList();
                 }
             }
-            if (candidates == null) {
-                return Collections.emptyList();
-            }
-        }
-
-        List<IAEItemStack> results = new ArrayList<>(Math.min(candidates.size(), limit));
-        for (ItemDescriptor desc : candidates) {
-            BigInteger count = storage.get(desc);
-            if (count == null || count.signum() <= 0) continue;
-
-            IAEItemStack stack = getAETemplate(desc);
-            stack = stack.copy();
-            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                stack.setStackSize(Long.MAX_VALUE);
-            } else {
-                stack.setStackSize(count.longValue());
-            }
-            results.add(stack);
-            if (results.size() >= limit) {
-                break;
+            if (candidates == null) return Collections.emptyList();
+            for (ItemDescriptor desc : candidates) {
+                BigInteger count = storage.get(desc);
+                if (count == null || count.signum() <= 0) continue;
+                IAEItemStack stack = getAETemplate(desc);
+                if (stack == null) continue;
+                stack = stack.copy();
+                if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                    stack.setStackSize(Long.MAX_VALUE);
+                } else {
+                    stack.setStackSize(count.longValue());
+                }
+                results.add(stack);
+                if (results.size() >= limit) break;
             }
         }
         return results;
@@ -213,6 +213,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             if (count.signum() <= 0) continue;
 
             IAEItemStack stack = getAETemplate(entry.getKey());
+            if (stack == null) continue;
             stack = stack.copy();
             if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
                 stack.setStackSize(Long.MAX_VALUE);
@@ -320,23 +321,19 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                             byte sortDir, byte viewMode, int offset, int limit) {
         ensureSortedList(sortBy, sortDir, viewMode);
 
-        List<IAEItemStack> matched;
         if (search == null || search.isEmpty()) {
-            matched = new ArrayList<>(this.sortedList);
+            int total = this.sortedList.size();
+            int start = Math.min(offset, total);
+            int end = Math.min(offset + limit, total);
+
+            List<IAEItemStack> result = new ArrayList<>(Math.max(0, end - start));
+            for (int i = start; i < end; i++) {
+                result.add(this.sortedList.get(i).copy());
+            }
+            return new PageResult(total, offset, result);
         } else {
-            matched = performSearch(search, searchMode);
+            return performSearchPaged(search, searchMode, offset, limit);
         }
-
-        int total = matched.size();
-        int start = Math.min(offset, total);
-        int end = Math.min(offset + limit, total);
-
-        List<IAEItemStack> result = new ArrayList<>(Math.max(0, end - start));
-        for (int i = start; i < end; i++) {
-            result.add(matched.get(i).copy());
-        }
-
-        return new PageResult(total, offset, result);
     }
 
     private void ensureSortedList(byte sortBy, byte sortDir, byte viewMode) {
@@ -377,65 +374,88 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         this.sortedListDirty = false;
     }
 
-    private List<IAEItemStack> performSearch(String search, byte searchMode) {
-        List<IAEItemStack> result = new ArrayList<>();
+    /**
+     * 分页搜索，只构建指定范围内的结果，避免构建完整列表.
+     */
+    private PageResult performSearchPaged(String search, byte searchMode, int offset, int limit) {
+        List<IAEItemStack> result = new ArrayList<>(limit);
         String query = search.toLowerCase();
+        int total = 0;
+        int skipped = 0;
+        int added = 0;
 
         if (searchMode == 1) {
-            ObjectOpenHashSet<ItemDescriptor> candidates = null;
+            // MOD 搜索：直接遍历匹配的 modId，避免构建巨大的 candidates 集合
             for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
-                if (entry.getKey().contains(query)) {
-                    if (candidates == null) {
-                        candidates = new ObjectOpenHashSet<>(entry.getValue());
-                    } else {
-                        candidates.addAll(entry.getValue());
+                if (!entry.getKey().contains(query)) continue;
+                for (ItemDescriptor desc : entry.getValue()) {
+                    BigInteger count = storage.get(desc);
+                    if (count == null || count.signum() <= 0) continue;
+
+                    total++;
+
+                    if (skipped < offset) {
+                        skipped++;
+                        continue;
+                    }
+
+                    if (added < limit) {
+                        IAEItemStack stack = getAETemplate(desc);
+                        if (stack == null) continue;
+                        stack = stack.copy();
+                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            stack.setStackSize(Long.MAX_VALUE);
+                        } else {
+                            stack.setStackSize(count.longValue());
+                        }
+                        result.add(stack);
+                        added++;
                     }
                 }
             }
-            if (candidates == null) return result;
-            for (ItemDescriptor desc : candidates) {
-                BigInteger count = storage.get(desc);
-                if (count == null || count.signum() <= 0) continue;
-                IAEItemStack stack = getAETemplate(desc);
-                if (stack == null) continue;
-                stack = stack.copy();
-                if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                    stack.setStackSize(Long.MAX_VALUE);
-                } else {
-                    stack.setStackSize(count.longValue());
-                }
-                result.add(stack);
-            }
         } else {
+            // NAME 搜索：需要交集，仍构建 candidates
             String[] terms = query.split(" ");
             ObjectOpenHashSet<ItemDescriptor> candidates = null;
             for (String term : terms) {
                 if (term.isEmpty()) continue;
                 ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(term);
-                if (set == null) return Collections.emptyList();
+                if (set == null) return new PageResult(0, offset, result);
                 if (candidates == null) {
                     candidates = new ObjectOpenHashSet<>(set);
                 } else {
                     candidates.retainAll(set);
-                    if (candidates.isEmpty()) return Collections.emptyList();
+                    if (candidates.isEmpty()) return new PageResult(0, offset, result);
                 }
             }
-            if (candidates == null) return result;
+            if (candidates == null) return new PageResult(0, offset, result);
+
             for (ItemDescriptor desc : candidates) {
                 BigInteger count = storage.get(desc);
                 if (count == null || count.signum() <= 0) continue;
-                IAEItemStack stack = getAETemplate(desc);
-                if (stack == null) continue;
-                stack = stack.copy();
-                if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                    stack.setStackSize(Long.MAX_VALUE);
-                } else {
-                    stack.setStackSize(count.longValue());
+
+                total++;
+
+                if (skipped < offset) {
+                    skipped++;
+                    continue;
                 }
-                result.add(stack);
+
+                if (added < limit) {
+                    IAEItemStack stack = getAETemplate(desc);
+                    if (stack == null) continue;
+                    stack = stack.copy();
+                    if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                        stack.setStackSize(Long.MAX_VALUE);
+                    } else {
+                        stack.setStackSize(count.longValue());
+                    }
+                    result.add(stack);
+                    added++;
+                }
             }
         }
-        return result;
+        return new PageResult(total, offset, result);
     }
 
     private static Comparator<IAEItemStack> getComparator(byte sortBy) {
