@@ -29,6 +29,9 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (Loader.isModLoaded("storagedrawers")) {
             configs.add("mixins.ae2enhanced.late.sd.json");
         }
+        if (Loader.isModLoaded("cells")) {
+            configs.add("mixins.ae2enhanced.late.cells.json");
+        }
         return configs;
     }
 }
