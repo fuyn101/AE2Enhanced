@@ -175,6 +175,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         }
 
         this.rightPatternStorage = this.omniStorage.getRightStorageInventory();
+
+        // R3: 注册打开的玩家到 ItemStorageAdapter（用于 UPDATE_NOTIFY）
+        if (ip.player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+            ItemStorageAdapter adapter = findItemStorageAdapter();
+            if (adapter != null) {
+                adapter.addOpenPlayer((net.minecraft.entity.player.EntityPlayerMP) ip.player);
+            }
+        }
         this.rightUpgradeStorage = this.omniStorage.getUpgradeInventory();
 
         this.setupCraftingArea(ip, host);
@@ -1179,6 +1187,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     @Override
     public void onContainerClosed(EntityPlayer playerIn) {
+        // R3: 从 ItemStorageAdapter 的打开玩家列表中移除
+        if (playerIn instanceof net.minecraft.entity.player.EntityPlayerMP) {
+            ItemStorageAdapter adapter = findItemStorageAdapter();
+            if (adapter != null) {
+                adapter.removeOpenPlayer((net.minecraft.entity.player.EntityPlayerMP) playerIn);
+            }
+        }
         super.onContainerClosed(playerIn);
         this.saveStateToItemNBT();
         if (this.omniData != null) {
@@ -1678,7 +1693,96 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
      * R3: 处理客户端发来的分页请求。
      */
     public void handlePageRequest(com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest request) {
-        // TODO: R3 实现
+        ItemStorageAdapter adapter = findItemStorageAdapter();
+        ItemStorageAdapter.PageResult result;
+
+        if (adapter != null) {
+            result = adapter.query(
+                request.getSearchString(),
+                request.getSearchMode(),
+                request.getSortBy(),
+                request.getSortDir(),
+                request.getViewMode(),
+                request.getOffset(),
+                request.getLimit()
+            );
+        } else {
+            // Fallback: 遍历 omniMonitor.getStorageList()
+            result = fallbackPageQuery(request);
+        }
+
+        // 构建响应
+        List<com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult.Entry> entries =
+                new ArrayList<>(result.items.size());
+        for (IAEItemStack stack : result.items) {
+            int id = this.getOrAllocateId(stack);
+            entries.add(new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult.Entry(
+                    id, stack, stack.getStackSize()));
+        }
+
+        com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult response =
+                new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult(
+                        result.totalCount, result.offset, entries);
+
+        com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                response,
+                (net.minecraft.entity.player.EntityPlayerMP) this.getPlayerInv().player);
+    }
+
+    private ItemStorageAdapter.PageResult fallbackPageQuery(
+            com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest request) {
+        appeng.api.storage.data.IItemList<IAEItemStack> list = this.omniMonitor.getStorageList();
+        List<IAEItemStack> all = new ArrayList<>();
+        for (IAEItemStack stack : list) {
+            if (!stack.isMeaningful()) continue;
+            all.add(stack.copy());
+        }
+
+        // ViewMode 过滤
+        List<IAEItemStack> filtered = new ArrayList<>();
+        for (IAEItemStack stack : all) {
+            if (request.getViewMode() == 2 && !stack.isCraftable()) continue;
+            if (request.getViewMode() == 0 && stack.getStackSize() == 0L) continue;
+            filtered.add(stack);
+        }
+
+        // 排序
+        appeng.api.config.SortOrder sortBy = appeng.api.config.SortOrder.values()[request.getSortBy()];
+        appeng.api.config.SortDir sortDir = appeng.api.config.SortDir.values()[request.getSortDir()];
+        Comparator<IAEItemStack> c = getSearchComparator(sortBy);
+        appeng.util.ItemSorters.setDirection(sortDir);
+        appeng.util.ItemSorters.init();
+        filtered.sort(c);
+
+        // 搜索过滤
+        String search = request.getSearchString();
+        if (search != null && !search.isEmpty()) {
+            String query = search.toLowerCase();
+            List<IAEItemStack> searched = new ArrayList<>();
+            boolean isModSearch = request.getSearchMode() == 1;
+            for (IAEItemStack stack : filtered) {
+                if (isModSearch) {
+                    if (Platform.getModId(stack).toLowerCase().contains(query)) {
+                        searched.add(stack);
+                    }
+                } else {
+                    if (Platform.getItemDisplayName(stack).toLowerCase().contains(query)) {
+                        searched.add(stack);
+                    }
+                }
+            }
+            filtered = searched;
+        }
+
+        int total = filtered.size();
+        int start = Math.min(request.getOffset(), total);
+        int end = Math.min(request.getOffset() + request.getLimit(), total);
+        List<IAEItemStack> page = new ArrayList<>(Math.max(0, end - start));
+        for (int i = start; i < end; i++) {
+            page.add(filtered.get(i));
+        }
+
+        return new ItemStorageAdapter.PageResult(total, request.getOffset(), page);
     }
 
     public void handleSearchRequest(PacketOmniSearchRequest request) {
