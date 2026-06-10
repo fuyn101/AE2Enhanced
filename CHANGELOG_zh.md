@@ -36,6 +36,12 @@
 - **Omni Terminal 滚动修复**：`OmniItemRepo.size()` 改为返回服务端 `totalCount`，修复大网络下无法滚动的问题
 - **Omni Terminal 双向滚动缓存**：缓存改为以当前可见页为中心（上一页 + 当前页 + 下一页），消除向上滚动时的延迟；`getRowSize()` 改为调用 `super.getRowSize()`，修复反射错误导致行宽恒为 9 的 bug
 - **Omni Terminal 外部存储丢失修复**：终端现在能正确合并显示超维度仓储与普通 ME 网络存储（驱动器、外部存储总线等）。`ItemStorageAdapter` 新增 `externalMonitor` 引用，在查询/搜索/排序列表构建时合并外部存储数据
+- **Omni Terminal 存储合并性能优化**
+  - `externalOnlyCache`：差集缓存，仅在外部存储或超维度仓储变化时重建，避免每次查询都遍历 50 万+ 网络物品
+  - `descriptorSnapshot`：`HashSet<ItemDescriptor>` 快照替换 `ConcurrentHashMap.containsKey()`，消除锁开销
+  - `searchCache`：按 `(query, searchMode, viewMode)` 缓存完整匹配列表（上限 32 条），终端保持搜索、JEI 返回等场景下避免重复索引
+  - `performSearchPaged` / `search` / `getAllItems` 改为查询 adapter 索引 + `externalOnlyCache`（通常只有几百个物品），不再扫描整个网络 monitor
+  - `ContainerOmniTerm.postChange`：缓存 `ItemStorageAdapter` 引用，避免每次网络变化都遍历网格节点
 
 ---
 

@@ -129,6 +129,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     // === 本地 monitor 引用（父类 monitor 为 private，无法直接访问）===
     private final appeng.api.storage.IMEMonitor<IAEItemStack> omniMonitor;
 
+    // === 缓存 adapter 引用，避免 postChange 高频触发时反复遍历网格节点 ===
+    private ItemStorageAdapter cachedAdapter = null;
+
     // === Omni Terminal 自定义物品同步状态 ===
     private final appeng.api.storage.data.IItemList<IAEItemStack> omniItems =
             AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
@@ -1217,11 +1220,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     public void onContainerClosed(EntityPlayer playerIn) {
         // R3: 从 ItemStorageAdapter 的打开玩家列表中移除
         if (playerIn instanceof net.minecraft.entity.player.EntityPlayerMP) {
-            ItemStorageAdapter adapter = findItemStorageAdapter();
+            ItemStorageAdapter adapter = this.cachedAdapter != null ? this.cachedAdapter : findItemStorageAdapter();
             if (adapter != null) {
                 adapter.removeOpenPlayer((net.minecraft.entity.player.EntityPlayerMP) playerIn);
             }
         }
+        this.cachedAdapter = null; // 清空缓存，避免持有过期引用
         super.onContainerClosed(playerIn);
         this.saveStateToItemNBT();
         if (this.omniData != null) {
@@ -1337,9 +1341,11 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             this.omniItems.add(is);
         }
         // 外部 ME 网络存储变化时，通知 adapter 刷新 sortedList
-        ItemStorageAdapter adapter = findItemStorageAdapter();
-        if (adapter != null) {
-            adapter.markSortedListDirty();
+        if (this.cachedAdapter == null) {
+            this.cachedAdapter = findItemStorageAdapter();
+        }
+        if (this.cachedAdapter != null) {
+            this.cachedAdapter.markSortedListDirty();
         }
     }
 

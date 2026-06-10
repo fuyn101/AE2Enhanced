@@ -40,6 +40,12 @@
 - **Omni Terminal scroll fix**: `OmniItemRepo.size()` now returns `totalCount` from server instead of `activeCrafting.size() + normalView.size()`, fixing inability to scroll in large networks
 - **Omni Terminal bidirectional scroll caching**: cache is now centered around the current visible page (previous + current + next), eliminating delay when scrolling up; `getRowSize()` fixed to call `super.getRowSize()` instead of broken reflection that always fell back to 9
 - **Omni Terminal missing external storage fix**: terminal now correctly merges hyperdimensional storage with regular ME network storage (drives, external storage buses, etc.). `ItemStorageAdapter` now holds an `externalMonitor` reference and merges its data during query/search/sortedList building
+- **Omni Terminal storage merge performance optimization**
+  - `externalOnlyCache`: only rebuilds the diff set (external items not in adapter) when dirty, avoiding O(N) scans of the full 500k+ network on every query
+  - `descriptorSnapshot`: `HashSet<ItemDescriptor>` snapshot of adapter keys, replacing `ConcurrentHashMap.containsKey()` to eliminate lock overhead
+  - `searchCache`: caches full match lists by `(query, searchMode, viewMode)` for up to 32 entries, eliminating repeated indexing when the terminal stays in search mode or returns from JEI
+  - `performSearchPaged` / `search` / `getAllItems` now query adapter index + `externalOnlyCache` (typically hundreds of items) instead of scanning the entire network monitor
+  - `ContainerOmniTerm.postChange`: caches `ItemStorageAdapter` reference to avoid iterating grid nodes on every network change event
 
 ---
 
