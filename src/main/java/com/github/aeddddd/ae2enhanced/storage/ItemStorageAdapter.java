@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * 物品存储适配器,继承 {@link AbstractStorageAdapter}.
@@ -28,6 +30,17 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             new Object2ObjectOpenHashMap<>();
     private final Object2ObjectOpenHashMap<String, ObjectOpenHashSet<ItemDescriptor>> modIndex =
             new Object2ObjectOpenHashMap<>();
+
+    // R3: 已排序列表缓存
+    private List<IAEItemStack> sortedList = new ArrayList<>();
+    private boolean sortedListDirty = true;
+    private int cachedSortBy = -1;
+    private int cachedSortDir = -1;
+    private int cachedViewMode = -1;
+
+    // R3: 打开的终端玩家列表（用于发送 UPDATE_NOTIFY）
+    private final Set<net.minecraft.entity.player.EntityPlayerMP> openPlayers =
+            Collections.newSetFromMap(new WeakHashMap<>());
 
     public ItemStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
@@ -290,6 +303,160 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         words.add(input);
         for (int i = 0; i < input.length(); i++) {
             words.add(String.valueOf(input.charAt(i)));
+        }
+    }
+
+    // ==================== R3: 分页查询 ====================
+
+    public PageResult query(String search, byte searchMode, byte sortBy,
+                            byte sortDir, byte viewMode, int offset, int limit) {
+        ensureSortedList(sortBy, sortDir, viewMode);
+
+        List<IAEItemStack> matched;
+        if (search == null || search.isEmpty()) {
+            matched = new ArrayList<>(this.sortedList);
+        } else {
+            matched = performSearch(search, searchMode);
+        }
+
+        int total = matched.size();
+        int start = Math.min(offset, total);
+        int end = Math.min(offset + limit, total);
+
+        List<IAEItemStack> result = new ArrayList<>(Math.max(0, end - start));
+        for (int i = start; i < end; i++) {
+            result.add(matched.get(i).copy());
+        }
+
+        return new PageResult(total, offset, result);
+    }
+
+    private void ensureSortedList(byte sortBy, byte sortDir, byte viewMode) {
+        if (!this.sortedListDirty && sortBy == this.cachedSortBy
+                && sortDir == this.cachedSortDir && viewMode == this.cachedViewMode) {
+            return;
+        }
+
+        this.sortedList.clear();
+
+        for (java.util.Map.Entry<ItemDescriptor, BigInteger> entry : storage.entrySet()) {
+            BigInteger count = entry.getValue();
+            if (count == null || count.signum() <= 0) continue;
+
+            IAEItemStack stack = getAETemplate(entry.getKey());
+            if (stack == null) continue;
+            stack = stack.copy();
+            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                stack.setStackSize(Long.MAX_VALUE);
+            } else {
+                stack.setStackSize(count.longValue());
+            }
+
+            if (viewMode == 2 && !stack.isCraftable()) continue;
+            if (viewMode == 0 && stack.getStackSize() <= 0L) continue;
+
+            this.sortedList.add(stack);
+        }
+
+        Comparator<IAEItemStack> comparator = getComparator(sortBy);
+        appeng.util.ItemSorters.setDirection(sortDir == 1 ? appeng.api.config.SortDir.DESCENDING : appeng.api.config.SortDir.ASCENDING);
+        appeng.util.ItemSorters.init();
+        this.sortedList.sort(comparator);
+
+        this.cachedSortBy = sortBy;
+        this.cachedSortDir = sortDir;
+        this.cachedViewMode = viewMode;
+        this.sortedListDirty = false;
+    }
+
+    private List<IAEItemStack> performSearch(String search, byte searchMode) {
+        List<IAEItemStack> result = new ArrayList<>();
+        String query = search.toLowerCase();
+
+        if (searchMode == 1) {
+            ObjectOpenHashSet<ItemDescriptor> candidates = this.modIndex.get(query);
+            if (candidates == null) return result;
+            for (ItemDescriptor desc : candidates) {
+                BigInteger count = storage.get(desc);
+                if (count == null || count.signum() <= 0) continue;
+                IAEItemStack stack = getAETemplate(desc);
+                if (stack == null) continue;
+                stack = stack.copy();
+                if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                    stack.setStackSize(Long.MAX_VALUE);
+                } else {
+                    stack.setStackSize(count.longValue());
+                }
+                result.add(stack);
+            }
+        } else {
+            String[] terms = query.split(" ");
+            ObjectOpenHashSet<ItemDescriptor> candidates = null;
+            for (String term : terms) {
+                if (term.isEmpty()) continue;
+                ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(term);
+                if (set == null) return Collections.emptyList();
+                if (candidates == null) {
+                    candidates = new ObjectOpenHashSet<>(set);
+                } else {
+                    candidates.retainAll(set);
+                    if (candidates.isEmpty()) return Collections.emptyList();
+                }
+            }
+            if (candidates == null) return result;
+            for (ItemDescriptor desc : candidates) {
+                BigInteger count = storage.get(desc);
+                if (count == null || count.signum() <= 0) continue;
+                IAEItemStack stack = getAETemplate(desc);
+                if (stack == null) continue;
+                stack = stack.copy();
+                if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                    stack.setStackSize(Long.MAX_VALUE);
+                } else {
+                    stack.setStackSize(count.longValue());
+                }
+                result.add(stack);
+            }
+        }
+        return result;
+    }
+
+    private static Comparator<IAEItemStack> getComparator(byte sortBy) {
+        if (sortBy == 2) {
+            return appeng.util.ItemSorters.CONFIG_BASED_SORT_BY_MOD;
+        } else if (sortBy == 1) {
+            return appeng.util.ItemSorters.CONFIG_BASED_SORT_BY_SIZE;
+        } else if (sortBy == 3) {
+            return appeng.util.ItemSorters.CONFIG_BASED_SORT_BY_INV_TWEAKS;
+        }
+        return appeng.util.ItemSorters.CONFIG_BASED_SORT_BY_NAME;
+    }
+
+    public void onStorageChanged() {
+        this.sortedListDirty = true;
+        for (net.minecraft.entity.player.EntityPlayerMP player : this.openPlayers) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                    new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniUpdateNotify(), player);
+        }
+    }
+
+    public void addOpenPlayer(net.minecraft.entity.player.EntityPlayerMP player) {
+        this.openPlayers.add(player);
+    }
+
+    public void removeOpenPlayer(net.minecraft.entity.player.EntityPlayerMP player) {
+        this.openPlayers.remove(player);
+    }
+
+    public static class PageResult {
+        public final int totalCount;
+        public final int offset;
+        public final List<IAEItemStack> items;
+
+        public PageResult(int totalCount, int offset, List<IAEItemStack> items) {
+            this.totalCount = totalCount;
+            this.offset = offset;
+            this.items = items;
         }
     }
 }
