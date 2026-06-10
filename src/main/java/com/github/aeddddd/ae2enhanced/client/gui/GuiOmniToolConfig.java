@@ -454,13 +454,15 @@ public class GuiOmniToolConfig extends GuiContainer {
             if (idx == -1) {
                 if (hasNextPage()) {
                     currentPage++;
-                    ensureSelectionVisible();
+                    selParam = getParamIndexForSlot(1);
+                    if (selParam < 0) selParam = 0;
                 }
                 return;
             } else if (idx == -2) {
                 if (hasPrevPage()) {
                     currentPage--;
-                    ensureSelectionVisible();
+                    selParam = getParamIndexForSlot(currentPage == 0 ? 0 : 1);
+                    if (selParam < 0) selParam = 0;
                 }
                 return;
             } else if (idx >= 0) {

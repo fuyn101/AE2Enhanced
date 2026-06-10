@@ -593,10 +593,36 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             target = end;
         }
 
+        // 防卡墙：根据视线方向增加偏移，并确保落点安全
+        target = adjustLandingPosition(world, target, look, player);
+
         player.setPositionAndUpdate(target.x, target.y - player.getEyeHeight(), target.z);
         player.fallDistance = 0.0f;
         setLastBlink(stack, now);
         return EnumActionResult.SUCCESS;
+    }
+
+    /**
+     * 调整落点以避免卡墙。向下看时额外抬高，并在不安全时向上搜索。
+     */
+    private Vec3d adjustLandingPosition(World world, Vec3d target, Vec3d look, EntityPlayer player) {
+        // 向下看时额外抬高落点，避免卡在台阶/斜面/不完整方块内
+        if (look.y < -0.1) {
+            target = target.add(0, 0.25, 0);
+        }
+
+        // 确保脚部与头部位置无碰撞
+        double feetY = target.y - player.getEyeHeight();
+        BlockPos feetPos = new BlockPos(target.x, feetY, target.z);
+        if (!isSafeStandingPos(world, feetPos)) {
+            for (int dy = 1; dy <= 5; dy++) {
+                BlockPos up = feetPos.up(dy);
+                if (isSafeStandingPos(world, up)) {
+                    return new Vec3d(target.x, up.getY() + player.getEyeHeight(), target.z);
+                }
+            }
+        }
+        return target;
     }
 
     /**
