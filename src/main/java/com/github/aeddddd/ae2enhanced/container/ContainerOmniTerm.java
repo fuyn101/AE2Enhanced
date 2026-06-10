@@ -661,6 +661,36 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         encodedValue.setTag("out", tagOut);
         encodedValue.setBoolean("crafting", this.patternCraftMode);
         encodedValue.setBoolean("substitute", this.substitute);
+
+        // ae2fc processing 流体样板使用 FluidPatternDetails，它读取 Inputs/Outputs tag
+        // 必须使用 AEItemStack NBT 格式（包含 "Cnt" 字段），否则 stackSize 会被解析为 0
+        if (hasFluid && !this.patternCraftMode && com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidHelper.isLoaded()) {
+            NBTTagList inputsTag = new NBTTagList();
+            NBTTagList outputsTag = new NBTTagList();
+            for (ItemStack i : in) {
+                if (!i.isEmpty()) {
+                    appeng.util.item.AEItemStack aeStack = appeng.util.item.AEItemStack.fromItemStack(i);
+                    if (aeStack != null) {
+                        NBTTagCompound stackTag = new NBTTagCompound();
+                        aeStack.writeToNBT(stackTag);
+                        inputsTag.appendTag(stackTag);
+                    }
+                }
+            }
+            for (ItemStack i : out) {
+                if (!i.isEmpty()) {
+                    appeng.util.item.AEItemStack aeStack = appeng.util.item.AEItemStack.fromItemStack(i);
+                    if (aeStack != null) {
+                        NBTTagCompound stackTag = new NBTTagCompound();
+                        aeStack.writeToNBT(stackTag);
+                        outputsTag.appendTag(stackTag);
+                    }
+                }
+            }
+            encodedValue.setTag("Inputs", inputsTag);
+            encodedValue.setTag("Outputs", outputsTag);
+        }
+
         output.setTagCompound(encodedValue);
 
         if (moveToInventory) {
@@ -729,7 +759,8 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (output.isEmpty()) {
             return false;
         }
-        return AEApi.instance().definitions().items().encodedPattern().isSameAs(output)
+        // ae2fc 的流体/大物品样板继承自 ItemEncodedPattern，isSameAs 不匹配子类
+        return output.getItem() instanceof appeng.items.misc.ItemEncodedPattern
                 || AEApi.instance().definitions().materials().blankPattern().isSameAs(output);
     }
 
