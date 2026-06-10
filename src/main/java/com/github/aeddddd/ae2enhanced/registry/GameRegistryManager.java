@@ -162,7 +162,7 @@ public final class GameRegistryManager {
     @SubscribeEvent
     public static void registerRecipes(RegistryEvent.Register<net.minecraft.item.crafting.IRecipe> event) {
         // ME Omni Tool - Chaos Core upgrade
-        if (Loader.isModLoaded("draconicevolution")) {
+        if (Loader.isModLoaded("draconicevolution") && com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableChaosCoreUpgrade) {
             Item chaoticCore = Item.REGISTRY.getObject(new ResourceLocation("draconicevolution", "chaotic_core"));
             if (chaoticCore != null) {
                 event.getRegistry().register(new RecipeOmniToolUpgrade(

@@ -58,6 +58,12 @@ public class AE2EnhancedConfig {
     })
     public static Terminal terminal = new Terminal();
 
+    @Config.Name("OmniTool")
+    @Config.Comment({
+        "Advanced ME Omni Tool settings."
+    })
+    public static OmniTool omniTool = new OmniTool();
+
     @Config.Name("SmartPattern")
     @Config.Comment({
         "Smart Pattern Interface settings.",
@@ -175,6 +181,16 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
         public int modSearchFuzzyThreshold = 5000;
+    }
+
+    public static class OmniTool {
+        @Config.Comment({
+            "Enable the Chaos Core upgrade recipe for the Advanced ME Omni Tool.",
+            "Requires Draconic Evolution to be loaded. When disabled, the recipe",
+            "is not registered and players cannot craft the Chaos Core upgrade.",
+            "Default: false"
+        })
+        public boolean enableChaosCoreUpgrade = false;
     }
 
     public static class WirelessChannel {
