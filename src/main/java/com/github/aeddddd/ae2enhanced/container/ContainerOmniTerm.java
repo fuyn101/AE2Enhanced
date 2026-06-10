@@ -1683,9 +1683,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             String query = search.toLowerCase();
             List<IAEItemStack> searched = new ArrayList<>();
             boolean isModSearch = request.getSearchMode() == 1;
+            boolean fuzzyModSearch = isModSearch
+                    && (com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
+                    || all.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold);
             for (IAEItemStack stack : filtered) {
                 if (isModSearch) {
-                    if (Platform.getModId(stack).toLowerCase().contains(query)) {
+                    String modId = Platform.getModId(stack).toLowerCase();
+                    if (fuzzyModSearch ? modId.contains(query) : modId.equals(query)) {
                         searched.add(stack);
                     }
                 } else {
@@ -1788,11 +1792,15 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         List<IAEItemStack> results = new ArrayList<>();
         String query = request.getQuery().toLowerCase();
 
+        boolean fuzzyModSearch = request.isModSearch()
+                && (com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
+                || getMonitorItemCount() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold);
+
         for (IAEItemStack stack : list) {
             if (!stack.isMeaningful()) continue;
             if (request.isModSearch()) {
                 String modId = Platform.getModId(stack).toLowerCase();
-                if (modId.contains(query)) {
+                if (fuzzyModSearch ? modId.contains(query) : modId.equals(query)) {
                     results.add(stack.copy());
                 }
             } else {
@@ -1803,6 +1811,14 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
         return results;
+    }
+
+    private int getMonitorItemCount() {
+        int count = 0;
+        for (IAEItemStack stack : this.omniMonitor.getStorageList()) {
+            if (stack.isMeaningful()) count++;
+        }
+        return count;
     }
 
     private static Comparator<IAEItemStack> getSearchComparator(appeng.api.config.SortOrder sortBy) {

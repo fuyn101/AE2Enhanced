@@ -150,24 +150,48 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         List<IAEItemStack> results = new ArrayList<>(Math.min(1000, limit));
 
         if (isModSearch) {
-            // MOD 搜索：直接流式遍历，避免构建巨大的 candidates 集合
+            boolean fuzzyEnabled = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
+                    || this.storage.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold;
+
             int added = 0;
-            outer:
-            for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
-                if (!entry.getKey().contains(query)) continue;
-                for (ItemDescriptor desc : entry.getValue()) {
-                    BigInteger count = storage.get(desc);
-                    if (count == null || count.signum() <= 0) continue;
-                    IAEItemStack stack = getAETemplate(desc);
-                    if (stack == null) continue;
-                    stack = stack.copy();
-                    if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                        stack.setStackSize(Long.MAX_VALUE);
-                    } else {
-                        stack.setStackSize(count.longValue());
+            if (fuzzyEnabled) {
+                // MOD 模糊搜索：流式遍历所有 modId 做 contains 匹配
+                outer:
+                for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
+                    if (!entry.getKey().contains(query)) continue;
+                    for (ItemDescriptor desc : entry.getValue()) {
+                        BigInteger count = storage.get(desc);
+                        if (count == null || count.signum() <= 0) continue;
+                        IAEItemStack stack = getAETemplate(desc);
+                        if (stack == null) continue;
+                        stack = stack.copy();
+                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            stack.setStackSize(Long.MAX_VALUE);
+                        } else {
+                            stack.setStackSize(count.longValue());
+                        }
+                        results.add(stack);
+                        if (++added >= limit) break outer;
                     }
-                    results.add(stack);
-                    if (++added >= limit) break outer;
+                }
+            } else {
+                // MOD 精确搜索：大网络下禁用模糊匹配，仅做精确 modId 匹配
+                ObjectOpenHashSet<ItemDescriptor> set = this.modIndex.get(query);
+                if (set != null) {
+                    for (ItemDescriptor desc : set) {
+                        BigInteger count = storage.get(desc);
+                        if (count == null || count.signum() <= 0) continue;
+                        IAEItemStack stack = getAETemplate(desc);
+                        if (stack == null) continue;
+                        stack = stack.copy();
+                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            stack.setStackSize(Long.MAX_VALUE);
+                        } else {
+                            stack.setStackSize(count.longValue());
+                        }
+                        results.add(stack);
+                        if (++added >= limit) break;
+                    }
                 }
             }
         } else {
@@ -385,31 +409,65 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         int added = 0;
 
         if (searchMode == 1) {
-            // MOD 搜索：直接遍历匹配的 modId，避免构建巨大的 candidates 集合
-            for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
-                if (!entry.getKey().contains(query)) continue;
-                for (ItemDescriptor desc : entry.getValue()) {
-                    BigInteger count = storage.get(desc);
-                    if (count == null || count.signum() <= 0) continue;
+            boolean fuzzyEnabled = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold <= 0
+                    || this.storage.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold;
 
-                    total++;
+            if (fuzzyEnabled) {
+                // MOD 模糊搜索：遍历所有 modId 做 contains 匹配
+                for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
+                    if (!entry.getKey().contains(query)) continue;
+                    for (ItemDescriptor desc : entry.getValue()) {
+                        BigInteger count = storage.get(desc);
+                        if (count == null || count.signum() <= 0) continue;
 
-                    if (skipped < offset) {
-                        skipped++;
-                        continue;
-                    }
+                        total++;
 
-                    if (added < limit) {
-                        IAEItemStack stack = getAETemplate(desc);
-                        if (stack == null) continue;
-                        stack = stack.copy();
-                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                            stack.setStackSize(Long.MAX_VALUE);
-                        } else {
-                            stack.setStackSize(count.longValue());
+                        if (skipped < offset) {
+                            skipped++;
+                            continue;
                         }
-                        result.add(stack);
-                        added++;
+
+                        if (added < limit) {
+                            IAEItemStack stack = getAETemplate(desc);
+                            if (stack == null) continue;
+                            stack = stack.copy();
+                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                                stack.setStackSize(Long.MAX_VALUE);
+                            } else {
+                                stack.setStackSize(count.longValue());
+                            }
+                            result.add(stack);
+                            added++;
+                        }
+                    }
+                }
+            } else {
+                // MOD 精确搜索：大网络下禁用模糊匹配，仅做精确 modId 匹配
+                ObjectOpenHashSet<ItemDescriptor> set = this.modIndex.get(query);
+                if (set != null) {
+                    for (ItemDescriptor desc : set) {
+                        BigInteger count = storage.get(desc);
+                        if (count == null || count.signum() <= 0) continue;
+
+                        total++;
+
+                        if (skipped < offset) {
+                            skipped++;
+                            continue;
+                        }
+
+                        if (added < limit) {
+                            IAEItemStack stack = getAETemplate(desc);
+                            if (stack == null) continue;
+                            stack = stack.copy();
+                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                                stack.setStackSize(Long.MAX_VALUE);
+                            } else {
+                                stack.setStackSize(count.longValue());
+                            }
+                            result.add(stack);
+                            added++;
+                        }
                     }
                 }
             }

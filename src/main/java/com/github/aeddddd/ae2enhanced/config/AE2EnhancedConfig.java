@@ -164,6 +164,17 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int rightStorageMaxStackSize = 4096;
+
+        @Config.Comment({
+            "Maximum number of stored item types before disabling fuzzy @ mod search.",
+            "When the network stores more than this many distinct item types,",
+            "@ prefix search will only match exact modId instead of scanning",
+            "all modIds with contains(). This prevents severe lag on huge networks.",
+            "Set to 0 to always allow fuzzy @ search regardless of size.",
+            "Range: 0 ~ 2147483647, Default: 5000"
+        })
+        @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
+        public int modSearchFuzzyThreshold = 5000;
     }
 
     public static class WirelessChannel {
