@@ -191,6 +191,38 @@ public class AE2EnhancedConfig {
             "Default: false"
         })
         public boolean enableChaosCoreUpgrade = false;
+
+        @Config.Comment({
+            "Maximum blink (teleport) distance in blocks for Travel Mode.",
+            "Players can configure a shorter distance in-game, but cannot exceed this value.",
+            "Range: 1 ~ 1000, Default: 32"
+        })
+        @Config.RangeInt(min = 1, max = 1000)
+        public int maxBlinkDistance = 32;
+
+        @Config.Comment({
+            "Maximum break cooldown in ticks for Universal Mode.",
+            "Players can configure a shorter cooldown in-game, but cannot exceed this value.",
+            "Range: 0 ~ 200, Default: 6"
+        })
+        @Config.RangeInt(min = 0, max = 200)
+        public int maxBreakCooldown = 6;
+
+        @Config.Comment({
+            "Base attack damage dealt by the Omni Tool in normal mode.",
+            "This bypasses armor and damage events (true damage).",
+            "Range: 0.0 ~ 10000.0, Default: 6.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 10000.0)
+        public double baseAttackDamage = 6.0;
+
+        @Config.Comment({
+            "Chaos damage value for the Chaos Core upgrade.",
+            "This bypasses all protection including armor, potions, shields, and difficulty scaling.",
+            "Range: 0.0 ~ 100000.0, Default: 1000.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 100000.0)
+        public double chaosDamage = 1000.0;
     }
 
     public static class WirelessChannel {

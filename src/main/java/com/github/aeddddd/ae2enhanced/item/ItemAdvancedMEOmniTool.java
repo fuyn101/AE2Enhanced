@@ -121,11 +121,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
     // ---- Constants ----
     private static final float DESTROY_SPEED = 1_000_000.0f;
-    private static final float ATTACK_DAMAGE = 6.0f;
-    private static final float CHAOS_DAMAGE_VALUE = 1000.0f;
-    private static final double DEFAULT_BLINK_DIST = 32.0;
     private static final int BLINK_COOLDOWN_TICKS = 1;
-    private static final int DEFAULT_BREAK_COOLDOWN = 6;
     private static final UUID REACH_MODIFIER_UUID = UUID.fromString("ae2e0000-0000-0000-0000-000000000001");
 
     public ItemAdvancedMEOmniTool() {
@@ -273,7 +269,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             if (hasChaosCore(stack) && isChaosForceKillEnabled(stack)) {
                 applyChaosDamage(target, player);
             } else {
-                applyTrueDamage(target, player, ATTACK_DAMAGE, OMNITOOL_DAMAGE);
+                float baseDamage = (float) com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.baseAttackDamage;
+                applyTrueDamage(target, player, baseDamage, OMNITOOL_DAMAGE);
             }
             return true; // 阻止默认攻击逻辑（绕过攻击冷却衰减）
         }
@@ -281,7 +278,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     /**
-     * 应用混沌伤害：固定扣除 1000 血量，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
+     * 应用混沌伤害：扣除配置指定的混沌伤害值，越过 LivingHurtEvent、护甲、药水、难度缩放、护盾等一切保护。
      * 视觉效果（受击动画、击退）保留在本方法中；核心强制击杀逻辑委托给 {@link ForceKillHelper}。
      */
     private void applyChaosDamage(EntityLivingBase target, EntityPlayer player) {
@@ -314,7 +311,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         applyAntiHeal(target);
 
         // 核心强制击杀逻辑
-        ForceKillHelper.applyForceKill(target, player, CHAOS_DAMAGE_VALUE, CHAOS_DAMAGE);
+        float chaosDamage = (float) com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.chaosDamage;
+        ForceKillHelper.applyForceKill(target, player, chaosDamage, CHAOS_DAMAGE);
 
         // 最后保险：如果实体仍然没有被移除，在下一 tick 开头强制从 world 剔除
         if (!target.world.isRemote && target.world.getMinecraftServer() != null) {
@@ -797,12 +795,14 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ==================== Blink Distance / Cooldown ====================
 
     public static double getBlinkDistance(ItemStack stack) {
-        if (!stack.hasTagCompound()) return DEFAULT_BLINK_DIST;
+        double max = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.maxBlinkDistance;
+        if (!stack.hasTagCompound()) return max;
         NBTTagCompound tag = stack.getTagCompound();
         if (!tag.hasKey(NBT_BLINK_DIST, net.minecraftforge.common.util.Constants.NBT.TAG_DOUBLE)) {
-            tag.setDouble(NBT_BLINK_DIST, DEFAULT_BLINK_DIST);
+            tag.setDouble(NBT_BLINK_DIST, max);
         }
-        return tag.getDouble(NBT_BLINK_DIST);
+        double dist = tag.getDouble(NBT_BLINK_DIST);
+        return Math.min(dist, max);
     }
 
     public static void setBlinkDistance(ItemStack stack, double dist) {
@@ -822,7 +822,9 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ==================== Break Cooldown ====================
 
     public static int getBreakCooldown(ItemStack stack) {
-        return stack.hasTagCompound() ? stack.getTagCompound().getInteger(NBT_BREAK_COOLDOWN) : DEFAULT_BREAK_COOLDOWN;
+        int max = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.maxBreakCooldown;
+        int cooldown = stack.hasTagCompound() ? stack.getTagCompound().getInteger(NBT_BREAK_COOLDOWN) : max;
+        return Math.min(cooldown, max);
     }
 
     public static void setBreakCooldown(ItemStack stack, int ticks) {
