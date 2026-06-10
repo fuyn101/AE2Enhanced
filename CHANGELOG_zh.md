@@ -5,28 +5,24 @@
 ### Feature
 
 - **高级 ME 全能工具(Advanced ME Omni Tool)**
-  - 多模式工具：旅行模式（闪烁/穿墙瞬移，32 格距离）、攻击模式（真实固定伤害，绕过无敌与创造模式）
+  - 多模式工具：旅行模式（闪烁/穿墙瞬移，32 格距离）
   - 扳手兼容：AE2 / CoFH / Mekanism / Ender IO
   - 升级系统与 C 键配置 GUI，采用 UV 纹理图集布局与参数选择架构
 - **高级精准采集(Advanced Silk Touch)**：破坏方块时保留完整 NBT 数据
-- **Omni Terminal 分页架构 R3**
+- **Omni Terminal 分页架构**
   - 服务端分页查询：搜索、过滤、排序、分页完全在服务端执行
   - 客户端仅缓存当前可见页 ±1 页（上限 540 个物品），彻底消除 50万+ 物品类型场景下的同步瓶颈
   - 新增网络包：`PacketOmniPageRequest`(C→S)、`PacketOmniPageResult`(S→C)、`PacketOmniUpdateNotify`(S→C 轻量通知)
 
 ### Improve
 
-- **Omni Terminal 性能演进**：V3 自定义库存协议 → V4 flatList + 倒排索引 + 异步视图 → V4.2/V5 服务端搜索索引 → R3 服务端分页
+
 - **GUI 纹理重构**：所有 GUI 背景改用纹理图集（1.png/2.png/3.png）
-- **ForceKillHelper 提取**：将强制击杀工具从 Omni Tool 提取为独立工具类，统一处理反治疗、混沌伤害、DataManager 绕过，应用于微型奇点/装配控制器黑洞伤害
 - **装配枢纽 GUI 调整**：槽位偏移、标题颜色增亮、样板页面按钮纹理化
-- **超维度 GUI 适配新 2.png 布局**
+- **超维度 GUI 适配新布局**
 
 ### Bug fix
 
-- **黑孔/混沌核心伤害修复**：混合伤害回退、multipart 实体击杀、反治疗永久化（EntityLivingBase.setHealth mixin）
-- **forceSetHealthViaDataManager 多项修复**：直接修改 DataEntry 值、多字段回退、捕获 InvocationTargetException、过滤 set/setEntry 候选方法
-- **强制实体移除**：当 onDeath/setDead 被子类覆盖时通过 removeEntityDangerously 保险移除
 - **ME Omni Tool 多项修复**：本地化键、纹理、同步、攻击冷却、旅行模式坠落伤害重置、闪烁安全检测放宽
 - **Conformal Charge 实体保护字段访问**：通过反射访问保护字段
 - **超维度源质存储修复**：loadSectionReflective 缺失长度字节解包导致 EssentiaDescriptor aspectTag 损坏；optionalStorage 为 null 时的 NPE
