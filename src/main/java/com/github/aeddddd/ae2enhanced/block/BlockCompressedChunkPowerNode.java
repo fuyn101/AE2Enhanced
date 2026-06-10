@@ -17,9 +17,7 @@ import javax.annotation.Nullable;
 public class BlockCompressedChunkPowerNode extends BlockChunkPowerNode {
 
     public BlockCompressedChunkPowerNode() {
-        super();
-        setRegistryName(AE2Enhanced.MOD_ID, "compressed_chunk_power_node");
-        setTranslationKey(AE2Enhanced.MOD_ID + ".compressed_chunk_power_node");
+        super("compressed_chunk_power_node");
     }
 
     @Nullable

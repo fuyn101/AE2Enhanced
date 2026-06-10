@@ -33,9 +33,13 @@ public class BlockChunkPowerNode extends Block {
     public static final PropertyEnum<State> STATE = PropertyEnum.create("state", State.class);
 
     public BlockChunkPowerNode() {
+        this("chunk_power_node");
+    }
+
+    protected BlockChunkPowerNode(String name) {
         super(Material.IRON);
-        setRegistryName(AE2Enhanced.MOD_ID, "chunk_power_node");
-        setTranslationKey(AE2Enhanced.MOD_ID + ".chunk_power_node");
+        setRegistryName(AE2Enhanced.MOD_ID, name);
+        setTranslationKey(AE2Enhanced.MOD_ID + "." + name);
         setHardness(3.0F);
         setResistance(10.0F);
         setHarvestLevel("pickaxe", 1);
