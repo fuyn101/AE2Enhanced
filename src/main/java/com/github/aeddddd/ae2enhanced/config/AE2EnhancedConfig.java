@@ -215,6 +215,13 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeDouble(min = 0.0, max = 10000.0)
         public double baseAttackDamage = 6.0;
+
+        @Config.Comment({
+            "Allow blink (teleport) to phase through walls in Travel Mode.",
+            "When disabled, the player stops at the first solid block hit.",
+            "Default: true"
+        })
+        public boolean enableWallPhase = true;
     }
 
     public static class WirelessChannel {

@@ -45,7 +45,8 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int PID_CHAOS_KILL = 6;
     private static final int PID_CONFORMAL = 7;
     private static final int PID_ADVANCED_SILK = 8;
-    private static final int PID_COUNT = 9;
+    private static final int PID_WALL_PHASE = 9;
+    private static final int PID_COUNT = 10;
 
     // ---- UV坐标：顶部按钮区 ----
     private static final int LEFT_BTN_X = 4;
@@ -150,6 +151,11 @@ public class GuiOmniToolConfig extends GuiContainer {
                 0, 1, s -> true,
                 s -> ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(s) ? 1 : 0,
                 (s, v) -> ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(s, v > 0)),
+        new ParamDef(PID_WALL_PHASE, "gui.ae2enhanced.omni_tool_config.wall_phase",
+                "gui.ae2enhanced.omni_tool_config.wall_phase.desc",
+                0, 1, s -> true,
+                s -> ItemAdvancedMEOmniTool.isWallPhaseEnabled(s) ? 1 : 0,
+                (s, v) -> ItemAdvancedMEOmniTool.setWallPhaseEnabled(s, v > 0)),
     };
 
     private final EntityPlayer player;
@@ -204,6 +210,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[PID_CHAOS_KILL] = ItemAdvancedMEOmniTool.isChaosForceKillEnabled(toolStack) ? 1 : 0;
         values[PID_CONFORMAL] = ItemAdvancedMEOmniTool.hasConformalCharge(toolStack) ? 1 : 0;
         values[PID_ADVANCED_SILK] = ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(toolStack) ? 1 : 0;
+        values[PID_WALL_PHASE] = ItemAdvancedMEOmniTool.isWallPhaseEnabled(toolStack) ? 1 : 0;
 
         paramEnabledMask = 0;
         for (int i = 0; i < PID_COUNT; i++) {
@@ -532,6 +539,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         ItemAdvancedMEOmniTool.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
         ItemAdvancedMEOmniTool.setConformalCharge(toolStack, values[PID_CONFORMAL] > 0);
         ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(toolStack, values[PID_ADVANCED_SILK] > 0);
+        ItemAdvancedMEOmniTool.setWallPhaseEnabled(toolStack, values[PID_WALL_PHASE] > 0);
         for (int i = 0; i < PID_COUNT; i++) {
             ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
         }
@@ -540,7 +548,7 @@ public class GuiOmniToolConfig extends GuiContainer {
                 values[PID_MODE], values[PID_DROP], values[PID_SILK] > 0,
                 values[PID_FORTUNE], values[PID_BLINK], values[PID_COOLDOWN],
                 paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0,
-                values[PID_ADVANCED_SILK] > 0));
+                values[PID_ADVANCED_SILK] > 0, values[PID_WALL_PHASE] > 0));
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {

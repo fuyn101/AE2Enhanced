@@ -18,6 +18,7 @@ public class PacketOmniToolConfig implements IMessage {
     private boolean chaosForceKill;
     private boolean conformalEnabled;
     private boolean advancedSilkTouch;
+    private boolean wallPhase;
 
     public PacketOmniToolConfig() {
     }
@@ -25,7 +26,7 @@ public class PacketOmniToolConfig implements IMessage {
     public PacketOmniToolConfig(int mode, int dropMode, boolean silkTouch,
                                  int fortune, double blinkDistance, int breakCooldown,
                                  int paramEnabled, boolean chaosForceKill, boolean conformalEnabled,
-                                 boolean advancedSilkTouch) {
+                                 boolean advancedSilkTouch, boolean wallPhase) {
         this.mode = mode;
         this.dropMode = dropMode;
         this.silkTouch = silkTouch;
@@ -36,6 +37,7 @@ public class PacketOmniToolConfig implements IMessage {
         this.chaosForceKill = chaosForceKill;
         this.conformalEnabled = conformalEnabled;
         this.advancedSilkTouch = advancedSilkTouch;
+        this.wallPhase = wallPhase;
     }
 
     public int getMode() { return mode; }
@@ -48,6 +50,7 @@ public class PacketOmniToolConfig implements IMessage {
     public boolean isChaosForceKill() { return chaosForceKill; }
     public boolean isConformalEnabled() { return conformalEnabled; }
     public boolean isAdvancedSilkTouch() { return advancedSilkTouch; }
+    public boolean isWallPhase() { return wallPhase; }
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -57,10 +60,11 @@ public class PacketOmniToolConfig implements IMessage {
         fortune = buf.readByte();
         blinkDistance = buf.readDouble();
         breakCooldown = buf.readByte();
-        paramEnabled = buf.readByte();
+        paramEnabled = buf.readShort();
         chaosForceKill = buf.readBoolean();
         conformalEnabled = buf.readBoolean();
         advancedSilkTouch = buf.readBoolean();
+        wallPhase = buf.readBoolean();
     }
 
     @Override
@@ -71,9 +75,10 @@ public class PacketOmniToolConfig implements IMessage {
         buf.writeByte(fortune);
         buf.writeDouble(blinkDistance);
         buf.writeByte(breakCooldown);
-        buf.writeByte(paramEnabled);
+        buf.writeShort(paramEnabled);
         buf.writeBoolean(chaosForceKill);
         buf.writeBoolean(conformalEnabled);
         buf.writeBoolean(advancedSilkTouch);
+        buf.writeBoolean(wallPhase);
     }
 }

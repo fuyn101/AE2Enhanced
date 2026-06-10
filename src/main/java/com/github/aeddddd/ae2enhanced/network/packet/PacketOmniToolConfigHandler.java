@@ -23,12 +23,13 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setBlinkDistance(stack, message.getBlinkDistance());
                     ItemAdvancedMEOmniTool.setBreakCooldown(stack, Math.max(0, message.getBreakCooldown()));
                     int mask = message.getParamEnabled();
-                    for (int i = 0; i < 9; i++) {
+                    for (int i = 0; i < 10; i++) {
                         ItemAdvancedMEOmniTool.setParamEnabled(stack, i, (mask & (1 << i)) != 0);
                     }
                     ItemAdvancedMEOmniTool.setChaosForceKillEnabled(stack, message.isChaosForceKill());
                     ItemAdvancedMEOmniTool.setConformalCharge(stack, message.isConformalEnabled());
                     ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(stack, message.isAdvancedSilkTouch());
+                    ItemAdvancedMEOmniTool.setWallPhaseEnabled(stack, message.isWallPhase());
                     // 强制同步NBT到客户端
                     player.setHeldItem(hand, stack);
                     break;

@@ -78,6 +78,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_PARAM_ENABLED = "ParamEnabled";
     public static final String NBT_CHAOS_FORCE_KILL = "ChaosForceKill";
     public static final String NBT_ADVANCED_SILK = "AdvancedSilkTouch";
+    public static final String NBT_WALL_PHASE = "WallPhase";
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -575,12 +576,17 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         RayTraceResult ray = world.rayTraceBlocks(start, end, false, true, false);
         Vec3d target;
         if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK) {
-            // 尝试穿墙：穿过阻挡方块后继续搜索安全落点
-            Vec3d through = ray.hitVec.add(look.scale(0.5));
-            Vec3d safe = findSafePos(world, through, end, look);
-            if (safe != null) {
-                target = safe;
+            if (isWallPhaseEnabled(stack)) {
+                // 尝试穿墙：穿过阻挡方块后继续搜索安全落点
+                Vec3d through = ray.hitVec.add(look.scale(0.5));
+                Vec3d safe = findSafePos(world, through, end, look);
+                if (safe != null) {
+                    target = safe;
+                } else {
+                    target = ray.hitVec.subtract(look.scale(0.15));
+                }
             } else {
+                // 不穿墙：在阻挡点前停下
                 target = ray.hitVec.subtract(look.scale(0.15));
             }
         } else {
@@ -773,6 +779,21 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         stack.getTagCompound().setBoolean(NBT_TRAVEL, has);
     }
 
+    public static boolean isWallPhaseEnabled(ItemStack stack) {
+        if (!stack.hasTagCompound()) {
+            return com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableWallPhase;
+        }
+        if (!stack.getTagCompound().hasKey(NBT_WALL_PHASE)) {
+            return com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableWallPhase;
+        }
+        return stack.getTagCompound().getBoolean(NBT_WALL_PHASE);
+    }
+
+    public static void setWallPhaseEnabled(ItemStack stack, boolean enabled) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setBoolean(NBT_WALL_PHASE, enabled);
+    }
+
     // ==================== Param Enabled ====================
 
     public static boolean isParamEnabled(ItemStack stack, int paramIdx) {
@@ -897,6 +918,11 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (mode == MODE_TRAVEL) {
             tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
                 + I18n.format("item.ae2enhanced.me_omni_tool.blink_dist", TextFormatting.YELLOW + String.format("%.1f", getBlinkDistance(stack))));
+            if (isWallPhaseEnabled(stack)) {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.wall_phase.on"));
+            } else {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.wall_phase.off"));
+            }
         }
 
         if (mode == MODE_UNIVERSAL) {
