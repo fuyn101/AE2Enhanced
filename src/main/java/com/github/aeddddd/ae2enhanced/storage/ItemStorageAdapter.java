@@ -147,9 +147,17 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             return getAllItems(limit);
         }
 
-        ObjectOpenHashSet<ItemDescriptor> candidates;
+        ObjectOpenHashSet<ItemDescriptor> candidates = null;
         if (isModSearch) {
-            candidates = this.modIndex.get(query);
+            for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
+                if (entry.getKey().contains(query)) {
+                    if (candidates == null) {
+                        candidates = new ObjectOpenHashSet<>(entry.getValue());
+                    } else {
+                        candidates.addAll(entry.getValue());
+                    }
+                }
+            }
             if (candidates == null) {
                 return Collections.emptyList();
             }
@@ -374,7 +382,16 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         String query = search.toLowerCase();
 
         if (searchMode == 1) {
-            ObjectOpenHashSet<ItemDescriptor> candidates = this.modIndex.get(query);
+            ObjectOpenHashSet<ItemDescriptor> candidates = null;
+            for (java.util.Map.Entry<String, ObjectOpenHashSet<ItemDescriptor>> entry : this.modIndex.entrySet()) {
+                if (entry.getKey().contains(query)) {
+                    if (candidates == null) {
+                        candidates = new ObjectOpenHashSet<>(entry.getValue());
+                    } else {
+                        candidates.addAll(entry.getValue());
+                    }
+                }
+            }
             if (candidates == null) return result;
             for (ItemDescriptor desc : candidates) {
                 BigInteger count = storage.get(desc);
