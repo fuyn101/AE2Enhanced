@@ -187,33 +187,108 @@ public class WirelessChannelConnectionHelper {
     }
 
     private static IGridNode getNodeFromParent(IAEAppEngInventory parent) {
+        // 1. PartUpgradeable
         if (parent instanceof PartUpgradeable) {
             return ((PartUpgradeable) parent).getProxy().getNode();
         }
-        // DualityInterface 以及其它持有 gridProxy 字段的内部类
+        // 2. IActionHost
+        if (parent instanceof appeng.api.networking.security.IActionHost) {
+            return ((appeng.api.networking.security.IActionHost) parent).getActionableNode();
+        }
+        // 3. IGridProxyable
+        if (parent instanceof appeng.me.helpers.IGridProxyable) {
+            appeng.me.helpers.AENetworkProxy proxy = ((appeng.me.helpers.IGridProxyable) parent).getProxy();
+            return proxy != null ? proxy.getNode() : null;
+        }
+        // 4. getProxy() method
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getProxy");
+            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) m.invoke(parent);
+            return proxy != null ? proxy.getNode() : null;
+        } catch (Exception ignored) {
+        }
+        // 5. gridProxy field (DualityInterface etc.)
         try {
             java.lang.reflect.Field f = parent.getClass().getDeclaredField("gridProxy");
             f.setAccessible(true);
             appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) f.get(parent);
             return proxy != null ? proxy.getNode() : null;
-        } catch (Exception e) {
-            return null;
+        } catch (Exception ignored) {
         }
+        // 6. proxy field (TileAENetworkBase etc.)
+        try {
+            java.lang.reflect.Field f = parent.getClass().getDeclaredField("proxy");
+            f.setAccessible(true);
+            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) f.get(parent);
+            return proxy != null ? proxy.getNode() : null;
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private static IItemHandler getUpgradesFromParent(IAEAppEngInventory parent) {
+        // 1. ISegmentedInventory
         if (parent instanceof appeng.api.implementations.tiles.ISegmentedInventory) {
             return ((appeng.api.implementations.tiles.ISegmentedInventory) parent).getInventoryByName("upgrades");
+        }
+        // 2. getInventoryByName method
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getInventoryByName", String.class);
+            IItemHandler inv = (IItemHandler) m.invoke(parent, "upgrades");
+            if (inv != null) return inv;
+        } catch (Exception ignored) {
+        }
+        // 3. getUpgrades / getUpgradeInventory method
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getUpgrades");
+            Object result = m.invoke(parent);
+            if (result instanceof IItemHandler) return (IItemHandler) result;
+        } catch (Exception ignored) {
+        }
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getUpgradeInventory");
+            Object result = m.invoke(parent);
+            if (result instanceof IItemHandler) return (IItemHandler) result;
+        } catch (Exception ignored) {
         }
         return null;
     }
 
     private static TileEntity getTileFromParent(IAEAppEngInventory parent) {
+        if (parent instanceof TileEntity) {
+            return (TileEntity) parent;
+        }
         if (parent instanceof PartUpgradeable) {
             return ((PartUpgradeable) parent).getTile();
         }
         if (parent instanceof appeng.helpers.DualityInterface) {
             return ((appeng.helpers.DualityInterface) parent).getTile();
+        }
+        // try getTile() / getTileEntity()
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getTile");
+            Object result = m.invoke(parent);
+            if (result instanceof TileEntity) return (TileEntity) result;
+        } catch (Exception ignored) {
+        }
+        try {
+            java.lang.reflect.Method m = parent.getClass().getMethod("getTileEntity");
+            Object result = m.invoke(parent);
+            if (result instanceof TileEntity) return (TileEntity) result;
+        } catch (Exception ignored) {
+        }
+        // try host.getTileEntity() (DualityCentralInterface etc.)
+        try {
+            java.lang.reflect.Field f = parent.getClass().getDeclaredField("host");
+            f.setAccessible(true);
+            Object host = f.get(parent);
+            if (host instanceof TileEntity) return (TileEntity) host;
+            if (host != null) {
+                java.lang.reflect.Method m = host.getClass().getMethod("getTileEntity");
+                Object result = m.invoke(host);
+                if (result instanceof TileEntity) return (TileEntity) result;
+            }
+        } catch (Exception ignored) {
         }
         return null;
     }

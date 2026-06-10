@@ -19,7 +19,7 @@ public class MixinAEBasePart {
     @Inject(method = "addToWorld", at = @At("TAIL"), remap = false)
     private void ae2e$onPartAddToWorld(CallbackInfo ci) {
         if (!appeng.util.Platform.isServer()) return;
-        if ((Object) this instanceof PartUpgradeable) {
+        if ((Object) this instanceof IAEAppEngInventory) {
             WirelessChannelConnectionHelper.tryConnect((IAEAppEngInventory) this);
         }
     }

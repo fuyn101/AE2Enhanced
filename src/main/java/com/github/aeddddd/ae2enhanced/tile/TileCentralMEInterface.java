@@ -16,6 +16,7 @@ import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.centralinterface.ICentralInterfaceHost;
 import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
+import com.github.aeddddd.ae2enhanced.util.network.WirelessChannelConnectionHelper;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -261,6 +262,7 @@ public class TileCentralMEInterface extends TileAENetworkBase
             getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
             getProxy().onReady();
             getInterfaceDuality().initialize();
+            WirelessChannelConnectionHelper.tryConnect(this);
         }
     }
 
