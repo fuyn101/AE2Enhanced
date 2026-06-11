@@ -301,6 +301,8 @@ item.ae2enhanced.energy_drop.name=RF Energy Drop
 tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
 item.ae2enhanced.platform_development_license.name=Platform Development License
 message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.
+message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
+message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
 
 key.ae2enhanced.rtsToggle=Enter/Exit RTS Mode
 

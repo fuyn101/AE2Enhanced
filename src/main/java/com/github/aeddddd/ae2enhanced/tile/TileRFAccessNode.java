@@ -39,8 +39,13 @@ import appeng.me.GridAccessException;
 public class TileRFAccessNode extends TileAENetworkBase
         implements IGridTickable, IActionHost, IEnergyStorage, ITickable {
 
+    public static final int MODE_INPUT = 0;
+    public static final int MODE_OUTPUT = 1;
+    private static final String NBT_MODE = "RFMode";
+
     private MachineSource machineSource;
     private int creativeBoostCooldown = 0;
+    private int mode = MODE_INPUT;
 
     // === TileAENetworkBase ===
 
@@ -132,33 +137,86 @@ public class TileRFAccessNode extends TileAENetworkBase
 
     @Override
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        if (mode == MODE_OUTPUT) {
+            doOutputTick();
+            return TickRateModulation.SAME;
+        }
         return TickRateModulation.SLEEP;
+    }
+
+    /**
+     * 输出模式：主动从 ME 网络提取能量并推送到相邻可接收设备.
+     */
+    private void doOutputTick() {
+        int maxTransfer = AE2EnhancedConfig.energy.rfAccessNodeMaxTransfer;
+        if (maxTransfer <= 0) return;
+        IMEMonitor<IAEEnergyStack> monitor = getEnergyMonitor();
+        if (monitor == null) return;
+        MachineSource source = getMachineSource();
+
+        for (EnumFacing facing : EnumFacing.values()) {
+            BlockPos neighborPos = this.pos.offset(facing);
+            if (!this.world.isBlockLoaded(neighborPos)) continue;
+            net.minecraft.tileentity.TileEntity te = this.world.getTileEntity(neighborPos);
+            if (te == null || te.isInvalid()) continue;
+            if (te == this) continue;
+
+            IEnergyStorage cap = null;
+            for (EnumFacing f : EnumFacing.values()) {
+                if (te.hasCapability(CapabilityEnergy.ENERGY, f)) {
+                    IEnergyStorage c = te.getCapability(CapabilityEnergy.ENERGY, f);
+                    if (c != null && c.canReceive()) {
+                        cap = c;
+                        break;
+                    }
+                }
+            }
+            if (cap == null) continue;
+
+            int demand = cap.receiveEnergy(maxTransfer, true);
+            if (demand <= 0) continue;
+
+            IAEEnergyStack extracted = monitor.extractItems(AEEnergyStack.create(demand), Actionable.MODULATE, source);
+            if (extracted == null || extracted.getStackSize() <= 0) continue;
+
+            int toInject = (int) Math.min(extracted.getStackSize(), maxTransfer);
+            int actual = cap.receiveEnergy(toInject, false);
+
+            long leftover = extracted.getStackSize() - actual;
+            if (leftover > 0) {
+                monitor.injectItems(AEEnergyStack.create(leftover), Actionable.MODULATE, source);
+            }
+        }
     }
 
     // === Forge IEnergyStorage ===
 
     @Override
     public int receiveEnergy(int maxReceive, boolean simulate) {
-        if (maxReceive <= 0) return 0;
+        if (maxReceive <= 0 || mode != MODE_INPUT) return 0;
+        int limit = AE2EnhancedConfig.energy.rfAccessNodeMaxTransfer;
+        if (maxReceive > limit) maxReceive = limit;
         IMEMonitor<IAEEnergyStack> monitor = getEnergyMonitor();
         if (monitor == null) return 0;
 
-        Actionable mode = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
+        Actionable action = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
         IAEEnergyStack rejected = monitor.injectItems(
-                AEEnergyStack.create(maxReceive), mode, getMachineSource());
+                AEEnergyStack.create(maxReceive), action, getMachineSource());
         long rejectedSize = rejected != null ? rejected.getStackSize() : 0;
         return (int) (maxReceive - rejectedSize);
     }
 
     @Override
     public int extractEnergy(int maxExtract, boolean simulate) {
-        if (maxExtract <= 0) return 0;
+        if (maxExtract <= 0 || mode != MODE_OUTPUT) return 0;
+        int limit = AE2EnhancedConfig.energy.rfAccessNodeMaxTransfer;
+        if (maxExtract > limit) maxExtract = limit;
         IMEMonitor<IAEEnergyStack> monitor = getEnergyMonitor();
         if (monitor == null) return 0;
 
-        Actionable mode = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
+        Actionable action = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
         IAEEnergyStack extracted = monitor.extractItems(
-                AEEnergyStack.create(maxExtract), mode, getMachineSource());
+                AEEnergyStack.create(maxExtract), action, getMachineSource());
         return extracted != null ? (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE) : 0;
     }
 
@@ -183,12 +241,35 @@ public class TileRFAccessNode extends TileAENetworkBase
 
     @Override
     public boolean canExtract() {
-        return true;
+        return mode == MODE_OUTPUT;
     }
 
     @Override
     public boolean canReceive() {
-        return true;
+        return mode == MODE_INPUT;
+    }
+
+    public int getMode() {
+        return mode;
+    }
+
+    public void setMode(int mode) {
+        this.mode = mode == MODE_OUTPUT ? MODE_OUTPUT : MODE_INPUT;
+        if (this.world != null) {
+            this.world.notifyBlockUpdate(this.pos, this.world.getBlockState(this.pos), this.world.getBlockState(this.pos), 2);
+        }
+    }
+
+    public void cycleMode() {
+        setMode(mode == MODE_INPUT ? MODE_OUTPUT : MODE_INPUT);
+    }
+
+    public boolean isInputMode() {
+        return mode == MODE_INPUT;
+    }
+
+    public boolean isOutputMode() {
+        return mode == MODE_OUTPUT;
     }
 
     // === Capability 暴露 ===
@@ -214,11 +295,14 @@ public class TileRFAccessNode extends TileAENetworkBase
     @Override
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
+        this.mode = compound.getInteger(NBT_MODE);
     }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
-        return super.writeToNBT(compound);
+        compound = super.writeToNBT(compound);
+        compound.setInteger(NBT_MODE, this.mode);
+        return compound;
     }
 
     // === 辅助 ===
