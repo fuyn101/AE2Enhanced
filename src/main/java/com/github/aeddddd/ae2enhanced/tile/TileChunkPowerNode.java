@@ -37,7 +37,9 @@ import net.minecraftforge.energy.IEnergyStorage;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 区块供电节点的 TileEntity.
@@ -55,6 +57,12 @@ import java.util.List;
 public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, IActionHost {
 
     private static final int CACHE_REFRESH_INTERVAL = 20;
+
+    /** 区块供电黑名单：这些方块不会被供能（避免自我循环或兼容问题） */
+    private static final Set<String> BLACKLIST = new HashSet<>();
+    static {
+        BLACKLIST.add("ae2enhanced:rf_access_node");
+    }
 
     private EnumFacing forward = EnumFacing.NORTH;
     private MachineSource machineSource;
@@ -223,6 +231,10 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
             BlockPos tp = te.getPos();
             if ((tp.getX() >> 4) != chunkX || (tp.getZ() >> 4) != chunkZ) continue;
+
+            // 黑名单检查
+            String blockId = world.getBlockState(tp).getBlock().getRegistryName().toString();
+            if (BLACKLIST.contains(blockId)) continue;
 
             for (EnumFacing facing : EnumFacing.values()) {
                 if (te.hasCapability(CapabilityEnergy.ENERGY, facing)) {
