@@ -5,9 +5,6 @@ import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.data.IItemList;
 import appeng.api.util.AECableType;
@@ -37,7 +34,7 @@ import appeng.me.GridAccessException;
  * 本身不保留任何本地缓存,所有 RF 直接进出 ME 网络.
  */
 public class TileRFAccessNode extends TileAENetworkBase
-        implements IGridTickable, IActionHost, IEnergyStorage, ITickable {
+        implements IActionHost, IEnergyStorage, ITickable {
 
     public static final int MODE_INPUT = 0;
     public static final int MODE_OUTPUT = 1;
@@ -91,6 +88,7 @@ public class TileRFAccessNode extends TileAENetworkBase
         }
         if (!this.world.isRemote) {
             doCreativeBoostTick();
+            doOutputTick();
         }
     }
 
@@ -128,28 +126,12 @@ public class TileRFAccessNode extends TileAENetworkBase
         return false;
     }
 
-    // === IGridTickable ===
-
-    @Override
-    public TickingRequest getTickingRequest(IGridNode node) {
-        return new TickingRequest(1, 20, false, false);
-    }
-
-    @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
-        if (mode == MODE_OUTPUT) {
-            doOutputTick();
-            return TickRateModulation.SAME;
-        }
-        return TickRateModulation.SLEEP;
-    }
-
     /**
      * 输出模式：主动从 ME 网络提取能量并推送到相邻可接收设备.
+     * 不限制速度，按需全力输出.
      */
     private void doOutputTick() {
-        int maxTransfer = AE2EnhancedConfig.energy.rfAccessNodeMaxTransfer;
-        if (maxTransfer <= 0) return;
+        if (mode != MODE_OUTPUT) return;
         IMEMonitor<IAEEnergyStack> monitor = getEnergyMonitor();
         if (monitor == null) return;
         MachineSource source = getMachineSource();
@@ -173,13 +155,13 @@ public class TileRFAccessNode extends TileAENetworkBase
             }
             if (cap == null) continue;
 
-            int demand = cap.receiveEnergy(maxTransfer, true);
+            int demand = cap.receiveEnergy(Integer.MAX_VALUE, true);
             if (demand <= 0) continue;
 
             IAEEnergyStack extracted = monitor.extractItems(AEEnergyStack.create(demand), Actionable.MODULATE, source);
             if (extracted == null || extracted.getStackSize() <= 0) continue;
 
-            int toInject = (int) Math.min(extracted.getStackSize(), maxTransfer);
+            int toInject = (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE);
             int actual = cap.receiveEnergy(toInject, false);
 
             long leftover = extracted.getStackSize() - actual;
