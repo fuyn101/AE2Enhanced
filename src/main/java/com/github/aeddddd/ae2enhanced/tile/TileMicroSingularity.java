@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
@@ -18,14 +19,15 @@ import net.minecraft.util.text.TextComponentTranslation;
 
 /**
  * 微型奇点的 TileEntity.
- * 300 秒(6000 ticks)后自动坍缩消失.
+ * 默认 300 秒(6000 ticks)后自动坍缩消失,可通过 setLifetimeTicks 自定义.
  * 期间对 3×3×3 范围内的生物执行稳定击杀,物品不会受影响.
  * 黑洞合成由玩家右键方块主动触发,而非自动吸入.
  */
 public class TileMicroSingularity extends TileEntity implements ITickable {
 
-    private static final int DEFAULT_LIFE_TICKS = 6000;
+    public static final int DEFAULT_LIFE_TICKS = 6000;
     private static final int HORIZON_RADIUS = 1; // 3×3×3 范围：origin ± 1
+    private static final String NBT_LIFE_TICKS = "LifeTicks";
 
     private int lifeTicks = DEFAULT_LIFE_TICKS;
 
@@ -35,6 +37,14 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
             return new TextComponentTranslation("death.spacetime.blackHole", entityLivingBaseIn.getDisplayName());
         }
     }.setDamageBypassesArmor();
+
+    public void setLifetimeTicks(int ticks) {
+        this.lifeTicks = ticks > 0 ? ticks : DEFAULT_LIFE_TICKS;
+    }
+
+    public int getLifetimeTicks() {
+        return lifeTicks;
+    }
 
     @Override
     public void update() {
@@ -100,5 +110,18 @@ public class TileMicroSingularity extends TileEntity implements ITickable {
         world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXPLODE,
                 SoundCategory.BLOCKS, 2.0f, 0.5f);
         world.setBlockToAir(pos);
+    }
+
+    @Override
+    public void readFromNBT(NBTTagCompound compound) {
+        super.readFromNBT(compound);
+        this.lifeTicks = compound.hasKey(NBT_LIFE_TICKS) ? compound.getInteger(NBT_LIFE_TICKS) : DEFAULT_LIFE_TICKS;
+    }
+
+    @Override
+    public NBTTagCompound writeToNBT(NBTTagCompound compound) {
+        compound = super.writeToNBT(compound);
+        compound.setInteger(NBT_LIFE_TICKS, this.lifeTicks);
+        return compound;
     }
 }

@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.container;
 
+import com.github.aeddddd.ae2enhanced.crafting.AssemblyHubUpgradeRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.entity.player.EntityPlayer;
@@ -33,17 +34,33 @@ public class ContainerAssemblyFormed extends Container {
                     UPGRADE_X + col * 18, UPGRADE_Y + row * 18) {
                     @Override
                     public boolean isItemValid(ItemStack stack) {
-                        return stack.getItem() instanceof ItemUpgradeCard
-                            && stack.getMetadata() == index;
+                        // 原生升级卡：metadata 与槽位一一对应
+                        if (stack.getItem() instanceof ItemUpgradeCard && stack.getMetadata() == index) {
+                            return true;
+                        }
+                        // 注册表中的自定义升级卡
+                        AssemblyHubUpgradeRegistry.UpgradeDefinition def = AssemblyHubUpgradeRegistry.findFor(stack);
+                        if (def != null) {
+                            if (index == 0 && def.type == AssemblyHubUpgradeRegistry.UpgradeType.PARALLEL) return true;
+                            if (index == 1 && def.type == AssemblyHubUpgradeRegistry.UpgradeType.SPEED) return true;
+                        }
+                        return false;
                     }
 
                     @Override
                     public int getItemStackLimit(ItemStack stack) {
+                        // 注册表自定义堆叠上限
+                        int custom = AssemblyHubUpgradeRegistry.getCustomMaxStack(stack);
+                        if (custom > 0) return custom;
                         return ItemUpgradeCard.getMaxStackForMeta(index);
                     }
 
                     @Override
                     public int getSlotStackLimit() {
+                        // 优先以当前槽位中已有物品决定上限
+                        ItemStack current = handler.getStackInSlot(index);
+                        int custom = AssemblyHubUpgradeRegistry.getCustomMaxStack(current);
+                        if (custom > 0) return custom;
                         return ItemUpgradeCard.getMaxStackForMeta(index);
                     }
 

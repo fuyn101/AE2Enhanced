@@ -22,6 +22,7 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
+import com.github.aeddddd.ae2enhanced.crafting.AssemblyHubUpgradeRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
@@ -116,7 +117,17 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         @Override
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
             if (slot < UPGRADE_SLOTS) {
-                return stack.getItem() instanceof ItemUpgradeCard;
+                // 原生升级卡：metadata 与槽位一一对应
+                if (stack.getItem() instanceof ItemUpgradeCard && stack.getMetadata() == slot) {
+                    return true;
+                }
+                // 注册表中的自定义升级卡
+                AssemblyHubUpgradeRegistry.UpgradeDefinition def = AssemblyHubUpgradeRegistry.findFor(stack);
+                if (def != null) {
+                    if (slot == 0 && def.type == AssemblyHubUpgradeRegistry.UpgradeType.PARALLEL) return true;
+                    if (slot == 1 && def.type == AssemblyHubUpgradeRegistry.UpgradeType.SPEED) return true;
+                }
+                return false;
             }
             return stack.getItem() instanceof ICraftingPatternItem;
         }
@@ -171,6 +182,22 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         @Override
         public int getSlotLimit(int slot) {
             if (slot < 0 || slot >= stacks.size()) return 0;
+            if (slot < UPGRADE_SLOTS) {
+                ItemStack current = getStackInSlot(slot);
+                if (!current.isEmpty()) {
+                    // 注册表中的自定义堆叠上限
+                    int custom = AssemblyHubUpgradeRegistry.getCustomMaxStack(current);
+                    if (custom > 0) return custom;
+                }
+                // 原生升级卡堆叠上限
+                if (slot == ItemUpgradeCard.META_PARALLEL || slot == ItemUpgradeCard.META_SPEED) {
+                    return 5;
+                }
+                if (slot == ItemUpgradeCard.META_RESERVED1) {
+                    return 1;
+                }
+                return 10;
+            }
             return super.getSlotLimit(slot);
         }
 
@@ -234,20 +261,30 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     /**
      * 获取当前并行上限.并行升级卡固定在槽位 0,堆叠数量即为安装数量.
      * 0 张 = 64,每多 1 张 ×32,5 张 = Long.MAX_VALUE.
+     * 若槽位中放置的是 CraftTweaker 注册的自定义并行升级卡,则使用注册表的值.
      */
     public long getParallelCap() {
         ItemStack stack = itemHandler.getStackInSlot(0);
-        if (stack.isEmpty() || !(stack.getItem() instanceof ItemUpgradeCard) || stack.getMetadata() != ItemUpgradeCard.META_PARALLEL) {
+        if (stack.isEmpty()) {
             return 64;
         }
-        int count = stack.getCount();
-        if (count >= 5) return Long.MAX_VALUE;
-        long cap = 64;
-        for (int i = 0; i < count; i++) {
-            cap = cap * 32;
-            if (cap > 67108864) return 67108864;
+        // 注册表自定义并行升级
+        long custom = AssemblyHubUpgradeRegistry.getParallelValue(stack, stack.getCount());
+        if (custom >= 0) {
+            return custom;
         }
-        return cap;
+        // 原生并行升级卡
+        if (stack.getItem() instanceof ItemUpgradeCard && stack.getMetadata() == ItemUpgradeCard.META_PARALLEL) {
+            int count = stack.getCount();
+            if (count >= 5) return Long.MAX_VALUE;
+            long cap = 64;
+            for (int i = 0; i < count; i++) {
+                cap = cap * 32;
+                if (cap > 67108864) return 67108864;
+            }
+            return cap;
+        }
+        return 64;
     }
 
     /**
@@ -886,16 +923,27 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     /**
      * 获取当前合成延迟 tick 数.速度升级卡固定在槽位 1,堆叠数量即为安装数量.
      * 每张减半,最低 1 tick.
+     * 若槽位中放置的是 CraftTweaker 注册的自定义速度升级卡,则使用注册表的值.
      */
     public int getCraftingTicks() {
-        int ticks = 20;
         ItemStack stack = itemHandler.getStackInSlot(1);
-        if (!stack.isEmpty() && stack.getItem() instanceof ItemUpgradeCard && stack.getMetadata() == ItemUpgradeCard.META_SPEED) {
+        if (stack.isEmpty()) {
+            return 20;
+        }
+        // 注册表自定义速度升级
+        int custom = AssemblyHubUpgradeRegistry.getSpeedValue(stack, stack.getCount());
+        if (custom >= 0) {
+            return custom;
+        }
+        // 原生速度升级卡
+        if (stack.getItem() instanceof ItemUpgradeCard && stack.getMetadata() == ItemUpgradeCard.META_SPEED) {
+            int ticks = 20;
             for (int i = 0; i < stack.getCount() && ticks > 1; i++) {
                 ticks = Math.max(ticks / 2, 1);
             }
+            return ticks;
         }
-        return ticks;
+        return 20;
     }
 
     /**

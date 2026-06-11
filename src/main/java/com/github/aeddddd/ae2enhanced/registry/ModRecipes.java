@@ -7,6 +7,7 @@ import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipeRegistry;
+import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
@@ -31,21 +32,29 @@ public final class ModRecipes {
     }
 
     private static void registerSingularityRecipes() {
-        // 系统 A：黑洞生成仪式
+        // 系统 A：微型奇点仪式
         Item ae2Material = Item.REGISTRY.getObject(new ResourceLocation("appliedenergistics2", "material"));
-        if (ae2Material != null) {
+        Block ae2Controller = Block.REGISTRY.getObject(new ResourceLocation("appliedenergistics2", "controller"));
+        if (ae2Material != null && ae2Controller != null) {
             List<ItemStack> ritualInputs = new ArrayList<>();
             ritualInputs.add(new ItemStack(ae2Material, 64, 47)); // AE2 奇点
             ritualInputs.add(new ItemStack(Items.NETHER_STAR, 4));
-            SingularityRecipeRegistry.register(new SingularityRecipe("micro_singularity_ritual", ritualInputs));
+            SingularityRecipeRegistry.register(new SingularityRecipe(
+                    "micro_singularity_ritual",
+                    ritualInputs,
+                    new ItemStack(Items.NETHER_STAR),
+                    ae2Controller,
+                    6000
+            ));
         } else {
-            AE2Enhanced.LOGGER.warn("无法获取 AE2 材料物品,黑洞生成仪式配方未注册");
+            AE2Enhanced.LOGGER.warn("无法获取 AE2 材料或控制器方块,微型奇点仪式配方未注册");
         }
 
         // 系统 B：黑洞合成配方
         registerBlackHoleRecipes();
 
         // 执行 CraftTweaker 延迟移除
+        SingularityRecipeRegistry.applyPendingRemovals();
         BlackHoleRecipeRegistry.applyPendingRemovals();
     }
 
