@@ -44,7 +44,7 @@ public class ChunkPowerHighlightRenderer {
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
+    public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Iterator<Map.Entry<BlockPos, Integer>> it = HIGHLIGHTS.entrySet().iterator();
         while (it.hasNext()) {
@@ -59,7 +59,7 @@ public class ChunkPowerHighlightRenderer {
     }
 
     @SubscribeEvent
-    public static void onRenderWorldLast(RenderWorldLastEvent event) {
+    public void onRenderWorldLast(RenderWorldLastEvent event) {
         if (HIGHLIGHTS.isEmpty()) return;
 
         EntityPlayer player = Minecraft.getMinecraft().player;
@@ -108,7 +108,7 @@ public class ChunkPowerHighlightRenderer {
         GlStateManager.popMatrix();
     }
 
-    private static void drawBoxEdges(BufferBuilder buffer, AxisAlignedBB bb) {
+    private void drawBoxEdges(BufferBuilder buffer, AxisAlignedBB bb) {
         // 底面
         buffer.pos(bb.minX, bb.minY, bb.minZ).color(R, G, B, A).endVertex();
         buffer.pos(bb.maxX, bb.minY, bb.minZ).color(R, G, B, A).endVertex();

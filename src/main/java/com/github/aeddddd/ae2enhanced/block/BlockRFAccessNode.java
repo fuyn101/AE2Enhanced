@@ -63,6 +63,7 @@ public class BlockRFAccessNode extends Block {
 
     @Override
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+        if (hand != EnumHand.MAIN_HAND) return false;
         if (player.isSneaking() && !world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileRFAccessNode) {
