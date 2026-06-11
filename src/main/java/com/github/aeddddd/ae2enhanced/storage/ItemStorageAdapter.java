@@ -175,8 +175,8 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
 
     @Override
     protected void onDescriptorAdded(ItemDescriptor descriptor) {
-        String name = descriptor.getDisplayName((IItemStorageChannel) channel).toLowerCase();
-        String modId = descriptor.getModId((IItemStorageChannel) channel).toLowerCase();
+        String name = descriptor.getDisplayName().toLowerCase();
+        String modId = descriptor.getModId().toLowerCase();
 
         for (String word : splitWords(name)) {
             ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(word);
@@ -196,8 +196,8 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
 
     @Override
     protected void onDescriptorRemoved(ItemDescriptor descriptor) {
-        String name = descriptor.getDisplayName((IItemStorageChannel) channel).toLowerCase();
-        String modId = descriptor.getModId((IItemStorageChannel) channel).toLowerCase();
+        String name = descriptor.getDisplayName().toLowerCase();
+        String modId = descriptor.getModId().toLowerCase();
 
         for (String word : splitWords(name)) {
             ObjectOpenHashSet<ItemDescriptor> set = this.nameIndex.get(word);
@@ -297,7 +297,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             if (results.size() < limit) {
                 ensureExternalOnlyCache();
                 for (IAEItemStack stack : this.externalOnlyCache) {
-                    String modId = Platform.getModId(stack).toLowerCase();
+                    String modId = stack.asItemStackRepresentation().getItem().getRegistryName().getNamespace().toLowerCase();
                     if (fuzzyEnabled ? !modId.contains(query) : !modId.equals(query)) continue;
                     results.add(stack.copy());
                     if (results.size() >= limit) break;
@@ -344,7 +344,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             if (results.size() < limit) {
                 ensureExternalOnlyCache();
                 for (IAEItemStack stack : this.externalOnlyCache) {
-                    String name = Platform.getItemDisplayName(stack).toLowerCase();
+                    String name = stack.asItemStackRepresentation().getDisplayName().toLowerCase();
                     boolean matches = true;
                     for (String term : terms) {
                         if (term.isEmpty()) continue;
@@ -618,7 +618,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 // 2. externalOnlyCache MOD 搜索（只有几百个物品，线性扫描很快）
                 ensureExternalOnlyCache();
                 for (IAEItemStack stack : this.externalOnlyCache) {
-                    String modId = Platform.getModId(stack).toLowerCase();
+                    String modId = stack.asItemStackRepresentation().getItem().getRegistryName().getNamespace().toLowerCase();
                     if (fuzzyEnabled ? !modId.contains(query) : !modId.equals(query)) continue;
                     allMatched.add(stack.copy());
                 }
@@ -662,7 +662,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 // 2. externalOnlyCache NAME 搜索（只有几百个物品）
                 ensureExternalOnlyCache();
                 for (IAEItemStack stack : this.externalOnlyCache) {
-                    String name = Platform.getItemDisplayName(stack).toLowerCase();
+                    String name = stack.asItemStackRepresentation().getDisplayName().toLowerCase();
                     boolean matches = true;
                     for (String term : terms) {
                         if (term.isEmpty()) continue;

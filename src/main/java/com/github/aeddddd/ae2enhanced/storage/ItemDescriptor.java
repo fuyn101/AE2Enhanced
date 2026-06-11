@@ -104,12 +104,12 @@ public class ItemDescriptor implements Descriptor {
 
     /**
      * 获取缓存的显示名称（首次调用时计算并缓存）.
+     * 直接使用 ItemStack.getDisplayName()，避免在服务端调用 AE2 客户端-only 方法.
      */
-    public String getDisplayName(IItemStorageChannel channel) {
+    public String getDisplayName() {
         String result = displayName;
         if (result == null) {
-            IAEItemStack template = getAETemplate(channel);
-            result = appeng.util.Platform.getItemDisplayName(template);
+            result = toItemStack().getDisplayName();
             displayName = result;
         }
         return result;
@@ -117,12 +117,13 @@ public class ItemDescriptor implements Descriptor {
 
     /**
      * 获取缓存的 modId（首次调用时计算并缓存）.
+     * 直接从 Item registryName 提取，避免在服务端调用 AE2 客户端-only 方法.
      */
-    public String getModId(IItemStorageChannel channel) {
+    public String getModId() {
         String result = modId;
         if (result == null) {
-            IAEItemStack template = getAETemplate(channel);
-            result = appeng.util.Platform.getModId(template);
+            net.minecraft.util.ResourceLocation reg = item.getRegistryName();
+            result = reg != null ? reg.getNamespace() : "unknown";
             modId = result;
         }
         return result;

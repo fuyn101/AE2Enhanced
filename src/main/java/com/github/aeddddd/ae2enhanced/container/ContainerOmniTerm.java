@@ -1730,12 +1730,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                     || all.size() <= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.terminal.modSearchFuzzyThreshold);
             for (IAEItemStack stack : filtered) {
                 if (isModSearch) {
-                    String modId = Platform.getModId(stack).toLowerCase();
+                    String modId = stack.asItemStackRepresentation().getItem().getRegistryName().getNamespace().toLowerCase();
                     if (fuzzyModSearch ? modId.contains(query) : modId.equals(query)) {
                         searched.add(stack);
                     }
                 } else {
-                    if (Platform.getItemDisplayName(stack).toLowerCase().contains(query)) {
+                    if (stack.asItemStackRepresentation().getDisplayName().toLowerCase().contains(query)) {
                         searched.add(stack);
                     }
                 }
@@ -1852,12 +1852,12 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         for (IAEItemStack stack : list) {
             if (!stack.isMeaningful()) continue;
             if (request.isModSearch()) {
-                String modId = Platform.getModId(stack).toLowerCase();
+                String modId = stack.asItemStackRepresentation().getItem().getRegistryName().getNamespace().toLowerCase();
                 if (fuzzyModSearch ? modId.contains(query) : modId.equals(query)) {
                     results.add(stack.copy());
                 }
             } else {
-                String name = Platform.getItemDisplayName(stack).toLowerCase();
+                String name = stack.asItemStackRepresentation().getDisplayName().toLowerCase();
                 if (name.contains(query)) {
                     results.add(stack.copy());
                 }
