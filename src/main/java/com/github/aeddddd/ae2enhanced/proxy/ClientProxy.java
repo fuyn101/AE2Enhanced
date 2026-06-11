@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.SelectionBoxRenderer;
+import com.github.aeddddd.ae2enhanced.client.render.ChunkPowerHighlightRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
@@ -90,6 +91,7 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new KeyHandlerOmniTool());
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
+        MinecraftForge.EVENT_BUS.register(new ChunkPowerHighlightRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());
 
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());

@@ -71,6 +71,13 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     protected final List<BlockPos> cachedTargets = new ArrayList<>();
     private int cacheRefreshCooldown = 0;
 
+    /**
+     * 获取当前缓存的供电目标位置列表（副本）.
+     */
+    public List<BlockPos> getCachedTargets() {
+        return new ArrayList<>(cachedTargets);
+    }
+
     // 客户端同步
     private int clientFlags = 0;
     private boolean lastPowered = false;

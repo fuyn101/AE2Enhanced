@@ -9,9 +9,11 @@ import net.minecraft.block.properties.PropertyEnum;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -150,6 +152,22 @@ public class BlockChunkPowerNode extends Block {
     @Override
     public BlockRenderLayer getRenderLayer() {
         return BlockRenderLayer.CUTOUT;
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+        if (player.isSneaking() && !world.isRemote) {
+            TileEntity te = world.getTileEntity(pos);
+            if (te instanceof TileChunkPowerNode) {
+                TileChunkPowerNode node = (TileChunkPowerNode) te;
+                java.util.List<BlockPos> targets = node.getCachedTargets();
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                        new com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlight(targets, 100),
+                        (net.minecraft.entity.player.EntityPlayerMP) player);
+                return true;
+            }
+        }
+        return super.onBlockActivated(world, pos, state, player, hand, facing, hitX, hitY, hitZ);
     }
 
     public enum State implements IStringSerializable {
