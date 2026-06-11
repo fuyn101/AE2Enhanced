@@ -21,7 +21,7 @@ import java.util.List;
 
 /**
  * NuclearCraft 机器的配置复制粘贴 Handler.
- * <p>支持 TileEnergyProcessor 及其子类(包括可升级处理器).</p>
+ * <p>同时支持 NuclearCraft Overhauled (重制版) 和 NuclearCraft 2.x (非重制版).</p>
  * <p>复制/粘贴的内容包括：物品侧面配置、流体侧面配置、红石控制、比较器模式、
  * 物品输出设置、流体设置(分离/废弃/输出模式)、升级槽(速度/能量).</p>
  *
@@ -30,29 +30,32 @@ import java.util.List;
 public class NuclearCraftMachineHandler implements IMemoryCardHandler {
 
     private static final boolean AVAILABLE;
+    private static final boolean IS_OVERHAULED;
 
-    // ---------- 类 ----------
+    // ---------- 重制版类 ----------
     private static Class<?> TILE_ENERGY_PROCESSOR_CLASS;
     private static Class<?> TILE_CONTAINER_INFO_CLASS;
     private static Class<?> UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS;
-
-    // ---------- 字段 ----------
-    /** TileEnergyProcessor.info */
     private static Field INFO_FIELD;
-    /** TileContainerInfo.name */
     private static Field NAME_FIELD;
-    /** UpgradableProcessorContainerInfo.speedUpgradeSlot */
     private static Field SPEED_UPGRADE_SLOT_FIELD;
-    /** UpgradableProcessorContainerInfo.energyUpgradeSlot */
     private static Field ENERGY_UPGRADE_SLOT_FIELD;
 
-    // ---------- NCTile 方法 ----------
+    // ---------- 非重制版类 ----------
+    private static Class<?> TILE_ITEM_PROCESSOR_CLASS;
+    private static Class<?> TILE_FLUID_PROCESSOR_CLASS;
+    private static Class<?> TILE_ITEM_FLUID_PROCESSOR_CLASS;
+    private static Class<?> ITILE_CLASS;
+    private static Class<?> IUPGRADABLE_CLASS;
+    private static Method GET_SPEED_UPGRADE_SLOT_METHOD;
+    private static Method GET_ENERGY_UPGRADE_SLOT_METHOD;
+
+    // ---------- 共享方法 ----------
     private static Method GET_REDSTONE_CONTROL_METHOD;
     private static Method SET_REDSTONE_CONTROL_METHOD;
     private static Method GET_ALTERNATE_COMPARATOR_METHOD;
     private static Method SET_ALTERNATE_COMPARATOR_METHOD;
 
-    // ---------- ITileInventory 方法 ----------
     private static Method HAS_CONFIGURABLE_INVENTORY_CONNECTIONS_METHOD;
     private static Method WRITE_INVENTORY_CONNECTIONS_METHOD;
     private static Method READ_INVENTORY_CONNECTIONS_METHOD;
@@ -60,66 +63,112 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
     private static Method READ_SLOT_SETTINGS_METHOD;
     private static Method GET_INVENTORY_STACKS_METHOD;
 
-    // ---------- ITileFluid 方法 ----------
     private static Method HAS_CONFIGURABLE_FLUID_CONNECTIONS_METHOD;
     private static Method WRITE_FLUID_CONNECTIONS_METHOD;
     private static Method READ_FLUID_CONNECTIONS_METHOD;
     private static Method WRITE_TANK_SETTINGS_METHOD;
     private static Method READ_TANK_SETTINGS_METHOD;
 
-    // ---------- TileEnergyProcessor 方法 ----------
     private static Method REFRESH_ENERGY_CAPACITY_METHOD;
+    private static Method REFRESH_UPGRADES_METHOD;
 
     static {
         boolean available = false;
+        boolean overhauled = false;
         try {
             if (Loader.isModLoaded("nuclearcraft")) {
-                TILE_ENERGY_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileEnergyProcessor");
-                TILE_CONTAINER_INFO_CLASS = Class.forName("nc.tile.TileContainerInfo");
+                // 尝试检测重制版
                 try {
-                    UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS = Class.forName("nc.tile.processor.info.UpgradableProcessorContainerInfo");
+                    TILE_ENERGY_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileEnergyProcessor");
+                    overhauled = true;
                 } catch (ClassNotFoundException e) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] UpgradableProcessorContainerInfo not found, NC upgrade support disabled");
+                    overhauled = false;
                 }
 
-                INFO_FIELD = TILE_ENERGY_PROCESSOR_CLASS.getDeclaredField("info");
-                INFO_FIELD.setAccessible(true);
-                NAME_FIELD = TILE_CONTAINER_INFO_CLASS.getField("name");
+                if (overhauled) {
+                    // ===== 重制版初始化 =====
+                    TILE_CONTAINER_INFO_CLASS = Class.forName("nc.tile.TileContainerInfo");
+                    try {
+                        UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS = Class.forName("nc.tile.processor.info.UpgradableProcessorContainerInfo");
+                    } catch (ClassNotFoundException e) {
+                        AE2Enhanced.LOGGER.warn("[AE2E] UpgradableProcessorContainerInfo not found, NC upgrade support disabled");
+                    }
 
-                if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS != null) {
-                    SPEED_UPGRADE_SLOT_FIELD = UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.getField("speedUpgradeSlot");
-                    ENERGY_UPGRADE_SLOT_FIELD = UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.getField("energyUpgradeSlot");
+                    INFO_FIELD = TILE_ENERGY_PROCESSOR_CLASS.getDeclaredField("info");
+                    INFO_FIELD.setAccessible(true);
+                    NAME_FIELD = TILE_CONTAINER_INFO_CLASS.getField("name");
+
+                    if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS != null) {
+                        SPEED_UPGRADE_SLOT_FIELD = UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.getField("speedUpgradeSlot");
+                        ENERGY_UPGRADE_SLOT_FIELD = UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.getField("energyUpgradeSlot");
+                    }
+
+                    Class<?> ncTileClass = Class.forName("nc.tile.NCTile");
+                    GET_REDSTONE_CONTROL_METHOD = ncTileClass.getMethod("getRedstoneControl");
+                    SET_REDSTONE_CONTROL_METHOD = ncTileClass.getMethod("setRedstoneControl", boolean.class);
+                    GET_ALTERNATE_COMPARATOR_METHOD = ncTileClass.getMethod("getAlternateComparator");
+                    SET_ALTERNATE_COMPARATOR_METHOD = ncTileClass.getMethod("setAlternateComparator", boolean.class);
+
+                    Class<?> iTileInventoryClass = Class.forName("nc.tile.inventory.ITileInventory");
+                    HAS_CONFIGURABLE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("hasConfigurableInventoryConnections");
+                    WRITE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("writeInventoryConnections", NBTTagCompound.class);
+                    READ_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("readInventoryConnections", NBTTagCompound.class);
+                    WRITE_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("writeSlotSettings", NBTTagCompound.class);
+                    READ_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("readSlotSettings", NBTTagCompound.class);
+                    GET_INVENTORY_STACKS_METHOD = iTileInventoryClass.getMethod("getInventoryStacks");
+
+                    Class<?> iTileFluidClass = Class.forName("nc.tile.fluid.ITileFluid");
+                    HAS_CONFIGURABLE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("hasConfigurableFluidConnections");
+                    WRITE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("writeFluidConnections", NBTTagCompound.class);
+                    READ_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("readFluidConnections", NBTTagCompound.class);
+                    WRITE_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("writeTankSettings", NBTTagCompound.class);
+                    READ_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("readTankSettings", NBTTagCompound.class);
+
+                    REFRESH_ENERGY_CAPACITY_METHOD = TILE_ENERGY_PROCESSOR_CLASS.getMethod("refreshEnergyCapacity");
+
+                    available = true;
+                } else {
+                    // ===== 非重制版初始化 =====
+                    TILE_ITEM_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemProcessor");
+                    TILE_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileFluidProcessor");
+                    TILE_ITEM_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemFluidProcessor");
+                    ITILE_CLASS = Class.forName("nc.tile.ITile");
+                    IUPGRADABLE_CLASS = Class.forName("nc.tile.processor.IUpgradable");
+
+                    GET_REDSTONE_CONTROL_METHOD = ITILE_CLASS.getMethod("getRedstoneControl");
+                    SET_REDSTONE_CONTROL_METHOD = ITILE_CLASS.getMethod("setRedstoneControl", boolean.class);
+                    GET_ALTERNATE_COMPARATOR_METHOD = ITILE_CLASS.getMethod("getAlternateComparator");
+                    SET_ALTERNATE_COMPARATOR_METHOD = ITILE_CLASS.getMethod("setAlternateComparator", boolean.class);
+
+                    if (IUPGRADABLE_CLASS != null) {
+                        GET_SPEED_UPGRADE_SLOT_METHOD = IUPGRADABLE_CLASS.getMethod("getSpeedUpgradeSlot");
+                        GET_ENERGY_UPGRADE_SLOT_METHOD = IUPGRADABLE_CLASS.getMethod("getEnergyUpgradeSlot");
+                        REFRESH_UPGRADES_METHOD = IUPGRADABLE_CLASS.getMethod("refreshUpgrades");
+                    }
+
+                    Class<?> iTileInventoryClass = Class.forName("nc.tile.inventory.ITileInventory");
+                    HAS_CONFIGURABLE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("hasConfigurableInventoryConnections");
+                    WRITE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("writeInventoryConnections", NBTTagCompound.class);
+                    READ_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("readInventoryConnections", NBTTagCompound.class);
+                    WRITE_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("writeSlotSettings", NBTTagCompound.class);
+                    READ_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("readSlotSettings", NBTTagCompound.class);
+                    GET_INVENTORY_STACKS_METHOD = iTileInventoryClass.getMethod("getInventoryStacks");
+
+                    Class<?> iTileFluidClass = Class.forName("nc.tile.fluid.ITileFluid");
+                    HAS_CONFIGURABLE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("hasConfigurableFluidConnections");
+                    WRITE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("writeFluidConnections", NBTTagCompound.class);
+                    READ_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("readFluidConnections", NBTTagCompound.class);
+                    WRITE_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("writeTankSettings", NBTTagCompound.class);
+                    READ_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("readTankSettings", NBTTagCompound.class);
+
+                    available = true;
                 }
-
-                Class<?> ncTileClass = Class.forName("nc.tile.NCTile");
-                GET_REDSTONE_CONTROL_METHOD = ncTileClass.getMethod("getRedstoneControl");
-                SET_REDSTONE_CONTROL_METHOD = ncTileClass.getMethod("setRedstoneControl", boolean.class);
-                GET_ALTERNATE_COMPARATOR_METHOD = ncTileClass.getMethod("getAlternateComparator");
-                SET_ALTERNATE_COMPARATOR_METHOD = ncTileClass.getMethod("setAlternateComparator", boolean.class);
-
-                Class<?> iTileInventoryClass = Class.forName("nc.tile.inventory.ITileInventory");
-                HAS_CONFIGURABLE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("hasConfigurableInventoryConnections");
-                WRITE_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("writeInventoryConnections", NBTTagCompound.class);
-                READ_INVENTORY_CONNECTIONS_METHOD = iTileInventoryClass.getMethod("readInventoryConnections", NBTTagCompound.class);
-                WRITE_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("writeSlotSettings", NBTTagCompound.class);
-                READ_SLOT_SETTINGS_METHOD = iTileInventoryClass.getMethod("readSlotSettings", NBTTagCompound.class);
-                GET_INVENTORY_STACKS_METHOD = iTileInventoryClass.getMethod("getInventoryStacks");
-
-                Class<?> iTileFluidClass = Class.forName("nc.tile.fluid.ITileFluid");
-                HAS_CONFIGURABLE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("hasConfigurableFluidConnections");
-                WRITE_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("writeFluidConnections", NBTTagCompound.class);
-                READ_FLUID_CONNECTIONS_METHOD = iTileFluidClass.getMethod("readFluidConnections", NBTTagCompound.class);
-                WRITE_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("writeTankSettings", NBTTagCompound.class);
-                READ_TANK_SETTINGS_METHOD = iTileFluidClass.getMethod("readTankSettings", NBTTagCompound.class);
-
-                REFRESH_ENERGY_CAPACITY_METHOD = TILE_ENERGY_PROCESSOR_CLASS.getMethod("refreshEnergyCapacity");
-
-                available = true;
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to initialize NuclearCraft reflection for UMC", e);
         }
         AVAILABLE = available;
+        IS_OVERHAULED = overhauled;
     }
 
     @Override
@@ -127,16 +176,27 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         if (!AVAILABLE || !(target instanceof TileEntity)) {
             return false;
         }
-        return TILE_ENERGY_PROCESSOR_CLASS != null && TILE_ENERGY_PROCESSOR_CLASS.isInstance(target);
+        if (IS_OVERHAULED) {
+            return TILE_ENERGY_PROCESSOR_CLASS != null && TILE_ENERGY_PROCESSOR_CLASS.isInstance(target);
+        } else {
+            return (TILE_ITEM_PROCESSOR_CLASS != null && TILE_ITEM_PROCESSOR_CLASS.isInstance(target))
+                || (TILE_FLUID_PROCESSOR_CLASS != null && TILE_FLUID_PROCESSOR_CLASS.isInstance(target))
+                || (TILE_ITEM_FLUID_PROCESSOR_CLASS != null && TILE_ITEM_FLUID_PROCESSOR_CLASS.isInstance(target));
+        }
     }
 
-    /** 通过反射读取 TileEnergyProcessor.info.name */
+    /** 获取机器标识名称(用于严格匹配) */
     private String getInfoName(TileEntity tile) throws Exception {
-        Object info = INFO_FIELD.get(tile);
-        if (info == null) {
+        if (IS_OVERHAULED) {
+            Object info = INFO_FIELD.get(tile);
+            if (info == null) {
+                return tile.getClass().getName();
+            }
+            return (String) NAME_FIELD.get(info);
+        } else {
+            // 非重制版：使用类名作为标识
             return tile.getClass().getName();
         }
-        return (String) NAME_FIELD.get(info);
     }
 
     @Override
@@ -169,7 +229,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
                 output.setTag("slotSettings", slotNbt);
             }
 
-            // 流体设置(分离输入罐、废弃无效流体、输出模式)
+            // 流体设置
             NBTTagCompound tankNbt = (NBTTagCompound) WRITE_TANK_SETTINGS_METHOD.invoke(tile, new NBTTagCompound());
             if (tankNbt != null && !tankNbt.isEmpty()) {
                 output.setTag("tankSettings", tankNbt);
@@ -193,16 +253,31 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
     /** 复制速度/能量升级槽 */
     @SuppressWarnings("unchecked")
     private void copyUpgrades(TileEntity tile, NBTTagCompound output) throws Exception {
-        if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
-            return;
+        int speedSlot = -1;
+        int energySlot = -1;
+
+        if (IS_OVERHAULED) {
+            if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
+                return;
+            }
+            Object info = INFO_FIELD.get(tile);
+            if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
+                return;
+            }
+            speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
+            energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
+        } else {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+                return;
+            }
+            speedSlot = (Integer) GET_SPEED_UPGRADE_SLOT_METHOD.invoke(tile);
+            energySlot = (Integer) GET_ENERGY_UPGRADE_SLOT_METHOD.invoke(tile);
         }
-        Object info = INFO_FIELD.get(tile);
-        if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
+
+        if (speedSlot < 0 || energySlot < 0) {
             return;
         }
 
-        int speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
-        int energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
         NonNullList<ItemStack> stacks = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(tile);
 
         NBTTagList list = new NBTTagList();
@@ -231,7 +306,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         TileEntity tile = (TileEntity) target;
 
         try {
-            // 严格匹配 infoName(不同机器的槽位/罐位数量可能不同)
+            // 严格匹配 infoName
             String sourceInfoName = data.getString("infoName");
             String targetInfoName = getInfoName(tile);
             if (!sourceInfoName.equals(targetInfoName)) {
@@ -300,12 +375,19 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         if (!data.hasKey("ae2e:upgrades")) {
             return list;
         }
-        if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
-            return list;
-        }
-        Object info = INFO_FIELD.get(tile);
-        if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
-            return list;
+
+        if (IS_OVERHAULED) {
+            if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
+                return list;
+            }
+            Object info = INFO_FIELD.get(tile);
+            if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
+                return list;
+            }
+        } else {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+                return list;
+            }
         }
 
         NBTTagList upgrades = data.getTagList("ae2e:upgrades", 10);
@@ -318,19 +400,34 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         return list;
     }
 
-    /** 为目标机器创建 IUpgradeProvider(仅针对升级槽位) */
+    /** 为目标机器创建 IUpgradeProvider */
     @SuppressWarnings("unchecked")
     private IUpgradeProvider createUpgradeProvider(TileEntity tile) throws Exception {
-        if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
-            return null;
+        int speedSlot = -1;
+        int energySlot = -1;
+
+        if (IS_OVERHAULED) {
+            if (UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS == null) {
+                return null;
+            }
+            Object info = INFO_FIELD.get(tile);
+            if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
+                return null;
+            }
+            speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
+            energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
+        } else {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+                return null;
+            }
+            speedSlot = (Integer) GET_SPEED_UPGRADE_SLOT_METHOD.invoke(tile);
+            energySlot = (Integer) GET_ENERGY_UPGRADE_SLOT_METHOD.invoke(tile);
         }
-        Object info = INFO_FIELD.get(tile);
-        if (info == null || !UPGRADABLE_PROCESSOR_CONTAINER_INFO_CLASS.isInstance(info)) {
+
+        if (speedSlot < 0 || energySlot < 0) {
             return null;
         }
 
-        int speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
-        int energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
         NonNullList<ItemStack> stacks = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(tile);
         return new NuclearCraftUpgradeProvider(tile, stacks, speedSlot, energySlot);
     }
@@ -345,7 +442,6 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
 
     /**
      * NuclearCraft 升级槽的 IUpgradeProvider 实现.
-     * <p>直接操作 NonNullList 中的指定索引,并在修改后调用 refreshEnergyCapacity().</p>
      */
     private static class NuclearCraftUpgradeProvider implements IUpgradeProvider {
 
@@ -374,23 +470,29 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
         @Override
         public void setStackInSlot(int slot, ItemStack stack) {
             stacks.set(slot == 0 ? speedSlot : energySlot, stack);
-            refreshCapacity();
+            refresh();
         }
 
         @Override
         public void clearSlots() {
             stacks.set(speedSlot, ItemStack.EMPTY);
             stacks.set(energySlot, ItemStack.EMPTY);
-            refreshCapacity();
+            refresh();
         }
 
-        private void refreshCapacity() {
+        private void refresh() {
             try {
-                if (REFRESH_ENERGY_CAPACITY_METHOD != null) {
-                    REFRESH_ENERGY_CAPACITY_METHOD.invoke(tile);
+                if (IS_OVERHAULED) {
+                    if (REFRESH_ENERGY_CAPACITY_METHOD != null) {
+                        REFRESH_ENERGY_CAPACITY_METHOD.invoke(tile);
+                    }
+                } else {
+                    if (REFRESH_UPGRADES_METHOD != null) {
+                        REFRESH_UPGRADES_METHOD.invoke(tile);
+                    }
                 }
             } catch (Exception e) {
-                AE2Enhanced.LOGGER.debug("[AE2E] Could not refresh NuclearCraft energy capacity", e);
+                AE2Enhanced.LOGGER.debug("[AE2E] Could not refresh NuclearCraft upgrades", e);
             }
         }
     }
