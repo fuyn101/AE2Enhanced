@@ -217,12 +217,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (vh.canCraftVirtually(world, target.pos, table, outputs)) {
                 List<ItemStack> products = vh.virtualCraft(world, target.pos, table, outputs, new appeng.me.helpers.MachineSource(this.host));
                 if (!products.isEmpty()) {
-                    // 使用 pattern 定义的精确输出
-                    for (IAEItemStack output : outputs) {
-                        if (output != null) {
-                            this.pendingVirtualProducts.add(output.createItemStack());
-                        }
-                    }
+                    // 使用 handler 实际返回的产物,避免与 pattern 定义输出数量/物品不一致
+                    this.pendingVirtualProducts.addAll(products);
                 }
                 // 虚拟合成不占用物理设备,target 保持 IDLE,可立即复用
                 try {
@@ -544,18 +540,13 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (fluid == null) continue;
 
             // 尝试推送到目标的 IFluidHandler(先 simulate 再实际填充)
-            boolean pushed = false;
-            for (EnumFacing face : EnumFacing.values()) {
-                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
-                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
-                    if (fh != null) {
-                        int filled = fh.fill(fluid, false);
-                        if (filled >= fluid.amount) {
-                            fh.fill(fluid, true);
-                            pushed = true;
-                            pushedFluids.add(fluid.copy());
-                            break;
-                        }
+            // 优先使用 null face(内部 tank),可绕过部分机器的侧面配置限制
+            boolean pushed = tryFillFluidHandler(te, null, fluid, pushedFluids);
+            if (!pushed) {
+                for (EnumFacing face : EnumFacing.values()) {
+                    if (tryFillFluidHandler(te, face, fluid, pushedFluids)) {
+                        pushed = true;
+                        break;
                     }
                 }
             }
@@ -570,64 +561,124 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return true;
     }
 
+    private boolean tryFillFluidHandler(TileEntity te, EnumFacing face, FluidStack fluid, List<FluidStack> pushedFluids) {
+        if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return false;
+        IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+        if (fh == null) return false;
+        int filled = fh.fill(fluid, false);
+        if (filled >= fluid.amount) {
+            fh.fill(fluid, true);
+            pushedFluids.add(fluid.copy());
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 回退已推送到目标 IFluidHandler 的流体.
+     * 优先从 null face 抽取,并尽量按精确 FluidStack 匹配回退.
      */
     private void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
         if (fluids.isEmpty()) return;
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return;
         for (FluidStack fluid : fluids) {
+            if (tryDrainFluidHandler(te, null, fluid)) continue;
             for (EnumFacing face : EnumFacing.values()) {
-                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
-                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
-                    if (fh != null) {
-                        fh.drain(fluid, true);
-                        break;
-                    }
-                }
+                if (tryDrainFluidHandler(te, face, fluid)) break;
             }
         }
     }
 
+    private boolean tryDrainFluidHandler(TileEntity te, EnumFacing face, FluidStack fluid) {
+        if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return false;
+        IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+        if (fh == null) return false;
+        FluidStack drained = fh.drain(fluid, false);
+        if (drained != null && drained.amount > 0) {
+            // 只回退实际存在的量,避免过度抽取
+            FluidStack toDrain = fluid.copy();
+            toDrain.amount = Math.min(fluid.amount, drained.amount);
+            fh.drain(toDrain, true);
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 从目标的 IFluidHandler 收集流体产物.
+     * 优先使用 null face,并尝试收集所有可抽取流体(不仅限于 expectedOutputs).
      */
     private List<ItemStack> collectFluidProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
         List<ItemStack> fluids = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
-        if (te == null || expectedOutputs == null) return fluids;
+        if (te == null) return fluids;
 
-        for (IAEItemStack expected : expectedOutputs) {
-            if (expected == null || expected.getStackSize() <= 0) continue;
-            ItemStack stack = expected.createItemStack();
-            FluidStack expectedFluid = null;
-            if (ItemFluidDrop.isFluidDrop(stack)) {
-                expectedFluid = ItemFluidDrop.getFluidStack(stack);
-            } else {
-                String itemClass = stack.getItem().getClass().getName();
-                if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
-                        || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
-                    expectedFluid = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
-                }
-            }
-            if (expectedFluid == null) continue;
+        // 阶段 1：优先收集预期流体产物
+        if (expectedOutputs != null) {
+            for (IAEItemStack expected : expectedOutputs) {
+                if (expected == null || expected.getStackSize() <= 0) continue;
+                ItemStack stack = expected.createItemStack();
+                FluidStack expectedFluid = extractFluidFromItemStack(stack);
+                if (expectedFluid == null) continue;
 
-            for (EnumFacing face : EnumFacing.values()) {
-                if (te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
-                    IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
-                    if (fh != null) {
-                        FluidStack drained = fh.drain(expectedFluid, false);
-                        if (drained != null && drained.amount >= expectedFluid.amount) {
-                            fh.drain(expectedFluid, true);
-                            fluids.add(ItemFluidDrop.createStack(expectedFluid));
-                            break;
-                        }
-                    }
+                if (tryCollectExpectedFluid(te, expectedFluid, fluids)) continue;
+                for (EnumFacing face : EnumFacing.values()) {
+                    if (tryCollectExpectedFluid(te, face, expectedFluid, fluids)) break;
                 }
             }
         }
+
+        // 阶段 2：收集 null face 上所有非预期的剩余流体(副产物/残余)
+        collectAnyDrainedFluid(te, null, fluids);
+        for (EnumFacing face : EnumFacing.values()) {
+            collectAnyDrainedFluid(te, face, fluids);
+        }
+
         return fluids;
+    }
+
+    private FluidStack extractFluidFromItemStack(ItemStack stack) {
+        if (ItemFluidDrop.isFluidDrop(stack)) {
+            return ItemFluidDrop.getFluidStack(stack);
+        }
+        String itemClass = stack.getItem().getClass().getName();
+        if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
+                || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+            return com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
+        }
+        return null;
+    }
+
+    private boolean tryCollectExpectedFluid(TileEntity te, EnumFacing face, FluidStack expectedFluid, List<ItemStack> fluids) {
+        if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return false;
+        IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+        if (fh == null) return false;
+        FluidStack drained = fh.drain(expectedFluid, false);
+        if (drained != null && drained.amount >= expectedFluid.amount) {
+            fh.drain(expectedFluid, true);
+            fluids.add(ItemFluidDrop.createStack(expectedFluid));
+            return true;
+        }
+        return false;
+    }
+
+    private boolean tryCollectExpectedFluid(TileEntity te, FluidStack expectedFluid, List<ItemStack> fluids) {
+        return tryCollectExpectedFluid(te, null, expectedFluid, fluids);
+    }
+
+    private void collectAnyDrainedFluid(TileEntity te, EnumFacing face, List<ItemStack> fluids) {
+        if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return;
+        IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+        if (fh == null) return;
+        // 循环抽取,直到该 face 没有可抽取流体
+        while (true) {
+            FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
+            if (drained == null || drained.amount <= 0) break;
+            FluidStack actual = fh.drain(drained, true);
+            if (actual == null || actual.amount <= 0) break;
+            fluids.add(ItemFluidDrop.createStack(actual));
+        }
     }
 
     private boolean hasWorkToDo() {
@@ -664,6 +715,24 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public void initialize() {
         updateCraftingList();
+        // 加载完成后,若存在持久化的处理状态,唤醒 tick 以继续收集
+        if (!this.processingTargets.isEmpty()) {
+            tryWakeTickDevice();
+        }
+    }
+
+    private void tryWakeTickDevice() {
+        try {
+            AENetworkProxy proxy = this.host.getProxy();
+            if (proxy.isActive()) {
+                appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
+                if (tm != null) {
+                    tm.wakeDevice(this.host.getProxy().getNode());
+                }
+            }
+        } catch (appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
+        }
     }
 
     private void updateCraftingList() {
@@ -761,14 +830,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return;
         }
         if (!this.bindings.contains(binding)) {
+            // 安全重置：若该目标曾经处于处理状态(来自持久化数据),先清理其运行时状态
+            this.processingTargets.remove(binding);
+            this.pendingOutputs.remove(binding);
+            this.processingStartTimes.remove(binding);
+            this.targetInputs.remove(binding);
+
             this.bindings.add(binding);
             this.targetStates.put(binding, TargetState.IDLE);
-            this.processingTargets.remove(binding);
             postPatternChangeEvent();
         }
     }
 
     public void removeBinding(TargetBinding binding) {
+        // 若目标正在处理,先尝试紧急收集产物,避免移除绑定后产物无人接管
+        if (this.processingTargets.contains(binding)) {
+            tryEmergencyCollect(binding);
+        }
         this.bindings.remove(binding);
         this.targetStates.remove(binding);
         this.processingTargets.remove(binding);
@@ -782,6 +860,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public void clearBindings() {
+        // 批量移除前,先紧急收集所有正在处理目标的产物
+        for (TargetBinding binding : new ArrayList<>(this.processingTargets)) {
+            tryEmergencyCollect(binding);
+        }
         this.bindings.clear();
         this.targetStates.clear();
         this.processingTargets.clear();
@@ -790,6 +872,40 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.targetInputs.clear();
         this.boundBlockId = null;
         postPatternChangeEvent();
+    }
+
+    /** 紧急收集指定目标的产物(用于移除绑定前清理),收集失败则暂存到 storage slots */
+    private void tryEmergencyCollect(TargetBinding binding) {
+        try {
+            World world = this.host.getTileEntity().getWorld();
+            if (world == null || world.provider.getDimension() != binding.dimension) return;
+            if (!world.isBlockLoaded(binding.pos)) return;
+
+            IRemoteHandler handler = HandlerRegistry.findHandler(binding.blockId);
+            if (handler == null) return;
+
+            List<ItemStack> inputs = this.targetInputs.get(binding);
+            IAEItemStack[] expected = this.pendingOutputs.get(binding);
+
+            List<ItemStack> products = handler.collectProducts(world, binding.pos, expected, inputs,
+                    new appeng.me.helpers.MachineSource(this.host));
+            List<ItemStack> fluidProducts = collectFluidProducts(world, binding.pos, expected);
+            if (!fluidProducts.isEmpty()) {
+                products.addAll(fluidProducts);
+            }
+            if (!products.isEmpty()) {
+                stashItemsToStorage(world, products);
+            }
+
+            List<ItemStack> reverted = handler.revertMaterials(world, binding.pos,
+                    new appeng.me.helpers.MachineSource(this.host));
+            if (!reverted.isEmpty()) {
+                stashItemsToStorage(world, reverted);
+            }
+            revertPushedFluids(world, binding.pos, Collections.emptyList());
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Emergency collect failed for binding {}: {}", binding.pos, e.toString());
+        }
     }
 
     private void postPatternChangeEvent() {
@@ -856,6 +972,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingTargets.clear();
         this.pendingOutputs.clear();
         this.processingStartTimes.clear();
+        this.targetInputs.clear();
         this.boundBlockId = data.hasKey("boundBlockId") ? data.getString("boundBlockId") : null;
         if (data.hasKey("bindings")) {
             NBTTagList list = data.getTagList("bindings", 10);
@@ -866,7 +983,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        this.updateCraftingList();
+        // 恢复运行时处理状态(区块卸载/重载后可以继续收集产物)
+        readProcessingStateFromNBT(data);
+
+        // 注意：不在 readFromNBT 时调用 updateCraftingList(),
+        // 因为 SmartPattern 展开需要 world 对象,而 NBT 读取阶段 world 可能为 null.
+        // craftingList 将在 TileCentralMEInterface.update() -> initialize() 中重建.
     }
 
     public void writeToNBT(NBTTagCompound data) {
@@ -885,6 +1007,93 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             list.appendTag(binding.writeToNBT());
         }
         data.setTag("bindings", list);
+
+        // 持久化运行时处理状态
+        writeProcessingStateToNBT(data);
+    }
+
+    /**
+     * 将正在运行的合成状态写入 NBT,以便区块卸载/服务器重启后恢复.
+     */
+    private void writeProcessingStateToNBT(NBTTagCompound data) {
+        if (this.processingTargets.isEmpty()) {
+            return;
+        }
+        NBTTagList list = new NBTTagList();
+        for (TargetBinding binding : this.processingTargets) {
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setTag("binding", binding.writeToNBT());
+            entry.setLong("startTime", this.processingStartTimes.getOrDefault(binding, 0L));
+
+            IAEItemStack[] outputs = this.pendingOutputs.get(binding);
+            if (outputs != null && outputs.length > 0) {
+                NBTTagList outList = new NBTTagList();
+                for (IAEItemStack output : outputs) {
+                    if (output == null) continue;
+                    outList.appendTag(output.createItemStack().serializeNBT());
+                }
+                entry.setTag("outputs", outList);
+            }
+
+            List<ItemStack> inputs = this.targetInputs.get(binding);
+            if (inputs != null && !inputs.isEmpty()) {
+                NBTTagList inList = new NBTTagList();
+                for (ItemStack input : inputs) {
+                    if (input.isEmpty()) continue;
+                    inList.appendTag(input.serializeNBT());
+                }
+                entry.setTag("inputs", inList);
+            }
+            list.appendTag(entry);
+        }
+        data.setTag("processingState", list);
+    }
+
+    /**
+     * 从 NBT 恢复正在运行的合成状态.
+     */
+    private void readProcessingStateFromNBT(NBTTagCompound data) {
+        if (!data.hasKey("processingState")) {
+            return;
+        }
+        NBTTagList list = data.getTagList("processingState", 10);
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound entry = list.getCompoundTagAt(i);
+            TargetBinding binding = TargetBinding.readFromNBT(entry.getCompoundTag("binding"));
+
+            // 只恢复仍然存在于 bindings 列表中的目标
+            if (!this.bindings.contains(binding)) {
+                continue;
+            }
+
+            this.processingTargets.add(binding);
+            this.targetStates.put(binding, TargetState.PROCESSING);
+            this.processingStartTimes.put(binding, entry.getLong("startTime"));
+
+            if (entry.hasKey("outputs")) {
+                NBTTagList outList = entry.getTagList("outputs", 10);
+                IAEItemStack[] outputs = new IAEItemStack[outList.tagCount()];
+                for (int j = 0; j < outList.tagCount(); j++) {
+                    ItemStack stack = new ItemStack(outList.getCompoundTagAt(j));
+                    if (!stack.isEmpty()) {
+                        outputs[j] = AEItemStack.fromItemStack(stack);
+                    }
+                }
+                this.pendingOutputs.put(binding, outputs);
+            }
+
+            if (entry.hasKey("inputs")) {
+                NBTTagList inList = entry.getTagList("inputs", 10);
+                List<ItemStack> inputs = new ArrayList<>();
+                for (int j = 0; j < inList.tagCount(); j++) {
+                    ItemStack stack = new ItemStack(inList.getCompoundTagAt(j));
+                    if (!stack.isEmpty()) {
+                        inputs.add(stack);
+                    }
+                }
+                this.targetInputs.put(binding, inputs);
+            }
+        }
     }
 
     // ---- Cleanup ----

@@ -50,6 +50,12 @@ public class HandlerRegistry {
         // P8 - Thaumcraft (Infusion & Crucible)
         tryLoad("thaumcraft", "com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft.ThaumcraftHandler");
         tryLoad("thaumcraft", "com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft.ThaumcraftCrucibleHandler");
+
+        // P9 - Ender IO / Thermal Expansion / NuclearCraft 2.19a
+        // 这些 handler 通过反射直接访问机器内部库存,绕过侧面配置限制
+        tryLoad("enderio", "com.github.aeddddd.ae2enhanced.centralinterface.handler.enderio.EnderIOMachineHandler");
+        tryLoad("thermalexpansion", "com.github.aeddddd.ae2enhanced.centralinterface.handler.thermalexpansion.ThermalExpansionMachineHandler");
+        tryLoad("nuclearcraft", "com.github.aeddddd.ae2enhanced.centralinterface.handler.nuclearcraft.NuclearCraftLegacyMachineHandler");
     }
 
     private static void tryLoad(String modId, String className) {

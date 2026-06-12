@@ -47,10 +47,10 @@ public class BindingLineRenderer {
         int lookedDim = player.world.provider.getDimension();
 
         // 查找准心指向的 block 属于哪个 Central ME Interface 网络
+        // 使用 ACTIVE_INTERFACES 集合而不是扫描全世界 TE,避免每帧 O(N) 遍历
         TileCentralMEInterface matchedSource = null;
-        for (TileEntity te : player.world.loadedTileEntityList) {
-            if (!(te instanceof TileCentralMEInterface)) continue;
-            TileCentralMEInterface source = (TileCentralMEInterface) te;
+        for (TileCentralMEInterface source : TileCentralMEInterface.getActiveInterfaces()) {
+            if (source == null || source.getWorld() != player.world) continue;
 
             // 准心指向 source 本身
             if (source.getPos().equals(lookedPos)) {
