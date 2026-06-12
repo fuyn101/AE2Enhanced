@@ -284,20 +284,25 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
             int[] outputSlots = getItemOutputSlots(te);
             List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
-            // 检查输出槽是否有产物
-            for (int slot : outputSlots) {
-                if (slot < 0 || slot >= inventory.size()) continue;
-                if (!inventory.get(slot).isEmpty()) {
-                    return true;
-                }
+            // 机器仍在处理中 → 不空闲
+            if (isProcessingNC(te)) {
+                return false;
             }
 
-            // 检查输入槽是否还有未处理完的输入材料
+            // 输入槽还有输入材料 → 未处理完(多份配方常见)
             for (int slot : inputSlots) {
                 if (slot < 0 || slot >= inventory.size()) continue;
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty() && isInputMaterial(stack, inputsSafe)) {
                     return false;
+                }
+            }
+
+            // 输入已耗尽,检查是否有产物可收集
+            for (int slot : outputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
+                if (!inventory.get(slot).isEmpty()) {
+                    return true;
                 }
             }
 
@@ -423,5 +428,26 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
         if (!ItemStack.areItemsEqual(actual, expected)) return false;
         if (!expected.hasTagCompound()) return true;
         return ItemStack.areItemStackTagsEqual(actual, expected);
+    }
+
+    private boolean isProcessingNC(TileEntity te) {
+        try {
+            Method isProcessing = te.getClass().getMethod("isProcessing");
+            return (Boolean) isProcessing.invoke(te);
+        } catch (NoSuchMethodException e) {
+            // Overhauled 使用 getIsProcessing
+            try {
+                Method getIsProcessing = te.getClass().getMethod("getIsProcessing");
+                return (Boolean) getIsProcessing.invoke(te);
+            } catch (NoSuchMethodException e2) {
+                return false;
+            } catch (Exception e2) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Failed to get NC Overhauled processing state", e2);
+                return false;
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get NC processing state", e);
+            return false;
+        }
     }
 }

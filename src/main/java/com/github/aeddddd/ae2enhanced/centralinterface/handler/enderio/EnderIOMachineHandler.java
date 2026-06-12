@@ -240,23 +240,18 @@ public class EnderIOMachineHandler implements IRemoteHandler {
 
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
-        // 有产物待收集 → 处理完成,可以收集
-        if (hasAnyOutput(te)) {
-            return true;
-        }
-
         // 机器明确处于活跃处理状态 → 不空闲
         if (isActive(te)) {
             return false;
         }
 
-        // 输入槽还有材料 → 可能仍在处理中
+        // 输入槽还有材料 → 仍在处理中(尤其是多份配方未消耗完时)
         if (hasAnyInput(te, inputsSafe)) {
             return false;
         }
 
-        // 没有输入也没有输出 → 空闲
-        return true;
+        // 输入已耗尽,有产物待收集 → 处理完成,可以收集
+        return hasAnyOutput(te);
     }
 
     // ---- Internal helpers ----
