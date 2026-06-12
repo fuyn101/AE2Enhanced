@@ -19,7 +19,9 @@ import net.minecraft.util.NonNullList;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -119,6 +121,40 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         return result;
     }
 
+    /**
+     * 比较两个 ItemStack 是否属于同一物品类型,忽略 count.
+     *
+     * <p>与 Minecraft 原版的 {@link ItemStack#areItemStacksEqual} 不同,
+     * 本方法在比较时会忽略 stackSize,专门用于把 count 聚合到同一 IAEItemStack.</p>
+     */
+    private static boolean itemStackEqualsIgnoreCount(ItemStack a, ItemStack b) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null || b == null) {
+            return a == b;
+        }
+        if (a.isEmpty() != b.isEmpty()) {
+            return false;
+        }
+        if (a.isEmpty()) {
+            return true;
+        }
+        return a.getItem() == b.getItem()
+                && a.getMetadata() == b.getMetadata()
+                && ItemStack.areItemStackTagsEqual(a, b);
+    }
+
+    private static final class PrototypeCount {
+        ItemStack prototype;
+        long count;
+
+        PrototypeCount(ItemStack prototype, long count) {
+            this.prototype = prototype;
+            this.count = count;
+        }
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
@@ -129,42 +165,49 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                         (Set<Map.Entry<Item, Map<Integer, Collection<?>>>>) this.entrySetMethod.invoke(this.lookup);
                 for (Map.Entry<Item, Map<Integer, Collection<?>>> itemEntry : entries) {
                     for (Map.Entry<Integer, Collection<?>> metaEntry : itemEntry.getValue().entrySet()) {
-                        long totalCount = 0L;
+                        // 同一 Item+meta 的抽屉可能因 NBT 不同而属于不同 IAEItemStack,
+                        // 必须按完整 ItemStack(Item+meta+NBT) 细分,避免把不同 NBT 的物品合并成一份.
+                        List<PrototypeCount> groups = new ArrayList<>();
                         for (Object recordObj : metaEntry.getValue()) {
                             IDrawerGroup group = (IDrawerGroup) SLOT_RECORD_GROUP_FIELD.get(recordObj);
                             int slot = (int) SLOT_RECORD_SLOT_FIELD.get(recordObj);
-                            if (group != null) {
-                                IDrawer drawer = group.getDrawer(slot);
-                                if (drawer != null && drawer.isEnabled() && !drawer.isEmpty()) {
-                                    totalCount += drawer.getStoredItemCount();
+                            if (group == null) {
+                                continue;
+                            }
+                            IDrawer drawer = group.getDrawer(slot);
+                            if (drawer == null || !drawer.isEnabled() || drawer.isEmpty()) {
+                                continue;
+                            }
+                            long count = drawer.getStoredItemCount();
+                            ItemStack prototype = drawer.getStoredItemPrototype();
+                            if (prototype != null) {
+                                prototype = prototype.copy();
+                                prototype.setCount(1);
+                            }
+                            PrototypeCount match = null;
+                            for (PrototypeCount candidate : groups) {
+                                if (itemStackEqualsIgnoreCount(candidate.prototype, prototype)) {
+                                    match = candidate;
+                                    break;
                                 }
+                            }
+                            if (match != null) {
+                                match.count += count;
+                            } else {
+                                groups.add(new PrototypeCount(prototype, count));
                             }
                         }
-                        if (totalCount > 0) {
-                            // 从第一个 drawer 获取包含 NBT 的原型，避免 new ItemStack 丢失 NBT
-                            ItemStack prototype = null;
-                            for (Object recordObj : metaEntry.getValue()) {
-                                IDrawerGroup group = (IDrawerGroup) SLOT_RECORD_GROUP_FIELD.get(recordObj);
-                                int slot = (int) SLOT_RECORD_SLOT_FIELD.get(recordObj);
-                                if (group != null) {
-                                    IDrawer drawer = group.getDrawer(slot);
-                                    if (drawer != null && !drawer.isEmpty()) {
-                                        prototype = drawer.getStoredItemPrototype();
-                                        if (prototype != null) {
-                                            prototype = prototype.copy();
-                                            prototype.setCount(1);
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                        for (PrototypeCount group : groups) {
+                            ItemStack prototype = group.prototype;
                             if (prototype == null || prototype.isEmpty()) {
                                 prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
                             }
-                            IAEItemStack aeStack = this.channel.createStack(prototype);
-                            if (aeStack != null) {
-                                aeStack.setStackSize(totalCount);
-                                out.add(aeStack);
+                            if (group.count > 0) {
+                                IAEItemStack aeStack = this.channel.createStack(prototype);
+                                if (aeStack != null) {
+                                    aeStack.setStackSize(group.count);
+                                    out.add(aeStack);
+                                }
                             }
                         }
                     }

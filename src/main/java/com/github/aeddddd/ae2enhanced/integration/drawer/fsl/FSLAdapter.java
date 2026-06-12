@@ -11,6 +11,7 @@ import com.xinyihl.functionalstoragelegacy.api.IBigItemHandler;
 import com.xinyihl.functionalstoragelegacy.common.inventory.controller.ControllerItemHandler;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,8 +34,9 @@ public class FSLAdapter implements IDrawerIndexAdapter {
     private final ControllerItemHandler handler;
     private final IItemStorageChannel channel;
 
-    // Hash 索引: Item -> meta -> SlotRef 列表
-    private final Map<Item, Map<Integer, List<SlotRef>>> itemIndex = new HashMap<>();
+    // Hash 索引: 完整物品类型(Item + meta + NBT) -> SlotRef 列表
+    // 必须包含 NBT,否则同 Item+meta 但 NBT 不同的物品会被错误合并.
+    private final Map<ItemKey, List<SlotRef>> itemIndex = new HashMap<>();
     // 空槽位列表(用于 insert 时快速定位)
     private final List<SlotRef> emptySlots = new ArrayList<>();
     // 索引是否失效
@@ -47,6 +49,42 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         SlotRef(IBigItemHandler handler, int slot) {
             this.handler = handler;
             this.slot = slot;
+        }
+    }
+
+    /**
+     * 完整物品类型键,包含 Item、meta 和 NBT.
+     *
+     * <p>必须区分 NBT,否则同 Item+meta 但 NBT 不同的抽屉物品会被错误合并.</p>
+     */
+    private static final class ItemKey {
+        final Item item;
+        final int meta;
+        final NBTTagCompound tag;
+
+        ItemKey(ItemStack stack) {
+            this.item = stack.getItem();
+            this.meta = stack.getMetadata();
+            NBTTagCompound t = stack.getTagCompound();
+            this.tag = t != null ? t.copy() : null;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ItemKey)) return false;
+            ItemKey other = (ItemKey) o;
+            return this.meta == other.meta
+                    && this.item == other.item
+                    && (this.tag == null ? other.tag == null : this.tag.equals(other.tag));
+        }
+
+        @Override
+        public int hashCode() {
+            int result = item.hashCode();
+            result = 31 * result + meta;
+            result = 31 * result + (tag != null ? tag.hashCode() : 0);
+            return result;
         }
     }
 
@@ -71,10 +109,8 @@ public class FSLAdapter implements IDrawerIndexAdapter {
                 if (type == null || type.isEmpty()) {
                     this.emptySlots.add(new SlotRef(h, s));
                 } else {
-                    this.itemIndex
-                            .computeIfAbsent(type.getItem(), k -> new HashMap<>())
-                            .computeIfAbsent(type.getMetadata(), k -> new ArrayList<>())
-                            .add(new SlotRef(h, s));
+                    ItemKey key = new ItemKey(type);
+                    this.itemIndex.computeIfAbsent(key, k -> new ArrayList<>()).add(new SlotRef(h, s));
                 }
             }
         }
@@ -94,16 +130,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         long remaining = input.getStackSize();
         boolean simulate = type == Actionable.SIMULATE;
 
-        // 1. 先尝试放入已有相同物品的槽位
-        Map<Integer, List<SlotRef>> metaMap = this.itemIndex.get(inputStack.getItem());
-        if (metaMap != null) {
-            List<SlotRef> slots = metaMap.get(inputStack.getMetadata());
-            if (slots != null) {
-                for (SlotRef ref : slots) {
-                    if (ref.handler == null) continue;
-                    remaining = ref.handler.insertItemLong(ref.slot, inputStack, remaining, simulate);
-                    if (remaining <= 0) break;
-                }
+        // 1. 先尝试放入已有相同物品类型(含 NBT)的槽位
+        List<SlotRef> slots = this.itemIndex.get(new ItemKey(inputStack));
+        if (slots != null) {
+            for (SlotRef ref : slots) {
+                if (ref.handler == null) continue;
+                remaining = ref.handler.insertItemLong(ref.slot, inputStack, remaining, simulate);
+                if (remaining <= 0) break;
             }
         }
 
@@ -151,16 +184,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         long extracted = 0;
         boolean simulate = mode == Actionable.SIMULATE;
 
-        Map<Integer, List<SlotRef>> metaMap = this.itemIndex.get(requestStack.getItem());
-        if (metaMap != null) {
-            List<SlotRef> slots = metaMap.get(requestStack.getMetadata());
-            if (slots != null) {
-                for (SlotRef ref : slots) {
-                    if (ref.handler == null) continue;
-                    long ext = ref.handler.extractItemLong(ref.slot, toExtract - extracted, simulate);
-                    extracted += ext;
-                    if (extracted >= toExtract) break;
-                }
+        List<SlotRef> slots = this.itemIndex.get(new ItemKey(requestStack));
+        if (slots != null) {
+            for (SlotRef ref : slots) {
+                if (ref.handler == null) continue;
+                long ext = ref.handler.extractItemLong(ref.slot, toExtract - extracted, simulate);
+                extracted += ext;
+                if (extracted >= toExtract) break;
             }
         }
 
@@ -181,33 +211,35 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         if (this.indexDirty) {
             rebuildIndex();
         }
-        for (Map.Entry<Item, Map<Integer, List<SlotRef>>> itemEntry : this.itemIndex.entrySet()) {
-            for (Map.Entry<Integer, List<SlotRef>> metaEntry : itemEntry.getValue().entrySet()) {
-                long totalCount = 0L;
-                for (SlotRef ref : metaEntry.getValue()) {
+        for (Map.Entry<ItemKey, List<SlotRef>> entry : this.itemIndex.entrySet()) {
+            long totalCount = 0L;
+            for (SlotRef ref : entry.getValue()) {
+                if (ref.handler == null) continue;
+                totalCount += ref.handler.getStoredAmount(ref.slot);
+            }
+            if (totalCount > 0) {
+                // 从第一个槽位获取包含 NBT 的原型，避免 new ItemStack 丢失 NBT
+                ItemStack prototype = null;
+                for (SlotRef ref : entry.getValue()) {
                     if (ref.handler == null) continue;
-                    totalCount += ref.handler.getStoredAmount(ref.slot);
+                    ItemStack stored = ref.handler.getStoredType(ref.slot);
+                    if (stored != null && !stored.isEmpty()) {
+                        prototype = stored.copy();
+                        prototype.setCount(1);
+                        break;
+                    }
                 }
-                if (totalCount > 0) {
-                    // 从第一个槽位获取包含 NBT 的原型，避免 new ItemStack 丢失 NBT
-                    ItemStack prototype = null;
-                    for (SlotRef ref : metaEntry.getValue()) {
-                        if (ref.handler == null) continue;
-                        ItemStack stored = ref.handler.getStoredType(ref.slot);
-                        if (stored != null && !stored.isEmpty()) {
-                            prototype = stored.copy();
-                            prototype.setCount(1);
-                            break;
-                        }
+                if (prototype == null || prototype.isEmpty()) {
+                    ItemKey key = entry.getKey();
+                    prototype = new ItemStack(key.item, 1, key.meta);
+                    if (key.tag != null) {
+                        prototype.setTagCompound(key.tag.copy());
                     }
-                    if (prototype == null || prototype.isEmpty()) {
-                        prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
-                    }
-                    IAEItemStack aeStack = this.channel.createStack(prototype);
-                    if (aeStack != null) {
-                        aeStack.setStackSize(totalCount);
-                        out.add(aeStack);
-                    }
+                }
+                IAEItemStack aeStack = this.channel.createStack(prototype);
+                if (aeStack != null) {
+                    aeStack.setStackSize(totalCount);
+                    out.add(aeStack);
                 }
             }
         }
@@ -233,16 +265,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
             rebuildIndex();
         }
         ItemStack inputStack = input.getDefinition();
-        // 如果已有该物品且未满,或有空槽位,则可以接受
-        Map<Integer, List<SlotRef>> metaMap = this.itemIndex.get(inputStack.getItem());
-        if (metaMap != null) {
-            List<SlotRef> slots = metaMap.get(inputStack.getMetadata());
-            if (slots != null) {
-                for (SlotRef ref : slots) {
-                    if (ref.handler == null) continue;
-                    if (ref.handler.getStoredAmount(ref.slot) < ref.handler.getLongSlotLimit(ref.slot)) {
-                        return true;
-                    }
+        // 如果已有相同物品类型(含 NBT)且未满,或有空槽位,则可以接受
+        List<SlotRef> slots = this.itemIndex.get(new ItemKey(inputStack));
+        if (slots != null) {
+            for (SlotRef ref : slots) {
+                if (ref.handler == null) continue;
+                if (ref.handler.getStoredAmount(ref.slot) < ref.handler.getLongSlotLimit(ref.slot)) {
+                    return true;
                 }
             }
         }
