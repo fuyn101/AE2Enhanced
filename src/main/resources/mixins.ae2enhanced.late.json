@@ -34,7 +34,9 @@
     "upgrade.MixinUpgradeSlots",
     "entity.MixinEntityLivingBase",
     "entity.MixinEntityDataManager",
-    "world.MixinWorldSpawnEntity"
+    "world.MixinWorldSpawnEntity",
+    "world.MixinBlockSpawnAsEntity",
+    "world.MixinEntityPlayerDropItem"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",

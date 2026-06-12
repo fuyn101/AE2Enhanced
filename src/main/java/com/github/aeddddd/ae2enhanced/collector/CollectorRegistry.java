@@ -45,9 +45,6 @@ public final class CollectorRegistry {
 
     /**
      * 查找能够收集指定物品实体的最佳收集器(最近优先).
-     *
-     * @param item 物品实体
-     * @return 可收集该物品的收集器,若无则返回 null
      */
     @Nullable
     public static TileAdvancedMECollector findBestCollector(EntityItem item) {
@@ -57,41 +54,43 @@ public final class CollectorRegistry {
     }
 
     /**
+     * 查找指定位置的最佳收集器.
+     */
+    @Nullable
+    public static TileAdvancedMECollector findBestCollector(World world, BlockPos pos) {
+        if (world == null || world.isRemote) return null;
+        List<TileAdvancedMECollector> candidates = findCollectorsFor(world, pos);
+        return candidates.isEmpty() ? null : candidates.get(0);
+    }
+
+    /**
+     * 查找指定坐标的最佳收集器.
+     */
+    @Nullable
+    public static TileAdvancedMECollector findBestCollector(World world, double x, double y, double z) {
+        if (world == null || world.isRemote) return null;
+        List<TileAdvancedMECollector> candidates = findCollectorsFor(world, x, y, z);
+        return candidates.isEmpty() ? null : candidates.get(0);
+    }
+
+    /**
      * 返回覆盖指定物品实体位置的所有可用收集器,按距离从近到远排序.
      */
     public static List<TileAdvancedMECollector> findCollectorsFor(EntityItem item) {
-        World world = item.world;
-        int dim = world.provider.getDimension();
-        Set<TileAdvancedMECollector> all = DIMENSIONAL_COLLECTORS.get(dim);
-        if (all == null || all.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<TileAdvancedMECollector> result = new ArrayList<>();
-        for (TileAdvancedMECollector collector : all) {
-            if (collector.isInvalid() || collector.getWorld() != world) continue;
-            if (!collector.isActive()) continue;
-            AxisAlignedBB area = collector.getCollectionArea();
-            if (area.contains(new Vec3d(item.posX, item.posY, item.posZ))) {
-                result.add(collector);
-            }
-        }
-
-        result.sort(Comparator.comparingDouble(c -> {
-            BlockPos pos = c.getPos();
-            double dx = pos.getX() + 0.5 - item.posX;
-            double dy = pos.getY() + 0.5 - item.posY;
-            double dz = pos.getZ() + 0.5 - item.posZ;
-            return dx * dx + dy * dy + dz * dz;
-        }));
-
-        return result;
+        return findCollectorsFor(item.world, item.posX, item.posY, item.posZ);
     }
 
     /**
      * 返回覆盖指定方块位置的所有可用收集器,按距离从近到远排序.
      */
     public static List<TileAdvancedMECollector> findCollectorsFor(World world, BlockPos pos) {
+        return findCollectorsFor(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+    }
+
+    /**
+     * 返回覆盖指定坐标的所有可用收集器,按距离从近到远排序.
+     */
+    public static List<TileAdvancedMECollector> findCollectorsFor(World world, double x, double y, double z) {
         int dim = world.provider.getDimension();
         Set<TileAdvancedMECollector> all = DIMENSIONAL_COLLECTORS.get(dim);
         if (all == null || all.isEmpty()) {
@@ -99,9 +98,6 @@ public final class CollectorRegistry {
         }
 
         List<TileAdvancedMECollector> result = new ArrayList<>();
-        double x = pos.getX() + 0.5;
-        double y = pos.getY() + 0.5;
-        double z = pos.getZ() + 0.5;
         for (TileAdvancedMECollector collector : all) {
             if (collector.isInvalid() || collector.getWorld() != world) continue;
             if (!collector.isActive()) continue;
@@ -112,13 +108,23 @@ public final class CollectorRegistry {
         }
 
         result.sort(Comparator.comparingDouble(c -> {
-            BlockPos cPos = c.getPos();
-            double dx = cPos.getX() + 0.5 - x;
-            double dy = cPos.getY() + 0.5 - y;
-            double dz = cPos.getZ() + 0.5 - z;
+            BlockPos pos = c.getPos();
+            double dx = pos.getX() + 0.5 - x;
+            double dy = pos.getY() + 0.5 - y;
+            double dz = pos.getZ() + 0.5 - z;
             return dx * dx + dy * dy + dz * dz;
         }));
 
         return result;
+    }
+
+    /**
+     * 快速检查指定世界是否注册了任何收集器.
+     */
+    public static boolean hasCollectors(World world) {
+        if (world == null) return false;
+        int dim = world.provider.getDimension();
+        Set<TileAdvancedMECollector> set = DIMENSIONAL_COLLECTORS.get(dim);
+        return set != null && !set.isEmpty();
     }
 }

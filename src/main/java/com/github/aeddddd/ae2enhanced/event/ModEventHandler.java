@@ -65,7 +65,7 @@ public final class ModEventHandler {
         MinecraftForge.EVENT_BUS.register(new ModEventHandler());
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onHarvestDrops(BlockEvent.HarvestDropsEvent event) {
         if (event.getWorld().isRemote || event.isCanceled()) return;
 
@@ -311,7 +311,7 @@ public final class ModEventHandler {
     /**
      * 玩家死亡时，共形不变荷升级的 ME 工具不掉落，而是保留在死亡数据中待重生后恢复。
      */
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingDrops(LivingDropsEvent event) {
         if (event.getEntityLiving().world.isRemote || event.isCanceled() || event.getDrops().isEmpty()) return;
         collectEntityDrops(event.getEntityLiving().world, event.getEntityLiving().getPosition(), event.getDrops());
@@ -320,7 +320,7 @@ public final class ModEventHandler {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerDrops(PlayerDropsEvent event) {
         java.util.Iterator<EntityItem> it = event.getDrops().iterator();
         NBTTagList preserved = new NBTTagList();
@@ -360,7 +360,7 @@ public final class ModEventHandler {
                 continue;
             }
             for (TileAdvancedMECollector collector : collectors) {
-                ItemStack leftover = collector.tryCollectStack(drop);
+                ItemStack leftover = collector.tryCollectStackForced(drop);
                 if (leftover.isEmpty()) {
                     it.remove();
                     break;
@@ -373,7 +373,7 @@ public final class ModEventHandler {
     }
 
     /**
-     * 将 EntityItem 掉落物列表交给范围内的先进 ME 收集器处理,成功收集的将从列表移除.
+     * 将 EntityItem 掉落物列表交给范围内的先进 ME 收集器强制处理,成功收集的将从列表移除.
      */
     private void collectEntityDrops(World world, BlockPos pos, List<EntityItem> drops) {
         List<TileAdvancedMECollector> collectors = com.github.aeddddd.ae2enhanced.collector.CollectorRegistry.findCollectorsFor(world, pos);
@@ -387,7 +387,7 @@ public final class ModEventHandler {
                 continue;
             }
             for (TileAdvancedMECollector collector : collectors) {
-                ItemStack leftover = collector.tryCollectStack(drop.getItem());
+                ItemStack leftover = collector.tryCollectStackForced(drop.getItem());
                 if (leftover.isEmpty()) {
                     it.remove();
                     break;

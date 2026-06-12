@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.RedstoneMode;
 import appeng.api.config.Settings;
@@ -36,6 +37,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
 import appeng.parts.automation.StackUpgradeInventory;
 
 import javax.annotation.Nonnull;
@@ -46,8 +48,11 @@ import java.util.List;
 /**
  * 先进 ME 收集器的 TileEntity.
  *
- * <p>接入 AE 网络,维护一个 63 槽的过滤库存(7×9)和 5 个升级槽(容量卡扩展过滤行).
- * 在物品实体生成前,通过事件/Mixin 拦截并直接注入网络.</p>
+ * <p>接入 AE 网络,维护一个 63 槽的过滤库存(7×9)和 5 个升级槽(容量卡扩展过滤行),
+ * 以及一个 27 槽内部缓冲区(每槽 4096).</p>
+ *
+ * <p>核心设计:在 EntityItem 加入世界之前就尝试把物品注入 AE 网络;网络吃不下时,
+ * 物品暂存到内部缓冲区,每 tick 继续注入.只有在缓冲区也放不下时才生成实体.</p>
  */
 public class TileAdvancedMECollector extends TileAENetworkBase
         implements ITickable, IAEAppEngInventory, appeng.api.implementations.IUpgradeableHost,
@@ -55,9 +60,12 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
     public static final int CONFIG_SIZE = 63;
     public static final int UPGRADE_SLOTS = 5;
+    public static final int BUFFER_SIZE = 27;
+    public static final int BUFFER_STACK_LIMIT = 4096;
 
     private final AppEngInternalAEInventory config;
     private StackUpgradeInventory upgrades;
+    private final ItemStackHandler buffer;
 
     private int range = AE2EnhancedConfig.collector.defaultRange;
     private int tickCounter = 0;
@@ -65,8 +73,26 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     private boolean lastPowered = false;
     private boolean lastActive = false;
 
+    // 性能统计(调试用)
+    private long statItemsInjected = 0;
+    private long statEntitiesPrevented = 0;
+    private long statItemsBuffered = 0;
+    private long statBufferOverflows = 0;
+    private int statLogCounter = 0;
+
     public TileAdvancedMECollector() {
         this.config = new AppEngInternalAEInventory(this, CONFIG_SIZE);
+        this.buffer = new ItemStackHandler(BUFFER_SIZE) {
+            @Override
+            public int getSlotLimit(int slot) {
+                return BUFFER_STACK_LIMIT;
+            }
+
+            @Override
+            protected void onContentsChanged(int slot) {
+                TileAdvancedMECollector.this.markDirty();
+            }
+        };
     }
 
     // ---- TileAENetworkBase ----
@@ -145,10 +171,21 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
         syncClientState();
 
-        // 每 5 tick 兜底扫描一次范围内已存在的物品实体
+        // 每 tick 尝试把缓冲区物品注入网络
+        if (isActive()) {
+            flushBuffer();
+        }
+
+        // 兜底扫描:每 5 tick 一次,清理漏网之鱼
         if (++tickCounter >= 5) {
             tickCounter = 0;
             collectExistingItems();
+        }
+
+        // 每 200 tick(10 秒)输出一次统计日志
+        if (++statLogCounter >= 200) {
+            statLogCounter = 0;
+            logStats();
         }
     }
 
@@ -159,6 +196,29 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         for (EntityItem item : items) {
             if (item.isDead) continue;
             tryCollect(item);
+        }
+    }
+
+    /**
+     * 将缓冲区物品尽量注入网络.
+     */
+    private void flushBuffer() {
+        boolean changed = false;
+        for (int i = 0; i < this.buffer.getSlots(); i++) {
+            ItemStack stack = this.buffer.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            ItemStack remaining = injectToNetwork(stack, Actionable.MODULATE);
+            if (remaining.isEmpty()) {
+                this.buffer.setStackInSlot(i, ItemStack.EMPTY);
+                changed = true;
+            } else if (remaining.getCount() < stack.getCount()) {
+                this.buffer.setStackInSlot(i, remaining);
+                changed = true;
+            }
+        }
+        if (changed) {
+            markDirty();
         }
     }
 
@@ -256,6 +316,10 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return this.config;
     }
 
+    public ItemStackHandler getBuffer() {
+        return this.buffer;
+    }
+
     private StackUpgradeInventory getUpgrades() {
         if (this.upgrades == null) {
             this.upgrades = new StackUpgradeInventory(getProxy().getMachineRepresentation(), this, UPGRADE_SLOTS);
@@ -319,7 +383,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     // ---- 收集逻辑 ----
 
     /**
-     * 尝试收集单个物品实体.成功时销毁实体并返回 true.
+     * 尝试收集单个已存在的物品实体.成功时销毁实体并返回 true.
      */
     public boolean tryCollect(EntityItem entityItem) {
         if (world == null || world.isRemote) return false;
@@ -327,48 +391,87 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
         ItemStack stack = entityItem.getItem();
         if (stack.isEmpty()) return false;
-
         if (!matchesFilter(stack)) return false;
 
-        try {
-            IItemStorageChannel channel = appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            IAEItemStack toInsert = channel.createStack(stack);
-            if (toInsert == null) return false;
-
-            IAEItemStack remaining = Platform.poweredInsert(
-                    getProxy().getEnergy(),
-                    getProxy().getStorage().getInventory(channel),
-                    toInsert,
-                    new MachineSource(this)
-            );
-
-            if (remaining != null && remaining.getStackSize() > 0) {
-                ItemStack leftover = remaining.createItemStack();
-                if (leftover.getCount() < stack.getCount()) {
-                    entityItem.setItem(leftover);
-                    return false; // 部分收集,不取消实体
-                }
-                return false; // 完全无法收集
-            }
-
+        ItemStack remaining = tryCollectStack(stack);
+        if (remaining.isEmpty()) {
             entityItem.setDead();
+            this.statEntitiesPrevented++;
             return true;
-        } catch (GridAccessException e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Advanced ME Collector failed to inject item", e);
-            return false;
         }
+
+        if (remaining.getCount() < stack.getCount()) {
+            entityItem.setItem(remaining);
+            this.statEntitiesPrevented++;
+            return false; // 实体仍存在,但数量减少
+        }
+
+        return false;
     }
 
     /**
-     * 尝试收集一个 ItemStack(非实体场景).返回剩余未收集的 stack.
+     * 尝试收集一个 ItemStack.
+     * 返回 ItemStack.EMPTY 表示全部处理(进网或进缓冲区).
+     * 返回非空表示缓冲区也放不下,只能生成实体.
      */
-    @Nullable
     public ItemStack tryCollectStack(ItemStack stack) {
         if (world == null || world.isRemote) return stack;
-        if (!isActive()) return stack;
         if (stack.isEmpty()) return ItemStack.EMPTY;
         if (!matchesFilter(stack)) return stack;
 
+        // 第一步:尝试注入网络
+        ItemStack remaining = injectToNetwork(stack, Actionable.MODULATE);
+        if (remaining.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        // 第二步:剩余部分放入内部缓冲区
+        if (isActive()) {
+            ItemStack bufferRemain = insertToBuffer(remaining);
+            if (bufferRemain.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            // 缓冲区部分能放下:记录统计
+            this.statItemsBuffered += remaining.getCount() - bufferRemain.getCount();
+            return bufferRemain;
+        }
+
+        return remaining;
+    }
+
+    /**
+     * 强制收集:范围内有收集器且匹配过滤时,绝不生成实体.
+     * 返回剩余物品(仅当缓冲区满时).
+     */
+    public ItemStack tryCollectStackForced(ItemStack stack) {
+        if (world == null || world.isRemote) return stack;
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+        if (!matchesFilter(stack)) return stack;
+
+        // 尝试注入网络
+        ItemStack remaining = injectToNetwork(stack, Actionable.MODULATE);
+        if (remaining.isEmpty()) {
+            this.statEntitiesPrevented++;
+            return ItemStack.EMPTY;
+        }
+
+        // 剩余部分放入缓冲区(即使网络离线也先存起来)
+        ItemStack bufferRemain = insertToBuffer(remaining);
+        if (bufferRemain.isEmpty()) {
+            this.statEntitiesPrevented++;
+            return ItemStack.EMPTY;
+        }
+
+        this.statItemsBuffered += remaining.getCount() - bufferRemain.getCount();
+        if (bufferRemain.getCount() < remaining.getCount()) {
+            this.statEntitiesPrevented++;
+        } else {
+            this.statBufferOverflows++;
+        }
+        return bufferRemain;
+    }
+
+    private ItemStack injectToNetwork(ItemStack stack, Actionable mode) {
         try {
             IItemStorageChannel channel = appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             IAEItemStack toInsert = channel.createStack(stack);
@@ -384,11 +487,19 @@ public class TileAdvancedMECollector extends TileAENetworkBase
             if (remaining != null && remaining.getStackSize() > 0) {
                 return remaining.createItemStack();
             }
+            this.statItemsInjected += stack.getCount();
             return ItemStack.EMPTY;
         } catch (GridAccessException e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Advanced ME Collector failed to inject stack", e);
             return stack;
         }
+    }
+
+    private ItemStack insertToBuffer(ItemStack stack) {
+        ItemStack current = stack.copy();
+        for (int i = 0; i < this.buffer.getSlots() && !current.isEmpty(); i++) {
+            current = this.buffer.insertItem(i, current, false);
+        }
+        return current;
     }
 
     /**
@@ -414,15 +525,12 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         ItemStack filterStack = filter.createItemStack();
         if (filterStack.isEmpty()) return false;
 
-        // 基础物品匹配
         if (filterStack.getItem() != stack.getItem()) return false;
 
-        // 耐久/meta 匹配(若过滤物品有耐久)
         if (filterStack.getHasSubtypes() && filterStack.getMetadata() != stack.getMetadata()) {
             return false;
         }
 
-        // NBT 匹配:过滤物品有 NBT 时要求一致
         if (filterStack.hasTagCompound()) {
             if (!filterStack.getTagCompound().equals(stack.getTagCompound())) {
                 return false;
@@ -435,6 +543,16 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     public int getAvailableFilterSlots() {
         int capacityUpgrades = getInstalledUpgrades(Upgrades.CAPACITY);
         return Math.min(18 + capacityUpgrades * 9, CONFIG_SIZE);
+    }
+
+    // ---- 统计 ----
+
+    private void logStats() {
+        if (statItemsInjected == 0 && statEntitiesPrevented == 0 && statItemsBuffered == 0 && statBufferOverflows == 0) {
+            return;
+        }
+        AE2Enhanced.LOGGER.debug("[AE2E] Collector at {} stats: injected={}, prevented={}, buffered={}, overflows={}",
+                this.pos, this.statItemsInjected, this.statEntitiesPrevented, this.statItemsBuffered, this.statBufferOverflows);
     }
 
     // ---- 物品栏变化回调 ----
@@ -453,6 +571,9 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         this.config.readFromNBT(compound, "config");
         getUpgrades().readFromNBT(compound, "upgrades");
         this.clientFlags = compound.getInteger("clientFlags");
+        if (compound.hasKey("buffer")) {
+            this.buffer.deserializeNBT(compound.getCompoundTag("buffer"));
+        }
     }
 
     @Override
@@ -462,6 +583,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         this.config.writeToNBT(compound, "config");
         getUpgrades().writeToNBT(compound, "upgrades");
         compound.setInteger("clientFlags", this.clientFlags);
+        compound.setTag("buffer", this.buffer.serializeNBT());
         return compound;
     }
 
@@ -498,6 +620,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         if (world == null || world.isRemote) return;
         dropInventory(this.config, world, pos);
         dropInventory(getUpgrades(), world, pos);
+        dropInventory(this.buffer, world, pos);
     }
 
     private static void dropInventory(IItemHandler inv, World world, BlockPos pos) {
