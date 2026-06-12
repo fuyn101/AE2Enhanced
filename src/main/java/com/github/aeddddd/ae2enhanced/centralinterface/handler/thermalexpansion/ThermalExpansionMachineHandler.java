@@ -11,9 +11,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +30,9 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
 
     private static final boolean AVAILABLE;
     private static Class<?> TILE_INVENTORY_CLASS;
+    private static Class<?> TILE_MACHINE_BASE_CLASS;
     private static Field INVENTORY_FIELD;
+    private static Field PROCESS_REM_FIELD;
 
     static {
         boolean available = false;
@@ -36,6 +40,13 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
             if (Loader.isModLoaded("thermalexpansion")) {
                 TILE_INVENTORY_CLASS = Class.forName("cofh.core.block.TileInventory");
                 INVENTORY_FIELD = TILE_INVENTORY_CLASS.getField("inventory");
+                try {
+                    TILE_MACHINE_BASE_CLASS = Class.forName("cofh.thermalexpansion.block.machine.TileMachineBase");
+                    PROCESS_REM_FIELD = TILE_MACHINE_BASE_CLASS.getDeclaredField("processRem");
+                    PROCESS_REM_FIELD.setAccessible(true);
+                } catch (ClassNotFoundException | NoSuchFieldException e) {
+                    AE2Enhanced.LOGGER.debug("[AE2E] ThermalExpansion processRem support not available");
+                }
                 available = true;
             }
         } catch (Exception e) {
@@ -180,19 +191,31 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
+        // 如果机器仍在处理中,直接返回不空闲
+        if (isProcessing(te)) {
+            return false;
+        }
+
         ItemStack[] inventory = getInventoryArray(te);
-        if (inventory == null) return true;
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
         boolean hasProducts = false;
-        for (int slot = 0; slot < inventory.length; slot++) {
-            ItemStack stack = inventory[slot];
-            if (stack.isEmpty()) continue;
-            if (isInputMaterial(stack, inputsSafe)) {
-                return false; // 还有输入材料未处理完
+        if (inventory != null) {
+            for (int slot = 0; slot < inventory.length; slot++) {
+                ItemStack stack = inventory[slot];
+                if (stack.isEmpty()) continue;
+                if (isInputMaterial(stack, inputsSafe)) {
+                    return false; // 还有输入材料未处理完
+                }
+                hasProducts = true;
             }
-            hasProducts = true;
         }
+
+        // 检查流体 tank(如熔岩炉产物为流体)
+        if (getTankFluid(te) != null) {
+            return true;
+        }
+
         return hasProducts;
     }
 
@@ -258,5 +281,30 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         if (!ItemStack.areItemsEqual(actual, expected)) return false;
         if (!expected.hasTagCompound()) return true;
         return ItemStack.areItemStackTagsEqual(actual, expected);
+    }
+
+    private boolean isProcessing(TileEntity te) {
+        if (PROCESS_REM_FIELD == null) return false;
+        try {
+            int processRem = PROCESS_REM_FIELD.getInt(te);
+            return processRem > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private FluidStack getTankFluid(TileEntity te) {
+        try {
+            Method getTankFluid = te.getClass().getMethod("getTankFluid");
+            Object result = getTankFluid.invoke(te);
+            if (result instanceof FluidStack) {
+                return (FluidStack) result;
+            }
+        } catch (NoSuchMethodException e) {
+            // 该机器没有 tank
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get TE tank fluid", e);
+        }
+        return null;
     }
 }
