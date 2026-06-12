@@ -23,39 +23,99 @@ import java.util.List;
 /**
  * Ender IO 机器远程处理器.
  *
- * <p>同时支持 legacy 机器(直接操作 {@code inventory[]} 字段)和新的 capability 机器
- * (通过 {@code getInventory()} 获取内部 {@link IItemHandler}).
- * 绕过 EIO 机器的 IoMode 侧面配置,避免因为配置面导致中枢 ME 接口无法输入输出.</p>
+ * <p>基于 Ender IO 5.3.72 + EnderCore 0.5.78 的实际类结构实现,通过反射访问：</p>
+ * <ul>
+ *   <li>legacy 机器 {@code AbstractInventoryMachineEntity} 的 {@code inventory[]} 与 {@code SlotDefinition}</li>
+ *   <li>capability 机器 {@code AbstractCapabilityMachineEntity} 的 {@code EnderInventory} 及其 {@code Type.INPUT/OUTPUT} 视图</li>
+ *   <li>{@code AbstractMachineEntity} 的 {@code isActive()} 与 {@code getOutputQueue()}</li>
+ * </ul>
+ *
+ * <p>所有第三方类均通过 {@link Class#forName(String)} + 反射调用,不直接 import,
+ * 保证 Ender IO 未安装时本类即使被加载也不会触发 {@link NoClassDefFoundError}.</p>
  */
 public class EnderIOMachineHandler implements IRemoteHandler {
 
     private static final boolean AVAILABLE;
 
+    // ---- Ender IO classes ----
     private static Class<?> ABSTRACT_MACHINE_ENTITY_CLASS;
     private static Class<?> ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS;
     private static Class<?> ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS;
+    private static Class<?> SLOT_DEFINITION_CLASS;
 
-    private static Field LEGACY_INVENTORY_FIELD;
-    private static Method GET_INVENTORY_METHOD;
+    // ---- EnderCore classes ----
+    private static Class<?> ENDER_INVENTORY_CLASS;
+    private static Class<?> ENDER_INVENTORY_TYPE_CLASS;
+
+    // ---- Methods ----
+    private static Method METHOD_IS_ACTIVE;
+    private static Method METHOD_GET_OUTPUT_QUEUE;
+    private static Method METHOD_GET_SLOT_DEFINITION;
+    private static Method METHOD_IS_MACHINE_ITEM_VALID;
+    private static Method METHOD_IS_INPUT_SLOT;
+    private static Method METHOD_IS_OUTPUT_SLOT;
+    private static Method METHOD_GET_INVENTORY_STACK_LIMIT;
+    private static Method METHOD_GET_INVENTORY;
+    private static Method METHOD_GET_VIEW;
+    private static Method METHOD_IS_VALID_INPUT;
+    private static Method METHOD_IS_VALID_OUTPUT;
+
+    // ---- Fields ----
+    private static Field FIELD_LEGACY_INVENTORY;
+    private static Field FIELD_MIN_INPUT_SLOT;
+    private static Field FIELD_MAX_INPUT_SLOT;
+    private static Field FIELD_MIN_OUTPUT_SLOT;
+    private static Field FIELD_MAX_OUTPUT_SLOT;
+
+    // ---- Enum constants ----
+    private static Object ENDER_INVENTORY_TYPE_INPUT;
+    private static Object ENDER_INVENTORY_TYPE_OUTPUT;
 
     static {
         boolean available = false;
         try {
             if (Loader.isModLoaded("enderio")) {
+                // 核心基类
                 ABSTRACT_MACHINE_ENTITY_CLASS = Class.forName("crazypants.enderio.base.machine.base.te.AbstractMachineEntity");
+                METHOD_IS_ACTIVE = ABSTRACT_MACHINE_ENTITY_CLASS.getMethod("isActive");
+                METHOD_GET_OUTPUT_QUEUE = ABSTRACT_MACHINE_ENTITY_CLASS.getDeclaredMethod("getOutputQueue");
+                METHOD_GET_OUTPUT_QUEUE.setAccessible(true);
+
+                // legacy 机器
                 try {
                     ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS = Class.forName("crazypants.enderio.base.machine.baselegacy.AbstractInventoryMachineEntity");
-                    LEGACY_INVENTORY_FIELD = ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.getDeclaredField("inventory");
-                    LEGACY_INVENTORY_FIELD.setAccessible(true);
-                } catch (ClassNotFoundException | NoSuchFieldException e) {
-                    AE2Enhanced.LOGGER.debug("[AE2E] EIO legacy machine support not available");
+                    SLOT_DEFINITION_CLASS = Class.forName("crazypants.enderio.base.machine.baselegacy.SlotDefinition");
+                    FIELD_LEGACY_INVENTORY = ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.getDeclaredField("inventory");
+                    FIELD_LEGACY_INVENTORY.setAccessible(true);
+                    METHOD_GET_SLOT_DEFINITION = ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.getMethod("getSlotDefinition");
+                    METHOD_IS_MACHINE_ITEM_VALID = ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.getMethod("isMachineItemValidForSlot", int.class, ItemStack.class);
+                    METHOD_IS_INPUT_SLOT = SLOT_DEFINITION_CLASS.getMethod("isInputSlot", int.class);
+                    METHOD_IS_OUTPUT_SLOT = SLOT_DEFINITION_CLASS.getMethod("isOutputSlot", int.class);
+                    METHOD_GET_INVENTORY_STACK_LIMIT = ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.getMethod("getInventoryStackLimit", int.class);
+                    FIELD_MIN_INPUT_SLOT = SLOT_DEFINITION_CLASS.getField("minInputSlot");
+                    FIELD_MAX_INPUT_SLOT = SLOT_DEFINITION_CLASS.getField("maxInputSlot");
+                    FIELD_MIN_OUTPUT_SLOT = SLOT_DEFINITION_CLASS.getField("minOutputSlot");
+                    FIELD_MAX_OUTPUT_SLOT = SLOT_DEFINITION_CLASS.getField("maxOutputSlot");
+                } catch (ClassNotFoundException | NoSuchFieldException | NoSuchMethodException e) {
+                    AE2Enhanced.LOGGER.debug("[AE2E] EIO legacy machine support not available: {}", e.toString());
                 }
+
+                // capability 机器
                 try {
                     ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS = Class.forName("crazypants.enderio.base.machine.base.te.AbstractCapabilityMachineEntity");
-                    GET_INVENTORY_METHOD = ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.getMethod("getInventory");
+                    METHOD_GET_INVENTORY = ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.getMethod("getInventory");
+                    METHOD_IS_VALID_INPUT = ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.getMethod("isValidInput", ItemStack.class);
+                    METHOD_IS_VALID_OUTPUT = ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.getMethod("isValidOutput", ItemStack.class);
+
+                    ENDER_INVENTORY_CLASS = Class.forName("com.enderio.core.common.inventory.EnderInventory");
+                    ENDER_INVENTORY_TYPE_CLASS = Class.forName("com.enderio.core.common.inventory.EnderInventory$Type");
+                    METHOD_GET_VIEW = ENDER_INVENTORY_CLASS.getMethod("getView", ENDER_INVENTORY_TYPE_CLASS);
+                    ENDER_INVENTORY_TYPE_INPUT = Enum.valueOf((Class<Enum>) ENDER_INVENTORY_TYPE_CLASS, "INPUT");
+                    ENDER_INVENTORY_TYPE_OUTPUT = Enum.valueOf((Class<Enum>) ENDER_INVENTORY_TYPE_CLASS, "OUTPUT");
                 } catch (ClassNotFoundException | NoSuchMethodException e) {
-                    AE2Enhanced.LOGGER.debug("[AE2E] EIO capability machine support not available");
+                    AE2Enhanced.LOGGER.debug("[AE2E] EIO capability machine support not available: {}", e.toString());
                 }
+
                 available = true;
             }
         } catch (Exception e) {
@@ -85,12 +145,6 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return false;
 
-        IItemHandler handler = getInternalItemHandler(te);
-        if (handler == null) {
-            // 内部 handler 不可用,回退到遍历所有 face 的 capability(legacy fallback)
-            return pushToAnyFace(te, ingredients);
-        }
-
         List<ItemStack> toPush = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -98,18 +152,17 @@ public class EnderIOMachineHandler implements IRemoteHandler {
                 toPush.add(stack.copy());
             }
         }
+        if (toPush.isEmpty()) return true;
 
-        for (ItemStack stack : toPush) {
-            ItemStack remaining = stack.copy();
-            for (int slot = 0; slot < handler.getSlots() && !remaining.isEmpty(); slot++) {
-                remaining = handler.insertItem(slot, remaining, false);
-            }
-            if (!remaining.isEmpty()) {
-                return false;
-            }
+        // 优先走内部库存（绕过 IoMode），失败再回退到六面 capability
+        if (pushToInternal(te, toPush)) {
+            te.markDirty();
+            return true;
         }
-        te.markDirty();
-        return true;
+        if (pushToAnyFace(te, toPush)) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -122,28 +175,27 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
-        IItemHandler handler = getInternalItemHandler(te);
-        if (handler == null) {
-            return revertFromAnyFace(te);
-        }
-
         List<ItemStack> reverted = new ArrayList<>();
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            ItemStack inSlot = handler.getStackInSlot(slot);
-            if (!inSlot.isEmpty()) {
-                ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                if (!extracted.isEmpty()) {
-                    reverted.add(extracted);
-                }
-            }
+        reverted.addAll(extractFromInternal(te, SlotRole.INPUT, Integer.MAX_VALUE));
+        reverted.addAll(drainOutputQueue(te));
+        if (!reverted.isEmpty()) {
+            te.markDirty();
         }
-        te.markDirty();
         return reverted;
     }
 
     @Override
     public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
-        return revertMaterials(world, pos, source);
+        TileEntity te = world.getTileEntity(pos);
+        if (!isValidTarget(world, pos)) return Collections.emptyList();
+
+        List<ItemStack> cleared = new ArrayList<>();
+        cleared.addAll(extractFromInternal(te, SlotRole.OUTPUT, Integer.MAX_VALUE));
+        cleared.addAll(drainOutputQueue(te));
+        if (!cleared.isEmpty()) {
+            te.markDirty();
+        }
+        return cleared;
     }
 
     @Override
@@ -152,44 +204,32 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
-        IItemHandler handler = getInternalItemHandler(te);
-        if (handler == null) {
-            return collectFromAnyFace(te, expectedOutputs, inputs);
-        }
-
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
         List<ItemStack> collected = new ArrayList<>();
 
-        // 阶段 1：优先收集预期产物
+        // 阶段 1：优先收集预期产物（从输出槽）
         if (expectedOutputs != null) {
             for (IAEItemStack expected : expectedOutputs) {
                 if (expected == null) continue;
                 ItemStack expectedStack = expected.createItemStack();
-                for (int slot = 0; slot < handler.getSlots(); slot++) {
-                    ItemStack inSlot = handler.getStackInSlot(slot);
-                    if (inSlot.isEmpty()) continue;
-                    if (isInputMaterial(inSlot, inputsSafe)) continue;
-                    if (!matchesLoosely(inSlot, expectedStack)) continue;
-                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                    if (!extracted.isEmpty()) {
-                        collected.add(extracted);
-                    }
-                }
+                collected.addAll(extractMatchingFromInternal(te, SlotRole.OUTPUT, expectedStack, inputsSafe));
             }
         }
 
-        // 阶段 2：收集所有非输入材料物品
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            ItemStack inSlot = handler.getStackInSlot(slot);
-            if (inSlot.isEmpty()) continue;
-            if (isInputMaterial(inSlot, inputsSafe)) continue;
-            ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-            if (!extracted.isEmpty()) {
-                collected.add(extracted);
+        // 阶段 2：收集输出槽中剩余的非输入物品
+        List<ItemStack> outputs = extractFromInternal(te, SlotRole.OUTPUT, Integer.MAX_VALUE);
+        for (ItemStack stack : outputs) {
+            if (!isInputMaterial(stack, inputsSafe)) {
+                collected.add(stack);
             }
         }
 
-        te.markDirty();
+        // 阶段 3：收集输出队列
+        collected.addAll(drainOutputQueue(te));
+
+        if (!collected.isEmpty()) {
+            te.markDirty();
+        }
         return collected;
     }
 
@@ -198,100 +238,88 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
-        IItemHandler handler = getInternalItemHandler(te);
-        if (handler == null) {
-            return isIdleFromAnyFace(te, inputs);
+        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+
+        // 有产物待收集 → 处理完成,可以收集
+        if (hasAnyOutput(te)) {
+            return true;
         }
 
-        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
-        boolean hasProducts = false;
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            ItemStack inSlot = handler.getStackInSlot(slot);
-            if (inSlot.isEmpty()) continue;
-            if (isInputMaterial(inSlot, inputsSafe)) {
-                return false;
-            }
-            hasProducts = true;
+        // 机器明确处于活跃处理状态 → 不空闲
+        if (isActive(te)) {
+            return false;
         }
-        return hasProducts;
+
+        // 输入槽还有材料 → 可能仍在处理中
+        if (hasAnyInput(te, inputsSafe)) {
+            return false;
+        }
+
+        // 没有输入也没有输出 → 空闲
+        return true;
     }
 
     // ---- Internal helpers ----
 
-    private IItemHandler getInternalItemHandler(TileEntity te) {
+    private enum SlotRole {
+        INPUT, OUTPUT
+    }
+
+    private boolean pushToInternal(TileEntity te, List<ItemStack> toPush) {
         if (ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS != null
-                && ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.isInstance(te)
-                && GET_INVENTORY_METHOD != null) {
-            try {
-                Object inventory = GET_INVENTORY_METHOD.invoke(te);
-                if (inventory instanceof IItemHandler) {
-                    return (IItemHandler) inventory;
-                }
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO capability inventory", e);
+                && ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            IItemHandler inputView = getCapabilityView(te, ENDER_INVENTORY_TYPE_INPUT);
+            if (inputView != null) {
+                return pushToHandler(inputView, toPush);
             }
         }
         if (ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS != null
-                && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(te)
-                && LEGACY_INVENTORY_FIELD != null) {
-            try {
-                final ItemStack[] inventory = (ItemStack[]) LEGACY_INVENTORY_FIELD.get(te);
-                if (inventory != null) {
-                    return new IItemHandler() {
-                        @Override public int getSlots() { return inventory.length; }
-                        @Override public ItemStack getStackInSlot(int slot) { return slot >= 0 && slot < inventory.length ? inventory[slot] : ItemStack.EMPTY; }
-                        @Override public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-                            if (slot < 0 || slot >= inventory.length || stack.isEmpty()) return stack;
-                            ItemStack existing = inventory[slot];
-                            if (existing.isEmpty()) {
-                                if (!simulate) inventory[slot] = stack.copy();
-                                return ItemStack.EMPTY;
-                            }
-                            if (ItemStack.areItemsEqual(existing, stack) && ItemStack.areItemStackTagsEqual(existing, stack)
-                                    && existing.getCount() + stack.getCount() <= existing.getMaxStackSize()) {
-                                if (!simulate) existing.grow(stack.getCount());
-                                return ItemStack.EMPTY;
-                            }
-                            return stack;
-                        }
-                        @Override public ItemStack extractItem(int slot, int amount, boolean simulate) {
-                            if (slot < 0 || slot >= inventory.length || amount <= 0) return ItemStack.EMPTY;
-                            ItemStack existing = inventory[slot];
-                            if (existing.isEmpty()) return ItemStack.EMPTY;
-                            int toExtract = Math.min(amount, existing.getCount());
-                            ItemStack copy = existing.copy();
-                            copy.setCount(toExtract);
-                            if (!simulate) {
-                                existing.shrink(toExtract);
-                                if (existing.isEmpty()) inventory[slot] = ItemStack.EMPTY;
-                            }
-                            return copy;
-                        }
-                        @Override public int getSlotLimit(int slot) { return 64; }
-                    };
-                }
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO legacy inventory", e);
-            }
+                && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            return pushToLegacyInputSlots(te, toPush);
         }
-        return null;
+        return false;
     }
 
-    private boolean pushToAnyFace(TileEntity te, InventoryCrafting ingredients) {
-        List<ItemStack> toPush = new ArrayList<>();
-        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-            ItemStack stack = ingredients.getStackInSlot(i);
-            if (!stack.isEmpty()) toPush.add(stack.copy());
-        }
+    private boolean pushToAnyFace(TileEntity te, List<ItemStack> toPush) {
+        List<ItemStack> remaining = new ArrayList<>(toPush);
         for (EnumFacing face : EnumFacing.values()) {
-            if (toPush.isEmpty()) break;
+            if (remaining.isEmpty()) break;
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
+            pushToHandler(handler, remaining);
+        }
+        return remaining.isEmpty();
+    }
+
+    private boolean pushToHandler(IItemHandler handler, List<ItemStack> toPush) {
+        for (int i = 0; i < toPush.size(); ) {
+            ItemStack stack = toPush.get(i);
+            ItemStack remaining = stack.copy();
+            for (int slot = 0; slot < handler.getSlots() && !remaining.isEmpty(); slot++) {
+                remaining = handler.insertItem(slot, remaining, false);
+            }
+            if (remaining.isEmpty()) {
+                toPush.remove(i);
+            } else {
+                toPush.set(i, remaining);
+                i++;
+            }
+        }
+        return toPush.isEmpty();
+    }
+
+    private boolean pushToLegacyInputSlots(TileEntity te, List<ItemStack> toPush) {
+        try {
+            ItemStack[] inventory = (ItemStack[]) FIELD_LEGACY_INVENTORY.get(te);
+            if (inventory == null) return false;
+
+            SlotRange range = getLegacySlotRange(te, SlotRole.INPUT);
             for (int i = 0; i < toPush.size(); ) {
-                ItemStack stack = toPush.get(i);
-                ItemStack remaining = stack.copy();
-                for (int slot = 0; slot < handler.getSlots() && !remaining.isEmpty(); slot++) {
-                    remaining = handler.insertItem(slot, remaining, false);
+                ItemStack remaining = toPush.get(i).copy();
+                for (int slot = range.min; slot < range.max && !remaining.isEmpty(); slot++) {
+                    if (!isLegacyInputSlot(te, slot)) continue;
+                    if (!isMachineItemValid(te, slot, remaining)) continue;
+                    remaining = insertIntoLegacySlot(te, inventory, slot, remaining);
                 }
                 if (remaining.isEmpty()) {
                     toPush.remove(i);
@@ -300,56 +328,295 @@ public class EnderIOMachineHandler implements IRemoteHandler {
                     i++;
                 }
             }
+            return toPush.isEmpty();
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to push to EIO legacy machine", e);
+            return false;
         }
-        return toPush.isEmpty();
     }
 
-    private List<ItemStack> revertFromAnyFace(TileEntity te) {
-        List<ItemStack> reverted = new ArrayList<>();
-        for (EnumFacing face : EnumFacing.values()) {
-            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
-            if (handler == null) continue;
-            for (int slot = 0; slot < handler.getSlots(); slot++) {
-                ItemStack inSlot = handler.getStackInSlot(slot);
-                if (!inSlot.isEmpty()) {
-                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                    if (!extracted.isEmpty()) reverted.add(extracted);
+    private ItemStack insertIntoLegacySlot(TileEntity te, ItemStack[] inventory, int slot, ItemStack stack) {
+        if (slot < 0 || slot >= inventory.length || stack.isEmpty()) return stack;
+        ItemStack existing = inventory[slot];
+        int slotLimit = getLegacySlotLimit(te, slot);
+        if (existing.isEmpty()) {
+            ItemStack insert = stack.copy();
+            insert.setCount(Math.min(insert.getCount(), slotLimit));
+            inventory[slot] = insert;
+            if (insert.getCount() == stack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack remaining = stack.copy();
+            remaining.shrink(insert.getCount());
+            return remaining;
+        }
+        if (ItemStack.areItemsEqual(existing, stack) && ItemStack.areItemStackTagsEqual(existing, stack)) {
+            int max = Math.min(existing.getMaxStackSize(), slotLimit);
+            int canAdd = max - existing.getCount();
+            if (canAdd > 0) {
+                int add = Math.min(canAdd, stack.getCount());
+                existing.grow(add);
+                if (add == stack.getCount()) {
+                    return ItemStack.EMPTY;
+                }
+                ItemStack remaining = stack.copy();
+                remaining.shrink(add);
+                return remaining;
+            }
+        }
+        return stack;
+    }
+
+    private List<ItemStack> extractFromInternal(TileEntity te, SlotRole role, int maxAmount) {
+        if (ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            Object type = role == SlotRole.INPUT ? ENDER_INVENTORY_TYPE_INPUT : ENDER_INVENTORY_TYPE_OUTPUT;
+            IItemHandler view = getCapabilityView(te, type);
+            if (view != null) {
+                return extractAllFromHandler(view, maxAmount);
+            }
+        }
+        if (ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            return extractFromLegacySlots(te, role, maxAmount);
+        }
+        return Collections.emptyList();
+    }
+
+    private List<ItemStack> extractMatchingFromInternal(TileEntity te, SlotRole role, ItemStack expected,
+                                                        List<ItemStack> inputsSafe) {
+        List<ItemStack> result = new ArrayList<>();
+        if (ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            Object type = role == SlotRole.INPUT ? ENDER_INVENTORY_TYPE_INPUT : ENDER_INVENTORY_TYPE_OUTPUT;
+            IItemHandler view = getCapabilityView(te, type);
+            if (view != null) {
+                for (int slot = 0; slot < view.getSlots(); slot++) {
+                    ItemStack inSlot = view.getStackInSlot(slot);
+                    if (inSlot.isEmpty()) continue;
+                    if (isInputMaterial(inSlot, inputsSafe)) continue;
+                    if (!matchesLoosely(inSlot, expected)) continue;
+                    ItemStack extracted = view.extractItem(slot, inSlot.getCount(), false);
+                    if (!extracted.isEmpty()) {
+                        result.add(extracted);
+                    }
                 }
             }
+            return result;
         }
-        return reverted;
-    }
-
-    private List<ItemStack> collectFromAnyFace(TileEntity te, IAEItemStack[] expectedOutputs, List<ItemStack> inputs) {
-        List<ItemStack> collected = new ArrayList<>();
-        for (EnumFacing face : EnumFacing.values()) {
-            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
-            if (handler == null) continue;
-            for (int slot = 0; slot < handler.getSlots(); slot++) {
-                ItemStack inSlot = handler.getStackInSlot(slot);
-                if (inSlot.isEmpty()) continue;
-                if (isInputMaterial(inSlot, inputs != null ? inputs : Collections.emptyList())) continue;
-                ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                if (!extracted.isEmpty()) collected.add(extracted);
+        if (ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            try {
+                ItemStack[] inventory = (ItemStack[]) FIELD_LEGACY_INVENTORY.get(te);
+                if (inventory == null) return result;
+                SlotRange range = getLegacySlotRange(te, role);
+                for (int slot = range.min; slot < range.max; slot++) {
+                    ItemStack inSlot = inventory[slot];
+                    if (inSlot == null || inSlot.isEmpty()) continue;
+                    if (isInputMaterial(inSlot, inputsSafe)) continue;
+                    if (!matchesLoosely(inSlot, expected)) continue;
+                    result.add(inSlot.copy());
+                    inventory[slot] = ItemStack.EMPTY;
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Failed to extract matching from EIO legacy machine", e);
             }
         }
-        return collected;
+        return result;
     }
 
-    private boolean isIdleFromAnyFace(TileEntity te, List<ItemStack> inputs) {
-        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
-        boolean hasProducts = false;
-        for (EnumFacing face : EnumFacing.values()) {
-            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
-            if (handler == null) continue;
-            for (int slot = 0; slot < handler.getSlots(); slot++) {
-                ItemStack inSlot = handler.getStackInSlot(slot);
-                if (inSlot.isEmpty()) continue;
-                if (isInputMaterial(inSlot, inputsSafe)) return false;
-                hasProducts = true;
+    private List<ItemStack> extractFromLegacySlots(TileEntity te, SlotRole role, int maxAmount) {
+        List<ItemStack> result = new ArrayList<>();
+        try {
+            ItemStack[] inventory = (ItemStack[]) FIELD_LEGACY_INVENTORY.get(te);
+            if (inventory == null) return result;
+            SlotRange range = getLegacySlotRange(te, role);
+            for (int slot = range.min; slot < range.max && maxAmount > 0; slot++) {
+                ItemStack inSlot = inventory[slot];
+                if (inSlot == null || inSlot.isEmpty()) continue;
+                int take = Math.min(inSlot.getCount(), maxAmount);
+                ItemStack copy = inSlot.copy();
+                copy.setCount(take);
+                result.add(copy);
+                inSlot.shrink(take);
+                if (inSlot.isEmpty()) {
+                    inventory[slot] = ItemStack.EMPTY;
+                }
+                maxAmount -= take;
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to extract from EIO legacy machine", e);
+        }
+        return result;
+    }
+
+    private IItemHandler getCapabilityView(TileEntity te, Object typeConstant) {
+        if (METHOD_GET_INVENTORY == null || METHOD_GET_VIEW == null) return null;
+        try {
+            Object inventory = METHOD_GET_INVENTORY.invoke(te);
+            if (inventory == null) return null;
+            Object view = METHOD_GET_VIEW.invoke(inventory, typeConstant);
+            if (view instanceof IItemHandler) {
+                return (IItemHandler) view;
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO inventory view", e);
+        }
+        return null;
+    }
+
+    private SlotRange getLegacySlotRange(TileEntity te, SlotRole role) {
+        try {
+            Object slotDef = METHOD_GET_SLOT_DEFINITION.invoke(te);
+            if (slotDef == null) {
+                return new SlotRange(0, Integer.MAX_VALUE);
+            }
+            if (role == SlotRole.INPUT) {
+                int min = FIELD_MIN_INPUT_SLOT.getInt(slotDef);
+                int max = FIELD_MAX_INPUT_SLOT.getInt(slotDef) + 1;
+                return new SlotRange(min, max);
+            } else {
+                int min = FIELD_MIN_OUTPUT_SLOT.getInt(slotDef);
+                int max = FIELD_MAX_OUTPUT_SLOT.getInt(slotDef) + 1;
+                return new SlotRange(min, max);
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO legacy slot range", e);
+            return new SlotRange(0, Integer.MAX_VALUE);
+        }
+    }
+
+    private boolean isLegacyInputSlot(TileEntity te, int slot) {
+        if (METHOD_IS_INPUT_SLOT == null) return true;
+        try {
+            Object slotDef = METHOD_GET_SLOT_DEFINITION.invoke(te);
+            if (slotDef == null) return true;
+            return (boolean) METHOD_IS_INPUT_SLOT.invoke(slotDef, slot);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private boolean isMachineItemValid(TileEntity te, int slot, ItemStack stack) {
+        if (METHOD_IS_MACHINE_ITEM_VALID == null) return true;
+        try {
+            return (boolean) METHOD_IS_MACHINE_ITEM_VALID.invoke(te, slot, stack);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private int getLegacySlotLimit(TileEntity te, int slot) {
+        if (METHOD_GET_INVENTORY_STACK_LIMIT == null) return 64;
+        try {
+            return (int) METHOD_GET_INVENTORY_STACK_LIMIT.invoke(te, slot);
+        } catch (Exception e) {
+            return 64;
+        }
+    }
+
+    private boolean hasAnyOutput(TileEntity te) {
+        if (!getOutputQueue(te).isEmpty()) {
+            return true;
+        }
+        return hasAnyInSlotRole(te, SlotRole.OUTPUT);
+    }
+
+    private boolean hasAnyInput(TileEntity te, List<ItemStack> inputsSafe) {
+        return hasAnyInSlotRole(te, SlotRole.INPUT, inputsSafe);
+    }
+
+    private boolean hasAnyInSlotRole(TileEntity te, SlotRole role) {
+        return hasAnyInSlotRole(te, role, Collections.emptyList());
+    }
+
+    private boolean hasAnyInSlotRole(TileEntity te, SlotRole role, List<ItemStack> inputsSafe) {
+        if (ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_CAPABILITY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            Object type = role == SlotRole.INPUT ? ENDER_INVENTORY_TYPE_INPUT : ENDER_INVENTORY_TYPE_OUTPUT;
+            IItemHandler view = getCapabilityView(te, type);
+            if (view != null) {
+                for (int slot = 0; slot < view.getSlots(); slot++) {
+                    ItemStack inSlot = view.getStackInSlot(slot);
+                    if (inSlot.isEmpty()) continue;
+                    if (role == SlotRole.INPUT && isInputMaterial(inSlot, inputsSafe)) continue;
+                    return true;
+                }
+                return false;
             }
         }
-        return hasProducts;
+        if (ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS != null
+                && ABSTRACT_INVENTORY_MACHINE_ENTITY_CLASS.isInstance(te)) {
+            try {
+                ItemStack[] inventory = (ItemStack[]) FIELD_LEGACY_INVENTORY.get(te);
+                if (inventory == null) return false;
+                SlotRange range = getLegacySlotRange(te, role);
+                for (int slot = range.min; slot < range.max; slot++) {
+                    ItemStack inSlot = inventory[slot];
+                    if (inSlot == null || inSlot.isEmpty()) continue;
+                    if (role == SlotRole.INPUT && isInputMaterial(inSlot, inputsSafe)) continue;
+                    return true;
+                }
+                return false;
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Failed to check EIO legacy slot role", e);
+            }
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ItemStack> getOutputQueue(TileEntity te) {
+        if (METHOD_GET_OUTPUT_QUEUE == null) return Collections.emptyList();
+        try {
+            Object queue = METHOD_GET_OUTPUT_QUEUE.invoke(te);
+            if (queue instanceof List) {
+                return new ArrayList<>((List<ItemStack>) queue);
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO output queue", e);
+        }
+        return Collections.emptyList();
+    }
+
+    private List<ItemStack> drainOutputQueue(TileEntity te) {
+        List<ItemStack> result = getOutputQueue(te);
+        if (result.isEmpty()) return Collections.emptyList();
+        try {
+            Object queue = METHOD_GET_OUTPUT_QUEUE.invoke(te);
+            if (queue instanceof List) {
+                ((List<?>) queue).clear();
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to clear EIO output queue", e);
+        }
+        return result;
+    }
+
+    private boolean isActive(TileEntity te) {
+        if (METHOD_IS_ACTIVE == null) return false;
+        try {
+            Object result = METHOD_IS_ACTIVE.invoke(te);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to check EIO machine active state", e);
+            return false;
+        }
+    }
+
+    private List<ItemStack> extractAllFromHandler(IItemHandler handler, int maxAmount) {
+        List<ItemStack> result = new ArrayList<>();
+        for (int slot = 0; slot < handler.getSlots() && maxAmount > 0; slot++) {
+            ItemStack inSlot = handler.getStackInSlot(slot);
+            if (inSlot.isEmpty()) continue;
+            int take = Math.min(inSlot.getCount(), maxAmount);
+            ItemStack extracted = handler.extractItem(slot, take, false);
+            if (!extracted.isEmpty()) {
+                result.add(extracted);
+                maxAmount -= extracted.getCount();
+            }
+        }
+        return result;
     }
 
     private boolean isInputMaterial(ItemStack stack, List<ItemStack> inputs) {
@@ -365,5 +632,14 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         if (!ItemStack.areItemsEqual(actual, expected)) return false;
         if (!expected.hasTagCompound()) return true;
         return ItemStack.areItemStackTagsEqual(actual, expected);
+    }
+
+    private static final class SlotRange {
+        final int min;
+        final int max;
+        SlotRange(int min, int max) {
+            this.min = min;
+            this.max = max;
+        }
     }
 }
