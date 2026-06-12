@@ -36,7 +36,8 @@
     "entity.MixinEntityDataManager",
     "world.MixinWorldSpawnEntity",
     "world.MixinBlockSpawnAsEntity",
-    "world.MixinEntityPlayerDropItem"
+    "world.MixinEntityPlayerDropItem",
+    "world.MixinInventoryHelperDropItems"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",
