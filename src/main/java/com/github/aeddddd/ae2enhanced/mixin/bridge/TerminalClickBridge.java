@@ -2,6 +2,10 @@ package com.github.aeddddd.ae2enhanced.mixin.bridge;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.me.SlotME;
+import appeng.container.AEBaseContainer;
+import appeng.core.sync.network.NetworkHandler;
+import appeng.core.sync.packets.PacketInventoryAction;
+import appeng.helpers.InventoryAction;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableAction;
@@ -31,7 +35,7 @@ public final class TerminalClickBridge {
      *
      * @return true 表示已处理点击,Mixin 应 cancel 原方法
      */
-    public static boolean onHandleMouseClick(AEBaseGui gui, Slot slot, int mouseButton, ClickType clickType) {
+    public static boolean onHandleMouseClick(AEBaseGui gui, Slot slot, int slotId, int mouseButton, ClickType clickType) {
         if (!(slot instanceof SlotME)) {
             return false;
         }
@@ -41,13 +45,20 @@ public final class TerminalClickBridge {
         ItemStack mouseItem = player.inventory.getItemStack();
 
         // 中键提取(Picker upgrade)
-        if (mouseButton == 2 && clickType == ClickType.CLONE
-                && s.getAEStack() != null && s.getAEStack().getStackSize() > 0) {
+        if (mouseButton == 2 && clickType == ClickType.CLONE && s.getAEStack() != null) {
             if (gui.inventorySlots instanceof ContainerOmniTerm) {
                 ContainerOmniTerm container = (ContainerOmniTerm) gui.inventorySlots;
                 if (container.hasPickerUpgrade()) {
-                    AE2Enhanced.network.sendToServer(new PacketPickerAction(s.getAEStack()));
-                    return true;
+                    if (s.getAEStack().getStackSize() > 0) {
+                        AE2Enhanced.network.sendToServer(new PacketPickerAction(s.getAEStack()));
+                        return true;
+                    } else if (s.getAEStack().isCraftable()) {
+                        // 缺货但可合成：复用原版 AUTO_CRAFT 打开合成数量界面
+                        ((AEBaseContainer) gui.inventorySlots).setTargetStack(s.getAEStack());
+                        NetworkHandler.instance().sendToServer(new PacketInventoryAction(
+                                InventoryAction.AUTO_CRAFT, gui.inventorySlots.inventorySlots.size(), 0));
+                        return true;
+                    }
                 }
             }
         }

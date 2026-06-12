@@ -113,11 +113,6 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
     // 搜索框缓存(避免 keyTyped 中重复反射)
     private MEGuiTextField omniSearchField;
 
-    // V3：搜索防抖
-    private long lastSearchInputTime = 0;
-    private static final long SEARCH_DEBOUNCE_MS = 150;
-    private boolean pendingSearchUpdate = false;
-
     // V4：renderView 版本追踪（避免重复更新滚动条）
     private long lastRenderedViewVersion = 0;
 
@@ -147,8 +142,6 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
 
     @Override
     public void initGui() {
-        this.repo.setRowSize(18);
-
         // 计算行数：SMALL 固定 5 行,TALL 根据屏幕高度动态
         TerminalStyle style = (TerminalStyle) AEConfig.instance().getConfigManager().getSetting(Settings.TERMINAL_STYLE);
         if (style == TerminalStyle.SMALL) {
@@ -295,6 +288,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         if (this.isOmniRepo) {
             com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
                     (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
+            omniRepo.setRowSize(18);
             omniRepo.setSlotsPerPage(18 * this.omniRows);
             Enum<?> viewMode = this.getSortDisplay();
             Enum<?> sortBy = this.getSortBy();
@@ -587,28 +581,6 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                     .setActiveCrafting(this.container.getClientActiveCrafting());
         }
 
-        // R3: 搜索防抖——搜索词变化时发送分页请求
-        if (this.pendingSearchUpdate && System.currentTimeMillis() - this.lastSearchInputTime > SEARCH_DEBOUNCE_MS) {
-            String searchText = this.omniSearchField != null ? this.omniSearchField.getText() : "";
-            if (this.isOmniRepo) {
-                com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
-                        (com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo) this.repo;
-                boolean isModSearch = searchText.startsWith("@");
-                String query = isModSearch ? searchText.substring(1).toLowerCase() : searchText.toLowerCase();
-
-                Enum<?> viewModeEnum = this.getSortDisplay();
-                Enum<?> sortByEnum = this.getSortBy();
-                Enum<?> sortDirEnum = this.getSortDir();
-
-                omniRepo.onQueryParamsChanged(query,
-                        (byte) (isModSearch ? 1 : 0),
-                        (byte) (sortByEnum != null ? sortByEnum.ordinal() : 0),
-                        (byte) (sortDirEnum != null ? sortDirEnum.ordinal() : 0),
-                        (byte) (viewModeEnum != null ? viewModeEnum.ordinal() : 0));
-            }
-            this.pendingSearchUpdate = false;
-        }
-
         // R3: 检测是否有待处理的刷新请求（UPDATE_NOTIFY 节流）
         if (this.isOmniRepo) {
             com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo omniRepo =
@@ -709,8 +681,6 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 }
                 if (searchField.textboxKeyTyped(character, key)) {
                     this.repo.setSearchString(searchField.getText());
-                    this.pendingSearchUpdate = true;
-                    this.lastSearchInputTime = System.currentTimeMillis();
                 } else {
                     if (!wasSearchFieldFocused) {
                         searchField.setFocused(false);

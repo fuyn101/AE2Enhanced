@@ -5,6 +5,7 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.Platform;
+import appeng.util.prioritylist.IPartitionList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -495,21 +497,48 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
 
     public PageResult query(String search, byte searchMode, byte sortBy,
                             byte sortDir, byte viewMode, int offset, int limit) {
+        return query(search, searchMode, sortBy, sortDir, viewMode, offset, limit, null, null);
+    }
+
+    public PageResult query(String search, byte searchMode, byte sortBy,
+                            byte sortDir, byte viewMode, int offset, int limit,
+                            IPartitionList<IAEItemStack> viewCellFilter,
+                            Set<ItemDescriptor> clientFilter) {
         ensureSortedList(sortBy, sortDir, viewMode);
 
         if (search == null || search.isEmpty()) {
-            int total = this.sortedList.size();
+            List<IAEItemStack> filtered = applyFilters(this.sortedList, viewCellFilter, clientFilter);
+            int total = filtered.size();
             int start = Math.min(offset, total);
             int end = Math.min(offset + limit, total);
 
             List<IAEItemStack> result = new ArrayList<>(Math.max(0, end - start));
             for (int i = start; i < end; i++) {
-                result.add(this.sortedList.get(i).copy());
+                result.add(filtered.get(i).copy());
             }
             return new PageResult(total, offset, result);
         } else {
-            return performSearchPaged(search, searchMode, offset, limit);
+            return performSearchPaged(search, searchMode, offset, limit, viewCellFilter, clientFilter);
         }
+    }
+
+    private List<IAEItemStack> applyFilters(List<IAEItemStack> source,
+                                            IPartitionList<IAEItemStack> viewCellFilter,
+                                            Set<ItemDescriptor> clientFilter) {
+        if (viewCellFilter == null && clientFilter == null) {
+            return source;
+        }
+        List<IAEItemStack> filtered = new ArrayList<>(source.size());
+        for (IAEItemStack stack : source) {
+            if (viewCellFilter != null && !viewCellFilter.isListed(stack)) {
+                continue;
+            }
+            if (clientFilter != null && !clientFilter.contains(createDescriptor(stack))) {
+                continue;
+            }
+            filtered.add(stack);
+        }
+        return filtered;
     }
 
     private void ensureSortedList(byte sortBy, byte sortDir, byte viewMode) {
@@ -566,7 +595,9 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
      * 分页搜索：adapter 索引 + externalOnlyCache 线性扫描，合并后排序分页。
      * 使用搜索缓存避免重复索引（适合终端保持搜索、JEI 返回等场景）。
      */
-    private PageResult performSearchPaged(String search, byte searchMode, int offset, int limit) {
+    private PageResult performSearchPaged(String search, byte searchMode, int offset, int limit,
+                                          IPartitionList<IAEItemStack> viewCellFilter,
+                                          Set<ItemDescriptor> clientFilter) {
         SearchCacheKey cacheKey = new SearchCacheKey(search, searchMode, (byte) this.cachedViewMode);
         List<IAEItemStack> allMatched = this.searchCache.get(cacheKey);
 
@@ -685,6 +716,21 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             // 缓存完整匹配列表（避免上限过大导致内存爆炸）
             if (allMatched.size() <= 10000 && this.searchCache.size() < MAX_SEARCH_CACHE) {
                 this.searchCache.put(cacheKey, allMatched);
+            }
+        }
+
+        // 应用 view cell / HEI 客户端过滤
+        if (viewCellFilter != null || clientFilter != null) {
+            Iterator<IAEItemStack> it = allMatched.iterator();
+            while (it.hasNext()) {
+                IAEItemStack stack = it.next();
+                if (viewCellFilter != null && !viewCellFilter.isListed(stack)) {
+                    it.remove();
+                    continue;
+                }
+                if (clientFilter != null && !clientFilter.contains(createDescriptor(stack))) {
+                    it.remove();
+                }
             }
         }
 

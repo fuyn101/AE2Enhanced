@@ -29,6 +29,7 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
+import appeng.util.prioritylist.IPartitionList;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotPatternOutputs;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.SlotHighCapacity;
@@ -53,6 +54,7 @@ import net.minecraftforge.items.wrapper.PlayerInvWrapper;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchRequest;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniSearchResult;
+import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.SimpleMEMonitor;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -63,8 +65,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 全能无线终端 Container —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
@@ -1272,7 +1276,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
 
     @Override
     public ItemStack[] getViewCells() {
-        return new ItemStack[0];
+        return super.getViewCells();
     }
 
     // ================== 物品库更新回调 ==================
@@ -1661,6 +1665,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         ItemStorageAdapter adapter = findItemStorageAdapter();
         ItemStorageAdapter.PageResult result;
 
+        IPartitionList<IAEItemStack> viewCellFilter = appeng.items.storage.ItemViewCell.createFilter(this.getViewCells());
+        Set<ItemDescriptor> clientFilter = null;
+        List<ItemDescriptor> requestFilter = request.getClientFilter();
+        if (requestFilter != null) {
+            clientFilter = new HashSet<>(requestFilter);
+        }
+
         if (adapter != null) {
             result = adapter.query(
                 request.getSearchString(),
@@ -1669,11 +1680,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
                 request.getSortDir(),
                 request.getViewMode(),
                 request.getOffset(),
-                request.getLimit()
+                request.getLimit(),
+                viewCellFilter,
+                clientFilter
             );
         } else {
             // Fallback: 遍历 omniMonitor.getStorageList()
-            result = fallbackPageQuery(request);
+            result = fallbackPageQuery(request, viewCellFilter, clientFilter);
         }
 
         // 构建响应
@@ -1695,7 +1708,9 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
     }
 
     private ItemStorageAdapter.PageResult fallbackPageQuery(
-            com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest request) {
+            com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest request,
+            IPartitionList<IAEItemStack> viewCellFilter,
+            Set<ItemDescriptor> clientFilter) {
         appeng.api.storage.data.IItemList<IAEItemStack> list = this.omniMonitor.getStorageList();
         List<IAEItemStack> all = new ArrayList<>();
         for (IAEItemStack stack : list) {
@@ -1703,11 +1718,13 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             all.add(stack.copy());
         }
 
-        // ViewMode 过滤
+        // ViewMode / ViewCell / ClientFilter 过滤
         List<IAEItemStack> filtered = new ArrayList<>();
         for (IAEItemStack stack : all) {
             if (request.getViewMode() == 2 && !stack.isCraftable()) continue;
             if (request.getViewMode() == 0 && stack.getStackSize() == 0L) continue;
+            if (viewCellFilter != null && !viewCellFilter.isListed(stack)) continue;
+            if (clientFilter != null && !clientFilter.contains(new ItemDescriptor(stack.createItemStack()))) continue;
             filtered.add(stack);
         }
 

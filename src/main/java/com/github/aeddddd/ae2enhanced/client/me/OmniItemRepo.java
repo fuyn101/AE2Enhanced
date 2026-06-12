@@ -1,20 +1,13 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import appeng.api.config.SearchBoxMode;
-import appeng.api.config.Settings;
-import appeng.api.config.SortDir;
-import appeng.api.config.SortOrder;
-import appeng.api.config.ViewItems;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.client.gui.widgets.IScrollSource;
 import appeng.client.gui.widgets.ISortSource;
 import appeng.client.me.ItemRepo;
-import appeng.core.AEConfig;
-import appeng.integration.Integrations;
-import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult;
+import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -29,6 +22,10 @@ import java.util.List;
  * 只缓存当前可见页 ±1 页（最多 135 个物品）。排序/搜索/过滤全部在服务端执行。
  * 滚动、搜索时向服务端发送 {@link PacketOmniPageRequest}，服务端返回
  * {@link PacketOmniPageResult}。
+ *
+ * <p>当 HEI/JEI 可用且玩家输入搜索词时，客户端会先通过 {@link JeiSearchHelper}
+ * 获取 HEI 的匹配结果，并将 {@link ItemDescriptor} 列表附加到分页请求中，
+ * 从而支持 JECH/HECH 拼音搜索以及 HEI 原生的 tooltip/mod 搜索语义。
  */
 public class OmniItemRepo extends ItemRepo {
 
@@ -73,10 +70,11 @@ public class OmniItemRepo extends ItemRepo {
 
     // ==================== 当前查询参数 ====================
     private String currentSearch = "";
-    private byte searchMode = 0;    // 0=NAME, 1=MOD, 2=TOOLTIP
+    private byte searchMode = 0;    // 0=NAME, 1=MOD, 2=TOOLTIP(已禁用)
     private byte sortBy = 0;        // 0=NAME, 1=AMOUNT, 2=MOD, 3=INVTWEAKS
     private byte sortDir = 0;       // 0=ASC, 1=DESC
     private byte viewMode = 0;      // 0=STORED, 1=ALL, 2=CRAFTABLE
+    private List<ItemDescriptor> currentClientFilter = null;
 
     // ==================== 刷新节流 ====================
     private volatile boolean pendingRefresh = false;
@@ -97,6 +95,9 @@ public class OmniItemRepo extends ItemRepo {
 
     public void setActiveCrafting(List<CraftingStatus> list) {
         this.activeCrafting = list != null ? new ArrayList<>(list) : Collections.emptyList();
+        if (this.cacheOffset >= 0) {
+            updateNormalView();
+        }
     }
 
     public List<CraftingStatus> getActiveCrafting() {
@@ -243,6 +244,9 @@ public class OmniItemRepo extends ItemRepo {
         this.sortDir = sortDir;
         this.viewMode = viewMode;
 
+        // 对名称搜索尝试使用 HEI/JEI 过滤器（支持拼音/tooltip 等语义）
+        this.currentClientFilter = computeClientFilter(this.currentSearch, this.searchMode);
+
         // 清空缓存，重新请求第一页
         this.cacheOffset = -1;
         this.scrollOffset = 0;
@@ -251,10 +255,23 @@ public class OmniItemRepo extends ItemRepo {
         requestPage(0, MAX_CACHE_SIZE);
     }
 
+    private List<ItemDescriptor> computeClientFilter(String search, byte mode) {
+        if (mode != 0 || search == null || search.isEmpty()) {
+            return null;
+        }
+        try {
+            return JeiSearchHelper.getMatchingDescriptors(search);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to compute HEI client filter", e);
+            return null;
+        }
+    }
+
     private void requestPage(int offset, int limit) {
         PacketOmniPageRequest req = new PacketOmniPageRequest(
             this.currentSearch, this.searchMode, this.sortBy,
-            this.sortDir, this.viewMode, offset, limit
+            this.sortDir, this.viewMode, offset, limit,
+            this.currentClientFilter
         );
         AE2Enhanced.network.sendToServer(req);
     }
@@ -266,16 +283,18 @@ public class OmniItemRepo extends ItemRepo {
         super.setSearchString(search);
         String rawSearch = search != null ? search : "";
         byte newMode = 0;
+        // 仅 @ 前缀触发 mod 搜索；# 前缀暂时禁用 tooltip 搜索，去掉 # 后作为普通名称搜索
         if (rawSearch.startsWith("@")) {
             newMode = 1; // MOD
             rawSearch = rawSearch.substring(1).trim();
         } else if (rawSearch.startsWith("#")) {
-            newMode = 2; // TOOLTIP
             rawSearch = rawSearch.substring(1).trim();
         }
-        if (!rawSearch.equals(this.currentSearch) || newMode != this.searchMode) {
+        if (!rawSearch.equals(this.currentSearch) || newMode != this.searchMode
+                || this.currentClientFilter != null) {
             this.currentSearch = rawSearch;
             this.searchMode = newMode;
+            this.currentClientFilter = computeClientFilter(this.currentSearch, this.searchMode);
             // 搜索词变化时重新请求第一页
             this.cacheOffset = -1;
             this.scrollOffset = 0;
@@ -352,7 +371,7 @@ public class OmniItemRepo extends ItemRepo {
     }
 
     public void handleFullContinue(List<com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate.Entry> entries) {
-        // R3: 旧全量同步协议已废弃，不再处理
+        // R3: 旧差量同步协议已废弃，改用 UPDATE_NOTIFY + PAGE_REQUEST
     }
 
     public void handleDeltaCount(List<com.github.aeddddd.ae2enhanced.network.packet.PacketOmniInventoryUpdate.Entry> entries) {
