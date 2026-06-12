@@ -7,6 +7,7 @@ import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.container.guisync.GuiSync;
 import appeng.container.implementations.ContainerMEMonitorable;
@@ -1848,9 +1849,28 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             }
         }
 
-        // 将网络 monitor 设为 adapter 的外部存储源，确保终端能看到全部物品
-        if (adapter != null && adapter.getExternalMonitor() != this.omniMonitor) {
-            adapter.setExternalMonitor(this.omniMonitor);
+        // 将网络 monitor 设为 adapter 的外部存储源，确保终端能看到全部物品。
+        // 如果 omniMonitor 只是 SimpleMEMonitor（即 adapter 自身包装），则尝试从网格获取真正的网络物品 monitor，
+        // 以便拿到 crafting grid 注入的 craftable 标记。
+        if (adapter != null) {
+            appeng.api.storage.IMEMonitor<IAEItemStack> desiredExternal = this.omniMonitor;
+            if (desiredExternal instanceof SimpleMEMonitor) {
+                appeng.api.networking.IGridNode node = getNetworkNode();
+                if (node != null && node.getGrid() != null) {
+                    appeng.api.networking.IGrid grid = node.getGrid();
+                    IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+                    if (storageGrid != null) {
+                        appeng.api.storage.IMEMonitor<IAEItemStack> netMonitor = storageGrid.getInventory(
+                                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+                        if (netMonitor != null) {
+                            desiredExternal = netMonitor;
+                        }
+                    }
+                }
+            }
+            if (adapter.getExternalMonitor() != desiredExternal) {
+                adapter.setExternalMonitor(desiredExternal);
+            }
         }
 
         return adapter;
