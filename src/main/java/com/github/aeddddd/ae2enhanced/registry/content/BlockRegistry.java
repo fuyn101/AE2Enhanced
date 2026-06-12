@@ -50,4 +50,7 @@ public final class BlockRegistry {
 
     // 先进中枢平台
     public static BlockAdvancedPlatformController ADVANCED_PLATFORM_CONTROLLER;
+
+    // 先进 ME 收集器
+    public static BlockAdvancedMECollector ADVANCED_ME_COLLECTOR;
 }

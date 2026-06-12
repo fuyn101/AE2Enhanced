@@ -75,6 +75,10 @@ public class AE2EnhancedConfig {
     @Config.Comment("Thaumcraft automation settings for Central ME Interface")
     public static Thaumcraft thaumcraft = new Thaumcraft();
 
+    @Config.Name("Collector")
+    @Config.Comment("Advanced ME Collector settings.")
+    public static Collector collector = new Collector();
+
     @Config.Name("Energy")
     @Config.Comment({
         "RF energy bridge settings.",
@@ -469,6 +473,36 @@ public class AE2EnhancedConfig {
             "Default: true"
         })
         public boolean clearAfterCraft = true;
+    }
+
+    public static class Collector {
+        @Config.Comment({
+            "Default collection range radius (in blocks). The actual cubic area is",
+            "(2*range+1)^3. Default 2 means a 5x5x5 cube."
+        })
+        @Config.RangeInt(min = 0, max = 7)
+        public int defaultRange = 2;
+
+        @Config.Comment({
+            "Maximum collection range radius (in blocks). The actual cubic area is",
+            "(2*maxRange+1)^3. Default 7 means a 15x15x15 cube."
+        })
+        @Config.RangeInt(min = 1, max = 15)
+        public int maxRange = 7;
+
+        @Config.Comment({
+            "AE energy consumed per item collected.",
+            "Default: 8.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 1000000.0)
+        public double energyPerItem = 8.0;
+
+        @Config.Comment({
+            "Idle power draw (AE/t) for an active Advanced ME Collector.",
+            "Default: 16.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 1000000.0)
+        public double idlePower = 16.0;
     }
 
     @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)

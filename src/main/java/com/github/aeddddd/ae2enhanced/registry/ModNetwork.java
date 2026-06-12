@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRequestAssembly;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSetSlotAmount;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketCollectorConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketStockingBusConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUniversalBusConfig;
@@ -67,6 +68,7 @@ public final class ModNetwork {
         nw.registerMessage(PacketMEMonitorableAction.Handler.class, PacketMEMonitorableAction.class, 3, Side.SERVER);
         nw.registerMessage(PacketUniversalBusConfig.Handler.class, PacketUniversalBusConfig.class, 4, Side.SERVER);
         nw.registerMessage(PacketStockingBusConfig.Handler.class, PacketStockingBusConfig.class, 5, Side.SERVER);
+        nw.registerMessage(PacketCollectorConfig.Handler.class, PacketCollectorConfig.class, 40, Side.SERVER);
         nw.registerMessage(PacketUMCAction.Handler.class, PacketUMCAction.class, 6, Side.SERVER);
         nw.registerMessage(PacketOmniTermAction.Handler.class, PacketOmniTermAction.class, 7, Side.SERVER);
         nw.registerMessage(PacketLoadOmniRecipe.Handler.class, PacketLoadOmniRecipe.class, 8, Side.SERVER);

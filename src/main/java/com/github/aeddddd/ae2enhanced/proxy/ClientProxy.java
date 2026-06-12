@@ -209,6 +209,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
         registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
         registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
+        registerBlockItemModel(BlockRegistry.ADVANCED_ME_COLLECTOR);
 
         // 注册升级卡的所有模型 variant
         ModelLoader.registerItemVariants(ItemRegistry.UPGRADE_CARD,

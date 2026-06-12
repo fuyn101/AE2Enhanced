@@ -389,3 +389,10 @@ gui.ae2enhanced.omni_tool_config.next_page=Next
 gui.ae2enhanced.omni_tool_config.prev_page=Prev
 gui.ae2enhanced.omni_tool_config.not_installed=Not Installed
 key.ae2enhanced.omnitool_config=ME Omni Tool: Open Config GUI
+
+tile.ae2enhanced.advanced_me_collector.name=Advanced ME Collector
+gui.ae2enhanced.advanced_me_collector.name=Advanced ME Collector
+gui.ae2enhanced.advanced_me_collector.range=Range: %d×%d×%d
+gui.ae2enhanced.advanced_me_collector.range.increase=Increase range
+gui.ae2enhanced.advanced_me_collector.range.decrease=Decrease range
+tooltip.ae2enhanced.advanced_me_collector.range=Current collection range: %d×%d×%d

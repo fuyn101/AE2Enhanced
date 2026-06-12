@@ -12,6 +12,7 @@ import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
+import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
@@ -30,6 +31,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerDropsEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
@@ -65,6 +67,18 @@ public final class ModEventHandler {
 
     @SubscribeEvent
     public void onHarvestDrops(BlockEvent.HarvestDropsEvent event) {
+        if (event.getWorld().isRemote || event.isCanceled()) return;
+
+        // 先进 ME 收集器优先处理方块破坏掉落
+        if (!event.getDrops().isEmpty()) {
+            List<ItemStack> drops = event.getDrops();
+            collectItemDrops(event.getWorld(), event.getPos(), drops);
+            if (drops.isEmpty()) {
+                event.setDropChance(0.0f);
+                return;
+            }
+        }
+
         EntityPlayer player = event.getHarvester();
         if (player == null) return;
         ItemStack mainHand = player.getHeldItemMainhand();
@@ -298,6 +312,15 @@ public final class ModEventHandler {
      * 玩家死亡时，共形不变荷升级的 ME 工具不掉落，而是保留在死亡数据中待重生后恢复。
      */
     @SubscribeEvent
+    public void onLivingDrops(LivingDropsEvent event) {
+        if (event.getEntityLiving().world.isRemote || event.isCanceled() || event.getDrops().isEmpty()) return;
+        collectEntityDrops(event.getEntityLiving().world, event.getEntityLiving().getPosition(), event.getDrops());
+        if (event.getDrops().isEmpty()) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
     public void onPlayerDrops(PlayerDropsEvent event) {
         java.util.Iterator<EntityItem> it = event.getDrops().iterator();
         NBTTagList preserved = new NBTTagList();
@@ -311,6 +334,68 @@ public final class ModEventHandler {
         }
         if (preserved.tagCount() > 0) {
             event.getEntityPlayer().getEntityData().setTag("AE2E_ConformalPreserved", preserved);
+        }
+
+        // 在保留共形不变荷 ME 工具后,将剩余掉落物交给先进 ME 收集器处理
+        if (!event.getDrops().isEmpty()) {
+            collectEntityDrops(event.getEntityPlayer().world, event.getEntityPlayer().getPosition(), event.getDrops());
+            if (event.getDrops().isEmpty()) {
+                event.setCanceled(true);
+            }
+        }
+    }
+
+    /**
+     * 将 ItemStack 掉落物列表交给范围内的先进 ME 收集器处理,成功收集的将从列表移除.
+     */
+    private void collectItemDrops(World world, BlockPos pos, List<ItemStack> drops) {
+        List<TileAdvancedMECollector> collectors = com.github.aeddddd.ae2enhanced.collector.CollectorRegistry.findCollectorsFor(world, pos);
+        if (collectors.isEmpty()) return;
+
+        java.util.Iterator<ItemStack> it = drops.iterator();
+        while (it.hasNext()) {
+            ItemStack drop = it.next();
+            if (drop.isEmpty()) {
+                it.remove();
+                continue;
+            }
+            for (TileAdvancedMECollector collector : collectors) {
+                ItemStack leftover = collector.tryCollectStack(drop);
+                if (leftover.isEmpty()) {
+                    it.remove();
+                    break;
+                } else if (leftover.getCount() < drop.getCount()) {
+                    drop.setCount(leftover.getCount());
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 将 EntityItem 掉落物列表交给范围内的先进 ME 收集器处理,成功收集的将从列表移除.
+     */
+    private void collectEntityDrops(World world, BlockPos pos, List<EntityItem> drops) {
+        List<TileAdvancedMECollector> collectors = com.github.aeddddd.ae2enhanced.collector.CollectorRegistry.findCollectorsFor(world, pos);
+        if (collectors.isEmpty()) return;
+
+        java.util.Iterator<EntityItem> it = drops.iterator();
+        while (it.hasNext()) {
+            EntityItem drop = it.next();
+            if (drop == null || drop.getItem().isEmpty()) {
+                it.remove();
+                continue;
+            }
+            for (TileAdvancedMECollector collector : collectors) {
+                ItemStack leftover = collector.tryCollectStack(drop.getItem());
+                if (leftover.isEmpty()) {
+                    it.remove();
+                    break;
+                } else if (leftover.getCount() < drop.getItem().getCount()) {
+                    drop.setItem(leftover);
+                    break;
+                }
+            }
         }
     }
 
