@@ -7,13 +7,19 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.core.AEConfig;
 import appeng.core.features.AEFeature;
+import appeng.hooks.TickHandler;
+import appeng.me.Grid;
+import appeng.me.cache.GridStorageCache;
 import appeng.me.helpers.MachineSource;
 import appeng.me.helpers.PlayerSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
+import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidCompat;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.enchantment.Enchantment;
@@ -30,7 +36,9 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.FMLCommonHandler;
+import appeng.util.item.AEItemStack;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -60,7 +68,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     @Nonnull
     public String getUsage(@Nonnull ICommandSender sender) {
-        return "/ae2e <spgc|channels|recoverhd|testhd|help>";
+        return "/ae2e <spgc|channels|recoverhd|testhd|migratefluids|help>";
     }
 
     @Override
@@ -88,6 +96,9 @@ public class CommandAE2Enhanced extends CommandBase {
             case "testhd":
                 executeTestHd(server, sender, args);
                 break;
+            case "migratefluids":
+                executeMigrateFluids(sender);
+                break;
             case "help":
                 executeHelp(sender);
                 break;
@@ -113,9 +124,88 @@ public class CommandAE2Enhanced extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Give the player a Hyperdimensional Controller block carrying the specified UUID."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e testhd <uuid> <count>"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Inject <count> random enchanted gear types into the controller with the specified UUID."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e migratefluids"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Convert AE2E ItemFluidDrop in all ME networks to ae2fc format."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Requires ae2fc to be loaded and OP permission."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e help"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Display this help message."));
         sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=============================================="));
+    }
+
+    // ---- migrate fluids ----
+
+    private void executeMigrateFluids(@Nonnull ICommandSender sender) {
+        if (!Ae2fcCompat.AE2FC_LOADED) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] ae2fc is not loaded, no migration needed."));
+            return;
+        }
+
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command must be executed by a player."));
+            return;
+        }
+
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        IActionSource source = new PlayerSource(player, null);
+
+        int convertedStacks = 0;
+        long convertedAmount = 0;
+
+        try {
+            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+
+            for (Grid grid : TickHandler.INSTANCE.getGridList()) {
+                GridStorageCache storageCache = grid.getCache(GridStorageCache.class);
+                if (storageCache == null) continue;
+
+                appeng.api.storage.IMEMonitor<IAEItemStack> itemMonitor = storageCache.getInventory(itemChannel);
+                if (itemMonitor == null) continue;
+
+                appeng.api.storage.data.IItemList<IAEItemStack> itemList = itemChannel.createList();
+                itemMonitor.getAvailableItems(itemList);
+
+                for (IAEItemStack stack : itemList) {
+                    if (stack == null || stack.getStackSize() <= 0) continue;
+
+                    ItemStack mcStack = stack.createItemStack();
+                    if (!ItemFluidDrop.isFluidDrop(mcStack)) continue;
+
+                    FluidStack fluid = ItemFluidDrop.getFluidStack(mcStack);
+                    if (fluid == null || fluid.getFluid() == null) continue;
+
+                    // 提取全部 AE2E fluid drop
+                    IAEItemStack toExtract = stack.copy();
+                    IAEItemStack notExtracted = itemMonitor.extractItems(toExtract, Actionable.MODULATE, source);
+                    long extracted = stack.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
+                    if (extracted <= 0) continue;
+
+                    // 转换为 ae2fc 格式
+                    FluidStack toConvert = fluid.copy();
+                    toConvert.amount = (int) Math.min(extracted, Integer.MAX_VALUE);
+                    ItemStack ae2fcDrop = Ae2fcFluidCompat.createFluidDrop(toConvert);
+                    if (ae2fcDrop.isEmpty()) {
+                        // 转换失败,把原 drop 还回去
+                        ItemStack returnStack = mcStack.copy();
+                        returnStack.setCount((int) extracted);
+                        itemMonitor.injectItems(AEItemStack.fromItemStack(returnStack), Actionable.MODULATE, source);
+                        continue;
+                    }
+
+                    // 注回物品通道,由 ae2fc 接管
+                    IAEItemStack toInsert = AEItemStack.fromItemStack(ae2fcDrop);
+                    IAEItemStack notInserted = itemMonitor.injectItems(toInsert, Actionable.MODULATE, source);
+                    long inserted = toConvert.amount - (notInserted != null ? notInserted.getStackSize() : 0);
+                    convertedAmount += inserted;
+                    convertedStacks++;
+                }
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to migrate fluid drops", e);
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Migration failed: " + e.getMessage()));
+            return;
+        }
+
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Migrated " + convertedStacks + " AE2E fluid drop stacks (" + convertedAmount + " mB) to ae2fc format."));
     }
 
     // ---- spgc ----
