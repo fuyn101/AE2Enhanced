@@ -11,8 +11,11 @@ import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.events.MENetworkCraftingPatternChange;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.fluids.util.AEFluidStack;
 import appeng.api.util.IConfigManager;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
@@ -313,24 +316,44 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      */
     private boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
         try {
-            IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
             for (ItemStack product : items) {
                 if (product.isEmpty()) continue;
-                IAEItemStack toInsert = AEItemStack.fromItemStack(product);
-                IAEItemStack remaining = Platform.poweredInsert(
-                        proxy.getEnergy(),
-                        proxy.getStorage().getInventory(channel),
-                        toInsert,
-                        new appeng.me.helpers.MachineSource(this.host));
-                if (remaining != null && remaining.getStackSize() > 0) {
-                    ItemStack leftover = remaining.createItemStack();
-                    for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
-                        leftover = this.storage.insertItem(s, leftover, false);
+
+                if (ItemFluidDrop.isFluidDrop(product)) {
+                    // 流体假物品直接注入流体存储通道,确保 Crafting CPU 能识别流体返回
+                    FluidStack fluid = ItemFluidDrop.getFluidStack(product);
+                    if (fluid == null || fluid.amount <= 0) continue;
+
+                    IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
+                    if (toInsert == null) continue;
+                    toInsert.setStackSize(product.getCount());
+
+                    IAEFluidStack remaining = Platform.poweredInsert(
+                            proxy.getEnergy(),
+                            proxy.getStorage().getInventory(fluidChannel),
+                            toInsert,
+                            new appeng.me.helpers.MachineSource(this.host));
+
+                    if (remaining != null && remaining.getStackSize() > 0) {
+                        FluidStack leftoverFluid = remaining.getFluidStack().copy();
+                        leftoverFluid.amount = (int) Math.min(remaining.getStackSize(), Integer.MAX_VALUE);
+                        ItemStack leftover = ItemFluidDrop.createStack(leftoverFluid);
+                        if (!leftover.isEmpty()) {
+                            stashItemToStorage(world, leftover);
+                        }
                     }
-                    if (!leftover.isEmpty()) {
-                        BlockPos pos = this.host.getTileEntity().getPos();
-                        net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
-                        world.spawnEntity(entityItem);
+                } else {
+                    IAEItemStack toInsert = AEItemStack.fromItemStack(product);
+                    IAEItemStack remaining = Platform.poweredInsert(
+                            proxy.getEnergy(),
+                            proxy.getStorage().getInventory(itemChannel),
+                            toInsert,
+                            new appeng.me.helpers.MachineSource(this.host));
+                    if (remaining != null && remaining.getStackSize() > 0) {
+                        ItemStack leftover = remaining.createItemStack();
+                        stashItemToStorage(world, leftover);
                     }
                 }
             }
@@ -342,20 +365,27 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
+     * 将单个物品暂存到 storage slots,溢出则掉落.
+     */
+    private void stashItemToStorage(World world, ItemStack item) {
+        if (item.isEmpty()) return;
+        ItemStack leftover = item.copy();
+        for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
+            leftover = this.storage.insertItem(s, leftover, false);
+        }
+        if (!leftover.isEmpty()) {
+            BlockPos pos = this.host.getTileEntity().getPos();
+            net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
+            world.spawnEntity(entityItem);
+        }
+    }
+
+    /**
      * 将物品暂存到 storage slots,溢出则掉落.
      */
     private void stashItemsToStorage(World world, List<ItemStack> items) {
         for (ItemStack item : items) {
-            if (item.isEmpty()) continue;
-            ItemStack leftover = item.copy();
-            for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
-                leftover = this.storage.insertItem(s, leftover, false);
-            }
-            if (!leftover.isEmpty()) {
-                BlockPos pos = this.host.getTileEntity().getPos();
-                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, leftover);
-                world.spawnEntity(entityItem);
-            }
+            stashItemToStorage(world, item);
         }
     }
 
