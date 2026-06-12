@@ -4,16 +4,10 @@
       "model": "ae2enhanced:advanced_me_collector"
     },
     "state=on": {
-      "model": "ae2enhanced:advanced_me_collector",
-      "textures": {
-        "all": "ae2enhanced:blocks/wireless_channel_transmitter_on"
-      }
+      "model": "ae2enhanced:advanced_me_collector"
     },
     "state=has_channel": {
-      "model": "ae2enhanced:advanced_me_collector",
-      "textures": {
-        "all": "ae2enhanced:blocks/hyperdimensional_me_interface"
-      }
+      "model": "ae2enhanced:advanced_me_collector"
     },
     "inventory": {
       "model": "ae2enhanced:advanced_me_collector"

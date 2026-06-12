@@ -1,6 +1,10 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import appeng.api.config.FuzzyMode;
+import appeng.api.config.RedstoneMode;
+import appeng.api.config.Settings;
 import appeng.api.config.Upgrades;
+import appeng.api.config.YesNo;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
@@ -290,6 +294,9 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     public appeng.api.util.IConfigManager getConfigManager() {
         if (this.configManager == null) {
             this.configManager = new appeng.util.ConfigManager(this);
+            this.configManager.registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
+            this.configManager.registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
+            this.configManager.registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
         }
         return this.configManager;
     }
