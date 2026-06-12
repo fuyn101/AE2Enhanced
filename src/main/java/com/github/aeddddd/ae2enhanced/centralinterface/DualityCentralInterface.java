@@ -11,11 +11,8 @@ import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.events.MENetworkCraftingPatternChange;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.fluids.util.AEFluidStack;
 import appeng.api.util.IConfigManager;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
@@ -28,8 +25,8 @@ import appeng.util.inv.InvOperation;
 import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
-import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidCompat;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -313,48 +310,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     /**
      * 将物品列表注入 AE 网络,溢出部分先进入 storage slots,再溢出则掉落.
+     * 流体假物品走物品通道,由 ae2fc 的 FakeMonitor 体系接管(若 ae2fc 未安装,
+     * 则由本 mod 的 MixinNetworkMonitorFluid 转注入流体通道).
      */
     private boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
         try {
-            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             for (ItemStack product : items) {
                 if (product.isEmpty()) continue;
-
-                if (ItemFluidDrop.isFluidDrop(product)) {
-                    // 流体假物品直接注入流体存储通道,确保 Crafting CPU 能识别流体返回
-                    FluidStack fluid = ItemFluidDrop.getFluidStack(product);
-                    if (fluid == null || fluid.amount <= 0) continue;
-
-                    IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
-                    if (toInsert == null) continue;
-                    toInsert.setStackSize(product.getCount());
-
-                    IAEFluidStack remaining = Platform.poweredInsert(
-                            proxy.getEnergy(),
-                            proxy.getStorage().getInventory(fluidChannel),
-                            toInsert,
-                            new appeng.me.helpers.MachineSource(this.host));
-
-                    if (remaining != null && remaining.getStackSize() > 0) {
-                        FluidStack leftoverFluid = remaining.getFluidStack().copy();
-                        leftoverFluid.amount = (int) Math.min(remaining.getStackSize(), Integer.MAX_VALUE);
-                        ItemStack leftover = ItemFluidDrop.createStack(leftoverFluid);
-                        if (!leftover.isEmpty()) {
-                            stashItemToStorage(world, leftover);
-                        }
-                    }
-                } else {
-                    IAEItemStack toInsert = AEItemStack.fromItemStack(product);
-                    IAEItemStack remaining = Platform.poweredInsert(
-                            proxy.getEnergy(),
-                            proxy.getStorage().getInventory(itemChannel),
-                            toInsert,
-                            new appeng.me.helpers.MachineSource(this.host));
-                    if (remaining != null && remaining.getStackSize() > 0) {
-                        ItemStack leftover = remaining.createItemStack();
-                        stashItemToStorage(world, leftover);
-                    }
+                IAEItemStack toInsert = AEItemStack.fromItemStack(product);
+                IAEItemStack remaining = Platform.poweredInsert(
+                        proxy.getEnergy(),
+                        proxy.getStorage().getInventory(channel),
+                        toInsert,
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (remaining != null && remaining.getStackSize() > 0) {
+                    ItemStack leftover = remaining.createItemStack();
+                    stashItemToStorage(world, leftover);
                 }
             }
             return true;
@@ -557,14 +529,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             ItemStack stack = table.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            FluidStack fluid = null;
-            if (ItemFluidDrop.isFluidDrop(stack)) {
-                fluid = ItemFluidDrop.getFluidStack(stack);
-            } else {
-                // 兼容 ae2fc 的 ItemFluidDrop / ItemFluidPacket
+            FluidStack fluid = Ae2fcFluidCompat.getFluidStack(stack);
+            if (fluid == null) {
+                // 兼容 ae2fc 的 ItemFluidPacket(旧版 fallback)
                 String itemClass = stack.getItem().getClass().getName();
-                if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
-                        || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+                if ("com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
                     fluid = com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
                 }
             }
@@ -670,12 +639,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     private FluidStack extractFluidFromItemStack(ItemStack stack) {
-        if (ItemFluidDrop.isFluidDrop(stack)) {
-            return ItemFluidDrop.getFluidStack(stack);
+        FluidStack fluid = Ae2fcFluidCompat.getFluidStack(stack);
+        if (fluid != null) {
+            return fluid;
         }
         String itemClass = stack.getItem().getClass().getName();
-        if ("com.glodblock.github.common.item.ItemFluidDrop".equals(itemClass)
-                || "com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
+        if ("com.glodblock.github.common.item.ItemFluidPacket".equals(itemClass)) {
             return com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids.unpackAe2fcFluid(stack);
         }
         return null;
@@ -688,7 +657,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         FluidStack drained = fh.drain(expectedFluid, false);
         if (drained != null && drained.amount >= expectedFluid.amount) {
             fh.drain(expectedFluid, true);
-            fluids.add(ItemFluidDrop.createStack(expectedFluid));
+            fluids.add(Ae2fcFluidCompat.createFluidDrop(expectedFluid));
             return true;
         }
         return false;
@@ -708,7 +677,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (drained == null || drained.amount <= 0) break;
             FluidStack actual = fh.drain(drained, true);
             if (actual == null || actual.amount <= 0) break;
-            fluids.add(ItemFluidDrop.createStack(actual));
+            fluids.add(Ae2fcFluidCompat.createFluidDrop(actual));
         }
     }
 
