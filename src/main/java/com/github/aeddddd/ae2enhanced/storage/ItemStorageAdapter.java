@@ -5,6 +5,7 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.Platform;
+import net.minecraft.item.ItemStack;
 import appeng.util.prioritylist.IPartitionList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -95,7 +96,9 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
 
     @Override
     protected ItemDescriptor createDescriptor(IAEItemStack input) {
-        return new ItemDescriptor(input.createItemStack());
+        // 使用 getDefinition() 避免 count=0 的 craftable 物品被识别为 air
+        ItemStack definition = input.getDefinition();
+        return new ItemDescriptor(definition != null ? definition.copy() : input.createItemStack());
     }
 
     @Override
@@ -517,6 +520,19 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 result.add(filtered.get(i).copy());
             }
             return new PageResult(total, offset, result);
+        } else if (searchMode == 0 && clientFilter != null && !clientFilter.isEmpty()) {
+            // 名称搜索且客户端 HEI/JEI 已返回匹配列表时，直接以该列表为白名单过滤，
+            // 避免服务端字面搜索不识拼音/首字母/HECH 语义导致结果为空。
+            List<IAEItemStack> filtered = applyFilters(this.sortedList, viewCellFilter, clientFilter);
+            int total = filtered.size();
+            int start = Math.min(offset, total);
+            int end = Math.min(offset + limit, total);
+
+            List<IAEItemStack> result = new ArrayList<>(Math.max(0, end - start));
+            for (int i = start; i < end; i++) {
+                result.add(filtered.get(i).copy());
+            }
+            return new PageResult(total, offset, result);
         } else {
             return performSearchPaged(search, searchMode, offset, limit, viewCellFilter, clientFilter);
         }
@@ -549,6 +565,11 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
 
         this.sortedList.clear();
 
+        appeng.api.storage.data.IItemList<IAEItemStack> externalList = null;
+        if (this.externalMonitor != null) {
+            externalList = this.externalMonitor.getStorageList();
+        }
+
         for (java.util.Map.Entry<ItemDescriptor, BigInteger> entry : storage.entrySet()) {
             BigInteger count = entry.getValue();
             if (count == null || count.signum() <= 0) continue;
@@ -560,6 +581,14 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                 stack.setStackSize(Long.MAX_VALUE);
             } else {
                 stack.setStackSize(count.longValue());
+            }
+
+            // 合并外部 ME monitor 的 craftable 标记，确保存储中的物品也能中键下单/在 CRAFTABLE 视图中显示
+            if (externalList != null) {
+                IAEItemStack precise = externalList.findPrecise(stack);
+                if (precise != null && precise.isCraftable()) {
+                    stack.setCraftable(true);
+                }
             }
 
             if (viewMode == 2 && !stack.isCraftable()) continue;

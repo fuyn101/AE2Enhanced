@@ -1724,7 +1724,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
             if (request.getViewMode() == 2 && !stack.isCraftable()) continue;
             if (request.getViewMode() == 0 && stack.getStackSize() == 0L) continue;
             if (viewCellFilter != null && !viewCellFilter.isListed(stack)) continue;
-            if (clientFilter != null && !clientFilter.contains(new ItemDescriptor(stack.createItemStack()))) continue;
+            if (clientFilter != null && !clientFilter.contains(new ItemDescriptor(stack.getDefinition().copy()))) continue;
             filtered.add(stack);
         }
 
