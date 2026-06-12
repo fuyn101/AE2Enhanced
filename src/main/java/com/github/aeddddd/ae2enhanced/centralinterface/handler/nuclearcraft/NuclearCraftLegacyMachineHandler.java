@@ -12,49 +12,96 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Loader;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * NuclearCraft 2.19a (非重制版) 机器远程处理器.
+ * NuclearCraft 机器远程处理器.
  *
- * <p>通过反射直接访问 {@code ITileInventory#getInventoryStacks()},
- * 绕过 NC 机器的侧面配置(I/O mode),避免因为配置面导致中枢 ME 接口无法输入输出.</p>
+ * <p>同时支持 NuclearCraft 2.19a (非重制版) 与 NuclearCraft Overhauled (重制版).
+ * 通过反射直接访问 {@code ITileInventory#getInventoryStacks()},绕过 NC 机器的
+ * 侧面配置(I/O mode),避免因为配置面导致中枢 ME 接口无法输入输出.</p>
+ *
+ * <p>所有 NuclearCraft 类均通过 {@link Class#forName(String)} + 反射调用,不直接 import,
+ * 保证 NuclearCraft 未安装时本类即使被加载也不会触发 {@link NoClassDefFoundError}.</p>
  */
 public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
 
     private static final boolean AVAILABLE;
+    private static final boolean IS_OVERHAULED;
 
-    private static Class<?> TILE_ITEM_PROCESSOR_CLASS;
-    private static Class<?> TILE_FLUID_PROCESSOR_CLASS;
-    private static Class<?> TILE_ITEM_FLUID_PROCESSOR_CLASS;
+    // ---------- 重制版 (Overhauled) ----------
+    private static Class<?> OH_TILE_ENERGY_PROCESSOR_CLASS;
+    private static Class<?> OH_PROCESSOR_CONTAINER_INFO_CLASS;
+    private static Field OH_INFO_FIELD;
+    private static Field OH_ITEM_INPUT_SIZE_FIELD;
+    private static Field OH_ITEM_OUTPUT_SIZE_FIELD;
+    private static Field OH_ITEM_INPUT_SLOTS_FIELD;
+    private static Field OH_ITEM_OUTPUT_SLOTS_FIELD;
+
+    // ---------- 非重制版 (2.19a) ----------
+    private static Class<?> LEGACY_TILE_ITEM_PROCESSOR_CLASS;
+    private static Class<?> LEGACY_TILE_FLUID_PROCESSOR_CLASS;
+    private static Class<?> LEGACY_TILE_ITEM_FLUID_PROCESSOR_CLASS;
+
+    // ---------- 共享 ----------
     private static Class<?> ITILE_INVENTORY_CLASS;
-    private static Class<?> IUPGRADABLE_CLASS;
-
     private static Method GET_INVENTORY_STACKS_METHOD;
     private static Method IS_ITEM_VALID_FOR_SLOT_METHOD;
 
     static {
         boolean available = false;
+        boolean overhauled = false;
         try {
             if (Loader.isModLoaded("nuclearcraft")) {
-                TILE_ITEM_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemProcessor");
-                TILE_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileFluidProcessor");
-                TILE_ITEM_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemFluidProcessor");
-                ITILE_INVENTORY_CLASS = Class.forName("nc.tile.inventory.ITileInventory");
-                IUPGRADABLE_CLASS = Class.forName("nc.tile.processor.IUpgradable");
+                // 先检测是否为重制版：重制版有 TileEnergyProcessor
+                try {
+                    OH_TILE_ENERGY_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileEnergyProcessor");
+                    overhauled = true;
+                } catch (ClassNotFoundException e) {
+                    overhauled = false;
+                }
 
-                GET_INVENTORY_STACKS_METHOD = ITILE_INVENTORY_CLASS.getMethod("getInventoryStacks");
-                IS_ITEM_VALID_FOR_SLOT_METHOD = ITILE_INVENTORY_CLASS.getMethod("isItemValidForSlot", int.class, ItemStack.class);
-
-                available = true;
+                if (overhauled) {
+                    available = initOverhauled();
+                } else {
+                    available = initLegacy();
+                }
             }
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to initialize NuclearCraft 2.19a handler", e);
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to initialize NuclearCraft handler", e);
         }
         AVAILABLE = available;
+        IS_OVERHAULED = overhauled;
+    }
+
+    private static boolean initOverhauled() throws Exception {
+        OH_PROCESSOR_CONTAINER_INFO_CLASS = Class.forName("nc.tile.processor.info.ProcessorContainerInfo");
+        OH_INFO_FIELD = OH_TILE_ENERGY_PROCESSOR_CLASS.getDeclaredField("info");
+        OH_INFO_FIELD.setAccessible(true);
+        OH_ITEM_INPUT_SIZE_FIELD = OH_PROCESSOR_CONTAINER_INFO_CLASS.getField("itemInputSize");
+        OH_ITEM_OUTPUT_SIZE_FIELD = OH_PROCESSOR_CONTAINER_INFO_CLASS.getField("itemOutputSize");
+        OH_ITEM_INPUT_SLOTS_FIELD = OH_PROCESSOR_CONTAINER_INFO_CLASS.getField("itemInputSlots");
+        OH_ITEM_OUTPUT_SLOTS_FIELD = OH_PROCESSOR_CONTAINER_INFO_CLASS.getField("itemOutputSlots");
+
+        ITILE_INVENTORY_CLASS = Class.forName("nc.tile.inventory.ITileInventory");
+        GET_INVENTORY_STACKS_METHOD = ITILE_INVENTORY_CLASS.getMethod("getInventoryStacks");
+        IS_ITEM_VALID_FOR_SLOT_METHOD = ITILE_INVENTORY_CLASS.getMethod("isItemValidForSlot", int.class, ItemStack.class);
+        return true;
+    }
+
+    private static boolean initLegacy() throws Exception {
+        LEGACY_TILE_ITEM_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemProcessor");
+        LEGACY_TILE_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileFluidProcessor");
+        LEGACY_TILE_ITEM_FLUID_PROCESSOR_CLASS = Class.forName("nc.tile.processor.TileItemFluidProcessor");
+
+        ITILE_INVENTORY_CLASS = Class.forName("nc.tile.inventory.ITileInventory");
+        GET_INVENTORY_STACKS_METHOD = ITILE_INVENTORY_CLASS.getMethod("getInventoryStacks");
+        IS_ITEM_VALID_FOR_SLOT_METHOD = ITILE_INVENTORY_CLASS.getMethod("isItemValidForSlot", int.class, ItemStack.class);
+        return true;
     }
 
     @Override
@@ -69,10 +116,13 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
     }
 
     private boolean isProcessorTile(TileEntity te) {
-        if (te == null) return false;
-        return TILE_ITEM_PROCESSOR_CLASS.isInstance(te)
-                || TILE_FLUID_PROCESSOR_CLASS.isInstance(te)
-                || TILE_ITEM_FLUID_PROCESSOR_CLASS.isInstance(te);
+        if (te == null || !AVAILABLE) return false;
+        if (IS_OVERHAULED) {
+            return OH_TILE_ENERGY_PROCESSOR_CLASS != null && OH_TILE_ENERGY_PROCESSOR_CLASS.isInstance(te);
+        }
+        return (LEGACY_TILE_ITEM_PROCESSOR_CLASS != null && LEGACY_TILE_ITEM_PROCESSOR_CLASS.isInstance(te))
+                || (LEGACY_TILE_FLUID_PROCESSOR_CLASS != null && LEGACY_TILE_FLUID_PROCESSOR_CLASS.isInstance(te))
+                || (LEGACY_TILE_ITEM_FLUID_PROCESSOR_CLASS != null && LEGACY_TILE_ITEM_FLUID_PROCESSOR_CLASS.isInstance(te));
     }
 
     @Override
@@ -88,7 +138,7 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
 
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int inputSize = getItemInputSize(te);
+            int[] inputSlots = getItemInputSlots(te);
 
             List<ItemStack> toPush = new ArrayList<>();
             for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -99,7 +149,7 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
             }
 
             for (ItemStack stack : toPush) {
-                if (!pushItemToInventory(te, inventory, inputSize, stack)) {
+                if (!pushItemToInventory(te, inventory, inputSlots, stack)) {
                     return false;
                 }
             }
@@ -125,8 +175,8 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
         List<ItemStack> reverted = new ArrayList<>();
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int inputSize = getItemInputSize(te);
-            for (int slot = 0; slot < inputSize && slot < inventory.size(); slot++) {
+            for (int slot : getItemInputSlots(te)) {
+                if (slot < 0 || slot >= inventory.size()) continue;
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty()) {
                     reverted.add(stack.copy());
@@ -149,13 +199,8 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
         List<ItemStack> cleared = new ArrayList<>();
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int inputSize = getItemInputSize(te);
-            int outputSize = getItemOutputSize(te);
-            int outputStart = inputSize;
-            int outputEnd = Math.min(inputSize + outputSize, inventory.size());
-
-            // 收集输出槽
-            for (int slot = outputStart; slot < outputEnd; slot++) {
+            for (int slot : getItemOutputSlots(te)) {
+                if (slot < 0 || slot >= inventory.size()) continue;
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty()) {
                     cleared.add(stack.copy());
@@ -179,17 +224,17 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
         List<ItemStack> collected = new ArrayList<>();
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int inputSize = getItemInputSize(te);
-            int outputSize = getItemOutputSize(te);
-            int outputStart = inputSize;
-            int outputEnd = Math.min(inputSize + outputSize, inventory.size());
+            int[] outputSlots = getItemOutputSlots(te);
+            int[] inputSlots = getItemInputSlots(te);
+            List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
             // 阶段 1：优先收集匹配预期产物的物品
             if (expectedOutputs != null) {
                 for (IAEItemStack expected : expectedOutputs) {
                     if (expected == null) continue;
                     ItemStack expectedStack = expected.createItemStack();
-                    for (int slot = outputStart; slot < outputEnd; slot++) {
+                    for (int slot : outputSlots) {
+                        if (slot < 0 || slot >= inventory.size()) continue;
                         ItemStack inSlot = inventory.get(slot);
                         if (inSlot.isEmpty()) continue;
                         if (matchesLoosely(inSlot, expectedStack)) {
@@ -201,7 +246,8 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
             }
 
             // 阶段 2：收集输出槽中所有剩余物品(副产物/容器等)
-            for (int slot = outputStart; slot < outputEnd; slot++) {
+            for (int slot : outputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty()) {
                     collected.add(stack.copy());
@@ -210,8 +256,8 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
             }
 
             // 阶段 3：收集输入槽中未被识别为输入材料的剩余物品(防止机器把产物吐回输入槽)
-            List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
-            for (int slot = 0; slot < inputSize && slot < inventory.size(); slot++) {
+            for (int slot : inputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
                 ItemStack stack = inventory.get(slot);
                 if (stack.isEmpty()) continue;
                 if (!isInputMaterial(stack, inputsSafe)) {
@@ -234,24 +280,24 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
 
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int inputSize = getItemInputSize(te);
-            int outputSize = getItemOutputSize(te);
-            int outputStart = inputSize;
-            int outputEnd = Math.min(inputSize + outputSize, inventory.size());
+            int[] inputSlots = getItemInputSlots(te);
+            int[] outputSlots = getItemOutputSlots(te);
             List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
-            // 检查输入槽是否还有未处理完的输入材料
-            for (int slot = 0; slot < inputSize && slot < inventory.size(); slot++) {
-                ItemStack stack = inventory.get(slot);
-                if (!stack.isEmpty() && isInputMaterial(stack, inputsSafe)) {
-                    return false;
+            // 检查输出槽是否有产物
+            for (int slot : outputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
+                if (!inventory.get(slot).isEmpty()) {
+                    return true;
                 }
             }
 
-            // 检查输出槽是否有产物
-            for (int slot = outputStart; slot < outputEnd; slot++) {
-                if (!inventory.get(slot).isEmpty()) {
-                    return true;
+            // 检查输入槽是否还有未处理完的输入材料
+            for (int slot : inputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
+                ItemStack stack = inventory.get(slot);
+                if (!stack.isEmpty() && isInputMaterial(stack, inputsSafe)) {
+                    return false;
                 }
             }
 
@@ -264,8 +310,9 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
 
     // ---- Internal helpers ----
 
-    private boolean pushItemToInventory(TileEntity te, NonNullList<ItemStack> inventory, int inputSize, ItemStack stack) {
-        for (int slot = 0; slot < inputSize && slot < inventory.size(); slot++) {
+    private boolean pushItemToInventory(TileEntity te, NonNullList<ItemStack> inventory, int[] inputSlots, ItemStack stack) {
+        for (int slot : inputSlots) {
+            if (slot < 0 || slot >= inventory.size()) continue;
             ItemStack existing = inventory.get(slot);
             try {
                 if (!existing.isEmpty()) {
@@ -290,19 +337,68 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
         return false;
     }
 
-    private int getItemInputSize(TileEntity te) {
+    private int[] getItemInputSlots(TileEntity te) {
+        if (IS_OVERHAULED) {
+            int[] slots = getOverhauledIntArray(te, OH_ITEM_INPUT_SLOTS_FIELD);
+            if (slots != null) return slots;
+            int size = getOverhauledInt(te, OH_ITEM_INPUT_SIZE_FIELD, 0);
+            return buildRange(0, size);
+        }
+        int size = getTileIntField(te, "itemInputSize", 0);
+        return buildRange(0, size);
+    }
+
+    private int[] getItemOutputSlots(TileEntity te) {
+        if (IS_OVERHAULED) {
+            int[] slots = getOverhauledIntArray(te, OH_ITEM_OUTPUT_SLOTS_FIELD);
+            if (slots != null) return slots;
+            int inputSize = getOverhauledInt(te, OH_ITEM_INPUT_SIZE_FIELD, 0);
+            int outputSize = getOverhauledInt(te, OH_ITEM_OUTPUT_SIZE_FIELD, 0);
+            return buildRange(inputSize, outputSize);
+        }
+        int inputSize = getTileIntField(te, "itemInputSize", 0);
+        int outputSize = getTileIntField(te, "itemOutputSize", 0);
+        return buildRange(inputSize, outputSize);
+    }
+
+    private int[] buildRange(int start, int length) {
+        if (length <= 0) return new int[0];
+        int[] result = new int[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = start + i;
+        }
+        return result;
+    }
+
+    private int getOverhauledInt(TileEntity te, Field field, int fallback) {
         try {
-            return (Integer) te.getClass().getField("itemInputSize").get(te);
+            Object info = OH_INFO_FIELD.get(te);
+            if (info == null || field == null) return fallback;
+            return field.getInt(info);
         } catch (Exception e) {
-            return 0;
+            return fallback;
         }
     }
 
-    private int getItemOutputSize(TileEntity te) {
+    private int[] getOverhauledIntArray(TileEntity te, Field field) {
         try {
-            return (Integer) te.getClass().getField("itemOutputSize").get(te);
+            Object info = OH_INFO_FIELD.get(te);
+            if (info == null || field == null) return null;
+            Object value = field.get(info);
+            if (value instanceof int[]) {
+                return (int[]) value;
+            }
         } catch (Exception e) {
-            return 0;
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get NC Overhauled int array", e);
+        }
+        return null;
+    }
+
+    private int getTileIntField(TileEntity te, String name, int fallback) {
+        try {
+            return te.getClass().getField(name).getInt(te);
+        } catch (Exception e) {
+            return fallback;
         }
     }
 
