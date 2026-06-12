@@ -167,10 +167,34 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         }
 
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
-        boolean hasProducts = false;
 
-        // 先检查是否还有未处理完的输入材料；只要还有输入材料就继续等待，
-        // 防止机器一次只能处理一份时，过早收集导致剩余材料和后续产物丢失。
+        // 宽松语义：只要有可抽取的非输入物品(产物),即可收集(支持流水线模式)
+        for (EnumFacing face : EnumFacing.values()) {
+            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
+            if (handler == null) continue;
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack inSlot = handler.getStackInSlot(slot);
+                if (inSlot.isEmpty()) continue;
+                ItemStack simulated = handler.extractItem(slot, 1, true);
+                if (simulated.isEmpty()) continue;
+                if (!isInputMaterial(inSlot, inputsSafe)) {
+                    return true; // 发现产物,可以收集
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) {
+            return true;
+        }
+
+        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+
+        // 检查是否还有输入材料未消耗完
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
@@ -180,14 +204,27 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 ItemStack simulated = handler.extractItem(slot, 1, true);
                 if (simulated.isEmpty()) continue;
                 if (isInputMaterial(inSlot, inputsSafe)) {
-                    return false; // 还有输入材料未消耗完，继续等待
-                } else {
-                    hasProducts = true; // 发现可抽取的非输入物品（产物）
+                    return false; // 还有输入材料,未完成
                 }
             }
         }
-        // 所有输入材料都已消耗完，如果还有产物则允许收集
-        return hasProducts;
+
+        // 输入已耗尽,再检查是否还有产物残留
+        for (EnumFacing face : EnumFacing.values()) {
+            IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
+            if (handler == null) continue;
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack inSlot = handler.getStackInSlot(slot);
+                if (inSlot.isEmpty()) continue;
+                ItemStack simulated = handler.extractItem(slot, 1, true);
+                if (simulated.isEmpty()) continue;
+                if (!isInputMaterial(inSlot, inputsSafe)) {
+                    return false; // 还有产物,未真正完成
+                }
+            }
+        }
+
+        return true;
     }
 
     // ---- Internal helpers ----

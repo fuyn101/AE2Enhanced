@@ -199,24 +199,47 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
+        // 宽松语义：只要有可收集的产物(非输入材料)或流体,即可收集(支持流水线模式)
         boolean hasProducts = false;
         if (inventory != null) {
             for (int slot = 0; slot < inventory.length; slot++) {
                 ItemStack stack = inventory[slot];
                 if (stack.isEmpty()) continue;
-                if (isInputMaterial(stack, inputsSafe)) {
-                    return false; // 还有输入材料未处理完
-                }
+                if (isInputMaterial(stack, inputsSafe)) continue;
                 hasProducts = true;
+                break;
             }
         }
 
-        // 检查流体 tank(如熔岩炉产物为流体)
-        if (getTankFluid(te) != null) {
-            return true;
+        return hasProducts || getTankFluid(te) != null;
+    }
+
+    @Override
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (!isValidTarget(world, pos)) return true;
+
+        // 仍在处理中 → 未完成
+        if (isProcessing(te)) {
+            return false;
         }
 
-        return hasProducts;
+        ItemStack[] inventory = getInventoryArray(te);
+        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+
+        // 还有输入材料 → 未完成
+        if (inventory != null) {
+            for (int slot = 0; slot < inventory.length; slot++) {
+                ItemStack stack = inventory[slot];
+                if (stack.isEmpty()) continue;
+                if (isInputMaterial(stack, inputsSafe)) {
+                    return false;
+                }
+            }
+        }
+
+        // 输入已耗尽且无产物 → 完成
+        return getTankFluid(te) == null;
     }
 
     // ---- Internal helpers ----

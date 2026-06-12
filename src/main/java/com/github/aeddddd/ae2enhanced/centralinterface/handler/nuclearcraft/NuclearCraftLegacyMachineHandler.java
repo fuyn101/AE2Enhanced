@@ -280,25 +280,14 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
 
         try {
             NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
-            int[] inputSlots = getItemInputSlots(te);
             int[] outputSlots = getItemOutputSlots(te);
-            List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
 
-            // 机器仍在处理中 → 不空闲
+            // 机器正在处理中 → 暂无可收集产物
             if (isProcessingNC(te)) {
                 return false;
             }
 
-            // 输入槽还有输入材料 → 未处理完(多份配方常见)
-            for (int slot : inputSlots) {
-                if (slot < 0 || slot >= inventory.size()) continue;
-                ItemStack stack = inventory.get(slot);
-                if (!stack.isEmpty() && isInputMaterial(stack, inputsSafe)) {
-                    return false;
-                }
-            }
-
-            // 输入已耗尽,检查是否有产物可收集
+            // 宽松语义：只要输出槽有产物,即可收集(支持流水线模式)
             for (int slot : outputSlots) {
                 if (slot < 0 || slot >= inventory.size()) continue;
                 if (!inventory.get(slot).isEmpty()) {
@@ -309,6 +298,47 @@ public class NuclearCraftLegacyMachineHandler implements IRemoteHandler {
             return false;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] NuclearCraft isIdle failed", e);
+            return true;
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (!isProcessorTile(te)) return true;
+
+        try {
+            NonNullList<ItemStack> inventory = (NonNullList<ItemStack>) GET_INVENTORY_STACKS_METHOD.invoke(te);
+            int[] inputSlots = getItemInputSlots(te);
+            int[] outputSlots = getItemOutputSlots(te);
+            List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+
+            // 仍在处理中 → 未完成
+            if (isProcessingNC(te)) {
+                return false;
+            }
+
+            // 输入槽还有输入材料 → 未处理完
+            for (int slot : inputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
+                ItemStack stack = inventory.get(slot);
+                if (!stack.isEmpty() && isInputMaterial(stack, inputsSafe)) {
+                    return false;
+                }
+            }
+
+            // 输入已耗尽,检查是否还有产物残留
+            for (int slot : outputSlots) {
+                if (slot < 0 || slot >= inventory.size()) continue;
+                if (!inventory.get(slot).isEmpty()) {
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] NuclearCraft hasFinished failed", e);
             return true;
         }
     }

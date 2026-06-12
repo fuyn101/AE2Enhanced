@@ -97,17 +97,37 @@ public interface IRemoteHandler {
     List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source);
 
     /**
-     * 判断目标是否处于空闲 / 处理完成状态.
+     * 判断目标当前是否有产物可以收集.
      *
      * <p>当此方法返回 {@code true} 时,{@link DualityCentralInterface}
      * 会调用 {@link #collectProducts} 尝试收集产物.</p>
      *
+     * <p>此方法采用宽松语义：只要机器不处于活跃处理状态且输出槽/tank
+     * 中有可收集产物,即可返回 {@code true}.即使输入槽还有未处理完的材料,
+     * 也应返回 {@code true},以便 DualityCentralInterface 以流水线方式
+     * 及时回收产物,避免输出槽满导致机器停滞.</p>
+     *
      * @param world  世界实例
      * @param pos    方块位置
      * @param inputs 该目标本次合成推送的输入材料快照(用于区分产物与残留输入)
-     * @return true 表示目标已完成处理,可以收集产物
+     * @return true 表示目标当前可以收集产物
      */
     boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs);
+
+    /**
+     * 判断目标是否已完全处理完本次推送的所有输入材料.
+     *
+     * <p>当 {@link #isIdle} 返回 {@code true} 且产物已被收集后,
+     * DualityCentralInterface 调用此方法决定是否将目标移出跟踪列表.</p>
+     *
+     * @param world  世界实例
+     * @param pos    方块位置
+     * @param inputs 该目标本次合成推送的输入材料快照
+     * @return true 表示所有输入已处理完成,可以结束本次发配
+     */
+    default boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+        return isIdle(world, pos, inputs);
+    }
 
     /**
      * 当 {@code pushMaterials} 成功但 {@code startProcess} 失败时,

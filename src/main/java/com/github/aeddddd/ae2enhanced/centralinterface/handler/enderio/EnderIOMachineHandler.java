@@ -238,20 +238,34 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
-        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
-
-        // 机器明确处于活跃处理状态 → 不空闲
+        // 机器正在活跃处理 → 暂无可收集产物
         if (isActive(te)) {
             return false;
         }
 
-        // 输入槽还有材料 → 仍在处理中(尤其是多份配方未消耗完时)
+        // 宽松语义：只要输出槽/队列中有产物,即可收集(支持流水线模式)
+        return hasAnyOutput(te);
+    }
+
+    @Override
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (!isValidTarget(world, pos)) return true;
+
+        List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+
+        // 仍在处理中 → 未完成
+        if (isActive(te)) {
+            return false;
+        }
+
+        // 输入槽还有材料 → 未处理完
         if (hasAnyInput(te, inputsSafe)) {
             return false;
         }
 
-        // 输入已耗尽,有产物待收集 → 处理完成,可以收集
-        return hasAnyOutput(te);
+        // 输入已耗尽且无产物 → 完成
+        return !hasAnyOutput(te);
     }
 
     // ---- Internal helpers ----

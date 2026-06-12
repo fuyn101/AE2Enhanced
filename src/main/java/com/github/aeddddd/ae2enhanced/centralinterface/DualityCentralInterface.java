@@ -457,20 +457,21 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
             if (!products.isEmpty()) {
                 if (injectItemsToNetwork(proxy, world, products)) {
-                    this.targetStates.put(target, TargetState.IDLE);
-                    this.pendingOutputs.remove(target);
-                    this.processingStartTimes.remove(target);
-                    this.targetInputs.remove(target);
-                    it.remove();
                     didWork = true;
                 } else {
                     // 注入失败(网络断开等),产物暂存到 storage slots,避免丢失
                     stashItemsToStorage(world, products);
-                    this.targetStates.put(target, TargetState.IDLE);
-                    this.pendingOutputs.remove(target);
-                    it.remove();
                 }
-            } else {
+            }
+
+            // 流水线模式：只有 handler 报告输入已耗尽且无后续产物时,才结束本次发配
+            if (handler.hasFinished(world, target.pos, inputs)) {
+                this.targetStates.put(target, TargetState.IDLE);
+                this.pendingOutputs.remove(target);
+                this.processingStartTimes.remove(target);
+                this.targetInputs.remove(target);
+                it.remove();
+            } else if (products.isEmpty()) {
                 // 设备 idle 但未收集到产物,检查是否超时(600 ticks = 30 秒)
                 Long startTime = this.processingStartTimes.get(target);
                 long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
