@@ -533,6 +533,20 @@ public class AE2EnhancedConfig {
         public boolean forceHyperdimensionalStorage = true;
 
         @Config.Comment({
+            "If true, machines bound to a recycler will redirect their output directly into the ME network",
+            "at the moment the output is produced, bypassing the machine's output slot entirely.",
+            "Default: true"
+        })
+        public boolean machineOutputRedirect = true;
+
+        @Config.Comment({
+            "If true, machine output redirect only works when a Hyperdimensional Controller is present on the same ME network.",
+            "If false, output falls back to normal ME storage when hyper storage is unavailable.",
+            "Default: true"
+        })
+        public boolean requireHyperStorageForRedirect = true;
+
+        @Config.Comment({
             "Maximum number of recycling targets that can be bound to a single node.",
             "Range: 1 ~ 65536, Default: 1024"
         })

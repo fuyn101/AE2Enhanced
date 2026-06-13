@@ -32,6 +32,7 @@ import java.util.List;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
+import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingRegistry;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager.TargetRef;
@@ -139,6 +140,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         super.onLoad();
         if (!world.isRemote) {
             networkHandler.onLoad();
+            registerAllBindings();
         }
     }
 
@@ -148,6 +150,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         if (networkHandler != null) {
             networkHandler.onInvalidate();
         }
+        unregisterAllBindings();
     }
 
     @Override
@@ -156,6 +159,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         if (networkHandler != null) {
             networkHandler.onInvalidate();
         }
+        unregisterAllBindings();
     }
 
     @Override
@@ -290,16 +294,31 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         if (targetManager.getTargetCount() >= AE2EnhancedConfig.recycler.maxTargets) {
             return false;
         }
-        return targetManager.addTarget(target);
+        if (targetManager.addTarget(target)) {
+            RecyclerBindingRegistry.getInstance().register(target, networkHandler);
+            markDirty();
+            return true;
+        }
+        return false;
     }
 
     public boolean tryUnbindTarget(@Nonnull TargetRef target) {
-        return targetManager.removeTarget(target);
+        if (targetManager.removeTarget(target)) {
+            RecyclerBindingRegistry.getInstance().unregister(target);
+            markDirty();
+            return true;
+        }
+        return false;
     }
 
     public void clearTargets() {
+        RecyclerBindingRegistry.getInstance().unregisterAll(networkHandler);
         targetManager.clear();
         markDirty();
+    }
+
+    private void unregisterAllBindings() {
+        RecyclerBindingRegistry.getInstance().unregisterAll(networkHandler);
     }
 
     // ---- NBT ----
@@ -309,6 +328,12 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         super.readFromNBT(compound);
         if (compound.hasKey("Targets", Constants.NBT.TAG_LIST)) {
             targetManager.deserializeNBT(compound.getTagList("Targets", Constants.NBT.TAG_COMPOUND));
+        }
+    }
+
+    private void registerAllBindings() {
+        for (TargetRef target : targetManager.getTargets()) {
+            RecyclerBindingRegistry.getInstance().register(target, networkHandler);
         }
     }
 

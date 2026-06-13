@@ -68,6 +68,109 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         index.clear();
     }
 
+    public appeng.api.networking.security.IActionSource getActionSource() {
+        return actionSource;
+    }
+
+    /**
+     * 尝试把机器产物直接注入当前网络的超维度仓储（或普通网络存储）。
+     *
+     * @param output 产物堆叠
+     * @return 未能注入的部分；全部注入成功返回 {@link ItemStack#EMPTY}
+     */
+    public ItemStack tryInjectMachineOutput(ItemStack output) {
+        if (output.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        IAEItemStack toInject = AEItemStack.fromItemStack(output);
+        if (toInject == null) {
+            return output;
+        }
+
+        ItemStorageAdapter hyperAdapter = hyperStorageLink.find(
+                tile.getProxy(), tile.getWorld().getTotalWorldTime());
+        if (hyperAdapter != null) {
+            syncHyperStorageAdapter(hyperAdapter);
+        }
+
+        IAEItemStack remainder;
+        List<IAEItemStack> changes = new ArrayList<>();
+
+        if (hyperAdapter != null) {
+            // 注入超维度仓储
+            remainder = hyperAdapter.injectItems(toInject.copy(), Actionable.MODULATE, actionSource);
+
+            long injectedCount = output.getCount() - (remainder != null ? remainder.getStackSize() : 0);
+            if (injectedCount > 0) {
+                IAEItemStack change = toInject.copy();
+                change.setStackSize(injectedCount);
+                changes.add(change);
+            }
+        } else if (!AE2EnhancedConfig.recycler.requireHyperStorageForRedirect) {
+            // 无超维度中枢但配置允许时，回退到普通网络注入
+            try {
+                IStorageGrid storageGrid = tile.getProxy().getGrid().getCache(IStorageGrid.class);
+                if (storageGrid == null) {
+                    return output;
+                }
+                IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
+                        appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+                remainder = inv.injectItems(toInject.copy(), Actionable.MODULATE, actionSource);
+
+                long injectedCount = output.getCount() - (remainder != null ? remainder.getStackSize() : 0);
+                if (injectedCount > 0) {
+                    IAEItemStack change = toInject.copy();
+                    change.setStackSize(injectedCount);
+                    changes.add(change);
+                }
+            } catch (GridAccessException e) {
+                return output;
+            }
+        } else {
+            // 必须存在超维度中枢，不存在则回退
+            return output;
+        }
+
+        // 通知网络变化
+        if (!changes.isEmpty()) {
+            postItemAlterations(changes);
+        }
+
+        if (remainder == null || remainder.getStackSize() <= 0) {
+            return ItemStack.EMPTY;
+        }
+        return remainder.createItemStack();
+    }
+
+    /**
+     * 把当前找到的超维度物品适配器同步给 RecyclerBindingRegistry，
+     * 使机器 Hook 侧无需实时查询网格即可快速判断是否能直注。
+     */
+    private void syncHyperStorageAdapter(ItemStorageAdapter adapter) {
+        RecyclerBindingRegistry registry = RecyclerBindingRegistry.getInstance();
+        for (TargetManager.TargetRef ref : tile.getTargetManager().getTargets()) {
+            registry.updateAdapter(ref, adapter);
+        }
+    }
+
+    /**
+     * 向网络发送物品存储变化通知。
+     */
+    private void postItemAlterations(List<IAEItemStack> changes) {
+        try {
+            IGrid grid = tile.getProxy().getGrid();
+            if (grid == null) return;
+            IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+            if (storageGrid == null) return;
+            storageGrid.postAlterationOfStoredItems(
+                    appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
+                    changes, actionSource);
+        } catch (GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Recycler failed to post machine output alterations", e);
+        }
+    }
+
     public void tick(int tickCounter) {
         this.tickCounter = tickCounter;
         if (!tile.isActive()) return;
@@ -195,6 +298,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
             injectToNetwork(changes);
             return;
         }
+        syncHyperStorageAdapter(adapter);
 
         for (IAEItemStack stack : changes) {
             adapter.injectItems(stack.copy(), Actionable.MODULATE, actionSource);

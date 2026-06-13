@@ -32,6 +32,9 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (Loader.isModLoaded("cells")) {
             configs.add("mixins.ae2enhanced.late.cells.json");
         }
+        if (Loader.isModLoaded("thermalexpansion")) {
+            configs.add("mixins.ae2enhanced.late.thermal.json");
+        }
         return configs;
     }
 }
