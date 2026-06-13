@@ -68,22 +68,14 @@ public class MixinPartStorageBus {
         }
     }
 
-    @Inject(method = "addToWorld", at = @At("RETURN"))
-    private void ae2enhanced$scheduleReconnect(CallbackInfo ci) {
-        // 存储总线加入世界后,在接下来 8 tick 内重试扫描相邻容器,
-        // 解决重进存档时因区块加载顺序导致错过邻居方块的问题.
-        this.ae2enhanced$reconnectAttempts = 8;
-        try {
-            ((PartStorageBus) (Object) this).getProxy().getTick().wakeDevice(
-                    ((PartStorageBus) (Object) this).getProxy().getNode());
-        } catch (Exception ignored) {
-            // 网格未就绪时忽略,后续 tick 会再次尝试
-        }
-    }
-
     @Inject(method = "tickingRequest", at = @At("RETURN"), cancellable = true)
     private void ae2enhanced$reconnectIfDisconnected(IGridNode node, int ticksSinceLastCall,
                                                      CallbackInfoReturnable<TickRateModulation> cir) {
+        // 首次 tick 且未连接时启动重连窗口
+        if (this.ae2enhanced$reconnectAttempts == 0 && this.monitor == null) {
+            this.ae2enhanced$reconnectAttempts = 8;
+        }
+
         if (this.ae2enhanced$reconnectAttempts > 0) {
             this.ae2enhanced$reconnectAttempts--;
             if (this.monitor == null) {
