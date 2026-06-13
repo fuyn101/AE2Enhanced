@@ -83,6 +83,10 @@ public class AE2EnhancedConfig {
     @Config.Comment("Advanced ME Collector settings.")
     public static Collector collector = new Collector();
 
+    @Config.Name("Recycler")
+    @Config.Comment("ME Network Recycler settings.")
+    public static Recycler recycler = new Recycler();
+
     @Config.Name("Energy")
     @Config.Comment({
         "RF energy bridge settings.",
@@ -517,6 +521,72 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeDouble(min = 0.0, max = 1000000.0)
         public double idlePower = 16.0;
+    }
+
+    public static class Recycler {
+        @Config.Comment({
+            "Force all recycled items to be injected directly into the Hyperdimensional Storage Nexus.",
+            "If true, the recycler will only work when a Hyperdimensional Controller is present on the same ME network.",
+            "This bypasses AE2 handler priority traversal and provides the best performance.",
+            "Default: true"
+        })
+        public boolean forceHyperdimensionalStorage = true;
+
+        @Config.Comment({
+            "Maximum number of recycling targets that can be bound to a single node.",
+            "Range: 1 ~ 65536, Default: 1024"
+        })
+        @Config.RangeInt(min = 1, max = 65536)
+        public int maxTargets = 1024;
+
+        @Config.Comment({
+            "Batch post threshold: number of item changes before forcing a network post.",
+            "Range: 1 ~ 10000, Default: 64"
+        })
+        @Config.RangeInt(min = 1, max = 10000)
+        public int batchThreshold = 64;
+
+        @Config.Comment({
+            "Maximum ticks between forced network posts, even if batchThreshold is not reached.",
+            "Range: 1 ~ 200, Default: 1"
+        })
+        @Config.RangeInt(min = 1, max = 200)
+        public int batchIntervalTicks = 1;
+
+        @Config.Comment({
+            "Heartbeat interval in ticks for scanning bound targets when no immediate events occur.",
+            "Range: 1 ~ 1200, Default: 20"
+        })
+        @Config.RangeInt(min = 1, max = 1200)
+        public int heartbeatIntervalTicks = 20;
+
+        @Config.Comment({
+            "Enable mod-specific target adapters for better performance.",
+            "Default: true"
+        })
+        public boolean enableModSpecificAdapters = true;
+
+        @Config.Comment({
+            "Force-load chunks containing bound targets to allow cross-dimension recycling while unloaded.",
+            "WARNING: This may have significant server-side impact. Use with caution.",
+            "Default: false"
+        })
+        public boolean forceChunkLoad = false;
+
+        @Config.Comment({
+            "Idle power draw (AE/t) for an active ME Network Recycler.",
+            "Range: 0.0 ~ 1000000.0, Default: 32.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 1000000.0)
+        public double idlePower = 32.0;
+
+        @Config.Comment({
+            "Full target re-scan interval in ticks to correct index drift.",
+            "Set to 0 to disable (not recommended).",
+            "Range: 0 ~ 72000, Default: 600"
+        })
+        @Config.RangeInt(min = 0, max = 72000)
+        public int fullScanIntervalTicks = 600;
     }
 
     @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)

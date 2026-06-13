@@ -53,4 +53,7 @@ public final class BlockRegistry {
 
     // 先进 ME 收集器
     public static BlockAdvancedMECollector ADVANCED_ME_COLLECTOR;
+
+    // ME 网络回收节点
+    public static BlockMENetworkRecycler ME_NETWORK_RECYCLER;
 }

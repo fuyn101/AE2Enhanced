@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiAdvancedMECollector;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
@@ -28,6 +29,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnforme
 import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerAdvancedMECollector;
+import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
@@ -45,6 +47,7 @@ import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
+import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -73,6 +76,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_ADVANCED_PLATFORM_SUBMENU = 25;
     public static final int GUI_OMNI_TOOL_CONFIG = 26;
     public static final int GUI_ADVANCED_ME_COLLECTOR = 27;
+    public static final int GUI_ME_NETWORK_RECYCLER = 28;
 
     /** 编码二级菜单 GUI ID：低8位为 base ID,bit8-31为子网 ID */
     public static int encodeSubmenuId(int subnetId) {
@@ -193,6 +197,11 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_ADVANCED_ME_COLLECTOR) {
             if (te instanceof TileAdvancedMECollector) {
                 return new ContainerAdvancedMECollector(player.inventory, (TileAdvancedMECollector) te);
+            }
+        }
+        if (ID == GUI_ME_NETWORK_RECYCLER) {
+            if (te instanceof TileMENetworkRecycler) {
+                return new ContainerMENetworkRecycler(player.inventory, (TileMENetworkRecycler) te);
             }
         }
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {
@@ -322,6 +331,11 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_ADVANCED_ME_COLLECTOR) {
             if (te instanceof TileAdvancedMECollector) {
                 return new GuiAdvancedMECollector(player.inventory, new ContainerAdvancedMECollector(player.inventory, (TileAdvancedMECollector) te));
+            }
+        }
+        if (ID == GUI_ME_NETWORK_RECYCLER) {
+            if (te instanceof TileMENetworkRecycler) {
+                return new GuiMENetworkRecycler(player.inventory, new ContainerMENetworkRecycler(player.inventory, (TileMENetworkRecycler) te));
             }
         }
         if (ID == GUI_UNIVERSAL_MEMORY_CARD) {

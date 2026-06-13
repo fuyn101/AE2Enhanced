@@ -91,7 +91,8 @@ public final class GameRegistryManager {
             BlockRegistry.CHUNK_POWER_NODE = new BlockChunkPowerNode(),
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
-            BlockRegistry.ADVANCED_ME_COLLECTOR = new BlockAdvancedMECollector()
+            BlockRegistry.ADVANCED_ME_COLLECTOR = new BlockAdvancedMECollector(),
+            BlockRegistry.ME_NETWORK_RECYCLER = new BlockMENetworkRecycler()
         );
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
@@ -109,6 +110,7 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
+        GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
     }
 
     @SubscribeEvent
@@ -137,7 +139,8 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.CHUNK_POWER_NODE).setRegistryName(BlockRegistry.CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+            new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
 
         // Items
