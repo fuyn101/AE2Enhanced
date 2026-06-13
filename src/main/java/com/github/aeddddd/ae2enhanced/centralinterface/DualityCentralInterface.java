@@ -190,11 +190,46 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        TargetBinding target = findIdleTarget();
-        if (target == null) {
+        // 收集所有 IDLE 候选 target；逐个尝试，确保一个机器的失败不影响其他机器
+        List<TargetBinding> candidates = findIdleTargets();
+        if (candidates.isEmpty()) {
             return false;
         }
 
+        for (TargetBinding target : candidates) {
+            if (tryPushPatternToTarget(proxy, patternDetails, table, target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 返回所有当前处于 IDLE 状态的绑定目标.
+     */
+    private List<TargetBinding> findIdleTargets() {
+        List<TargetBinding> result = new ArrayList<>();
+        for (TargetBinding binding : this.bindings) {
+            TargetState state = this.targetStates.getOrDefault(binding, TargetState.IDLE);
+            if (state == TargetState.IDLE) {
+                result.add(binding);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 尝试把单个样板推送到指定目标.
+     *
+     * <p>本方法内部会复制 {@code originalTable}，因此无论成功或失败都不会污染
+     * AE2 传入的原始 {@link InventoryCrafting}，也不会影响其他 target 的推送尝试.</p>
+     *
+     * @return true 表示推送成功；false 表示失败，调用方应尝试下一个 target
+     */
+    private boolean tryPushPatternToTarget(AENetworkProxy proxy,
+                                           ICraftingPatternDetails patternDetails,
+                                           InventoryCrafting originalTable,
+                                           TargetBinding target) {
         World world = this.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
             return false;
@@ -206,42 +241,42 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         if (!handler.isValidTarget(world, target.pos)) {
             this.targetStates.put(target, TargetState.UNAVAILABLE);
-            this.processingTargets.remove(target);
             return false;
         }
 
         // 虚拟合成路径(Extended Crafting 工作台等)
         if (handler instanceof IVirtualCraftingHandler) {
             IVirtualCraftingHandler vh = (IVirtualCraftingHandler) handler;
+            // 复制 table，避免污染 AE2 传入的原始 InventoryCrafting
+            InventoryCrafting virtualTable = copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
-            if (vh.canCraftVirtually(world, target.pos, table, outputs)) {
-                List<ItemStack> products = vh.virtualCraft(world, target.pos, table, outputs, new appeng.me.helpers.MachineSource(this.host));
+            if (vh.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
+                List<ItemStack> products = vh.virtualCraft(world, target.pos, virtualTable, outputs,
+                        new appeng.me.helpers.MachineSource(this.host));
                 if (!products.isEmpty()) {
                     // 使用 handler 实际返回的产物,避免与 pattern 定义输出数量/物品不一致
                     this.pendingVirtualProducts.addAll(products);
                 }
                 // 虚拟合成不占用物理设备,target 保持 IDLE,可立即复用
-                try {
-                    appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
-                    if (tm != null) {
-                        tm.wakeDevice(this.host.getProxy().getNode());
-                    }
-                } catch (appeng.me.GridAccessException e) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
-                }
+                tryWakeTickDevice();
                 return true;
             }
             return false;
         }
 
+        // 物理模式路径：复制 table，避免一个 target 的失败影响其他 target
+        InventoryCrafting table = copyInventoryCrafting(originalTable);
+
         // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
         List<FluidStack> pushedFluids = new ArrayList<>();
         if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
+            revertPushedFluids(world, target.pos, pushedFluids);
             return false;
         }
 
         // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
-        List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+        List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos,
+                new appeng.me.helpers.MachineSource(this.host));
         if (!clearedOutputs.isEmpty()) {
             if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
                 stashItemsToStorage(world, clearedOutputs);
@@ -254,10 +289,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        boolean pushed = handler.pushMaterials(world, target.pos, table, new appeng.me.helpers.MachineSource(this.host));
+        boolean pushed = handler.pushMaterials(world, target.pos, table,
+                new appeng.me.helpers.MachineSource(this.host));
         if (!pushed) {
             // 回退已推入的材料(handler 可能已部分推入)
-            List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+            List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+                    new appeng.me.helpers.MachineSource(this.host));
             if (!reverted.isEmpty()) {
                 injectItemsToNetwork(proxy, world, reverted);
             }
@@ -265,10 +302,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        boolean started = handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+        boolean started = handler.startProcess(world, target.pos,
+                new appeng.me.helpers.MachineSource(this.host));
         if (!started) {
             // 回退已推送的材料
-            List<ItemStack> reverted = handler.revertMaterials(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
+            List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+                    new appeng.me.helpers.MachineSource(this.host));
             if (!reverted.isEmpty()) {
                 injectItemsToNetwork(proxy, world, reverted);
             }
@@ -296,15 +335,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingTargets.add(target);
         this.processingStartTimes.put(target, world.getTotalWorldTime());
 
-        try {
-            appeng.api.networking.ticking.ITickManager tm = proxy.getTick();
-            if (tm != null) {
-                tm.wakeDevice(this.host.getProxy().getNode());
-            }
-        } catch (appeng.me.GridAccessException e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to wake tick device for CentralInterface", e);
-        }
-
+        tryWakeTickDevice();
         return true;
     }
 
@@ -941,16 +972,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         TileEntity te = world.getTileEntity(target.pos);
         if (te == null) return null;
         return te;
-    }
-
-    private TargetBinding findIdleTarget() {
-        for (TargetBinding binding : this.bindings) {
-            TargetState state = this.targetStates.getOrDefault(binding, TargetState.IDLE);
-            if (state == TargetState.IDLE) {
-                return binding;
-            }
-        }
-        return null;
     }
 
     private IRemoteHandler resolveHandler(String blockId) {
