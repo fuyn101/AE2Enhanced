@@ -35,6 +35,15 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (Loader.isModLoaded("thermalexpansion")) {
             configs.add("mixins.ae2enhanced.late.thermal.json");
         }
+        if (Loader.isModLoaded("mekanism")) {
+            configs.add("mixins.ae2enhanced.late.mekanism.json");
+        }
+        if (Loader.isModLoaded("techreborn")) {
+            configs.add("mixins.ae2enhanced.late.techreborn.json");
+        }
+        if (Loader.isModLoaded("enderio")) {
+            configs.add("mixins.ae2enhanced.late.eio.json");
+        }
         return configs;
     }
 }

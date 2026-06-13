@@ -58,6 +58,10 @@ dependencies {
     compileOnly files('libs/ThermalExpansion-1.12.2-5.5.7.1-universal.jar')
     compileOnly files('libs/ThermalFoundation-1.12.2-2.6.7.1-universal.jar')
     compileOnly files('libs/EnderIO-1.12.2-5.3.72.jar')
+    compileOnly files('libs/EnderCore-1.12.2-0.5.78.jar')
+    compileOnly files('libs/AutoSave-1.12.2-1.0.11.jar')
+    compileOnly files('libs/RebornCore-1.12.2-3.19.4.529-universal.jar')
+    compileOnly files('libs/TechReborn-1.12.2-2.27.3.1084-universal.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
     // fastutil: 高性能集合库,打包进 jar
