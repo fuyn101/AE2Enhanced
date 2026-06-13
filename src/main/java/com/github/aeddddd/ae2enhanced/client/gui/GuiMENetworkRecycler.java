@@ -43,15 +43,15 @@ public class GuiMENetworkRecycler extends GuiContainer {
         fontRenderer.drawString(title, (xSize - fontRenderer.getStringWidth(title)) / 2, 6, 0x404040);
 
         fontRenderer.drawString(I18n.format("gui.ae2enhanced.me_network_recycler.targets",
-                tile.getTargetManager().getTargetCount()), 8, 22, 0x404040);
+                tile.getClientTargetCount()), 8, 22, 0x404040);
 
-        String statusKey = tile.isActive() ? "gui.ae2enhanced.me_network_recycler.active"
-                : tile.isPowered() ? "gui.ae2enhanced.me_network_recycler.powered"
+        String statusKey = tile.isClientActive() ? "gui.ae2enhanced.me_network_recycler.active"
+                : tile.isClientPowered() ? "gui.ae2enhanced.me_network_recycler.powered"
                 : "gui.ae2enhanced.me_network_recycler.offline";
         fontRenderer.drawString(I18n.format(statusKey), 8, 34, 0x404040);
 
         fontRenderer.drawString(I18n.format("gui.ae2enhanced.me_network_recycler.last_recycled",
-                tile.getNetworkHandler().getLastRecycledCount()), 8, 46, 0x404040);
+                tile.getClientLastRecycledCount()), 8, 46, 0x404040);
 
         fontRenderer.drawString(I18n.format("container.inventory"), 8, ySize - 96 + 2, 0x404040);
     }

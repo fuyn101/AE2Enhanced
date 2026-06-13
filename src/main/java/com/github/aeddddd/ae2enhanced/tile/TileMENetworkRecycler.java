@@ -32,6 +32,8 @@ import java.util.List;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingRegistry;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingState;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
@@ -55,6 +57,12 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     private int tickCounter = 0;
     private final RecyclerBindingState bindingState = new RecyclerBindingState();
     private static final int BINDING_DURATION_TICKS = 600; // 30 秒
+
+    // 客户端同步字段
+    private int clientTargetCount = 0;
+    private long clientLastRecycledCount = 0;
+    private boolean clientActive = false;
+    private boolean clientPowered = false;
 
     public TileMENetworkRecycler() {
     }
@@ -168,10 +176,14 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
         syncClientState();
 
-        if (!isActive()) return;
-
         tickCounter++;
-        networkHandler.tick(tickCounter);
+        if (isActive()) {
+            networkHandler.tick(tickCounter);
+        }
+
+        if (tickCounter % 10 == 0) {
+            syncToWatchingPlayers();
+        }
     }
 
     private void syncClientState() {
@@ -229,6 +241,48 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     public int getClientFlags() {
         return clientFlags;
+    }
+
+    public int getClientTargetCount() {
+        return world.isRemote ? clientTargetCount : targetManager.getTargetCount();
+    }
+
+    public long getClientLastRecycledCount() {
+        return world.isRemote ? clientLastRecycledCount : networkHandler.getLastRecycledCount();
+    }
+
+    public boolean isClientActive() {
+        return world.isRemote ? clientActive : isActive();
+    }
+
+    public boolean isClientPowered() {
+        return world.isRemote ? clientPowered : isPowered();
+    }
+
+    public void handleSyncPacket(PacketRecyclerSync packet) {
+        this.clientTargetCount = packet.getTargetCount();
+        this.clientLastRecycledCount = packet.getLastRecycledCount();
+        this.clientActive = packet.isActive();
+        this.clientPowered = packet.isPowered();
+    }
+
+    private void syncToWatchingPlayers() {
+        if (world == null || world.isRemote) return;
+        PacketRecyclerSync packet = new PacketRecyclerSync(
+                pos,
+                targetManager.getTargetCount(),
+                networkHandler.getLastRecycledCount(),
+                isActive(),
+                isPowered()
+        );
+        for (net.minecraft.entity.player.EntityPlayer player : world.playerEntities) {
+            if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
+                double distSq = player.getDistanceSq(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+                if (distSq < 64 * 64) {
+                    AE2Enhanced.network.sendTo(packet, (net.minecraft.entity.player.EntityPlayerMP) player);
+                }
+            }
+        }
     }
 
     public void dropContents() {

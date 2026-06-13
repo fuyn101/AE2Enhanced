@@ -121,7 +121,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         if (targetWorld == null || !targetWorld.isBlockLoaded(ref.pos)) return null;
         TileEntity te = targetWorld.getTileEntity(ref.pos);
         if (te == null) return null;
-        return new ForgeItemHandlerAdapter(te, ref.face);
+        return AdapterFactory.create(te, ref.face);
     }
 
     private void rebuildIndex() {

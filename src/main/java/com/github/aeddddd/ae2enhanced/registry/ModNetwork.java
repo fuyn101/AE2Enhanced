@@ -7,6 +7,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketPatternPage;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRequestAssembly;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSetSlotAmount;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketCollectorConfig;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketStockingBusConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUniversalBusConfig;
@@ -106,5 +107,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketOpenOmniToolGuiHandler.class, PacketOpenOmniToolGui.class, 31, Side.SERVER);
         nw.registerMessage(PacketOmniToolConfigHandler.class, PacketOmniToolConfig.class, 32, Side.SERVER);
         nw.registerMessage(PacketChunkPowerHighlightHandler.class, PacketChunkPowerHighlight.class, 39, Side.CLIENT);
+        nw.registerMessage(PacketRecyclerSync.Handler.class, PacketRecyclerSync.class, 41, Side.CLIENT);
     }
 }
