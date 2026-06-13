@@ -25,14 +25,22 @@ import java.util.List;
  *
  * <p>通过反射直接访问 CoFH {@code TileInventory#inventory} 字段,
  * 绕过 Thermal Expansion 机器的 SideCache 配置限制,避免因为配置面导致中枢 ME 接口无法输入输出.</p>
+ *
+ * <p>同时读取 {@code TileReconfigurable#slotConfig} 中的
+ * {@code allowInsertionSlot}/{@code allowExtractionSlot}, 精确识别输入/输出槽,
+ * 避免在输入槽解锁时将材料错误写入输出槽或升级槽.</p>
  */
 public class ThermalExpansionMachineHandler implements IRemoteHandler {
 
     private static final boolean AVAILABLE;
     private static Class<?> TILE_INVENTORY_CLASS;
     private static Class<?> TILE_MACHINE_BASE_CLASS;
+    private static Class<?> SLOT_CONFIG_CLASS;
     private static Field INVENTORY_FIELD;
     private static Field PROCESS_REM_FIELD;
+    private static Field SLOT_CONFIG_FIELD;
+    private static Field ALLOW_INSERTION_SLOT_FIELD;
+    private static Field ALLOW_EXTRACTION_SLOT_FIELD;
 
     static {
         boolean available = false;
@@ -46,6 +54,16 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
                     PROCESS_REM_FIELD.setAccessible(true);
                 } catch (ClassNotFoundException | NoSuchFieldException e) {
                     AE2Enhanced.LOGGER.debug("[AE2E] ThermalExpansion processRem support not available");
+                }
+                try {
+                    SLOT_CONFIG_CLASS = Class.forName("cofh.core.util.core.SlotConfig");
+                    Class<?> tileReconfigurableClass = Class.forName("cofh.core.block.TileReconfigurable");
+                    SLOT_CONFIG_FIELD = tileReconfigurableClass.getDeclaredField("slotConfig");
+                    SLOT_CONFIG_FIELD.setAccessible(true);
+                    ALLOW_INSERTION_SLOT_FIELD = SLOT_CONFIG_CLASS.getField("allowInsertionSlot");
+                    ALLOW_EXTRACTION_SLOT_FIELD = SLOT_CONFIG_CLASS.getField("allowExtractionSlot");
+                } catch (ClassNotFoundException | NoSuchFieldException e) {
+                    AE2Enhanced.LOGGER.debug("[AE2E] ThermalExpansion SlotConfig support not available");
                 }
                 available = true;
             }
@@ -80,6 +98,8 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         if (inventory == null) return false;
 
+        boolean[] insertionSlots = getAllowInsertionSlots(te);
+
         List<ItemStack> toPush = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
@@ -89,7 +109,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         }
 
         for (ItemStack stack : toPush) {
-            if (!pushItemToInventory(inv, inventory, stack)) {
+            if (!pushItemToInventory(inv, inventory, insertionSlots, stack)) {
                 return false;
             }
         }
@@ -111,10 +131,11 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         if (inventory == null) return Collections.emptyList();
 
+        boolean[] insertionSlots = getAllowInsertionSlots(te);
         List<ItemStack> reverted = new ArrayList<>();
         for (int slot = 0; slot < inventory.length; slot++) {
             ItemStack stack = inventory[slot];
-            if (!stack.isEmpty() && isProbablyInputSlot(inv, slot)) {
+            if (!stack.isEmpty() && isInputSlot(inv, insertionSlots, slot)) {
                 reverted.add(stack.copy());
                 inventory[slot] = ItemStack.EMPTY;
             }
@@ -132,10 +153,11 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         if (inventory == null) return Collections.emptyList();
 
+        boolean[] extractionSlots = getAllowExtractionSlots(te);
         List<ItemStack> cleared = new ArrayList<>();
         for (int slot = 0; slot < inventory.length; slot++) {
             ItemStack stack = inventory[slot];
-            if (!stack.isEmpty() && isProbablyOutputSlot(inv, slot)) {
+            if (!stack.isEmpty() && isOutputSlot(inv, extractionSlots, slot)) {
                 cleared.add(stack.copy());
                 inventory[slot] = ItemStack.EMPTY;
             }
@@ -154,6 +176,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         if (inventory == null) return Collections.emptyList();
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+        boolean[] extractionSlots = getAllowExtractionSlots(te);
 
         List<ItemStack> collected = new ArrayList<>();
 
@@ -166,6 +189,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
                     ItemStack inSlot = inventory[slot];
                     if (inSlot.isEmpty()) continue;
                     if (isInputMaterial(inSlot, inputsSafe)) continue;
+                    if (!isOutputSlot(inv, extractionSlots, slot) && !isProbablyOutputSlotFallback(inv, slot)) continue;
                     if (!matchesLoosely(inSlot, expectedStack)) continue;
                     collected.add(inSlot.copy());
                     inventory[slot] = ItemStack.EMPTY;
@@ -178,6 +202,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
             ItemStack stack = inventory[slot];
             if (stack.isEmpty()) continue;
             if (isInputMaterial(stack, inputsSafe)) continue;
+            if (!isOutputSlot(inv, extractionSlots, slot) && !isProbablyOutputSlotFallback(inv, slot)) continue;
             collected.add(stack.copy());
             inventory[slot] = ItemStack.EMPTY;
         }
@@ -196,8 +221,10 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
             return false;
         }
 
+        IInventory inv = (IInventory) te;
         ItemStack[] inventory = getInventoryArray(te);
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+        boolean[] extractionSlots = getAllowExtractionSlots(te);
 
         // 宽松语义：只要有可收集的产物(非输入材料)或流体,即可收集(支持流水线模式)
         boolean hasProducts = false;
@@ -206,6 +233,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
                 ItemStack stack = inventory[slot];
                 if (stack.isEmpty()) continue;
                 if (isInputMaterial(stack, inputsSafe)) continue;
+                if (!isOutputSlot(inv, extractionSlots, slot) && !isProbablyOutputSlotFallback(inv, slot)) continue;
                 hasProducts = true;
                 break;
             }
@@ -226,13 +254,15 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
 
         ItemStack[] inventory = getInventoryArray(te);
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
+        boolean[] insertionSlots = getAllowInsertionSlots(te);
+        IInventory inv = (IInventory) te;
 
         // 还有输入材料 → 未完成
         if (inventory != null) {
             for (int slot = 0; slot < inventory.length; slot++) {
                 ItemStack stack = inventory[slot];
                 if (stack.isEmpty()) continue;
-                if (isInputMaterial(stack, inputsSafe)) {
+                if (isInputSlot(inv, insertionSlots, slot) && isInputMaterial(stack, inputsSafe)) {
                     return false;
                 }
             }
@@ -253,8 +283,45 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         }
     }
 
-    private boolean pushItemToInventory(IInventory inv, ItemStack[] inventory, ItemStack stack) {
+    private boolean[] getAllowInsertionSlots(TileEntity te) {
+        return getSlotConfigArray(te, ALLOW_INSERTION_SLOT_FIELD);
+    }
+
+    private boolean[] getAllowExtractionSlots(TileEntity te) {
+        return getSlotConfigArray(te, ALLOW_EXTRACTION_SLOT_FIELD);
+    }
+
+    private boolean[] getSlotConfigArray(TileEntity te, Field arrayField) {
+        if (SLOT_CONFIG_FIELD == null || arrayField == null) return null;
+        try {
+            Object slotConfig = SLOT_CONFIG_FIELD.get(te);
+            if (slotConfig == null) return null;
+            return (boolean[]) arrayField.get(slotConfig);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get ThermalExpansion slot config", e);
+            return null;
+        }
+    }
+
+    private boolean isInputSlot(IInventory inv, boolean[] insertionSlots, int slot) {
+        if (insertionSlots != null && slot >= 0 && slot < insertionSlots.length) {
+            return insertionSlots[slot];
+        }
+        return isProbablyInputSlotFallback(inv, slot);
+    }
+
+    private boolean isOutputSlot(IInventory inv, boolean[] extractionSlots, int slot) {
+        if (extractionSlots != null && slot >= 0 && slot < extractionSlots.length) {
+            return extractionSlots[slot];
+        }
+        return isProbablyOutputSlotFallback(inv, slot);
+    }
+
+    private boolean pushItemToInventory(IInventory inv, ItemStack[] inventory, boolean[] insertionSlots, ItemStack stack) {
         for (int slot = 0; slot < inventory.length; slot++) {
+            if (!isInputSlot(inv, insertionSlots, slot)) {
+                continue;
+            }
             ItemStack existing = inventory[slot];
             if (!existing.isEmpty()) {
                 if (ItemStack.areItemsEqual(existing, stack)
@@ -274,13 +341,13 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         return false;
     }
 
-    private boolean isProbablyInputSlot(IInventory inv, int slot) {
+    private boolean isProbablyInputSlotFallback(IInventory inv, int slot) {
         // 简单启发式：前 2/3 槽位视为输入(大多数 TE 机器输入槽在前,输出槽在后)
         return slot < inv.getSizeInventory() * 2 / 3;
     }
 
-    private boolean isProbablyOutputSlot(IInventory inv, int slot) {
-        return !isProbablyInputSlot(inv, slot);
+    private boolean isProbablyOutputSlotFallback(IInventory inv, int slot) {
+        return slot >= inv.getSizeInventory() * 2 / 3;
     }
 
     private void markDirty(TileEntity te) {
