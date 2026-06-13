@@ -76,6 +76,20 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 虚拟合成产物暂存队列(等待 waitingFor 注册后再注入网络)
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
+    // 流体 IO 尝试顺序：null（内部 tank）优先，然后按 UP/DOWN/NORTH/SOUTH/WEST/EAST 逐个尝试
+    private static final List<EnumFacing> FLUID_FACE_ORDER;
+    static {
+        List<EnumFacing> list = new ArrayList<>();
+        list.add(null);
+        list.add(EnumFacing.UP);
+        list.add(EnumFacing.DOWN);
+        list.add(EnumFacing.NORTH);
+        list.add(EnumFacing.SOUTH);
+        list.add(EnumFacing.WEST);
+        list.add(EnumFacing.EAST);
+        FLUID_FACE_ORDER = Collections.unmodifiableList(list);
+    }
+
     public DualityCentralInterface(ICentralInterfaceHost host) {
         this.host = host;
         this.cm = new ConfigManager(new IConfigManagerHost() {
@@ -233,6 +247,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         TargetSession session = getOrCreateSession(target);
+
+        // 1A：每个 target 同一时刻只能有一份材料在途
+        if (!session.isIdle()) {
+            return false;
+        }
 
         if (!handler.isValidTarget(world, target.pos)) {
             session.setUnavailable();
@@ -601,6 +620,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 将 table 中的流体假物品推送到目标的 IFluidHandler.
      * CPU 已事先将物品提取到 table 中,此处只做转换与推送,不再从网络提取.
      * 推送成功后,将对应槽位从 table 中清空,防止后续 handler.pushMaterials 再次处理.
+     *
+     * <p>按 {@link #FLUID_FACE_ORDER} 依次尝试各方向面,第一个能完整接受流体的面即被使用,
+     * 避免向多个 face 重复推送或污染输出槽.</p>
      */
     private boolean pushFluidInputs(World world, BlockPos pos, InventoryCrafting table, List<FluidStack> pushedFluids) {
         TileEntity te = world.getTileEntity(pos);
@@ -620,15 +642,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
             if (fluid == null) continue;
 
-            // 尝试推送到目标的 IFluidHandler(先 simulate 再实际填充)
-            // 优先使用 null face(内部 tank),可绕过部分机器的侧面配置限制
-            boolean pushed = tryFillFluidHandler(te, null, fluid, pushedFluids);
-            if (!pushed) {
-                for (EnumFacing face : EnumFacing.values()) {
-                    if (tryFillFluidHandler(te, face, fluid, pushedFluids)) {
-                        pushed = true;
-                        break;
-                    }
+            boolean pushed = false;
+            for (EnumFacing face : FLUID_FACE_ORDER) {
+                if (tryFillFluidHandler(te, face, fluid, pushedFluids)) {
+                    pushed = true;
+                    break;
                 }
             }
 
@@ -657,15 +675,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     /**
      * 回退已推送到目标 IFluidHandler 的流体.
-     * 优先从 null face 抽取,并尽量按精确 FluidStack 匹配回退.
+     * 按 {@link #FLUID_FACE_ORDER} 依次尝试抽取,按精确 FluidStack 匹配回退.
      */
     private void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
         if (fluids.isEmpty()) return;
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return;
         for (FluidStack fluid : fluids) {
-            if (tryDrainFluidHandler(te, null, fluid)) continue;
-            for (EnumFacing face : EnumFacing.values()) {
+            for (EnumFacing face : FLUID_FACE_ORDER) {
                 if (tryDrainFluidHandler(te, face, fluid)) break;
             }
         }
@@ -688,14 +705,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     /**
      * 从目标的 IFluidHandler 收集流体产物.
-     * 优先使用 null face,并尝试收集所有可抽取流体(不仅限于 expectedOutputs).
+     *
+     * <p>按 {@link #FLUID_FACE_ORDER} 依次尝试各方向面，只收集预期产物，
+     * 第一个含有足够量预期流体的 face 即被使用。不再无差别抽干所有 face，
+     * 避免把输入槽/其他 target 共享槽中的材料抽回。</p>
      */
     private List<ItemStack> collectFluidProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
         List<ItemStack> fluids = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return fluids;
 
-        // 阶段 1：优先收集预期流体产物
         if (expectedOutputs != null) {
             for (IAEItemStack expected : expectedOutputs) {
                 if (expected == null || expected.getStackSize() <= 0) continue;
@@ -703,17 +722,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 FluidStack expectedFluid = extractFluidFromItemStack(stack);
                 if (expectedFluid == null) continue;
 
-                if (tryCollectExpectedFluid(te, expectedFluid, fluids)) continue;
-                for (EnumFacing face : EnumFacing.values()) {
-                    if (tryCollectExpectedFluid(te, face, expectedFluid, fluids)) break;
+                for (EnumFacing face : FLUID_FACE_ORDER) {
+                    if (tryCollectExpectedFluid(te, face, expectedFluid, fluids)) {
+                        break;
+                    }
                 }
             }
-        }
-
-        // 阶段 2：收集 null face 上所有非预期的剩余流体(副产物/残余)
-        collectAnyDrainedFluid(te, null, fluids);
-        for (EnumFacing face : EnumFacing.values()) {
-            collectAnyDrainedFluid(te, face, fluids);
         }
 
         return fluids;
@@ -742,24 +756,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return true;
         }
         return false;
-    }
-
-    private boolean tryCollectExpectedFluid(TileEntity te, FluidStack expectedFluid, List<ItemStack> fluids) {
-        return tryCollectExpectedFluid(te, null, expectedFluid, fluids);
-    }
-
-    private void collectAnyDrainedFluid(TileEntity te, EnumFacing face, List<ItemStack> fluids) {
-        if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return;
-        IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
-        if (fh == null) return;
-        // 循环抽取,直到该 face 没有可抽取流体
-        while (true) {
-            FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
-            if (drained == null || drained.amount <= 0) break;
-            FluidStack actual = fh.drain(drained, true);
-            if (actual == null || actual.amount <= 0) break;
-            fluids.add(Ae2fcFluidCompat.createFluidDrop(actual));
-        }
     }
 
     private boolean hasWorkToDo() {
