@@ -37,6 +37,7 @@ public class EnergyAdapterRegistry {
         tryLoad("thermalexpansion", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.TEEnergyAdapter");
         tryLoad("draconicevolution", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.DEEnergyAdapter");
         tryLoad("mekanism", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.MekanismEnergyAdapter");
+        tryLoad("techreborn", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.TechRebornEnergyAdapter");
         tryLoad("rftools", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.McJtyEnergyAdapter");
     }
 

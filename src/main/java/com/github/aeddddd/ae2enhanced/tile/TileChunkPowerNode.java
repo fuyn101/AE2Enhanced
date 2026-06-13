@@ -30,6 +30,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -223,35 +224,40 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     /**
      * 扫描本区块内所有可接收能量的 TileEntity,缓存其位置.
      *
+     * <p>优化：直接读取当前 chunk 的 {@code tileEntities} 映射,避免每 20 tick
+     * 遍历全图 {@code world.loadedTileEntityList}.</p>
+     *
      * <p>某些模组(如 Mekanism)的 {@code IEnergyStorage} capability 只在特定朝向
      * 上暴露为可接收({@code canReceive() == true}).因此需要遍历 6 个面查找有效输入面,
      * 而非直接传 {@code null}.</p>
      */
     protected void refreshTargetCache() {
         cachedTargets.clear();
-        int chunkX = pos.getX() >> 4;
-        int chunkZ = pos.getZ() >> 4;
+        Chunk chunk = world.getChunk(pos);
+        if (chunk == null) return;
 
-        for (TileEntity te : world.loadedTileEntityList) {
+        for (TileEntity te : chunk.getTileEntityMap().values()) {
             if (te == null || te.isInvalid()) continue;
             if (te == this) continue;
 
             BlockPos tp = te.getPos();
-            if ((tp.getX() >> 4) != chunkX || (tp.getZ() >> 4) != chunkZ) continue;
-
-            // 黑名单检查
-            String blockId = world.getBlockState(tp).getBlock().getRegistryName().toString();
-            if (BLACKLIST.contains(blockId)) continue;
-
+            boolean canReceive = false;
             for (EnumFacing facing : EnumFacing.values()) {
                 if (te.hasCapability(CapabilityEnergy.ENERGY, facing)) {
                     IEnergyStorage cap = te.getCapability(CapabilityEnergy.ENERGY, facing);
                     if (cap != null && cap.canReceive()) {
-                        cachedTargets.add(tp.toImmutable());
+                        canReceive = true;
                         break;
                     }
                 }
             }
+            if (!canReceive) continue;
+
+            // 黑名单检查（仅对找到可接收面的目标才获取 blockId）
+            String blockId = world.getBlockState(tp).getBlock().getRegistryName().toString();
+            if (BLACKLIST.contains(blockId)) continue;
+
+            cachedTargets.add(tp.toImmutable());
         }
     }
 
