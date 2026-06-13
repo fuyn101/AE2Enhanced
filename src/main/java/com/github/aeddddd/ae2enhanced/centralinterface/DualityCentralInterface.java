@@ -71,16 +71,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 远程绑定
     private final List<TargetBinding> bindings = new ArrayList<>();
     private String boundBlockId = null;
-    private final Map<TargetBinding, TargetState> targetStates = new HashMap<>();
-    // 只跟踪 PROCESSING 状态的目标,避免 tickingRequest 遍历全部 targetStates
-    private final Set<TargetBinding> processingTargets = new HashSet<>();
-    // 记录每个目标当前正在合成的产物列表,用于 tick 收集时匹配
-    private final Map<TargetBinding, IAEItemStack[]> pendingOutputs = new HashMap<>();
-    // 记录每个 PROCESSING 目标的推料开始时间,用于超时保护防止状态无限卡住
-    private final Map<TargetBinding, Long> processingStartTimes = new HashMap<>();
-    // 记录每个 PROCESSING 目标的输入材料快照(用于 handler 区分产物与残留输入)
-    // 按 TargetBinding 隔离,避免多接口共享单例 handler 时的状态覆盖
-    private final Map<TargetBinding, List<ItemStack>> targetInputs = new HashMap<>();
+    // 每个绑定目标对应一个 TargetSession,集中管理 PUSHING/PROCESSING/COLLECTING/IDLE/UNAVAILABLE
+    private final Map<TargetBinding, TargetSession> sessions = new HashMap<>();
     // 虚拟合成产物暂存队列(等待 waitingFor 注册后再注入网络)
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
@@ -97,11 +89,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.cm.registerSetting(Settings.UNLOCK, LockCraftingMode.NONE);
 
         this.bindings.clear();
-        this.targetStates.clear();
-        this.processingTargets.clear();
-        this.pendingOutputs.clear();
-        this.processingStartTimes.clear();
-        this.targetInputs.clear();
+        this.sessions.clear();
 
         this.config = new AppEngInternalAEInventory(this, NUMBER_OF_CONFIG_SLOTS, 512);
         this.patterns = new AppEngInternalInventory(this, NUMBER_OF_PATTERN_SLOTS, 1) {
@@ -210,12 +198,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private List<TargetBinding> findIdleTargets() {
         List<TargetBinding> result = new ArrayList<>();
         for (TargetBinding binding : this.bindings) {
-            TargetState state = this.targetStates.getOrDefault(binding, TargetState.IDLE);
-            if (state == TargetState.IDLE) {
+            TargetSession session = this.sessions.get(binding);
+            if (session == null || session.isIdle()) {
                 result.add(binding);
             }
         }
         return result;
+    }
+
+    private TargetSession getOrCreateSession(TargetBinding binding) {
+        return this.sessions.computeIfAbsent(binding, b -> new TargetSession(b, this));
     }
 
     /**
@@ -239,8 +231,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (handler == null) {
             return false;
         }
+
+        TargetSession session = getOrCreateSession(target);
+
         if (!handler.isValidTarget(world, target.pos)) {
-            this.targetStates.put(target, TargetState.UNAVAILABLE);
+            session.setUnavailable();
             return false;
         }
 
@@ -267,14 +262,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         // 物理模式路径：复制 table，避免一个 target 的失败影响其他 target
         InventoryCrafting table = copyInventoryCrafting(originalTable);
 
-        // 获取全局坐标所有权，防止多个 Central Interface 同时操作同一台物理机器
-        if (!TargetOwnershipTracker.instance().tryAcquire(target, this)) {
+        // 获取全局坐标所有权，进入 PUSHING 状态
+        List<FluidStack> pushedFluids = new ArrayList<>();
+        if (!session.beginPush(pushedFluids)) {
             return false;
         }
-        boolean pushedSuccess = false;
+
+        boolean success = false;
         try {
             // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
-            List<FluidStack> pushedFluids = new ArrayList<>();
             if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
                 revertPushedFluids(world, target.pos, pushedFluids);
                 return false;
@@ -323,9 +319,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
 
             IAEItemStack[] outputs = patternDetails.getOutputs();
-            if (outputs != null && outputs.length > 0) {
-                this.pendingOutputs.put(target, outputs);
-            }
 
             // 保存输入材料快照(在 pushFluidInputs 后 table 中已移除流体,剩余为物品材料)
             List<ItemStack> inputSnapshot = new ArrayList<>();
@@ -335,18 +328,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     inputSnapshot.add(stack.copy());
                 }
             }
-            this.targetInputs.put(target, inputSnapshot);
 
-            this.targetStates.put(target, TargetState.PROCESSING);
-            this.processingTargets.add(target);
-            this.processingStartTimes.put(target, world.getTotalWorldTime());
-
-            pushedSuccess = true;
+            session.commitPush(outputs, inputSnapshot, world.getTotalWorldTime());
+            success = true;
             tryWakeTickDevice();
             return true;
         } finally {
-            if (!pushedSuccess) {
-                TargetOwnershipTracker.instance().release(target, this);
+            if (!success) {
+                session.reset();
             }
         }
     }
@@ -409,8 +398,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
         for (TargetBinding binding : this.bindings) {
-            TargetState state = this.targetStates.getOrDefault(binding, TargetState.IDLE);
-            if (state == TargetState.IDLE) {
+            TargetSession session = this.sessions.get(binding);
+            if (session == null || session.isIdle()) {
                 return false;
             }
         }
@@ -424,7 +413,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private void recoverUnavailableTargets() {
         World world = this.host.getTileEntity().getWorld();
         for (TargetBinding binding : this.bindings) {
-            if (this.targetStates.getOrDefault(binding, TargetState.IDLE) != TargetState.UNAVAILABLE) {
+            TargetSession session = this.sessions.get(binding);
+            if (session == null || !session.isUnavailable()) {
                 continue;
             }
             if (world.provider.getDimension() != binding.dimension) continue;
@@ -434,7 +424,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (handler == null) continue;
 
             if (handler.isValidTarget(world, binding.pos)) {
-                this.targetStates.put(binding, TargetState.IDLE);
+                session.recoverFromUnavailable();
             }
         }
     }
@@ -454,33 +444,27 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         // 先尝试恢复 UNAVAILABLE 目标：如果目标重新有效，则恢复为 IDLE
         recoverUnavailableTargets();
 
-        // 检查 PROCESSING 目标,收集产物
         boolean didWork = false;
-        Iterator<TargetBinding> it = this.processingTargets.iterator();
-        while (it.hasNext()) {
-            TargetBinding target = it.next();
-            // 防御性检查：确保 targetStates 与 processingTargets 一致
-            if (this.targetStates.get(target) != TargetState.PROCESSING) {
-                TargetOwnershipTracker.instance().release(target, this);
-                it.remove();
-                continue;
-            }
+        World world = this.host.getTileEntity().getWorld();
+        int timeoutTicks = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.centralInterface.processingTimeoutTicks;
 
-            World world = this.host.getTileEntity().getWorld();
+        // 阶段 1：处理所有 PROCESSING 目标
+        // 如果机器已经 idle，则进入 COLLECTING；否则尝试条件启动或检查超时
+        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
+            if (!session.isProcessing()) continue;
+            if (checkSessionTimeout(session, world, timeoutTicks)) continue;
+
+            TargetBinding target = session.getBinding();
             if (world.provider.getDimension() != target.dimension) continue;
             if (!world.isBlockLoaded(target.pos)) continue;
 
             IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
             if (handler == null) {
-                this.targetStates.put(target, TargetState.IDLE);
-                this.pendingOutputs.remove(target);
-                this.processingStartTimes.remove(target);
-                this.targetInputs.remove(target);
-                TargetOwnershipTracker.instance().release(target, this);
-                it.remove();
+                session.reset();
                 continue;
             }
-            List<ItemStack> inputs = this.targetInputs.get(target);
+
+            List<ItemStack> inputs = session.getInputs();
             boolean idle = handler.isIdle(world, target.pos, inputs);
             if (!idle) {
                 // 对于需要条件启动的设备(如符文祭坛),在 tick 中尝试启动
@@ -488,8 +472,28 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 continue;
             }
 
-            IAEItemStack[] expected = this.pendingOutputs.get(target);
-            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, inputs, new appeng.me.helpers.MachineSource(this.host));
+            session.beginCollect();
+        }
+
+        // 阶段 2：收集所有 COLLECTING 目标的产物
+        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
+            if (!session.isCollecting()) continue;
+            if (checkSessionTimeout(session, world, timeoutTicks)) continue;
+
+            TargetBinding target = session.getBinding();
+            if (world.provider.getDimension() != target.dimension) continue;
+            if (!world.isBlockLoaded(target.pos)) continue;
+
+            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+            if (handler == null) {
+                session.reset();
+                continue;
+            }
+
+            IAEItemStack[] expected = session.getExpectedOutputs();
+            List<ItemStack> inputs = session.getInputs();
+            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, inputs,
+                    new appeng.me.helpers.MachineSource(this.host));
 
             // 收集流体产物
             List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, expected);
@@ -507,37 +511,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
 
             // 流水线模式：只有 handler 报告输入已耗尽且无后续产物时,才结束本次发配
-            if (handler.hasFinished(world, target.pos, inputs)) {
-                this.targetStates.put(target, TargetState.IDLE);
-                this.pendingOutputs.remove(target);
-                this.processingStartTimes.remove(target);
-                this.targetInputs.remove(target);
-                TargetOwnershipTracker.instance().release(target, this);
-                it.remove();
-            } else if (products.isEmpty()) {
-                // 设备 idle 但未收集到产物,检查是否超时(600 ticks = 30 秒)
-                Long startTime = this.processingStartTimes.get(target);
-                long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
-                int timeoutTicks = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.centralInterface.processingTimeoutTicks;
-                if (elapsed > timeoutTicks) {
-                    // 超时：尝试兜底收集遗留产物,避免刷物品
-                    List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), inputs, new appeng.me.helpers.MachineSource(this.host));
-                    List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, this.pendingOutputs.get(target));
-                    if (!leftoverFluids.isEmpty()) {
-                        leftover.addAll(leftoverFluids);
-                    }
-                    if (!leftover.isEmpty()) {
-                        stashItemsToStorage(world, leftover);
-                    }
-                    this.targetStates.put(target, TargetState.IDLE);
-                    this.pendingOutputs.remove(target);
-                    this.processingStartTimes.remove(target);
-                    this.targetInputs.remove(target);
-                    TargetOwnershipTracker.instance().release(target, this);
-                    it.remove();
-                } else {
-                }
-                // 未超时：继续等待,不移除 processingTargets
+            boolean finished = handler.hasFinished(world, target.pos, inputs);
+            session.finishCollect(finished);
+            if (!products.isEmpty()) {
+                didWork = true;
             }
         }
 
@@ -559,6 +536,37 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return hasWorkToDo()
                 ? (didWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
                 : TickRateModulation.SLEEP;
+    }
+
+    /**
+     * 检查指定 session 是否已超时。超时则紧急收集并强制回到 IDLE。
+     *
+     * @return true 表示已处理超时，调用方无需继续处理该 session
+     */
+    private boolean checkSessionTimeout(TargetSession session, World world, int timeoutTicks) {
+        if (!session.isTimedOut(world.getTotalWorldTime(), timeoutTicks)) {
+            return false;
+        }
+
+        TargetBinding target = session.getBinding();
+        if (world.provider.getDimension() == target.dimension && world.isBlockLoaded(target.pos)) {
+            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+            if (handler != null) {
+                IAEItemStack[] expected = session.getExpectedOutputs();
+                List<ItemStack> inputs = session.getInputs();
+                List<ItemStack> leftover = handler.collectProducts(world, target.pos, expected, inputs,
+                        new appeng.me.helpers.MachineSource(this.host));
+                List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, expected);
+                if (!leftoverFluids.isEmpty()) {
+                    leftover.addAll(leftoverFluids);
+                }
+                if (!leftover.isEmpty()) {
+                    stashItemsToStorage(world, leftover);
+                }
+            }
+        }
+        session.reset();
+        return true;
     }
 
     private void pushStorageToNetwork(AENetworkProxy proxy) {
@@ -758,7 +766,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (!this.pendingVirtualProducts.isEmpty()) {
             return true;
         }
-        return !this.processingTargets.isEmpty();
+        for (TargetSession session : this.sessions.values()) {
+            if (!session.isIdle() && !session.isUnavailable()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- Inventory Callbacks ----
@@ -789,7 +802,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     public void initialize() {
         updateCraftingList();
         // 加载完成后,若存在持久化的处理状态,唤醒 tick 以继续收集
-        if (!this.processingTargets.isEmpty()) {
+        if (hasWorkToDo()) {
             tryWakeTickDevice();
         }
     }
@@ -904,29 +917,26 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         if (!this.bindings.contains(binding)) {
             // 安全重置：若该目标曾经处于处理状态(来自持久化数据),先清理其运行时状态
-            this.processingTargets.remove(binding);
-            this.pendingOutputs.remove(binding);
-            this.processingStartTimes.remove(binding);
-            this.targetInputs.remove(binding);
+            TargetSession session = this.sessions.get(binding);
+            if (session != null) {
+                session.reset();
+            }
 
             this.bindings.add(binding);
-            this.targetStates.put(binding, TargetState.IDLE);
+            getOrCreateSession(binding); // 确保存在 IDLE session
             postPatternChangeEvent();
         }
     }
 
     public void removeBinding(TargetBinding binding) {
         // 若目标正在处理,先尝试紧急收集产物,避免移除绑定后产物无人接管
-        if (this.processingTargets.contains(binding)) {
+        TargetSession session = this.sessions.get(binding);
+        if (session != null && !session.isIdle() && !session.isUnavailable()) {
             tryEmergencyCollect(binding);
+            session.reset();
         }
         this.bindings.remove(binding);
-        this.targetStates.remove(binding);
-        this.processingTargets.remove(binding);
-        this.pendingOutputs.remove(binding);
-        this.processingStartTimes.remove(binding);
-        this.targetInputs.remove(binding);
-        TargetOwnershipTracker.instance().release(binding, this);
+        this.sessions.remove(binding);
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
         }
@@ -935,15 +945,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public void clearBindings() {
         // 批量移除前,先紧急收集所有正在处理目标的产物
-        for (TargetBinding binding : new ArrayList<>(this.processingTargets)) {
-            tryEmergencyCollect(binding);
+        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
+            if (!session.isIdle() && !session.isUnavailable()) {
+                tryEmergencyCollect(session.getBinding());
+                session.reset();
+            }
         }
         this.bindings.clear();
-        this.targetStates.clear();
-        this.processingTargets.clear();
-        this.pendingOutputs.clear();
-        this.processingStartTimes.clear();
-        this.targetInputs.clear();
+        this.sessions.clear();
         this.boundBlockId = null;
         TargetOwnershipTracker.instance().releaseAll(this);
         postPatternChangeEvent();
@@ -953,11 +962,17 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 接口销毁时调用，释放所有持有的目标所有权。
      */
     public void destroy() {
+        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
+            session.reset();
+        }
         TargetOwnershipTracker.instance().releaseAll(this);
     }
 
     /** 紧急收集指定目标的产物(用于移除绑定前清理),收集失败则暂存到 storage slots */
     private void tryEmergencyCollect(TargetBinding binding) {
+        TargetSession session = this.sessions.get(binding);
+        if (session == null) return;
+
         try {
             World world = this.host.getTileEntity().getWorld();
             if (world == null || world.provider.getDimension() != binding.dimension) return;
@@ -966,8 +981,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             IRemoteHandler handler = HandlerRegistry.findHandler(binding.blockId);
             if (handler == null) return;
 
-            List<ItemStack> inputs = this.targetInputs.get(binding);
-            IAEItemStack[] expected = this.pendingOutputs.get(binding);
+            List<ItemStack> inputs = session.getInputs();
+            IAEItemStack[] expected = session.getExpectedOutputs();
 
             List<ItemStack> products = handler.collectProducts(world, binding.pos, expected, inputs,
                     new appeng.me.helpers.MachineSource(this.host));
@@ -1040,18 +1055,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         // 绑定
         this.bindings.clear();
-        this.targetStates.clear();
-        this.processingTargets.clear();
-        this.pendingOutputs.clear();
-        this.processingStartTimes.clear();
-        this.targetInputs.clear();
+        this.sessions.clear();
         this.boundBlockId = data.hasKey("boundBlockId") ? data.getString("boundBlockId") : null;
         if (data.hasKey("bindings")) {
             NBTTagList list = data.getTagList("bindings", 10);
             for (int i = 0; i < list.tagCount(); i++) {
                 TargetBinding binding = TargetBinding.readFromNBT(list.getCompoundTagAt(i));
                 this.bindings.add(binding);
-                this.targetStates.put(binding, TargetState.IDLE);
+                getOrCreateSession(binding); // 初始为 IDLE
             }
         }
 
@@ -1088,37 +1099,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 将正在运行的合成状态写入 NBT,以便区块卸载/服务器重启后恢复.
      */
     private void writeProcessingStateToNBT(NBTTagCompound data) {
-        if (this.processingTargets.isEmpty()) {
-            return;
-        }
         NBTTagList list = new NBTTagList();
-        for (TargetBinding binding : this.processingTargets) {
-            NBTTagCompound entry = new NBTTagCompound();
-            entry.setTag("binding", binding.writeToNBT());
-            entry.setLong("startTime", this.processingStartTimes.getOrDefault(binding, 0L));
-
-            IAEItemStack[] outputs = this.pendingOutputs.get(binding);
-            if (outputs != null && outputs.length > 0) {
-                NBTTagList outList = new NBTTagList();
-                for (IAEItemStack output : outputs) {
-                    if (output == null) continue;
-                    outList.appendTag(output.createItemStack().serializeNBT());
-                }
-                entry.setTag("outputs", outList);
+        for (TargetSession session : this.sessions.values()) {
+            // 只持久化 PROCESSING；COLLECTING 也按 PROCESSING 恢复（用户已同意）
+            if (!session.isProcessing() && !session.isCollecting()) {
+                continue;
             }
-
-            List<ItemStack> inputs = this.targetInputs.get(binding);
-            if (inputs != null && !inputs.isEmpty()) {
-                NBTTagList inList = new NBTTagList();
-                for (ItemStack input : inputs) {
-                    if (input.isEmpty()) continue;
-                    inList.appendTag(input.serializeNBT());
-                }
-                entry.setTag("inputs", inList);
-            }
-            list.appendTag(entry);
+            list.appendTag(session.serializeProcessing());
         }
-        data.setTag("processingState", list);
+        if (list.tagCount() > 0) {
+            data.setTag("processingState", list);
+        } else {
+            data.removeTag("processingState");
+        }
     }
 
     /**
@@ -1131,40 +1124,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         NBTTagList list = data.getTagList("processingState", 10);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound entry = list.getCompoundTagAt(i);
-            TargetBinding binding = TargetBinding.readFromNBT(entry.getCompoundTag("binding"));
+            TargetSession session = TargetSession.deserializeProcessing(entry, this);
+            TargetBinding binding = session.getBinding();
 
             // 只恢复仍然存在于 bindings 列表中的目标
             if (!this.bindings.contains(binding)) {
                 continue;
             }
 
-            this.processingTargets.add(binding);
-            this.targetStates.put(binding, TargetState.PROCESSING);
-            this.processingStartTimes.put(binding, entry.getLong("startTime"));
-
-            if (entry.hasKey("outputs")) {
-                NBTTagList outList = entry.getTagList("outputs", 10);
-                IAEItemStack[] outputs = new IAEItemStack[outList.tagCount()];
-                for (int j = 0; j < outList.tagCount(); j++) {
-                    ItemStack stack = new ItemStack(outList.getCompoundTagAt(j));
-                    if (!stack.isEmpty()) {
-                        outputs[j] = AEItemStack.fromItemStack(stack);
-                    }
-                }
-                this.pendingOutputs.put(binding, outputs);
-            }
-
-            if (entry.hasKey("inputs")) {
-                NBTTagList inList = entry.getTagList("inputs", 10);
-                List<ItemStack> inputs = new ArrayList<>();
-                for (int j = 0; j < inList.tagCount(); j++) {
-                    ItemStack stack = new ItemStack(inList.getCompoundTagAt(j));
-                    if (!stack.isEmpty()) {
-                        inputs.add(stack);
-                    }
-                }
-                this.targetInputs.put(binding, inputs);
-            }
+            this.sessions.put(binding, session);
         }
     }
 
