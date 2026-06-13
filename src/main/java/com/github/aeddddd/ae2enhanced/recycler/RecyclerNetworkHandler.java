@@ -151,8 +151,6 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
                 continue; // 无变化，跳过
             }
 
-            snapshots.put(ref, new RecyclerIndex.TargetAdapterSnapshot(currentTick, current));
-
             for (ItemStack stack : current) {
                 if (stack.isEmpty()) continue;
                 // 无过滤：直接提取全部
@@ -161,6 +159,10 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
                     collector.add(extracted);
                 }
             }
+
+            // 提取后重新扫描，更新快照
+            List<ItemStack> afterExtract = adapter.scan(true);
+            snapshots.put(ref, new RecyclerIndex.TargetAdapterSnapshot(currentTick, afterExtract));
         }
     }
 
