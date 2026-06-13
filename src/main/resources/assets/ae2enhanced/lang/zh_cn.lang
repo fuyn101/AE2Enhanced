@@ -419,3 +419,12 @@ gui.ae2enhanced.me_network_recycler.last_recycled=上次回收: %d
 gui.ae2enhanced.umc.msg.bind_invalid_recycler=该方块不是 ME 网络回收节点。
 gui.ae2enhanced.umc.msg.bind_recycler_success=已绑定 %d 个目标到回收节点（跳过 %d 个）。
 gui.ae2enhanced.umc.msg.clear_recycler_bindings=已清空 %d 个回收节点绑定。
+
+tile.ae2enhanced.emc_interface.name=EMC 接口
+tile.ae2enhanced.emc_interface.tooltip=§eEMC 接口 §7— 将 ProjectE EMC 余额作为 AE 网络物品源
+gui.ae2enhanced.emc_interface.title=EMC 接口
+gui.ae2enhanced.emc_interface.owner=所有者: %s
+gui.ae2enhanced.emc_interface.unbound=未绑定
+gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+左键标题绑定当前玩家
+chat.ae2enhanced.emc_interface.bound=EMC 接口已绑定至 %s
+chat.ae2enhanced.emc_interface.duplicate=§e警告: 你的 EMC 接口在网络中有多个副本,实际提取由 EMC 余额兜底.

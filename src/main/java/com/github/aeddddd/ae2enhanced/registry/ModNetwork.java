@@ -42,6 +42,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolDropModeHandl
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGui;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGuiHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlight;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketEMCInterfaceBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlightHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
@@ -108,5 +109,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketOmniToolConfigHandler.class, PacketOmniToolConfig.class, 32, Side.SERVER);
         nw.registerMessage(PacketChunkPowerHighlightHandler.class, PacketChunkPowerHighlight.class, 39, Side.CLIENT);
         nw.registerMessage(PacketRecyclerSync.Handler.class, PacketRecyclerSync.class, 41, Side.CLIENT);
+        nw.registerMessage(PacketEMCInterfaceBind.Handler.class, PacketEMCInterfaceBind.class, 42, Side.SERVER);
     }
 }

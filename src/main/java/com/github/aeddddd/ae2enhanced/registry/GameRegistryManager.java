@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.registry;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.*;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.item.*;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
@@ -92,7 +93,8 @@ public final class GameRegistryManager {
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
             BlockRegistry.ADVANCED_ME_COLLECTOR = new BlockAdvancedMECollector(),
-            BlockRegistry.ME_NETWORK_RECYCLER = new BlockMENetworkRecycler()
+            BlockRegistry.ME_NETWORK_RECYCLER = new BlockMENetworkRecycler(),
+            BlockRegistry.EMC_INTERFACE = AE2EnhancedConfig.emcInterface.enabled ? new BlockEMCInterface() : null
         );
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
@@ -111,6 +113,9 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
         GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
+        if (BlockRegistry.EMC_INTERFACE != null) {
+            GameRegistry.registerTileEntity(TileEMCInterface.class, AE2Enhanced.MOD_ID + ":emc_interface");
+        }
     }
 
     @SubscribeEvent
@@ -140,7 +145,8 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
+            new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            BlockRegistry.EMC_INTERFACE != null ? new ItemBlock(BlockRegistry.EMC_INTERFACE).setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB) : null
         );
 
         // Items

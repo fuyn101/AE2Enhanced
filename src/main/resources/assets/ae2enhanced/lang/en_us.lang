@@ -421,3 +421,12 @@ gui.ae2enhanced.me_network_recycler.last_recycled=Last Recycled: %d
 gui.ae2enhanced.umc.msg.bind_invalid_recycler=This block is not an ME Network Recycler.
 gui.ae2enhanced.umc.msg.bind_recycler_success=Bound %d targets to recycler (%d skipped).
 gui.ae2enhanced.umc.msg.clear_recycler_bindings=Cleared %d recycler bindings.
+
+tile.ae2enhanced.emc_interface.name=EMC Interface
+tile.ae2enhanced.emc_interface.tooltip=§eEMC Interface §7— exposes ProjectE EMC balance as AE network item source
+gui.ae2enhanced.emc_interface.title=EMC Interface
+gui.ae2enhanced.emc_interface.owner=Owner: %s
+gui.ae2enhanced.emc_interface.unbound=Unbound
+gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+Click title to bind current player
+chat.ae2enhanced.emc_interface.bound=EMC Interface bound to %s
+chat.ae2enhanced.emc_interface.duplicate=§eWarning: You have multiple EMC Interfaces on this network; extraction is limited by your real EMC balance.

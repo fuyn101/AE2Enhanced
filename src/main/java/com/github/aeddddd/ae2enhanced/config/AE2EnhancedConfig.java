@@ -101,6 +101,10 @@ public class AE2EnhancedConfig {
     })
     public static AdvancedPlatform advancedPlatform = new AdvancedPlatform();
 
+    @Config.Name("EMCInterface")
+    @Config.Comment("ProjectE EMC Interface settings.")
+    public static EMCInterface emcInterface = new EMCInterface();
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",
@@ -472,6 +476,21 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 50, max = 1000)
         public int scanBlocksPerTick = 400;
+    }
+
+    public static class EMCInterface {
+        @Config.Comment({
+            "Enable the ProjectE EMC Interface block.",
+            "Default: true"
+        })
+        public boolean enabled = true;
+
+        @Config.Comment({
+            "Idle AE power draw per EMC Interface (AE/t).",
+            "Range: 0 ~ 1000, Default: 5"
+        })
+        @Config.RangeInt(min = 0, max = 1000)
+        public int idlePower = 5;
     }
 
     public static class CentralInterface {

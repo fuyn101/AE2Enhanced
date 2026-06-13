@@ -56,4 +56,7 @@ public final class BlockRegistry {
 
     // ME 网络回收节点
     public static BlockMENetworkRecycler ME_NETWORK_RECYCLER;
+
+    // EMC 接口
+    public static BlockEMCInterface EMC_INTERFACE;
 }
