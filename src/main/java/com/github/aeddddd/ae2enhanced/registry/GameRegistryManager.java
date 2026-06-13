@@ -93,9 +93,12 @@ public final class GameRegistryManager {
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
             BlockRegistry.ADVANCED_ME_COLLECTOR = new BlockAdvancedMECollector(),
-            BlockRegistry.ME_NETWORK_RECYCLER = new BlockMENetworkRecycler(),
-            BlockRegistry.EMC_INTERFACE = AE2EnhancedConfig.emcInterface.enabled ? new BlockEMCInterface() : null
+            BlockRegistry.ME_NETWORK_RECYCLER = new BlockMENetworkRecycler()
         );
+        if (AE2EnhancedConfig.emcInterface.enabled) {
+            BlockRegistry.EMC_INTERFACE = new BlockEMCInterface();
+            event.getRegistry().register(BlockRegistry.EMC_INTERFACE);
+        }
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
         GameRegistry.registerTileEntity(TileAssemblyMeInterface.class, AE2Enhanced.MOD_ID + ":assembly_me_interface");
@@ -145,9 +148,13 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            BlockRegistry.EMC_INTERFACE != null ? new ItemBlock(BlockRegistry.EMC_INTERFACE).setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB) : null
+            new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
+        if (BlockRegistry.EMC_INTERFACE != null) {
+            event.getRegistry().register(new ItemBlock(BlockRegistry.EMC_INTERFACE)
+                    .setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName())
+                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
+        }
 
         // Items
         event.getRegistry().register(ItemRegistry.UPGRADE_CARD);
