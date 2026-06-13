@@ -252,6 +252,17 @@ public class TileCentralMEInterface extends TileAENetworkBase
     public void invalidate() {
         super.invalidate();
         ACTIVE_INTERFACES.remove(this);
+        if (this.duality != null) {
+            this.duality.destroy();
+        }
+    }
+
+    @Override
+    public void onChunkUnload() {
+        super.onChunkUnload();
+        if (this.duality != null) {
+            this.duality.destroy();
+        }
     }
 
     @Override

@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Thaumcraft 注魔矩阵远程处理器.
@@ -67,9 +66,6 @@ public class ThaumcraftHandler implements IRemoteHandler {
     private static Field FIELD_RECIPE_PLAYER;
     private static Field FIELD_CHECK_SURROUNDINGS;
     private static boolean reflectionReady = false;
-
-    // 配方缓存：BlockPos → InfusionRecipe(仅在 startProcess 中使用,用于 FakePlayer research 和回退)
-    private final Map<BlockPos, InfusionRecipe> recipeCache = new ConcurrentHashMap<>();
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -220,7 +216,6 @@ public class ThaumcraftHandler implements IRemoteHandler {
 
                 METHOD_CRAFTING_START.invoke(te, fakePlayer);
                 if (isCrafting(te)) {
-                    recipeCache.remove(pos);
                     return true;
                 }
 
@@ -238,23 +233,19 @@ public class ThaumcraftHandler implements IRemoteHandler {
                         knowledge.removeResearch(research);
                     }
                     if (isCrafting(te)) {
-                        recipeCache.remove(pos);
                         return true;
                     }
                     // 仍然失败(可能是源质不足等),回退到强制完成
-                    recipeCache.put(pos, recipe);
                     return forceStartCrafting(world, pos, te, recipe);
                 }
             } catch (Exception e) {
                 InfusionRecipe recipe = findRecipeFromPedestals(world, pos, te);
                 if (recipe != null) {
-                    recipeCache.put(pos, recipe);
                     return forceStartCrafting(world, pos, te, recipe);
                 }
             }
         }
 
-        recipeCache.remove(pos);
         return false;
     }
 

@@ -228,6 +228,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
         );
         for (EntityItem entity : world.getEntitiesWithinAABB(EntityItem.class, aabb)) {
             if (entity.isDead) continue;
+            if (!isWithinHorizontalRange(entity, pos, 0.8)) continue;
             if (entity.getEntityData().getBoolean(TAG_CATALYST)) {
                 return true;
             }
@@ -241,6 +242,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
                 pos.getX() + 1.5, pos.getY() + 5.0, pos.getZ() + 1.5
         );
         for (EntityItem entity : world.getEntitiesWithinAABB(EntityItem.class, aabb)) {
+            if (!isWithinHorizontalRange(entity, pos, 0.8)) continue;
             if (entity.getEntityData().getBoolean(TAG_CATALYST)) {
                 entity.setDead();
             }
@@ -258,6 +260,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             Class<? extends Entity> clazz = (Class<? extends Entity>) CLASS_ENTITY_SPECIAL_ITEM;
             for (Entity entity : world.getEntitiesWithinAABB(clazz, aabb)) {
                 if (!CLASS_ENTITY_SPECIAL_ITEM.isInstance(entity)) continue;
+                if (!isWithinHorizontalRange(entity, pos, 0.8)) continue;
 
                 ItemStack item = (ItemStack) METHOD_GET_ITEM.invoke(entity);
                 if (item != null && !item.isEmpty()) {
@@ -269,6 +272,15 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler {
             AE2Enhanced.LOGGER.error("[AE2E] collectSpecialItems failed at {}", pos, e);
         }
         return result;
+    }
+
+    /**
+     * 判断实体是否在当前坩埚的水平范围内，避免相邻坩埚的催化剂/产物被误识别。
+     */
+    private static boolean isWithinHorizontalRange(Entity entity, BlockPos pos, double range) {
+        double dx = entity.posX - (pos.getX() + 0.5);
+        double dz = entity.posZ - (pos.getZ() + 0.5);
+        return dx * dx + dz * dz <= range * range;
     }
 
     private static ItemStack identifyCatalyst(List<ItemStack> items) {

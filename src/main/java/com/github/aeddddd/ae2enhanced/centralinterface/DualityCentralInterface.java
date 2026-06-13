@@ -267,76 +267,88 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         // 物理模式路径：复制 table，避免一个 target 的失败影响其他 target
         InventoryCrafting table = copyInventoryCrafting(originalTable);
 
-        // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
-        List<FluidStack> pushedFluids = new ArrayList<>();
-        if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
-            revertPushedFluids(world, target.pos, pushedFluids);
+        // 获取全局坐标所有权，防止多个 Central Interface 同时操作同一台物理机器
+        if (!TargetOwnershipTracker.instance().tryAcquire(target, this)) {
             return false;
         }
-
-        // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
-        List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos,
-                new appeng.me.helpers.MachineSource(this.host));
-        if (!clearedOutputs.isEmpty()) {
-            if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
-                stashItemsToStorage(world, clearedOutputs);
+        boolean pushedSuccess = false;
+        try {
+            // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
+            List<FluidStack> pushedFluids = new ArrayList<>();
+            if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
+                revertPushedFluids(world, target.pos, pushedFluids);
+                return false;
             }
-        }
 
-        // 物理模式路径
-        if (!handler.canStart(world, target.pos, table)) {
-            revertPushedFluids(world, target.pos, pushedFluids);
-            return false;
-        }
-
-        boolean pushed = handler.pushMaterials(world, target.pos, table,
-                new appeng.me.helpers.MachineSource(this.host));
-        if (!pushed) {
-            // 回退已推入的材料(handler 可能已部分推入)
-            List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+            // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
+            List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos,
                     new appeng.me.helpers.MachineSource(this.host));
-            if (!reverted.isEmpty()) {
-                injectItemsToNetwork(proxy, world, reverted);
+            if (!clearedOutputs.isEmpty()) {
+                if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
+                    stashItemsToStorage(world, clearedOutputs);
+                }
             }
-            revertPushedFluids(world, target.pos, pushedFluids);
-            return false;
-        }
 
-        boolean started = handler.startProcess(world, target.pos,
-                new appeng.me.helpers.MachineSource(this.host));
-        if (!started) {
-            // 回退已推送的材料
-            List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+            // 物理模式路径
+            if (!handler.canStart(world, target.pos, table)) {
+                revertPushedFluids(world, target.pos, pushedFluids);
+                return false;
+            }
+
+            boolean pushed = handler.pushMaterials(world, target.pos, table,
                     new appeng.me.helpers.MachineSource(this.host));
-            if (!reverted.isEmpty()) {
-                injectItemsToNetwork(proxy, world, reverted);
+            if (!pushed) {
+                // 回退已推入的材料(handler 可能已部分推入)
+                List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (!reverted.isEmpty()) {
+                    injectItemsToNetwork(proxy, world, reverted);
+                }
+                revertPushedFluids(world, target.pos, pushedFluids);
+                return false;
             }
-            // 回退已推送的流体
-            revertPushedFluids(world, target.pos, pushedFluids);
-            return false;
-        }
 
-        IAEItemStack[] outputs = patternDetails.getOutputs();
-        if (outputs != null && outputs.length > 0) {
-            this.pendingOutputs.put(target, outputs);
-        }
+            boolean started = handler.startProcess(world, target.pos,
+                    new appeng.me.helpers.MachineSource(this.host));
+            if (!started) {
+                // 回退已推送的材料
+                List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (!reverted.isEmpty()) {
+                    injectItemsToNetwork(proxy, world, reverted);
+                }
+                // 回退已推送的流体
+                revertPushedFluids(world, target.pos, pushedFluids);
+                return false;
+            }
 
-        // 保存输入材料快照(在 pushFluidInputs 后 table 中已移除流体,剩余为物品材料)
-        List<ItemStack> inputSnapshot = new ArrayList<>();
-        for (int i = 0; i < table.getSizeInventory(); i++) {
-            ItemStack stack = table.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                inputSnapshot.add(stack.copy());
+            IAEItemStack[] outputs = patternDetails.getOutputs();
+            if (outputs != null && outputs.length > 0) {
+                this.pendingOutputs.put(target, outputs);
+            }
+
+            // 保存输入材料快照(在 pushFluidInputs 后 table 中已移除流体,剩余为物品材料)
+            List<ItemStack> inputSnapshot = new ArrayList<>();
+            for (int i = 0; i < table.getSizeInventory(); i++) {
+                ItemStack stack = table.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    inputSnapshot.add(stack.copy());
+                }
+            }
+            this.targetInputs.put(target, inputSnapshot);
+
+            this.targetStates.put(target, TargetState.PROCESSING);
+            this.processingTargets.add(target);
+            this.processingStartTimes.put(target, world.getTotalWorldTime());
+
+            pushedSuccess = true;
+            tryWakeTickDevice();
+            return true;
+        } finally {
+            if (!pushedSuccess) {
+                TargetOwnershipTracker.instance().release(target, this);
             }
         }
-        this.targetInputs.put(target, inputSnapshot);
-
-        this.targetStates.put(target, TargetState.PROCESSING);
-        this.processingTargets.add(target);
-        this.processingStartTimes.put(target, world.getTotalWorldTime());
-
-        tryWakeTickDevice();
-        return true;
     }
 
     /**
@@ -405,6 +417,28 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return true;
     }
 
+    /**
+     * 对 UNAVAILABLE 目标定期进行有效性检查，若重新有效则恢复为 IDLE.
+     * 防止目标方块短暂卸载/替换后该并行槽位永久冻结。
+     */
+    private void recoverUnavailableTargets() {
+        World world = this.host.getTileEntity().getWorld();
+        for (TargetBinding binding : this.bindings) {
+            if (this.targetStates.getOrDefault(binding, TargetState.IDLE) != TargetState.UNAVAILABLE) {
+                continue;
+            }
+            if (world.provider.getDimension() != binding.dimension) continue;
+            if (!world.isBlockLoaded(binding.pos)) continue;
+
+            IRemoteHandler handler = HandlerRegistry.findHandler(binding.blockId);
+            if (handler == null) continue;
+
+            if (handler.isValidTarget(world, binding.pos)) {
+                this.targetStates.put(binding, TargetState.IDLE);
+            }
+        }
+    }
+
     // ---- Ticking ----
 
     public TickingRequest getTickingRequest(IGridNode node) {
@@ -417,6 +451,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return TickRateModulation.SLEEP;
         }
 
+        // 先尝试恢复 UNAVAILABLE 目标：如果目标重新有效，则恢复为 IDLE
+        recoverUnavailableTargets();
+
         // 检查 PROCESSING 目标,收集产物
         boolean didWork = false;
         Iterator<TargetBinding> it = this.processingTargets.iterator();
@@ -424,6 +461,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             TargetBinding target = it.next();
             // 防御性检查：确保 targetStates 与 processingTargets 一致
             if (this.targetStates.get(target) != TargetState.PROCESSING) {
+                TargetOwnershipTracker.instance().release(target, this);
                 it.remove();
                 continue;
             }
@@ -438,6 +476,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 this.pendingOutputs.remove(target);
                 this.processingStartTimes.remove(target);
                 this.targetInputs.remove(target);
+                TargetOwnershipTracker.instance().release(target, this);
                 it.remove();
                 continue;
             }
@@ -473,12 +512,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 this.pendingOutputs.remove(target);
                 this.processingStartTimes.remove(target);
                 this.targetInputs.remove(target);
+                TargetOwnershipTracker.instance().release(target, this);
                 it.remove();
             } else if (products.isEmpty()) {
                 // 设备 idle 但未收集到产物,检查是否超时(600 ticks = 30 秒)
                 Long startTime = this.processingStartTimes.get(target);
                 long elapsed = startTime != null ? (world.getTotalWorldTime() - startTime) : 0;
-                if (elapsed > 600) {
+                int timeoutTicks = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.centralInterface.processingTimeoutTicks;
+                if (elapsed > timeoutTicks) {
                     // 超时：尝试兜底收集遗留产物,避免刷物品
                     List<ItemStack> leftover = handler.collectProducts(world, target.pos, this.pendingOutputs.get(target), inputs, new appeng.me.helpers.MachineSource(this.host));
                     List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, this.pendingOutputs.get(target));
@@ -492,6 +533,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     this.pendingOutputs.remove(target);
                     this.processingStartTimes.remove(target);
                     this.targetInputs.remove(target);
+                    TargetOwnershipTracker.instance().release(target, this);
                     it.remove();
                 } else {
                 }
@@ -884,6 +926,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.pendingOutputs.remove(binding);
         this.processingStartTimes.remove(binding);
         this.targetInputs.remove(binding);
+        TargetOwnershipTracker.instance().release(binding, this);
         if (this.bindings.isEmpty()) {
             this.boundBlockId = null;
         }
@@ -902,7 +945,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         this.processingStartTimes.clear();
         this.targetInputs.clear();
         this.boundBlockId = null;
+        TargetOwnershipTracker.instance().releaseAll(this);
         postPatternChangeEvent();
+    }
+
+    /**
+     * 接口销毁时调用，释放所有持有的目标所有权。
+     */
+    public void destroy() {
+        TargetOwnershipTracker.instance().releaseAll(this);
     }
 
     /** 紧急收集指定目标的产物(用于移除绑定前清理),收集失败则暂存到 storage slots */

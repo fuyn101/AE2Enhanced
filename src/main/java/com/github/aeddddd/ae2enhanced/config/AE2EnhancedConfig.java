@@ -71,6 +71,10 @@ public class AE2EnhancedConfig {
     })
     public static SmartPattern smartPattern = new SmartPattern();
 
+    @Config.Name("CentralInterface")
+    @Config.Comment("Central ME Interface settings.")
+    public static CentralInterface centralInterface = new CentralInterface();
+
     @Config.Name("Thaumcraft")
     @Config.Comment("Thaumcraft automation settings for Central ME Interface")
     public static Thaumcraft thaumcraft = new Thaumcraft();
@@ -464,6 +468,16 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 50, max = 1000)
         public int scanBlocksPerTick = 400;
+    }
+
+    public static class CentralInterface {
+        @Config.Comment({
+            "Timeout in ticks before a processing target is forcefully reset to IDLE.",
+            "Increase this if you use slow machines (e.g. long GT recipes).",
+            "Range: 20 ~ 72000, Default: 600 (30 seconds)"
+        })
+        @Config.RangeInt(min = 20, max = 72000)
+        public int processingTimeoutTicks = 600;
     }
 
     public static class Thaumcraft {

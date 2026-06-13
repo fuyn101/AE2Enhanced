@@ -19,9 +19,7 @@ import net.minecraftforge.items.ItemStackHandler;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Bewitchment 处理器：SpinningWheel + Distillery + WitchesCauldron.
@@ -58,10 +56,6 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Method METHOD_CAULDRON_SET_POWER;
     private static Method METHOD_CAULDRON_RECIPE_MATCHES;
     private static Field FIELD_CAULDRON_RECIPE_OUTPUT;
-
-    // 坩埚超时：记录 push 时间(key = dim:pos)
-    private static final Map<String, Long> CAULDRON_PUSH_TIME = new HashMap<>();
-    private static final long CAULDRON_TIMEOUT_MS = 30000;
 
     private static boolean reflectionReady = false;
 
@@ -311,8 +305,6 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            String key = world.provider.getDimension() + ":" + pos.toLong();
-            CAULDRON_PUSH_TIME.put(key, System.currentTimeMillis());
             return true;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Bewitchment cauldron push failed", e);
@@ -382,8 +374,6 @@ public class BewitchmentHandler implements IRemoteHandler {
                         }
                     }
                 }
-                String key = world.provider.getDimension() + ":" + pos.toLong();
-                CAULDRON_PUSH_TIME.remove(key);
             } catch (Exception ignored) {}
         }
         return result;
@@ -503,9 +493,6 @@ public class BewitchmentHandler implements IRemoteHandler {
                 }
             }
 
-            // 3. 清理超时记录
-            String key = world.provider.getDimension() + ":" + pos.toLong();
-            CAULDRON_PUSH_TIME.remove(key);
         } catch (Exception ignored) {}
     }
 }
