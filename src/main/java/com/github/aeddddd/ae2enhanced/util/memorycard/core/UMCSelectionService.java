@@ -5,6 +5,8 @@ import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
+import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
+import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
@@ -106,6 +108,54 @@ public class UMCSelectionService {
         int count = source.getInterfaceDuality().getBindings().size();
         source.clearBindings();
         player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_bindings", count));
+    }
+
+    public static void handleBindRecycler(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
+        World world = player.world;
+        net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileMENetworkRecycler)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_recycler"));
+            return;
+        }
+
+        List<ItemUniversalMemoryCard.SelectionEntry> selections = ItemUniversalMemoryCard.getSelections(stack);
+        if (selections.isEmpty()) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_selections"));
+            return;
+        }
+
+        TileMENetworkRecycler recycler = (TileMENetworkRecycler) te;
+        int bound = 0;
+        int skipped = 0;
+        for (ItemUniversalMemoryCard.SelectionEntry entry : selections) {
+            if (recycler.getTargetManager().getTargetCount() >= com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.recycler.maxTargets) {
+                skipped++;
+                continue;
+            }
+            TargetManager.TargetRef target = new TargetManager.TargetRef(entry.dim, entry.pos,
+                    entry.side >= 0 ? EnumFacing.values()[entry.side] : EnumFacing.UP);
+            if (recycler.tryBindTarget(target)) {
+                bound++;
+            } else {
+                skipped++;
+            }
+        }
+        recycler.markDirty();
+        ItemUniversalMemoryCard.clearSelections(stack);
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_recycler_success", bound, skipped));
+    }
+
+    public static void handleClearRecyclerBindings(EntityPlayer player, BlockPos pos) {
+        World world = player.world;
+        net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileMENetworkRecycler)) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_recycler"));
+            return;
+        }
+        TileMENetworkRecycler recycler = (TileMENetworkRecycler) te;
+        int count = recycler.getTargetManager().getTargetCount();
+        recycler.clearTargets();
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_recycler_bindings", count));
     }
 
     private static List<BlockPos> findConnectedBlocks(World world, BlockPos start, Class<?> tileClass, int maxCount) {

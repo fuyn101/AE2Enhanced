@@ -242,6 +242,7 @@ public class ItemUniversalMemoryCard extends Item {
                     net.minecraft.tileentity.TileEntity te = event.getWorld().getTileEntity(event.getPos());
                     boolean isCentralInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
                     boolean isSmartPatternInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
+                    boolean isRecycler = te instanceof com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 
                     boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
                             || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
@@ -262,7 +263,11 @@ public class ItemUniversalMemoryCard extends Item {
                     }
 
                     PacketUMCAction.ActionType type;
-                    if (isCentralInterface && isAlt && !isSneaking && !isCtrl) {
+                    if (isRecycler && isAlt && !isSneaking && !isCtrl) {
+                        type = PacketUMCAction.ActionType.CLEAR_RECYCLER_BINDINGS;
+                    } else if (isRecycler && !isSneaking && !isCtrl) {
+                        type = PacketUMCAction.ActionType.BIND_RECYCLER;
+                    } else if (isCentralInterface && isAlt && !isSneaking && !isCtrl) {
                         type = PacketUMCAction.ActionType.CLEAR_BINDINGS;
                     } else if (isCentralInterface && !isSneaking && !isCtrl) {
                         type = PacketUMCAction.ActionType.BIND_SOURCE;
@@ -335,6 +340,12 @@ public class ItemUniversalMemoryCard extends Item {
                 break;
             case CLEAR_BINDINGS:
                 UMCSelectionService.handleClearBindings(player, message.getPos());
+                break;
+            case BIND_RECYCLER:
+                UMCSelectionService.handleBindRecycler(player, stack, message.getPos(), message.getFace());
+                break;
+            case CLEAR_RECYCLER_BINDINGS:
+                UMCSelectionService.handleClearRecyclerBindings(player, message.getPos());
                 break;
         }
 

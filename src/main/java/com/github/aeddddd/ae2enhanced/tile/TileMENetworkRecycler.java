@@ -31,10 +31,7 @@ import java.util.List;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
-import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingRegistry;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
-import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingState;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager.TargetRef;
@@ -55,8 +52,6 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     private boolean lastActive = false;
     private int clientFlags = 0;
     private int tickCounter = 0;
-    private final RecyclerBindingState bindingState = new RecyclerBindingState();
-    private static final int BINDING_DURATION_TICKS = 600; // 30 秒
 
     // 客户端同步字段
     private int clientTargetCount = 0;
@@ -290,21 +285,6 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     // ---- 绑定管理 ----
-
-    public boolean toggleBindingMode(@Nonnull java.util.UUID playerId) {
-        if (bindingState.isBinding(playerId, this.world.getTotalWorldTime())) {
-            bindingState.clear();
-            RecyclerBindingRegistry.clearBinding(playerId);
-            return false;
-        }
-        bindingState.start(playerId, this.world.getTotalWorldTime(), BINDING_DURATION_TICKS);
-        RecyclerBindingRegistry.setBinding(playerId, this.world.provider.getDimension(), this.pos);
-        return true;
-    }
-
-    public boolean isBinding(@Nonnull java.util.UUID playerId) {
-        return bindingState.isBinding(playerId, this.world.getTotalWorldTime());
-    }
 
     public boolean tryBindTarget(@Nonnull TargetRef target) {
         if (targetManager.getTargetCount() >= AE2EnhancedConfig.recycler.maxTargets) {
