@@ -90,13 +90,23 @@ public class BlockMENetworkRecycler extends Block {
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
                                     EntityPlayer player, EnumHand hand,
                                     EnumFacing facing, float hitX, float hitY, float hitZ) {
-        if (player.isSneaking()) return false;
-        if (!world.isRemote) {
-            TileEntity te = world.getTileEntity(pos);
-            if (te instanceof TileMENetworkRecycler) {
-                player.openGui(AE2Enhanced.instance, GuiHandler.GUI_ME_NETWORK_RECYCLER,
-                        world, pos.getX(), pos.getY(), pos.getZ());
+        TileEntity te = world.getTileEntity(pos);
+        if (!(te instanceof TileMENetworkRecycler)) return false;
+        TileMENetworkRecycler tile = (TileMENetworkRecycler) te;
+
+        if (player.isSneaking()) {
+            if (!world.isRemote) {
+                boolean active = tile.toggleBindingMode(player.getUniqueID());
+                String key = active ? "message.ae2enhanced.me_network_recycler.binding_on"
+                        : "message.ae2enhanced.me_network_recycler.binding_off";
+                player.sendMessage(new net.minecraft.util.text.TextComponentTranslation(key));
             }
+            return true;
+        }
+
+        if (!world.isRemote) {
+            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_ME_NETWORK_RECYCLER,
+                    world, pos.getX(), pos.getY(), pos.getZ());
         }
         return true;
     }
