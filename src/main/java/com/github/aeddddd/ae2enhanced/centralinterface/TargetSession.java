@@ -28,6 +28,7 @@ public class TargetSession {
     private IAEItemStack[] expectedOutputs;
     private List<ItemStack> inputs;
     private List<FluidStack> pushedFluids;
+    private List<FluidStack> inputFluids;
 
     public TargetSession(TargetBinding binding, DualityCentralInterface owner) {
         this.binding = binding;
@@ -75,6 +76,10 @@ public class TargetSession {
         return pushedFluids != null ? pushedFluids : Collections.emptyList();
     }
 
+    public List<FluidStack> getInputFluids() {
+        return inputFluids != null ? inputFluids : Collections.emptyList();
+    }
+
     /**
      * 开始一次物理推送。
      *
@@ -92,13 +97,14 @@ public class TargetSession {
     /**
      * 推送成功，进入处理中状态。
      */
-    public void commitPush(IAEItemStack[] expectedOutputs, List<ItemStack> inputs, long startTime) {
+    public void commitPush(IAEItemStack[] expectedOutputs, List<ItemStack> inputs, List<FluidStack> inputFluids, long startTime) {
         if (this.state != TargetState.PUSHING) {
             throw new IllegalStateException("Cannot commit push from state " + this.state);
         }
         this.state = TargetState.PROCESSING;
         this.expectedOutputs = expectedOutputs != null ? expectedOutputs.clone() : null;
         this.inputs = inputs != null ? new ArrayList<>(inputs) : null;
+        this.inputFluids = inputFluids != null ? new ArrayList<>(inputFluids) : null;
         this.startTime = startTime;
         this.pushedFluids = null;
     }
@@ -139,6 +145,7 @@ public class TargetSession {
         this.expectedOutputs = null;
         this.inputs = null;
         this.pushedFluids = null;
+        this.inputFluids = null;
     }
 
     /**
@@ -195,6 +202,17 @@ public class TargetSession {
             }
             tag.setTag("inputs", inList);
         }
+
+        if (inputFluids != null && !inputFluids.isEmpty()) {
+            NBTTagList fluidList = new NBTTagList();
+            for (FluidStack fluid : inputFluids) {
+                if (fluid == null || fluid.amount <= 0) continue;
+                fluidList.appendTag(fluid.writeToNBT(new NBTTagCompound()));
+            }
+            if (fluidList.tagCount() > 0) {
+                tag.setTag("inputFluids", fluidList);
+            }
+        }
         return tag;
     }
 
@@ -229,6 +247,18 @@ public class TargetSession {
                 }
             }
             session.inputs = inputs;
+        }
+
+        if (tag.hasKey("inputFluids")) {
+            NBTTagList fluidList = tag.getTagList("inputFluids", 10);
+            List<FluidStack> fluids = new ArrayList<>();
+            for (int i = 0; i < fluidList.tagCount(); i++) {
+                FluidStack fluid = FluidStack.loadFluidStackFromNBT(fluidList.getCompoundTagAt(i));
+                if (fluid != null && fluid.amount > 0) {
+                    fluids.add(fluid);
+                }
+            }
+            session.inputFluids = fluids;
         }
         return session;
     }

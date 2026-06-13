@@ -348,7 +348,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 }
             }
 
-            session.commitPush(outputs, inputSnapshot, world.getTotalWorldTime());
+            session.commitPush(outputs, inputSnapshot, pushedFluids, world.getTotalWorldTime());
             success = true;
             tryWakeTickDevice();
             return true;
@@ -515,7 +515,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     new appeng.me.helpers.MachineSource(this.host));
 
             // 收集流体产物
-            List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, expected);
+            List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, session);
             if (!fluidProducts.isEmpty()) {
                 products.addAll(fluidProducts);
             }
@@ -575,7 +575,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 List<ItemStack> inputs = session.getInputs();
                 List<ItemStack> leftover = handler.collectProducts(world, target.pos, expected, inputs,
                         new appeng.me.helpers.MachineSource(this.host));
-                List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, expected);
+                List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, session);
                 if (!leftoverFluids.isEmpty()) {
                     leftover.addAll(leftoverFluids);
                 }
@@ -706,15 +706,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 从目标的 IFluidHandler 收集流体产物.
      *
-     * <p>按 {@link #FLUID_FACE_ORDER} 依次尝试各方向面，只收集预期产物，
-     * 第一个含有足够量预期流体的 face 即被使用。不再无差别抽干所有 face，
-     * 避免把输入槽/其他 target 共享槽中的材料抽回。</p>
+     * <p>第一阶段按 {@link #FLUID_FACE_ORDER} 收集与预期产物匹配的流体；
+     * 第二阶段作为兜底，抽取各 face 上剩余的非输入流体，避免 TE 等机器的产物
+     * 因数量/NBT 不完全匹配而残留在 tank 中。</p>
      */
-    private List<ItemStack> collectFluidProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs) {
+    private List<ItemStack> collectFluidProducts(World world, BlockPos pos, TargetSession session) {
         List<ItemStack> fluids = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return fluids;
 
+        IAEItemStack[] expectedOutputs = session != null ? session.getExpectedOutputs() : null;
+        List<FluidStack> inputFluids = session != null ? session.getInputFluids() : Collections.emptyList();
+
+        // 阶段 1：按预期产物精确收集
         if (expectedOutputs != null) {
             for (IAEItemStack expected : expectedOutputs) {
                 if (expected == null || expected.getStackSize() <= 0) continue;
@@ -728,6 +732,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     }
                 }
             }
+        }
+
+        // 阶段 2：兜底收集剩余非输入流体（主要面向 TE 流体产物机器）
+        for (EnumFacing face : FLUID_FACE_ORDER) {
+            if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) continue;
+            IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
+            if (fh == null) continue;
+            collectRemainingFluid(fh, inputFluids, fluids);
         }
 
         return fluids;
@@ -754,6 +766,32 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             fh.drain(expectedFluid, true);
             fluids.add(Ae2fcFluidCompat.createFluidDrop(expectedFluid));
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * 循环抽取指定 IFluidHandler 中的剩余流体，跳过本批次推送的输入流体。
+     */
+    private void collectRemainingFluid(IFluidHandler fh, List<FluidStack> inputFluids, List<ItemStack> fluids) {
+        while (true) {
+            FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
+            if (drained == null || drained.amount <= 0) break;
+            if (isInputFluid(drained, inputFluids)) break;
+            FluidStack actual = fh.drain(drained, true);
+            if (actual == null || actual.amount <= 0) break;
+            ItemStack drop = Ae2fcFluidCompat.createFluidDrop(actual);
+            if (!drop.isEmpty()) {
+                fluids.add(drop);
+            }
+        }
+    }
+
+    private boolean isInputFluid(FluidStack fluid, List<FluidStack> inputFluids) {
+        for (FluidStack input : inputFluids) {
+            if (input != null && input.isFluidEqual(fluid)) {
+                return true;
+            }
         }
         return false;
     }
@@ -982,7 +1020,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
             List<ItemStack> products = handler.collectProducts(world, binding.pos, expected, inputs,
                     new appeng.me.helpers.MachineSource(this.host));
-            List<ItemStack> fluidProducts = collectFluidProducts(world, binding.pos, expected);
+            List<ItemStack> fluidProducts = collectFluidProducts(world, binding.pos, session);
             if (!fluidProducts.isEmpty()) {
                 products.addAll(fluidProducts);
             }
