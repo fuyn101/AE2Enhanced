@@ -1,6 +1,11 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import appeng.api.networking.IGridNode;
+import appeng.api.storage.ICellContainer;
+import appeng.api.storage.ICellInventory;
+import appeng.api.storage.IMEInventoryHandler;
+import appeng.api.storage.IStorageChannel;
+import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
@@ -20,7 +25,9 @@ import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -37,7 +44,7 @@ import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
  * <p>接入 AE2 网络,管理远程/跨维度回收目标,通过单一 RecyclerNetworkHandler
  * 向网络暴露存储视图,实际产物直接写入超维度仓储中枢.</p>
  */
-public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable {
+public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable, ICellContainer {
 
     private final TargetManager targetManager = new TargetManager();
     private final RecyclerNetworkHandler networkHandler = new RecyclerNetworkHandler(this);
@@ -91,6 +98,35 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     @Override
     public DimensionalCoord getLocation() {
         return new DimensionalCoord(this);
+    }
+
+    // ---- ICellContainer ----
+
+    @Override
+    public IGridNode getActionableNode() {
+        return getProxy().getNode();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<IMEInventoryHandler> getCellArray(IStorageChannel<?> channel) {
+        if (channel instanceof IItemStorageChannel) {
+            return Collections.singletonList(networkHandler);
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public int getPriority() {
+        return 0;
+    }
+
+    @Override
+    public void blinkCell(int slot) {
+    }
+
+    @Override
+    public void saveChanges(ICellInventory<?> inv) {
     }
 
     // ---- 生命周期 ----

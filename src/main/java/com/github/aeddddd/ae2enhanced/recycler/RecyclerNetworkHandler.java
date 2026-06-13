@@ -2,7 +2,9 @@ package com.github.aeddddd.ae2enhanced.recycler;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IMEMonitorHandlerReceiver;
@@ -10,9 +12,26 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
+import appeng.me.GridAccessException;
+import appeng.me.helpers.MachineSource;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * ME 网络回收节点向 AE2 网络注册的单一 handler.
@@ -22,45 +41,257 @@ import javax.annotation.Nonnull;
 public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>, IMEMonitor<IAEItemStack> {
 
     private final TileMENetworkRecycler tile;
+    private final RecyclerIndex index = new RecyclerIndex();
+    private final Map<TargetManager.TargetRef, TargetAdapter> adapters = new Object2ObjectOpenHashMap<>();
+    private final Map<TargetManager.TargetRef, RecyclerIndex.TargetAdapterSnapshot> snapshots = new Object2ObjectOpenHashMap<>();
+    private final BulkCollector collector = new BulkCollector();
+    private final HyperStorageLink hyperStorageLink = new HyperStorageLink();
+    private final IActionSource actionSource;
+
     private long lastRecycledCount = 0;
+    private int tickCounter = 0;
 
     public RecyclerNetworkHandler(TileMENetworkRecycler tile) {
         this.tile = tile;
+        this.actionSource = new MachineSource(tile);
     }
 
     public void onLoad() {
-        // TODO: 注册到 AE2 网络
+        // handler 由 tile 在接入网络时注册
     }
 
     public void onInvalidate() {
-        // TODO: 从 AE2 网络注销
+        hyperStorageLink.invalidate();
+        adapters.values().forEach(TargetAdapter::invalidate);
+        adapters.clear();
+        snapshots.clear();
+        index.clear();
     }
 
     public void tick(int tickCounter) {
-        // TODO: 执行回收逻辑
+        this.tickCounter = tickCounter;
+        if (!tile.isActive()) return;
+
+        // 1. 检查并维护目标适配器
+        refreshAdapters();
+
+        // 2. 执行回收
+        collectFromTargets();
+
+        // 3. 批量注入
+        flushCollector();
+
+        // 4. 全量校验（低频）
+        int fullScanInterval = AE2EnhancedConfig.recycler.fullScanIntervalTicks;
+        if (fullScanInterval > 0 && tickCounter % fullScanInterval == 0) {
+            rebuildIndex();
+        }
     }
 
     public long getLastRecycledCount() {
         return lastRecycledCount;
     }
 
+    // ---- 目标管理 ----
+
+    private void refreshAdapters() {
+        // 移除失效目标
+        adapters.entrySet().removeIf(entry -> {
+            TargetManager.TargetRef ref = entry.getKey();
+            if (!tile.getTargetManager().getTargets().contains(ref)) {
+                entry.getValue().invalidate();
+                snapshots.remove(ref);
+                return true;
+            }
+            return false;
+        });
+
+        // 添加新目标
+        for (TargetManager.TargetRef ref : tile.getTargetManager().getTargets()) {
+            if (adapters.containsKey(ref)) continue;
+            TargetAdapter adapter = createAdapter(ref);
+            if (adapter != null) {
+                adapters.put(ref, adapter);
+            }
+        }
+    }
+
+    private TargetAdapter createAdapter(TargetManager.TargetRef ref) {
+        World targetWorld = DimensionManager.getWorld(ref.dimId);
+        if (targetWorld == null || !targetWorld.isBlockLoaded(ref.pos)) return null;
+        TileEntity te = targetWorld.getTileEntity(ref.pos);
+        if (te == null) return null;
+        return new ForgeItemHandlerAdapter(te, ref.face);
+    }
+
+    private void rebuildIndex() {
+        snapshots.clear();
+        for (Map.Entry<TargetManager.TargetRef, TargetAdapter> entry : adapters.entrySet()) {
+            List<ItemStack> contents = entry.getValue().scan(true);
+            snapshots.put(entry.getKey(), new RecyclerIndex.TargetAdapterSnapshot(
+                    tile.getWorld().getTotalWorldTime(), contents));
+        }
+        index.rebuild(snapshots);
+    }
+
+    // ---- 回收逻辑 ----
+
+    private void collectFromTargets() {
+        long currentTick = tile.getWorld().getTotalWorldTime();
+        boolean heartbeat = tickCounter % AE2EnhancedConfig.recycler.heartbeatIntervalTicks == 0;
+
+        for (Map.Entry<TargetManager.TargetRef, TargetAdapter> entry : adapters.entrySet()) {
+            TargetManager.TargetRef ref = entry.getKey();
+            TargetAdapter adapter = entry.getValue();
+
+            List<ItemStack> current = adapter.scan(true);
+            RecyclerIndex.TargetAdapterSnapshot oldSnapshot = snapshots.get(ref);
+
+            if (!heartbeat && oldSnapshot != null && isSnapshotEqual(oldSnapshot.contents, current)) {
+                continue; // 无变化，跳过
+            }
+
+            snapshots.put(ref, new RecyclerIndex.TargetAdapterSnapshot(currentTick, current));
+
+            for (ItemStack stack : current) {
+                if (stack.isEmpty()) continue;
+                // 无过滤：直接提取全部
+                ItemStack extracted = adapter.extract(AEItemStack.fromItemStack(stack), false);
+                if (extracted != null && !extracted.isEmpty()) {
+                    collector.add(extracted);
+                }
+            }
+        }
+    }
+
+    private boolean isSnapshotEqual(List<ItemStack> old, List<ItemStack> current) {
+        if (old.size() != current.size()) return false;
+        // 简化比较：只比较总数量
+        long oldCount = 0, newCount = 0;
+        for (ItemStack s : old) oldCount += s.getCount();
+        for (ItemStack s : current) newCount += s.getCount();
+        return oldCount == newCount;
+    }
+
+    private void flushCollector() {
+        if (collector.isEmpty()) return;
+
+        List<IAEItemStack> changes = collector.drain();
+        lastRecycledCount = changes.stream().mapToLong(IAEItemStack::getStackSize).sum();
+
+        if (AE2EnhancedConfig.recycler.forceHyperdimensionalStorage) {
+            injectToHyperStorage(changes);
+        } else {
+            injectToNetwork(changes);
+        }
+    }
+
+    private void injectToHyperStorage(List<IAEItemStack> changes) {
+        ItemStorageAdapter adapter = hyperStorageLink.find(tile.getProxy(), tile.getWorld().getTotalWorldTime());
+        if (adapter == null) {
+            // 超维度中枢未找到：回退到标准网络注入
+            injectToNetwork(changes);
+            return;
+        }
+
+        for (IAEItemStack stack : changes) {
+            adapter.injectItems(stack.copy(), Actionable.MODULATE, actionSource);
+        }
+
+        // 批量通知网络
+        try {
+            IGrid grid = tile.getProxy().getGrid();
+            if (grid != null) {
+                IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+                if (storageGrid != null) {
+                    storageGrid.postAlterationOfStoredItems(
+                            appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
+                            changes, actionSource);
+                }
+            }
+        } catch (GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Recycler failed to post alterations", e);
+        }
+    }
+
+    private void injectToNetwork(List<IAEItemStack> changes) {
+        try {
+            IStorageGrid storageGrid = tile.getProxy().getGrid().getCache(IStorageGrid.class);
+            if (storageGrid == null) return;
+            IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
+                    appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+            for (IAEItemStack stack : changes) {
+                inv.injectItems(stack.copy(), Actionable.MODULATE, actionSource);
+            }
+        } catch (GridAccessException e) {
+            // ignore
+        }
+    }
+
     // ---- IMEInventoryHandler ----
 
     @Override
     public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
-        // 回收节点不真正接受外部注入
-        return input;
+        return input; // 回收节点不接受外部注入
     }
 
     @Override
     public IAEItemStack extractItems(IAEItemStack request, Actionable type, IActionSource src) {
-        // TODO: 从目标容器提取物品
-        return null;
+        // 从目标容器提取
+        List<TargetManager.TargetRef> refs = new ArrayList<>(index.getTargets(new com.github.aeddddd.ae2enhanced.storage.ItemDescriptor(request.createItemStack())));
+        if (refs.isEmpty()) return null;
+
+        long requestedCount = request.getStackSize();
+        ItemStack collected = ItemStack.EMPTY;
+
+        for (TargetManager.TargetRef ref : refs) {
+            TargetAdapter adapter = adapters.get(ref);
+            if (adapter == null) continue;
+            ItemStack got = adapter.extract(request, type == Actionable.SIMULATE);
+            if (got == null || got.isEmpty()) continue;
+
+            if (collected.isEmpty()) {
+                collected = got;
+            } else {
+                collected.grow(got.getCount());
+            }
+
+            requestedCount -= got.getCount();
+            if (requestedCount <= 0) break;
+        }
+
+        if (collected.isEmpty()) return null;
+
+        IAEItemStack result = AEItemStack.fromItemStack(collected);
+        if (result != null && type == Actionable.MODULATE) {
+            // 更新缓存
+            rebuildIndexForRef(null); // 简化处理：下次心跳重建
+        }
+        return result;
     }
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        // TODO: 返回目标容器中的物品视图
+        for (com.github.aeddddd.ae2enhanced.storage.ItemDescriptor desc : index.getAllTypes()) {
+            long total = 0;
+            for (TargetManager.TargetRef ref : index.getTargets(desc)) {
+                RecyclerIndex.TargetAdapterSnapshot snap = snapshots.get(ref);
+                if (snap == null) continue;
+                for (ItemStack stack : snap.contents) {
+                    if (new com.github.aeddddd.ae2enhanced.storage.ItemDescriptor(stack).equals(desc)) {
+                        total += stack.getCount();
+                    }
+                }
+            }
+            if (total > 0) {
+                IAEItemStack stack = AEItemStack.fromItemStack(desc.toItemStack());
+                if (stack != null) {
+                    stack = stack.copy();
+                    stack.setStackSize(total);
+                    out.add(stack);
+                }
+            }
+        }
         return out;
     }
 
@@ -81,7 +312,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
 
     @Override
     public boolean canAccept(IAEItemStack input) {
-        return true;
+        return false; // 不接受注入
     }
 
     @Override
@@ -112,5 +343,9 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
 
     @Override
     public void removeListener(IMEMonitorHandlerReceiver<IAEItemStack> l) {
+    }
+
+    private void rebuildIndexForRef(TargetManager.TargetRef ref) {
+        // 简化：下次心跳重建
     }
 }
