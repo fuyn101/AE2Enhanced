@@ -16,6 +16,11 @@ public final class AdapterFactory {
     public static TargetAdapter create(TileEntity tile, EnumFacing face) {
         if (tile == null || tile.isInvalid()) return null;
 
+        // Tech Reborn：其 Inventory 对所有面禁止提取，必须直接访问输出槽
+        if (TechRebornMachineAdapter.isApplicable(tile)) {
+            return new TechRebornMachineAdapter(tile, face);
+        }
+
         // TODO: 根据 tile 类型选择专用适配器
         // if (isThermalMachine(tile)) return new ThermalMachineAdapter(tile, face);
         // if (isMekanismMachine(tile)) return new MekanismMachineAdapter(tile, face);

@@ -44,6 +44,12 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (Loader.isModLoaded("enderio")) {
             configs.add("mixins.ae2enhanced.late.eio.json");
         }
+        if (Loader.isModLoaded("industrialforegoing")) {
+            configs.add("mixins.ae2enhanced.late.industrialforegoing.json");
+        }
+        if (Loader.isModLoaded("nuclearcraft")) {
+            configs.add("mixins.ae2enhanced.late.nuclearcraft.json");
+        }
         return configs;
     }
 }
