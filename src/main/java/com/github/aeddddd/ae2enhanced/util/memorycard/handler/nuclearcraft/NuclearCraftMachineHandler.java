@@ -49,6 +49,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
     private static Class<?> IUPGRADABLE_CLASS;
     private static Method GET_SPEED_UPGRADE_SLOT_METHOD;
     private static Method GET_ENERGY_UPGRADE_SLOT_METHOD;
+    private static Method HAS_UPGRADES_METHOD;
 
     // ---------- 共享方法 ----------
     private static Method GET_REDSTONE_CONTROL_METHOD;
@@ -143,6 +144,7 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
                     if (IUPGRADABLE_CLASS != null) {
                         GET_SPEED_UPGRADE_SLOT_METHOD = IUPGRADABLE_CLASS.getMethod("getSpeedUpgradeSlot");
                         GET_ENERGY_UPGRADE_SLOT_METHOD = IUPGRADABLE_CLASS.getMethod("getEnergyUpgradeSlot");
+                        HAS_UPGRADES_METHOD = IUPGRADABLE_CLASS.getMethod("hasUpgrades");
                         REFRESH_UPGRADES_METHOD = IUPGRADABLE_CLASS.getMethod("refreshUpgrades");
                     }
 
@@ -267,7 +269,8 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
             speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
             energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
         } else {
-            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)
+                    || HAS_UPGRADES_METHOD == null || !(Boolean) HAS_UPGRADES_METHOD.invoke(tile)) {
                 return;
             }
             speedSlot = (Integer) GET_SPEED_UPGRADE_SLOT_METHOD.invoke(tile);
@@ -385,7 +388,8 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
                 return list;
             }
         } else {
-            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)
+                    || HAS_UPGRADES_METHOD == null || !(Boolean) HAS_UPGRADES_METHOD.invoke(tile)) {
                 return list;
             }
         }
@@ -417,7 +421,8 @@ public class NuclearCraftMachineHandler implements IMemoryCardHandler {
             speedSlot = SPEED_UPGRADE_SLOT_FIELD.getInt(info);
             energySlot = ENERGY_UPGRADE_SLOT_FIELD.getInt(info);
         } else {
-            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)) {
+            if (IUPGRADABLE_CLASS == null || !IUPGRADABLE_CLASS.isInstance(tile)
+                    || HAS_UPGRADES_METHOD == null || !(Boolean) HAS_UPGRADES_METHOD.invoke(tile)) {
                 return null;
             }
             speedSlot = (Integer) GET_SPEED_UPGRADE_SLOT_METHOD.invoke(tile);

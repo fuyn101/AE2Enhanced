@@ -87,11 +87,6 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
                 FLUID_CONFIGURATION_FIELD = REBORN_MACHINE_TILE_CLASS.getField("fluidConfiguration");
                 UPGRADE_INVENTORY_FIELD = REBORN_MACHINE_TILE_CLASS.getField("upgradeInventory");
 
-                REDSTONE_MODE_FIELD = TILE_ENERGY_STORAGE_CLASS.getField("redstoneMode");
-                if (TILE_ADJUSTABLE_SU_CLASS != null) {
-                    OUTPUT_FIELD = TILE_ADJUSTABLE_SU_CLASS.getField("OUTPUT");
-                }
-
                 GET_FACING_METHOD = REBORN_MACHINE_TILE_CLASS.getMethod("getFacing");
                 SET_FACING_METHOD = REBORN_MACHINE_TILE_CLASS.getMethod("setFacing", EnumFacing.class);
                 CAN_BE_UPGRADED_METHOD = REBORN_MACHINE_TILE_CLASS.getMethod("canBeUpgraded");
@@ -104,6 +99,23 @@ public class TechRebornMachineHandler implements IMemoryCardHandler {
 
                 Class<?> inventoryClass = Class.forName("reborncore.common.util.Inventory");
                 INVENTORY_GET_STACKS_METHOD = inventoryClass.getMethod("getStacks");
+
+                // 储能设备红石模式（可选，失败不影响核心功能）
+                try {
+                    REDSTONE_MODE_FIELD = TILE_ENERGY_STORAGE_CLASS.getField("redstoneMode");
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.debug("[AE2E] TechReborn redstoneMode support not available");
+                }
+
+                // AESU 输出电量字段为 private，需使用 getDeclaredField + setAccessible
+                if (TILE_ADJUSTABLE_SU_CLASS != null) {
+                    try {
+                        OUTPUT_FIELD = TILE_ADJUSTABLE_SU_CLASS.getDeclaredField("OUTPUT");
+                        OUTPUT_FIELD.setAccessible(true);
+                    } catch (Exception e) {
+                        AE2Enhanced.LOGGER.debug("[AE2E] TechReborn AESU OUTPUT support not available");
+                    }
+                }
 
                 available = true;
             }
