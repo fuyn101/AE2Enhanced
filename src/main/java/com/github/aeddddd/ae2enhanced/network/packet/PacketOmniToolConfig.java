@@ -24,6 +24,7 @@ public class PacketOmniToolConfig implements IMessage {
     private boolean wallPhase;
     private int cableColor;
     private float reachDistance;
+    private int placementRestriction;
     private NBTTagList enchantments;
 
     public PacketOmniToolConfig() {
@@ -33,7 +34,7 @@ public class PacketOmniToolConfig implements IMessage {
                                  int fortune, double blinkDistance, int breakCooldown,
                                  int paramEnabled, boolean chaosForceKill, boolean conformalEnabled,
                                  boolean advancedSilkTouch, boolean wallPhase, int cableColor, float reachDistance,
-                                 NBTTagList enchantments) {
+                                 int placementRestriction, NBTTagList enchantments) {
         this.mode = mode;
         this.dropMode = dropMode;
         this.silkTouch = silkTouch;
@@ -47,6 +48,7 @@ public class PacketOmniToolConfig implements IMessage {
         this.wallPhase = wallPhase;
         this.cableColor = cableColor;
         this.reachDistance = reachDistance;
+        this.placementRestriction = placementRestriction;
         this.enchantments = enchantments;
     }
 
@@ -63,6 +65,7 @@ public class PacketOmniToolConfig implements IMessage {
     public boolean isWallPhase() { return wallPhase; }
     public int getCableColor() { return cableColor; }
     public float getReachDistance() { return reachDistance; }
+    public int getPlacementRestriction() { return placementRestriction; }
     public NBTTagList getEnchantments() { return enchantments; }
 
     @Override
@@ -80,6 +83,7 @@ public class PacketOmniToolConfig implements IMessage {
         wallPhase = buf.readBoolean();
         cableColor = buf.readByte();
         reachDistance = buf.readFloat();
+        placementRestriction = buf.readByte();
         NBTTagCompound wrapper = ByteBufUtils.readTag(buf);
         if (wrapper != null && wrapper.hasKey("ench", 9)) {
             enchantments = wrapper.getTagList("ench", 10);
@@ -103,6 +107,7 @@ public class PacketOmniToolConfig implements IMessage {
         buf.writeBoolean(wallPhase);
         buf.writeByte(cableColor);
         buf.writeFloat(reachDistance);
+        buf.writeByte(placementRestriction);
         NBTTagCompound wrapper = new NBTTagCompound();
         if (enchantments != null && enchantments.tagCount() > 0) {
             wrapper.setTag("ench", enchantments);

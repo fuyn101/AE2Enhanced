@@ -54,31 +54,29 @@ public final class PlacementTargetResolver {
     }
 
     /**
-     * 解析批量放置的目标物品。
+     * 解析批量放置的目标物品（Construction Wand 规则）。
+     *
+     * 优先级：
+     * 1. 副手物品（Construction Wand：Having blocks in your offhand will place them instead）。
+     * 2. 被点击方块本身（同类型向外延伸）。
+     * 注意：批量模式不使用径向预设。
      *
      * @param player     玩家
-     * @param config     工具配置
      * @param world      世界
      * @param clickedPos 被点击的方块位置
      * @return 目标物品，无则 EMPTY
      */
-    public static ItemStack resolveBulk(EntityPlayer player, PlacementConfig config,
-                                         World world, BlockPos clickedPos) {
+    public static ItemStack resolveBulk(EntityPlayer player, World world, BlockPos clickedPos) {
         // 1. 副手优先
         ItemStack off = player.getHeldItemOffhand();
         if (off.getItem() instanceof ItemBlock) {
             return off.copy();
         }
 
-        // 2. 当前预设
-        ItemStack preset = config.getSelectedStack();
-        if (!preset.isEmpty() && preset.getItem() instanceof ItemBlock) {
-            return preset.copy();
-        }
-
-        // 3. 建筑手杖模式：使用被点击方块本身
+        // 2. 被点击方块本身
         IBlockState state = world.getBlockState(clickedPos);
         Block block = state.getBlock();
+        if (block.isAir(state, world, clickedPos)) return ItemStack.EMPTY;
         ItemStack pickStack = block.getItem(world, clickedPos, state);
         if (!pickStack.isEmpty() && pickStack.getItem() instanceof ItemBlock) {
             return pickStack;

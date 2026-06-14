@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
+import com.github.aeddddd.ae2enhanced.client.gui.GuiPlacementRadialMenu;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
@@ -29,8 +30,10 @@ public class PacketPlacementSelectPresetHandler implements IMessageHandler<Packe
 
             if (slot >= 0 && slot < PlacementConfig.MAX_PRESETS) {
                 config.setSelectedSlot(slot);
+            } else if (slot == GuiPlacementRadialMenu.SLOT_EMPTY) {
+                config.setSelectedSlot(-1);
             } else if (slot == PlacementConfig.MAX_PRESETS) {
-                // 选取当前目标
+                // 中键选取当前准星目标
                 RayTraceResult ray = player.rayTrace(5.0, 1.0f);
                 if (ray == null || ray.typeOfHit != RayTraceResult.Type.BLOCK) return;
 
@@ -38,13 +41,27 @@ public class PacketPlacementSelectPresetHandler implements IMessageHandler<Packe
                 ItemStack pick = state.getBlock().getItem(player.world, ray.getBlockPos(), state);
                 if (pick == null || pick.isEmpty()) return;
 
-                int targetSlot = config.getSelectedSlot();
-                if (targetSlot < 0 || targetSlot >= PlacementConfig.MAX_PRESETS || !config.getStackInSlot(targetSlot).isEmpty()) {
-                    targetSlot = config.getFirstEmptySlot();
-                    if (targetSlot < 0) targetSlot = 0;
+                // 合并同种选取：如果已有相同物品（忽略数量），直接选中该槽
+                int existing = -1;
+                for (int i = 0; i < PlacementConfig.MAX_PRESETS; i++) {
+                    ItemStack p = config.getStackInSlot(i);
+                    if (!p.isEmpty() && ItemStack.areItemStacksEqual(p, pick)) {
+                        existing = i;
+                        break;
+                    }
                 }
-                config.setStackInSlot(targetSlot, pick);
-                config.setSelectedSlot(targetSlot);
+
+                if (existing >= 0) {
+                    config.setSelectedSlot(existing);
+                } else {
+                    int targetSlot = config.getSelectedSlot();
+                    if (targetSlot < 0 || targetSlot >= PlacementConfig.MAX_PRESETS || !config.getStackInSlot(targetSlot).isEmpty()) {
+                        targetSlot = config.getFirstEmptySlot();
+                    }
+                    if (targetSlot < 0) targetSlot = 0; // 满了则覆盖第 0 槽
+                    config.setStackInSlot(targetSlot, pick);
+                    config.setSelectedSlot(targetSlot);
+                }
             }
         });
         return null;

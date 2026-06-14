@@ -25,7 +25,7 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setBlinkDistance(stack, message.getBlinkDistance());
                     ItemAdvancedMEOmniTool.setBreakCooldown(stack, Math.max(0, message.getBreakCooldown()));
                     int mask = message.getParamEnabled();
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < 12; i++) {
                         ItemAdvancedMEOmniTool.setParamEnabled(stack, i, (mask & (1 << i)) != 0);
                     }
                     ItemAdvancedMEOmniTool.setChaosForceKillEnabled(stack, message.isChaosForceKill());
@@ -40,6 +40,7 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                         placementConfig.setCableColor(AEColor.values()[colorIdx]);
                     }
                     placementConfig.setReachDistance(message.getReachDistance());
+                    placementConfig.setPlacementRestriction(com.github.aeddddd.ae2enhanced.util.placement.PlacementRestriction.fromOrdinal(message.getPlacementRestriction()));
 
                     // 同步附魔存储，并按已有 source level 上限进行钳制
                     NBTTagList ench = message.getEnchantments();

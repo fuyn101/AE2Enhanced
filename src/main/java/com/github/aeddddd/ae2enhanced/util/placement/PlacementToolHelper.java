@@ -167,7 +167,7 @@ public final class PlacementToolHelper {
         if (world.isRemote) return true;
 
         PlacementConfig config = new PlacementConfig(toolStack);
-        ItemStack target = PlacementTargetResolver.resolveBulk(player, config, world, pos);
+        ItemStack target = PlacementTargetResolver.resolveBulk(player, world, pos);
         if (target.isEmpty()) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_configured_item"));
             return false;
@@ -194,7 +194,7 @@ public final class PlacementToolHelper {
             return false;
         }
 
-        List<BlockPos> positions = ConstructionWandHelper.calculatePositions(world, player, pos, side);
+        List<BlockPos> positions = ConstructionWandHelper.calculatePositions(world, pos, side, config.getPlacementRestriction());
         if (positions.isEmpty()) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.cannot_place"));
             return false;

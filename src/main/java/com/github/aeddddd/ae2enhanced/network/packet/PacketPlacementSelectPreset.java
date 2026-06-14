@@ -8,7 +8,8 @@ public class PacketPlacementSelectPreset implements IMessage {
     /**
      * 选中的槽位索引。
      * 0~8：选择对应预设槽。
-     * 9（即 PlacementConfig.MAX_PRESETS）：选取当前准星目标。
+     * 9（即 PlacementConfig.MAX_PRESETS）：选取当前准星目标（中键）。
+     * -2：清空当前选择（径向菜单空选项）。
      */
     private int slot;
 

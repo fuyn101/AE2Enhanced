@@ -462,7 +462,13 @@ key.ae2enhanced.placement_radial=ME Placement Tool Radial Menu
 gui.ae2enhanced.placement_radial.title=Select Placement Preset
 gui.ae2enhanced.placement_radial.aim_to_select=Aim at sector to select
 gui.ae2enhanced.placement_radial.pick_current=Pick current target
+gui.ae2enhanced.placement_radial.empty=Clear Selection
 gui.ae2enhanced.placement_radial.count=Count: %d
+gui.ae2enhanced.placement_restriction.no_lock=No Lock
+gui.ae2enhanced.placement_restriction.horizontal=Horizontal
+gui.ae2enhanced.placement_restriction.vertical=Vertical
+gui.ae2enhanced.placement_restriction.north_south=North-South
+gui.ae2enhanced.placement_restriction.east_west=East-West
 
 gui.ae2enhanced.placement.mode.single=Single Placement
 gui.ae2enhanced.placement.mode.bulk=Bulk Placement
@@ -479,3 +485,5 @@ gui.ae2enhanced.omni_tool_config.cable_color.desc=Color used when placing cables
 
 gui.ae2enhanced.omni_tool_config.reach_distance=Reach Distance
 gui.ae2enhanced.omni_tool_config.reach_distance.desc=Maximum reach distance in placement mode
+gui.ae2enhanced.omni_tool_config.placement_restriction=Placement Restriction
+gui.ae2enhanced.omni_tool_config.placement_restriction.desc=Bulk placement direction lock (Construction Wand style)

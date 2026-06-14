@@ -1,24 +1,25 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * 建筑手杖式批量放置位置计算。
+ * 完全复刻 Construction Wand 的批量放置位置计算。
  *
- * 规则：
- * 1. 从 clickedPos.offset(side) 开始。
- * 2. 只能在空气或可替换方块上放置。
- * 3. 根据玩家视线和点击面，选择线/墙/面三种扩展形态。
+ * Construction Wand 规则（Construction core + 方向锁）：
+ * 1. 右键点击已存在方块的一个面。
+ * 2. 在该面法向方向上，把与该方块同类型的连续区域整体向外延伸一层。
+ * 3. 仅对空气或可替换方块进行填充。
  * 4. 最大 512 个方块。
- * 5. 只在与起始位置相同类型的支撑面上扩展（Construction Wand 同款限制）。
+ * 5. 方向锁（Horizontal/Vertical/N-S/E-W/No lock）限制在点击面平面上的扩展方向。
  */
 public final class ConstructionWandHelper {
 
@@ -29,163 +30,51 @@ public final class ConstructionWandHelper {
     /**
      * 计算批量放置位置。
      *
-     * @param world      世界
-     * @param player     玩家
-     * @param clickedPos 被点击方块位置
-     * @param side       被点击面
+     * @param world        世界
+     * @param clickedPos   被点击方块位置
+     * @param side         被点击面
+     * @param restriction  方向锁
      * @return 可放置位置列表（按铺设顺序）
      */
-    public static List<BlockPos> calculatePositions(World world, EntityPlayer player,
-                                                     BlockPos clickedPos, EnumFacing side) {
+    public static List<BlockPos> calculatePositions(World world, BlockPos clickedPos, EnumFacing side, PlacementRestriction restriction) {
         List<BlockPos> result = new ArrayList<>();
-        BlockPos start = clickedPos.offset(side);
-        if (!canPlaceBlockAt(world, start)) return result;
+        if (!world.isBlockLoaded(clickedPos)) return result;
 
         IBlockState anchorState = world.getBlockState(clickedPos);
+        Block anchorBlock = anchorState.getBlock();
+        if (anchorBlock.isAir(anchorState, world, clickedPos)) return result;
 
-        // 根据视线决定主扩展方向
-        Vec3d look = player.getLookVec();
-        EnumFacing primaryDir = determinePrimaryDirection(side, look);
-        EnumFacing secondaryDir = determineSecondaryDirection(side, primaryDir);
+        Set<BlockPos> faceRegion = findFaceRegion(world, clickedPos, side, anchorBlock, restriction);
+        if (faceRegion.isEmpty()) return result;
 
-        WandShape shape = determineShape(side, look);
-
-        switch (shape) {
-            case LINE:
-                extendLine(world, start, primaryDir, anchorState, result);
-                break;
-            case WALL:
-                extendWall(world, start, primaryDir, secondaryDir, anchorState, result);
-                break;
-            case PLANE:
-            default:
-                extendPlane(world, start, side, anchorState, result);
-                break;
+        for (BlockPos source : faceRegion) {
+            BlockPos target = source.offset(side);
+            if (canPlaceBlockAt(world, target)) {
+                result.add(target);
+                if (result.size() >= MAX_BLOCKS) break;
+            }
         }
 
         return result;
     }
 
-    private enum WandShape {
-        LINE, WALL, PLANE
-    }
-
-    private static WandShape determineShape(EnumFacing side, Vec3d look) {
-        double dot = Math.abs(look.x * side.getDirectionVec().getX()
-                + look.y * side.getDirectionVec().getY()
-                + look.z * side.getDirectionVec().getZ());
-
-        // 视线与点击面法向接近垂直 → 玩家平行于该面看 → 线/墙
-        // 视线与点击面法向接近平行 → 玩家垂直于该面看 → 面
-        if (dot < 0.35) {
-            // 平行于面，判断是线还是墙
-            double horiz = Math.sqrt(look.x * look.x + look.z * look.z);
-            if (horiz < 0.35) {
-                // 接近垂直上下看 → 墙
-                return WandShape.WALL;
-            }
-            return WandShape.LINE;
-        }
-        return WandShape.PLANE;
-    }
-
-    private static EnumFacing determinePrimaryDirection(EnumFacing side, Vec3d look) {
-        // 在垂直于 side 的平面内，找与视线最平行的轴方向
-        EnumFacing.Axis axis = side.getAxis();
-        EnumFacing[] candidates;
-        if (axis == EnumFacing.Axis.Y) {
-            candidates = new EnumFacing[]{EnumFacing.NORTH, EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.WEST};
-        } else if (axis == EnumFacing.Axis.X) {
-            candidates = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.NORTH, EnumFacing.SOUTH};
-        } else {
-            candidates = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.EAST, EnumFacing.WEST};
-        }
-
-        EnumFacing best = candidates[0];
-        double bestDot = -1;
-        for (EnumFacing f : candidates) {
-            Vec3d dir = new Vec3d(f.getDirectionVec());
-            double dot = Math.abs(look.x * dir.x + look.y * dir.y + look.z * dir.z);
-            if (dot > bestDot) {
-                bestDot = dot;
-                best = f;
-            }
-        }
-        return best;
-    }
-
-    private static EnumFacing determineSecondaryDirection(EnumFacing side, EnumFacing primary) {
-        // 在垂直于 side 的平面内，垂直于 primary 的两个方向中返回一个
-        EnumFacing.Axis axis = side.getAxis();
-        if (axis == EnumFacing.Axis.Y) {
-            return primary.getAxis() == EnumFacing.Axis.Z ? EnumFacing.EAST : EnumFacing.NORTH;
-        } else if (axis == EnumFacing.Axis.X) {
-            return primary.getAxis() == EnumFacing.Axis.Y ? EnumFacing.NORTH : EnumFacing.UP;
-        } else {
-            return primary.getAxis() == EnumFacing.Axis.Y ? EnumFacing.EAST : EnumFacing.UP;
-        }
-    }
-
-    private static void extendLine(World world, BlockPos start, EnumFacing dir,
-                                   IBlockState anchorState, List<BlockPos> result) {
-        BlockPos current = start;
-        while (result.size() < MAX_BLOCKS) {
-            if (!canPlaceBlockAt(world, current)) break;
-            result.add(current);
-            current = current.offset(dir);
-        }
-    }
-
-    private static void extendWall(World world, BlockPos start, EnumFacing primary, EnumFacing secondary,
-                                   IBlockState anchorState, List<BlockPos> result) {
-        // 先沿主轴正向、反向同时扩展，再沿次轴分层
-        List<BlockPos> line = new ArrayList<>();
-        BlockPos current = start;
-        while (line.size() < MAX_BLOCKS) {
-            if (!canPlaceBlockAt(world, current)) break;
-            line.add(current);
-            current = current.offset(primary);
-        }
-
-        int layer = 0;
-        while (result.size() < MAX_BLOCKS && layer < MAX_BLOCKS) {
-            boolean addedAny = false;
-            for (BlockPos base : line) {
-                BlockPos pos = base.offset(secondary, layer);
-                if (result.size() >= MAX_BLOCKS) break;
-                if (!canPlaceBlockAt(world, pos)) continue;
-                result.add(pos);
-                addedAny = true;
-            }
-            if (!addedAny) break;
-            layer++;
-        }
-    }
-
-    private static void extendPlane(World world, BlockPos start, EnumFacing side,
-                                    IBlockState anchorState, List<BlockPos> result) {
-        // BFS 在垂直于 side 的平面内扩展
-        EnumFacing.Axis axis = side.getAxis();
-        EnumFacing[] planeDirs;
-        if (axis == EnumFacing.Axis.Y) {
-            planeDirs = new EnumFacing[]{EnumFacing.NORTH, EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.WEST};
-        } else if (axis == EnumFacing.Axis.X) {
-            planeDirs = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.NORTH, EnumFacing.SOUTH};
-        } else {
-            planeDirs = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.EAST, EnumFacing.WEST};
-        }
-
+    /**
+     * 在点击面所在的平面上，找到与锚点方块类型相同且连续的所有方块位置。
+     */
+    private static Set<BlockPos> findFaceRegion(World world, BlockPos clickedPos, EnumFacing faceNormal, Block anchorBlock, PlacementRestriction restriction) {
+        Set<BlockPos> region = new LinkedHashSet<>();
+        Set<BlockPos> visited = new LinkedHashSet<>();
         java.util.Queue<BlockPos> queue = new java.util.ArrayDeque<>();
-        java.util.Set<BlockPos> visited = new java.util.HashSet<>();
-        queue.offer(start);
-        visited.add(start);
 
-        while (!queue.isEmpty() && result.size() < MAX_BLOCKS) {
+        queue.offer(clickedPos);
+        visited.add(clickedPos);
+
+        while (!queue.isEmpty()) {
             BlockPos current = queue.poll();
-            if (!canPlaceBlockAt(world, current)) continue;
-            result.add(current);
+            if (!isMatchingBlock(world, current, anchorBlock)) continue;
+            region.add(current);
 
-            for (EnumFacing dir : planeDirs) {
+            for (EnumFacing dir : getPlaneDirections(faceNormal, restriction)) {
                 BlockPos neighbor = current.offset(dir);
                 if (!visited.contains(neighbor)) {
                     visited.add(neighbor);
@@ -193,9 +82,40 @@ public final class ConstructionWandHelper {
                 }
             }
         }
+
+        return region;
+    }
+
+    private static boolean isMatchingBlock(World world, BlockPos pos, Block anchorBlock) {
+        if (!world.isBlockLoaded(pos)) return false;
+        IBlockState state = world.getBlockState(pos);
+        return state.getBlock() == anchorBlock;
     }
 
     private static boolean canPlaceBlockAt(World world, BlockPos pos) {
         return world.isAirBlock(pos) || world.getBlockState(pos).getBlock().isReplaceable(world, pos);
+    }
+
+    private static EnumFacing[] getPlaneDirections(EnumFacing normal, PlacementRestriction restriction) {
+        EnumFacing[] plane;
+        switch (normal.getAxis()) {
+            case Y:
+                plane = new EnumFacing[]{EnumFacing.NORTH, EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.WEST};
+                break;
+            case X:
+                plane = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.NORTH, EnumFacing.SOUTH};
+                break;
+            case Z:
+            default:
+                plane = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.EAST, EnumFacing.WEST};
+                break;
+        }
+        java.util.List<EnumFacing> filtered = new java.util.ArrayList<>();
+        for (EnumFacing dir : plane) {
+            if (restriction.allows(dir)) {
+                filtered.add(dir);
+            }
+        }
+        return filtered.toArray(new EnumFacing[0]);
     }
 }

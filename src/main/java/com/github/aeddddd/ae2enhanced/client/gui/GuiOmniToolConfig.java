@@ -5,6 +5,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementRestriction;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
@@ -53,7 +54,8 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int PID_WALL_PHASE = 8;
     private static final int PID_CABLE_COLOR = 9;
     private static final int PID_REACH_DISTANCE = 10;
-    private static final int PID_COUNT = 11;
+    private static final int PID_PLACEMENT_RESTRICTION = 11;
+    private static final int PID_COUNT = 12;
     private static final int PID_ENCHANT_BASE = 1000;
 
     // ---- UV坐标：顶部按钮区 ----
@@ -183,6 +185,11 @@ public class GuiOmniToolConfig extends GuiContainer {
                 5, 32, s -> true,
                 s -> (int) new PlacementConfig(s).getReachDistance(),
                 (s, v) -> {}), // 实际应用在 apply() 中通过 PlacementConfig 写入
+        new ParamDef(PID_PLACEMENT_RESTRICTION, "gui.ae2enhanced.omni_tool_config.placement_restriction",
+                "gui.ae2enhanced.omni_tool_config.placement_restriction.desc",
+                0, PlacementRestriction.values().length - 1, s -> true,
+                s -> new PlacementConfig(s).getPlacementRestriction().ordinal(),
+                (s, v) -> {}), // 实际应用在 apply() 中通过 PlacementConfig 写入
     };
 
     private final EntityPlayer player;
@@ -240,6 +247,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[PID_WALL_PHASE] = ItemAdvancedMEOmniTool.isWallPhaseEnabled(toolStack) ? 1 : 0;
         values[PID_CABLE_COLOR] = new PlacementConfig(toolStack).getCableColor().ordinal();
         values[PID_REACH_DISTANCE] = (int) new PlacementConfig(toolStack).getReachDistance();
+        values[PID_PLACEMENT_RESTRICTION] = new PlacementConfig(toolStack).getPlacementRestriction().ordinal();
 
         paramEnabledMask = 0;
         for (int i = 0; i < PID_COUNT; i++) {
@@ -500,6 +508,8 @@ public class GuiOmniToolConfig extends GuiContainer {
             case PID_ADVANCED_SILK:
             case PID_WALL_PHASE:
                 return getValue(p) > 0 ? "ON" : "OFF";
+            case PID_PLACEMENT_RESTRICTION:
+                return I18n.format(PlacementRestriction.fromOrdinal(getValue(p)).getNameKey());
             default:
                 return String.valueOf(getValue(p));
         }
@@ -649,6 +659,7 @@ public class GuiOmniToolConfig extends GuiContainer {
             placementConfig.setCableColor(appeng.api.util.AEColor.values()[colorIdx]);
         }
         placementConfig.setReachDistance(values[PID_REACH_DISTANCE]);
+        placementConfig.setPlacementRestriction(PlacementRestriction.fromOrdinal(values[PID_PLACEMENT_RESTRICTION]));
 
         for (int i = 0; i < PID_COUNT; i++) {
             ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
@@ -670,7 +681,8 @@ public class GuiOmniToolConfig extends GuiContainer {
                 ItemAdvancedMEOmniTool.getFortuneLevel(toolStack), values[PID_BLINK], values[PID_COOLDOWN],
                 paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0,
                 values[PID_ADVANCED_SILK] > 0, values[PID_WALL_PHASE] > 0,
-                values[PID_CABLE_COLOR], values[PID_REACH_DISTANCE], enchList));
+                values[PID_CABLE_COLOR], values[PID_REACH_DISTANCE],
+                values[PID_PLACEMENT_RESTRICTION], enchList));
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {

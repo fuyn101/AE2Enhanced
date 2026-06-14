@@ -90,9 +90,9 @@ public class PlacementPreviewRenderer {
 
         // 批量放置预览
         PlacementMode mode = config.getPlacementMode();
-        ItemStack target = PlacementTargetResolver.resolveBulk(player, config, world, ray.getBlockPos());
+        ItemStack target = PlacementTargetResolver.resolveBulk(player, world, ray.getBlockPos());
         if (mode == PlacementMode.BULK && !target.isEmpty()) {
-            List<BlockPos> positions = ConstructionWandHelper.calculatePositions(world, player, ray.getBlockPos(), ray.sideHit);
+            List<BlockPos> positions = ConstructionWandHelper.calculatePositions(world, ray.getBlockPos(), ray.sideHit, config.getPlacementRestriction());
             for (BlockPos pos : positions) {
                 drawBoxEdges(buffer, new AxisAlignedBB(pos).grow(0.002), R, G, B, A);
             }

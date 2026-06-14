@@ -18,6 +18,7 @@ public class PlacementConfig {
     public static final String NBT_PLACEMENT_MODE = "placementMode";
     public static final String NBT_CABLE_COLOR = "cableColor";
     public static final String NBT_REACH_DISTANCE = "reachDistance";
+    public static final String NBT_PLACEMENT_RESTRICTION = "placementRestriction";
     public static final String NBT_CABLE_START = "cableStart";
 
     // 旧版兼容字段
@@ -170,6 +171,16 @@ public class PlacementConfig {
         if (reach < MIN_REACH_DISTANCE) reach = MIN_REACH_DISTANCE;
         if (reach > MAX_REACH_DISTANCE) reach = MAX_REACH_DISTANCE;
         root.setFloat(NBT_REACH_DISTANCE, reach);
+    }
+
+    // ========== 批量放置方向锁 ==========
+
+    public PlacementRestriction getPlacementRestriction() {
+        return PlacementRestriction.fromOrdinal(root.getByte(NBT_PLACEMENT_RESTRICTION));
+    }
+
+    public void setPlacementRestriction(PlacementRestriction restriction) {
+        root.setByte(NBT_PLACEMENT_RESTRICTION, (byte) restriction.ordinal());
     }
 
     // ========== 线缆起点 ==========
