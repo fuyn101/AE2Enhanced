@@ -45,8 +45,8 @@ import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 public class TileEMCInterface extends TileAENetworkBase implements ICellContainer, ITickable, IAEAppEngInventory {
 
     public static final int WHITELIST_PAGES = 20;
-    public static final int WHITELIST_SLOTS_PER_PAGE = 32; // 8×4
-    public static final int WHITELIST_SIZE = WHITELIST_PAGES * WHITELIST_SLOTS_PER_PAGE; // 640
+    public static final int WHITELIST_SLOTS_PER_PAGE = 102; // 17×6，与 3.png 顶部网格一致
+    public static final int WHITELIST_SIZE = WHITELIST_PAGES * WHITELIST_SLOTS_PER_PAGE; // 2040
     private static final int WARNING_INTERVAL = 1200; // 60 秒警告冷却
 
     private final EMCInventoryHandler handler = new EMCInventoryHandler(this);
@@ -262,7 +262,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         }
         for (int i = 0; i < list.tagCount() && i < WHITELIST_SIZE; i++) {
             NBTTagCompound tag = list.getCompoundTagAt(i);
-            int slot = tag.getByte("Slot") & 0xFF;
+            int slot = tag.getShort("Slot") & 0xFFFF;
             if (slot < WHITELIST_SIZE) {
                 whitelist[slot] = new ItemStack(tag);
             }
@@ -287,7 +287,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         for (int i = 0; i < WHITELIST_SIZE; i++) {
             if (!whitelist[i].isEmpty()) {
                 NBTTagCompound tag = new NBTTagCompound();
-                tag.setByte("Slot", (byte) i);
+                tag.setShort("Slot", (short) i);
                 whitelist[i].writeToNBT(tag);
                 list.appendTag(tag);
             }

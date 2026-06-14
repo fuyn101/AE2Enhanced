@@ -16,17 +16,22 @@ import javax.annotation.Nonnull;
 /**
  * EMC 接口容器.
  *
- * <p>复用 3.png 纹理图集风格；每页 8×4 过滤槽，共 20 页。
+ * <p>复用 3.png 纹理图集风格；顶部白名单网格使用装配枢纽（ContainerAssemblyPattern）
+ * 中的明确坐标：起点 (8,25)、17 列 × 6 行，共 20 页。
  * 过滤槽仅允许存在 EMC 值的物品；空手点击已标记槽位可取消标记。</p>
  */
 public class ContainerEMCInterface extends Container {
 
-    public static final int PAGE_ROWS = 4;
-    public static final int PAGE_COLS = 8;
-    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS; // 32
+    public static final int PAGE_ROWS = 6;
+    public static final int PAGE_COLS = 17;
+    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS; // 102
 
-    // 玩家背包坐标沿用项目实际代码风格
-    private static final int INV_X = 88;
+    // 白名单槽位起点：与 ContainerAssemblyPattern 的 PATTERN_X/PATTERN_Y 一致
+    private static final int WHITELIST_X = 8;
+    private static final int WHITELIST_Y = 25;
+
+    // 玩家背包坐标：与 ContainerAssemblyPattern 的 INV_X/INV_Y/HOTBAR_Y 一致
+    private static final int INV_X = 80;
     private static final int INV_Y = 145;
     private static final int HOTBAR_Y = 203;
 
@@ -79,9 +84,8 @@ public class ContainerEMCInterface extends Container {
             if (relative >= 0 && relative < SLOTS_PER_PAGE) {
                 int x = relative % PAGE_COLS;
                 int y = relative / PAGE_COLS;
-                // 根据实际代码风格放置槽位，而非严格 UV 文档
-                slot.xPos = 8 + x * 18;
-                slot.yPos = 29 + y * 18;
+                slot.xPos = WHITELIST_X + x * 18;
+                slot.yPos = WHITELIST_Y + y * 18;
             } else {
                 slot.xPos = -1000;
                 slot.yPos = -1000;

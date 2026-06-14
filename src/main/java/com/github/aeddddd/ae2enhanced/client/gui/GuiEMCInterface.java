@@ -15,8 +15,10 @@ import java.io.IOException;
 /**
  * EMC 接口 GUI.
  *
- * <p>复用 3.png 纹理图集配套布局：顶部 17×6 大过滤格为 EMC 白名单，
- * 左右翻页按钮使用 3.png 按钮 UV，玩家背包与快捷栏居中于中下部区域。</p>
+ * <p>复用 3.png 纹理图集配套布局：白名单过滤格起点 (8,25)、17 列 × 6 行，
+ * 坐标与装配枢纽 ContainerAssemblyPattern 的位置代码保持一致；
+ * 玩家背包 (80,145) 与快捷栏 (80,203) 同样沿用装配枢纽坐标；
+ * 左右翻页按钮使用 3.png 按钮 UV。</p>
  */
 public class GuiEMCInterface extends GuiContainer {
 
