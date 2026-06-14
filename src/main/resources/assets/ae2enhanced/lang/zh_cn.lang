@@ -458,3 +458,5 @@ message.ae2enhanced.placement.no_storage=未找到 ME 存储
 message.ae2enhanced.placement.not_implemented=功能尚未实现
 gui.ae2enhanced.placement_tool.page=第 %d/%d 页
 gui.ae2enhanced.placement_tool.count=数量：%d
+message.ae2enhanced.placement.nothing_to_undo=没有可撤销的操作
+message.ae2enhanced.placement.undone=已撤销放置

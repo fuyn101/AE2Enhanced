@@ -4,6 +4,7 @@ import appeng.api.features.INetworkEncodable;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementToolHelper;
 import com.github.aeddddd.ae2enhanced.util.placement.SecurityTerminalBindingHelper;
 import net.minecraft.client.resources.I18n;
@@ -62,10 +63,15 @@ public class ItemMEPlacementTool extends Item implements INetworkEncodable {
         // Shift + 右键安全终端方块：由安全终端 GUI 槽位处理绑定，此处无需额外逻辑。
         // 普通右键执行放置
         if (!player.isSneaking()) {
-            if (PlacementToolHelper.placeSingle(player, world, pos, facing, hand, stack, hitX, hitY, hitZ)) {
-                return EnumActionResult.SUCCESS;
+            PlacementConfig config = new PlacementConfig(stack);
+            int count = config.getPlacementCount();
+            boolean ok;
+            if (count > 1) {
+                ok = PlacementToolHelper.placeBulk(player, world, pos, facing, hand, stack, count, hitX, hitY, hitZ);
+            } else {
+                ok = PlacementToolHelper.placeSingle(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
             }
-            return EnumActionResult.FAIL;
+            return ok ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
         }
 
         return EnumActionResult.PASS;

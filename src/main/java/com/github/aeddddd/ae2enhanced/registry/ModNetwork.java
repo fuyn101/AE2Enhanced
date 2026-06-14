@@ -48,6 +48,8 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementGuiAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementGuiActionHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndoHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlot;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlotHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit;
@@ -116,5 +118,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketEMCInterfaceBind.Handler.class, PacketEMCInterfaceBind.class, 42, Side.SERVER);
         nw.registerMessage(PacketPlacementUpdateSlotHandler.class, PacketPlacementUpdateSlot.class, 43, Side.SERVER);
         nw.registerMessage(PacketPlacementGuiActionHandler.class, PacketPlacementGuiAction.class, 44, Side.SERVER);
+        nw.registerMessage(PacketPlacementUndoHandler.class, PacketPlacementUndo.class, 45, Side.SERVER);
     }
 }

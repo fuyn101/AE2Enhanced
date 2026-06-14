@@ -137,22 +137,230 @@ public final class PlacementToolHelper {
     }
 
     /**
-     * 批量放置（BFS）。Phase 3 完整实现，Phase 1 保留入口。
+     * 批量放置（BFS）。目前仅支持普通方块，沿点击面法向的垂直平面扩展。
      */
     public static boolean placeBulk(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
                                     EnumHand hand, ItemStack toolStack, int count, float hitX, float hitY, float hitZ) {
-        // Phase 3 实现
-        player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.not_implemented"));
-        return false;
+        if (world.isRemote) return true;
+
+        IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
+        if (grid == null) return false;
+
+        IMEMonitor<IAEItemStack> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        if (monitor == null) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
+            return false;
+        }
+
+        PlacementConfig config = new PlacementConfig(toolStack);
+        ItemStack target = config.getStackInSlot(config.getSelectedSlot());
+        if (target.isEmpty()) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_configured_item"));
+            return false;
+        }
+
+        // 批量放置目前仅支持方块
+        if (!(target.getItem() instanceof ItemBlock)) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.cannot_place"));
+            return false;
+        }
+
+        IAEItemStack request = findMatchingStack(monitor, target);
+        if (request == null) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
+                    target.getDisplayName()));
+            return false;
+        }
+
+        // 计算 BFS 放置位置
+        List<BlockPos> positions = calculateBulkPositions(world, pos, side, count);
+        if (positions.isEmpty()) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.cannot_place"));
+            return false;
+        }
+
+        // 模拟提取全部
+        IAEItemStack toExtract = request.copy();
+        toExtract.setStackSize(positions.size());
+        IAEItemStack simulated = monitor.extractItems(toExtract, Actionable.SIMULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+        if (simulated == null || simulated.getStackSize() < positions.size()) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
+                    target.getDisplayName()));
+            return false;
+        }
+
+        ItemStack placeStack = request.getDefinition().copy();
+        placeStack.setCount(1);
+
+        List<BlockSnapshot> snapshots = new ArrayList<>();
+        List<BlockPos> placedPositions = new ArrayList<>();
+        boolean success = true;
+
+        try {
+            for (BlockPos placePos : positions) {
+                snapshots.add(BlockSnapshot.getBlockSnapshot(world, placePos));
+                if (!tryPlaceBlockAt(player, world, placePos, side, hand, placeStack, hitX, hitY, hitZ)) {
+                    success = false;
+                    break;
+                }
+                placedPositions.add(placePos);
+            }
+        } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Exception during bulk placement", e);
+            success = false;
+        }
+
+        if (success) {
+            // 实际提取
+            IAEItemStack extracted = monitor.extractItems(toExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+            if (extracted == null || extracted.getStackSize() < positions.size()) {
+                // 提取失败，回滚
+                rollbackBulk(world, snapshots);
+                player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
+                        target.getDisplayName()));
+                return false;
+            }
+
+            // 记录撤销信息
+            UndoRecord record = new UndoRecord();
+            record.snapshots.addAll(snapshots);
+            record.consumed.put(request.copy().setStackSize(positions.size()), (long) positions.size());
+            PLAYER_UNDO.put(player.getUniqueID(), record);
+
+            world.playSound(null, pos, net.minecraft.init.SoundEvents.BLOCK_STONE_PLACE,
+                    SoundCategory.BLOCKS, 1.0F, 1.0F);
+            player.swingArm(hand);
+            return true;
+        } else {
+            // 放置失败，回滚
+            rollbackBulk(world, snapshots);
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.cannot_place"));
+            return false;
+        }
     }
 
     /**
-     * 撤销最后一次批量放置。Phase 3 完整实现。
+     * 撤销最后一次批量放置。
      */
     public static boolean undoLast(EntityPlayer player, World world, ItemStack toolStack) {
-        // Phase 3 实现
-        player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.not_implemented"));
-        return false;
+        if (world.isRemote) return true;
+
+        UndoRecord record = PLAYER_UNDO.remove(player.getUniqueID());
+        if (record == null || record.snapshots.isEmpty()) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.nothing_to_undo"));
+            return false;
+        }
+
+        IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
+        IMEMonitor<IAEItemStack> monitor = grid != null ? SecurityTerminalBindingHelper.getItemMonitor(grid) : null;
+
+        // 逆序恢复方块
+        List<BlockSnapshot> snapshots = new ArrayList<>(record.snapshots);
+        java.util.Collections.reverse(snapshots);
+        for (BlockSnapshot snapshot : snapshots) {
+            try {
+                snapshot.restore(true, false);
+            } catch (Exception e) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to restore block at {}", snapshot.getPos(), e);
+            }
+        }
+
+        // 返还物品到网络
+        if (monitor != null) {
+            for (Map.Entry<IAEItemStack, Long> entry : record.consumed.entrySet()) {
+                IAEItemStack refund = entry.getKey().copy();
+                refund.setStackSize(entry.getValue());
+                IAEItemStack notInjected = monitor.injectItems(refund, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+                if (notInjected != null && notInjected.getStackSize() > 0) {
+                    // 网络无法接收，生成掉落物
+                    ItemStack drop = notInjected.getDefinition().copy();
+                    drop.setCount((int) Math.min(notInjected.getStackSize(), drop.getMaxStackSize()));
+                    net.minecraft.entity.item.EntityItem entity = new net.minecraft.entity.item.EntityItem(world,
+                            player.posX, player.posY, player.posZ, drop);
+                    world.spawnEntity(entity);
+                }
+            }
+        }
+
+        player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.undone"));
+        return true;
+    }
+
+    /**
+     * 计算批量放置位置列表（BFS，限制在垂直于点击面的平面内扩展）。
+     */
+    public static List<BlockPos> calculateBulkPositions(World world, BlockPos clickedPos, EnumFacing side, int count) {
+        List<BlockPos> result = new ArrayList<>();
+        BlockPos start = clickedPos.offset(side);
+        if (!canPlaceBlockAt(world, start)) return result;
+
+        // 根据面向确定平面上的两个轴
+        EnumFacing.Axis axis = side.getAxis();
+        EnumFacing[] planeDirs;
+        if (axis == EnumFacing.Axis.Y) {
+            planeDirs = new EnumFacing[]{EnumFacing.NORTH, EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.WEST};
+        } else if (axis == EnumFacing.Axis.X) {
+            planeDirs = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.NORTH, EnumFacing.SOUTH};
+        } else {
+            planeDirs = new EnumFacing[]{EnumFacing.UP, EnumFacing.DOWN, EnumFacing.EAST, EnumFacing.WEST};
+        }
+
+        java.util.Queue<BlockPos> queue = new java.util.ArrayDeque<>();
+        java.util.Set<BlockPos> visited = new java.util.HashSet<>();
+        queue.offer(start);
+        visited.add(start);
+
+        while (!queue.isEmpty() && result.size() < count) {
+            BlockPos current = queue.poll();
+            if (!canPlaceBlockAt(world, current)) continue;
+            result.add(current);
+
+            for (EnumFacing dir : planeDirs) {
+                BlockPos neighbor = current.offset(dir);
+                if (!visited.contains(neighbor)) {
+                    visited.add(neighbor);
+                    queue.offer(neighbor);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static boolean canPlaceBlockAt(World world, BlockPos pos) {
+        return world.isAirBlock(pos) || world.getBlockState(pos).getBlock().isReplaceable(world, pos);
+    }
+
+    private static boolean tryPlaceBlockAt(EntityPlayer player, World world, BlockPos placePos, EnumFacing side,
+                                           EnumHand hand, ItemStack placeStack, float hitX, float hitY, float hitZ) {
+        if (!canPlaceBlockAt(world, placePos)) return false;
+
+        ItemStack originalMain = player.getHeldItemMainhand();
+        ItemStack originalOff = player.getHeldItemOffhand();
+
+        // 使用相邻方块作为 clickedPos，让 BlockItem 能正确计算放置位置
+        BlockPos clickedPos = placePos.offset(side.getOpposite());
+        try {
+            player.setHeldItem(EnumHand.MAIN_HAND, placeStack);
+            player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
+            EnumActionResult result = placeStack.onItemUse(player, world, clickedPos, hand, side, hitX, hitY, hitZ);
+            return result == EnumActionResult.SUCCESS;
+        } finally {
+            player.setHeldItem(EnumHand.MAIN_HAND, originalMain);
+            player.setHeldItem(EnumHand.OFF_HAND, originalOff);
+        }
+    }
+
+    private static void rollbackBulk(World world, List<BlockSnapshot> snapshots) {
+        List<BlockSnapshot> reversed = new ArrayList<>(snapshots);
+        java.util.Collections.reverse(reversed);
+        for (BlockSnapshot snapshot : reversed) {
+            try {
+                snapshot.restore(true, false);
+            } catch (Exception e) {
+                com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to rollback block at {}", snapshot.getPos(), e);
+            }
+        }
     }
 
     // ==================== 内部放置逻辑 ====================

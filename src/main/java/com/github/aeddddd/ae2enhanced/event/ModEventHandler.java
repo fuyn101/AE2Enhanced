@@ -12,6 +12,8 @@ import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
+import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
@@ -87,6 +89,29 @@ public final class ModEventHandler {
 
         event.setCanceled(true);
         ItemAdvancedMEOmniTool.forceBreakBlock(player, event.getWorld(), pos, stack);
+    }
+
+    /**
+     * ME 放置工具：Ctrl + 左键点击方块或空气时发送撤销请求。
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPlacementToolLeftClick(PlayerInteractEvent event) {
+        if (!(event instanceof PlayerInteractEvent.LeftClickBlock) && !(event instanceof PlayerInteractEvent.LeftClickEmpty)) {
+            return;
+        }
+        if (!event.getEntityPlayer().world.isRemote || event.isCanceled()) return;
+
+        EntityPlayer player = event.getEntityPlayer();
+        ItemStack stack = player.getHeldItemMainhand();
+        if (!(stack.getItem() instanceof ItemMEPlacementTool)) return;
+
+        if (!org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LCONTROL)
+                && !org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RCONTROL)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        AE2Enhanced.network.sendToServer(new PacketPlacementUndo());
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
