@@ -44,9 +44,9 @@ import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
  */
 public class TileEMCInterface extends TileAENetworkBase implements ICellContainer, ITickable, IAEAppEngInventory {
 
-    public static final int WHITELIST_SLOTS_PER_PAGE = 102; // 17×6, 与 3.png 大过滤格配套
-    public static final int WHITELIST_PAGES = (630 + WHITELIST_SLOTS_PER_PAGE - 1) / WHITELIST_SLOTS_PER_PAGE; // 7
-    public static final int WHITELIST_SIZE = 630;
+    public static final int WHITELIST_PAGES = 20;
+    public static final int WHITELIST_SLOTS_PER_PAGE = 32; // 8×4
+    public static final int WHITELIST_SIZE = WHITELIST_PAGES * WHITELIST_SLOTS_PER_PAGE; // 640
     private static final int WARNING_INTERVAL = 1200; // 60 秒警告冷却
 
     private final EMCInventoryHandler handler = new EMCInventoryHandler(this);

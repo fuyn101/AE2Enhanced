@@ -6,6 +6,7 @@ import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -15,18 +16,16 @@ import javax.annotation.Nonnull;
 /**
  * EMC 接口容器.
  *
- * <p>复用 3.png 纹理图集布局：顶部 17×6 大过滤格作为 EMC 白名单槽，
- * 中部 10×3 区域显示玩家背包 9×3，底部 10×1 区域显示快捷栏。
- * 过滤槽仅允许存在 EMC 值的物品。</p>
+ * <p>复用 3.png 纹理图集风格；每页 8×4 过滤槽，共 20 页。
+ * 过滤槽仅允许存在 EMC 值的物品；空手点击已标记槽位可取消标记。</p>
  */
 public class ContainerEMCInterface extends Container {
 
-    // 3.png 大过滤格区域：17 列 × 6 行
-    public static final int PAGE_ROWS = 6;
-    public static final int PAGE_COLS = 17;
-    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS; // 102
+    public static final int PAGE_ROWS = 4;
+    public static final int PAGE_COLS = 8;
+    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS; // 32
 
-    // 3.png 玩家背包区域（居中在 10 列宽度的中间 9 列）
+    // 玩家背包坐标沿用项目实际代码风格
     private static final int INV_X = 88;
     private static final int INV_Y = 145;
     private static final int HOTBAR_Y = 203;
@@ -80,8 +79,9 @@ public class ContainerEMCInterface extends Container {
             if (relative >= 0 && relative < SLOTS_PER_PAGE) {
                 int x = relative % PAGE_COLS;
                 int y = relative / PAGE_COLS;
-                slot.xPos = 7 + x * 18;
-                slot.yPos = 25 + y * 18;
+                // 根据实际代码风格放置槽位，而非严格 UV 文档
+                slot.xPos = 8 + x * 18;
+                slot.yPos = 29 + y * 18;
             } else {
                 slot.xPos = -1000;
                 slot.yPos = -1000;
@@ -93,6 +93,40 @@ public class ContainerEMCInterface extends Container {
     public boolean canInteractWith(@Nonnull EntityPlayer playerIn) {
         return tile.getWorld().getTileEntity(tile.getPos()) == tile
                 && playerIn.getDistanceSq(tile.getPos().add(0.5, 0.5, 0.5)) <= 64.0;
+    }
+
+    @Override
+    @Nonnull
+    public ItemStack slotClick(int slotId, int dragType, ClickType clickTypeIn, EntityPlayer player) {
+        if (slotId < 0 || slotId >= TileEMCInterface.WHITELIST_SIZE
+                || clickTypeIn != ClickType.PICKUP) {
+            return super.slotClick(slotId, dragType, clickTypeIn, player);
+        }
+
+        Slot slot = this.inventorySlots.get(slotId);
+        ItemStack cursor = player.inventory.getItemStack();
+
+        // 空手点击已标记槽位 -> 取消标记
+        if (cursor.isEmpty() && slot.getHasStack()) {
+            slot.putStack(ItemStack.EMPTY);
+            slot.onSlotChanged();
+            detectAndSendChanges();
+            return ItemStack.EMPTY;
+        }
+
+        // 手中有物品且槽位为空/可替换 -> 设置标记（需有 EMC）
+        if (!cursor.isEmpty()) {
+            ItemStack copy = cursor.copy();
+            copy.setCount(1);
+            if (slot.isItemValid(copy)) {
+                slot.putStack(copy);
+                slot.onSlotChanged();
+                detectAndSendChanges();
+            }
+            return ItemStack.EMPTY;
+        }
+
+        return ItemStack.EMPTY;
     }
 
     @Override
