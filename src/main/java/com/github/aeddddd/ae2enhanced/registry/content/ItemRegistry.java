@@ -32,4 +32,7 @@ public final class ItemRegistry {
 
     // 先进ME工具
     public static ItemAdvancedMEOmniTool ME_OMNI_TOOL;
+
+    // ME 放置工具
+    public static ItemMEPlacementTool ME_PLACEMENT_TOOL;
 }

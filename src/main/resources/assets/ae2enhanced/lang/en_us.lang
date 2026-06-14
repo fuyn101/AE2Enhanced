@@ -440,3 +440,21 @@ gui.ae2enhanced.emc_interface.unbound=Unbound
 gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+Click title to bind current player
 chat.ae2enhanced.emc_interface.bound=EMC Interface bound to %s
 chat.ae2enhanced.emc_interface.duplicate=§eWarning: You have multiple EMC Interfaces on this network; extraction is limited by your real EMC balance.
+
+# ME Placement Tool
+item.ae2enhanced.me_placement_tool.name=ME Placement Tool
+item.ae2enhanced.me_placement_tool.tooltip=Place blocks directly from your ME network
+item.ae2enhanced.me_placement_tool.linked=Linked to ME Network
+item.ae2enhanced.me_placement_tool.unlinked=Not Linked
+item.ae2enhanced.me_placement_tool.selected=Selected: %s (x%d)
+item.ae2enhanced.me_placement_tool.no_selection=No item selected
+
+gui.ae2enhanced.placement_tool.title=ME Placement Tool
+gui.ae2enhanced.placement_tool.selected=Selected: %s x%d
+gui.ae2enhanced.placement_tool.no_selection=No item selected
+
+message.ae2enhanced.placement.no_configured_item=No placement item configured
+message.ae2enhanced.placement.network_missing=Network missing: %s
+message.ae2enhanced.placement.cannot_place=Cannot place here
+message.ae2enhanced.placement.no_storage=No ME storage found
+message.ae2enhanced.placement.not_implemented=Not implemented yet

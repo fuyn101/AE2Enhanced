@@ -46,6 +46,8 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketEMCInterfaceBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlightHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlot;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlotHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformStatus;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
@@ -110,5 +112,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketChunkPowerHighlightHandler.class, PacketChunkPowerHighlight.class, 39, Side.CLIENT);
         nw.registerMessage(PacketRecyclerSync.Handler.class, PacketRecyclerSync.class, 41, Side.CLIENT);
         nw.registerMessage(PacketEMCInterfaceBind.Handler.class, PacketEMCInterfaceBind.class, 42, Side.SERVER);
+        nw.registerMessage(PacketPlacementUpdateSlotHandler.class, PacketPlacementUpdateSlot.class, 43, Side.SERVER);
     }
 }

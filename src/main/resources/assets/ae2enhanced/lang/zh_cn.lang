@@ -438,3 +438,21 @@ gui.ae2enhanced.emc_interface.unbound=未绑定
 gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+左键标题绑定当前玩家
 chat.ae2enhanced.emc_interface.bound=EMC 接口已绑定至 %s
 chat.ae2enhanced.emc_interface.duplicate=§e警告: 你的 EMC 接口在网络中有多个副本,实际提取由 EMC 余额兜底.
+
+# ME 放置工具
+item.ae2enhanced.me_placement_tool.name=ME 放置工具
+item.ae2enhanced.me_placement_tool.tooltip=直接从 ME 网络放置方块
+item.ae2enhanced.me_placement_tool.linked=已链接至 ME 网络
+item.ae2enhanced.me_placement_tool.unlinked=未链接
+item.ae2enhanced.me_placement_tool.selected=已选择：%s（x%d）
+item.ae2enhanced.me_placement_tool.no_selection=未选择物品
+
+gui.ae2enhanced.placement_tool.title=ME 放置工具
+gui.ae2enhanced.placement_tool.selected=已选择：%s x%d
+gui.ae2enhanced.placement_tool.no_selection=未选择物品
+
+message.ae2enhanced.placement.no_configured_item=未配置放置物品
+message.ae2enhanced.placement.network_missing=网络中缺少：%s
+message.ae2enhanced.placement.cannot_place=无法放置于此
+message.ae2enhanced.placement.no_storage=未找到 ME 存储
+message.ae2enhanced.placement.not_implemented=功能尚未实现

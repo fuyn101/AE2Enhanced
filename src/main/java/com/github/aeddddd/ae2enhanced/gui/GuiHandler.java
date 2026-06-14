@@ -15,6 +15,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiEMCInterface;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiPlacementTool;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu;
 
@@ -34,11 +35,13 @@ import com.github.aeddddd.ae2enhanced.container.ContainerEMCInterface;
 import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
+import com.github.aeddddd.ae2enhanced.container.ContainerPlacementTool;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
@@ -78,6 +81,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_ADVANCED_PLATFORM_CONTROLLER = 24;
     public static final int GUI_ADVANCED_PLATFORM_SUBMENU = 25;
     public static final int GUI_OMNI_TOOL_CONFIG = 26;
+    public static final int GUI_PLACEMENT_TOOL = 30;
     public static final int GUI_ADVANCED_ME_COLLECTOR = 27;
     public static final int GUI_ME_NETWORK_RECYCLER = 28;
     public static final int GUI_EMC_INTERFACE = 29;
@@ -248,6 +252,16 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_OMNI_TOOL_CONFIG) {
             return new ContainerOmniToolConfig();
         }
+        if (ID == GUI_PLACEMENT_TOOL) {
+            ItemStack held = player.getHeldItemMainhand();
+            if (held.getItem() instanceof ItemMEPlacementTool) {
+                return new ContainerPlacementTool(player, held);
+            }
+            held = player.getHeldItemOffhand();
+            if (held.getItem() instanceof ItemMEPlacementTool) {
+                return new ContainerPlacementTool(player, held);
+            }
+        }
 
         return null;
     }
@@ -379,6 +393,16 @@ public class GuiHandler implements IGuiHandler {
         }
         if (ID == GUI_OMNI_TOOL_CONFIG) {
             return new GuiOmniToolConfig(player, new ContainerOmniToolConfig());
+        }
+        if (ID == GUI_PLACEMENT_TOOL) {
+            ItemStack held = player.getHeldItemMainhand();
+            if (held.getItem() instanceof ItemMEPlacementTool) {
+                return new GuiPlacementTool(player, new ContainerPlacementTool(player, held));
+            }
+            held = player.getHeldItemOffhand();
+            if (held.getItem() instanceof ItemMEPlacementTool) {
+                return new GuiPlacementTool(player, new ContainerPlacementTool(player, held));
+            }
         }
 
         return null;
