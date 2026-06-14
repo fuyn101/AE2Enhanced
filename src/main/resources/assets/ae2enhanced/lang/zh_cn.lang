@@ -4,6 +4,9 @@ config.ae2enhanced:OmniTool=先进ME工具
 config.ae2enhanced:OmniTool.breakableBlacklist=破坏黑名单
 config.ae2enhanced:OmniTool.maxEnchantmentLevel=最大附魔等级
 
+config.ae2enhanced:ChannelPathing=实验性快速频道路径算法
+config.ae2enhanced:ChannelPathing.fastPathing=启用快速路径算法
+
 item.ae2enhanced.part_universal_import_bus.name=通用输入总线
 item.ae2enhanced.part_universal_import_bus.tooltip=§e通用输入总线 §7— 输入物品、流体、气体和源质
 gui.ae2enhanced.universal_import_bus.name=通用输入总线

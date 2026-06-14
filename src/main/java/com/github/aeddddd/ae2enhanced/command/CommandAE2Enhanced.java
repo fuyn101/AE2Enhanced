@@ -13,6 +13,7 @@ import appeng.me.cache.GridStorageCache;
 import appeng.me.helpers.MachineSource;
 import appeng.me.helpers.PlayerSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
@@ -38,6 +39,8 @@ import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.common.config.ConfigManager;
+import net.minecraftforge.common.config.Config;
 import appeng.util.item.AEItemStack;
 
 import javax.annotation.Nonnull;
@@ -53,6 +56,7 @@ import java.util.*;
  * <ul>
  *   <li>{@code /ae2e spgc} — Manual Smart Pattern garbage collection</li>
  *   <li>{@code /ae2e channels enable|disable|status} — Toggle AE2 channel checking</li>
+ *   <li>{@code /ae2e fastpathing enable|disable|status} — Toggle experimental O(N) channel pathing</li>
  *   <li>{@code /ae2e recoverhd list} — List all hyperdimensional storage UUIDs</li>
  *   <li>{@code /ae2e recoverhd <uuid>} — Get controller block with specified UUID</li>
  * </ul>
@@ -68,7 +72,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     @Nonnull
     public String getUsage(@Nonnull ICommandSender sender) {
-        return "/ae2e <spgc|channels|recoverhd|testhd|migratefluids|help>";
+        return "/ae2e <spgc|channels|fastpathing|recoverhd|testhd|migratefluids|help>";
     }
 
     @Override
@@ -89,6 +93,9 @@ public class CommandAE2Enhanced extends CommandBase {
                 break;
             case "channels":
                 executeChannels(sender, args);
+                break;
+            case "fastpathing":
+                executeFastPathing(sender, args);
                 break;
             case "recoverhd":
                 executeRecoverHd(server, sender, args);
@@ -118,6 +125,10 @@ public class CommandAE2Enhanced extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  enable:  Enable AE2 channel checking (normal mode)."));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  disable: Disable AE2 channel checking (infinite channels)."));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  status:  Show current channel checking status."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e fastpathing <enable|disable|status>"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  enable:  Use experimental O(N) channel pathing (PR #8285 port)."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  disable: Use vanilla AE2-UEL PathSegment pathing."));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  status:  Show current fast pathing status."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd list"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  List all hyperdimensional storage UUIDs (sorted by mtime)."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e recoverhd <uuid>"));
@@ -268,6 +279,42 @@ public class CommandAE2Enhanced extends CommandBase {
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to toggle AE2 channel feature.", e);
         }
+    }
+
+    // ---- fastpathing ----
+
+    private void executeFastPathing(@Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e fastpathing <enable|disable|status>"));
+            return;
+        }
+        String action = args[1].toLowerCase();
+        switch (action) {
+            case "enable":
+                setFastPathing(true);
+                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Experimental fast channel pathing enabled."));
+                sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Existing networks will switch on next repath."));
+                break;
+            case "disable":
+                setFastPathing(false);
+                sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Experimental fast channel pathing disabled."));
+                sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Networks will fall back to vanilla AE2-UEL pathing on next repath."));
+                break;
+            case "status":
+                boolean enabled = AE2EnhancedConfig.channelPathing.fastPathing;
+                String status = enabled
+                        ? TextFormatting.GREEN + "Enabled (O(N) hierarchical BFS + iterative DFS)"
+                        : TextFormatting.YELLOW + "Disabled (vanilla PathSegment)";
+                sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Fast channel pathing status: " + status));
+                break;
+            default:
+                sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e fastpathing <enable|disable|status>"));
+        }
+    }
+
+    private void setFastPathing(boolean enabled) {
+        AE2EnhancedConfig.channelPathing.fastPathing = enabled;
+        ConfigManager.sync(AE2Enhanced.MOD_ID, Config.Type.INSTANCE);
     }
 
     // ---- recoverhd ----

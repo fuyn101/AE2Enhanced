@@ -4,6 +4,9 @@ config.ae2enhanced:OmniTool=Advanced ME Omni Tool
 config.ae2enhanced:OmniTool.breakableBlacklist=Breakable Blacklist
 config.ae2enhanced:OmniTool.maxEnchantmentLevel=Max Enchantment Level
 
+config.ae2enhanced:ChannelPathing=Experimental Fast Channel Pathing
+config.ae2enhanced:ChannelPathing.fastPathing=Enable Fast Pathing
+
 item.ae2enhanced.part_universal_import_bus.name=Universal Import Bus
 item.ae2enhanced.part_universal_import_bus.tooltip=§eUniversal Import Bus §7— Imports items, fluids, gases and essentia
 gui.ae2enhanced.universal_import_bus.name=Universal Import Bus

@@ -52,6 +52,14 @@ public class AE2EnhancedConfig {
     })
     public static WirelessChannel wirelessChannel = new WirelessChannel();
 
+    @Config.Name("ChannelPathing")
+    @Config.Comment({
+        "Experimental fast channel pathing algorithm settings.",
+        "Ported from AE2 PR #8285: hierarchical BFS + iterative DFS.",
+        "Requires manual command to enable. May change channel assignment in edge cases."
+    })
+    public static ChannelPathing channelPathing = new ChannelPathing();
+
     @Config.Name("Terminal")
     @Config.Comment({
         "Omni Terminal settings."
@@ -303,6 +311,17 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 0, max = 72000)
         public int reconnectIntervalTicks = 100;
+    }
+
+    public static class ChannelPathing {
+        @Config.Comment({
+            "Enable the experimental O(N) channel pathing algorithm ported from AE2 PR #8285.",
+            "When true, controller-based ME networks use hierarchical BFS + iterative DFS",
+            "instead of the original PathSegment-based multi-tick BFS.",
+            "Use /ae2e fastpathing to toggle at runtime.",
+            "Default: false"
+        })
+        public boolean fastPathing = false;
     }
 
     public static class SmartPattern {
