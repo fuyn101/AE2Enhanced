@@ -2,9 +2,9 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import appeng.api.features.INetworkEncodable;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
-import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementMode;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementToolHelper;
 import com.github.aeddddd.ae2enhanced.util.placement.SecurityTerminalBindingHelper;
 import net.minecraft.client.resources.I18n;
@@ -27,8 +27,13 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * ME 放置工具 —— 从 ME 网络直接放置方块、AE2 Part、Facade。
+ * ME 放置工具 —— 从 ME 网络直接放置方块、AE2 Part、Facade、线缆。
  * 通过 AE2 安全终端绑定。
+ *
+ * 重做后特性：
+ * - 无配置 GUI，使用 G 键径向菜单 + 鼠标中键选取。
+ * - 自动检测线缆并进入线缆放置模式。
+ * - 右键方块放置，右键空气无动作。
  */
 public class ItemMEPlacementTool extends Item implements INetworkEncodable {
 
@@ -56,18 +61,30 @@ public class ItemMEPlacementTool extends Item implements INetworkEncodable {
     @Override
     public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand,
                                       EnumFacing facing, float hitX, float hitY, float hitZ) {
-        if (world.isRemote) return EnumActionResult.SUCCESS;
-
         ItemStack stack = player.getHeldItem(hand);
 
-        // Shift + 右键安全终端方块：由安全终端 GUI 槽位处理绑定，此处无需额外逻辑。
+        if (world.isRemote) {
+            return EnumActionResult.SUCCESS;
+        }
+
         // 普通右键执行放置
         if (!player.isSneaking()) {
             PlacementConfig config = new PlacementConfig(stack);
-            int count = config.getPlacementCount();
+            ItemStack target = PlacementTargetResolver.resolveSingleOrCable(player, config, world, pos);
+
             boolean ok;
-            if (count > 1) {
-                ok = PlacementToolHelper.placeBulk(player, world, pos, facing, hand, stack, count, hitX, hitY, hitZ);
+            if (PlacementTargetResolver.isCable(target)) {
+                // 线缆模式：右键设置起点；若已有起点则设终点并放置
+                BlockPos start = config.getCableStart();
+                if (start == null) {
+                    config.setCableStart(pos.offset(facing));
+                    return EnumActionResult.SUCCESS;
+                } else {
+                    BlockPos end = pos.offset(facing);
+                    ok = PlacementToolHelper.placeCableBetween(player, world, start, end, hand, stack);
+                    config.setCableStart(null);
+                    return ok ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
+                }
             } else {
                 ok = PlacementToolHelper.placeSingle(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
             }
@@ -81,21 +98,22 @@ public class ItemMEPlacementTool extends Item implements INetworkEncodable {
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
 
-        // 仅当未指向方块时打开 GUI
+        // 重做后：右键空气无动作（GUI 已删除）
         RayTraceResult ray = rayTrace(world, player, false);
         if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK) {
             return new ActionResult<>(EnumActionResult.PASS, stack);
         }
 
-        if (!world.isRemote) {
-            int slot = player.inventory.currentItem;
-            if (hand == EnumHand.OFF_HAND) {
-                slot = 40;
+        // 潜行右键可清除线缆起点
+        if (player.isSneaking()) {
+            PlacementConfig config = new PlacementConfig(stack);
+            if (config.getCableStart() != null) {
+                config.setCableStart(null);
+                return new ActionResult<>(EnumActionResult.SUCCESS, stack);
             }
-            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_PLACEMENT_TOOL, world, slot, 0, 0);
         }
 
-        return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+        return new ActionResult<>(EnumActionResult.PASS, stack);
     }
 
     // ==================== Tooltip ====================
@@ -114,10 +132,10 @@ public class ItemMEPlacementTool extends Item implements INetworkEncodable {
         }
 
         PlacementConfig config = new PlacementConfig(stack);
-        ItemStack selected = config.getStackInSlot(config.getSelectedSlot());
+        ItemStack selected = config.getSelectedStack();
         if (!selected.isEmpty()) {
             tooltip.add(I18n.format("item.ae2enhanced.me_placement_tool.selected",
-                    selected.getDisplayName(), config.getPlacementCount()));
+                    selected.getDisplayName(), 1));
         } else {
             tooltip.add(I18n.format("item.ae2enhanced.me_placement_tool.no_selection"));
         }

@@ -444,26 +444,36 @@ item.ae2enhanced.me_placement_tool.name=ME 放置工具
 item.ae2enhanced.me_placement_tool.tooltip=直接从 ME 网络放置方块
 item.ae2enhanced.me_placement_tool.linked=已链接至 ME 网络
 item.ae2enhanced.me_placement_tool.unlinked=未链接
-item.ae2enhanced.me_placement_tool.selected=已选择：%s（x%d）
+item.ae2enhanced.me_placement_tool.selected=已选择：%s
 item.ae2enhanced.me_placement_tool.no_selection=未选择物品
-
-gui.ae2enhanced.placement_tool.title=ME 放置工具
-gui.ae2enhanced.placement_tool.selected=已选择：%s x%d
-gui.ae2enhanced.placement_tool.no_selection=未选择物品
 
 message.ae2enhanced.placement.no_configured_item=未配置放置物品
 message.ae2enhanced.placement.network_missing=网络中缺少：%s
 message.ae2enhanced.placement.cannot_place=无法放置于此
 message.ae2enhanced.placement.no_storage=未找到 ME 存储
 message.ae2enhanced.placement.not_implemented=功能尚未实现
-gui.ae2enhanced.placement_tool.page=第 %d/%d 页
-gui.ae2enhanced.placement_tool.count=数量：%d
+
 message.ae2enhanced.placement.nothing_to_undo=没有可撤销的操作
 message.ae2enhanced.placement.undone=已撤销放置
+
 key.ae2enhanced.placement_radial=ME 放置工具径向菜单
-gui.ae2enhanced.placement_radial.title=选择放置物品
+gui.ae2enhanced.placement_radial.title=选择放置预设
+gui.ae2enhanced.placement_radial.aim_to_select=朝向扇区以选中
+gui.ae2enhanced.placement_radial.pick_current=选取当前目标
 gui.ae2enhanced.placement_radial.count=数量：%d
-item.ae2enhanced.me_omni_tool.placement.selected=已选择：%s x%d
+
+gui.ae2enhanced.placement.mode.single=单格放置
+gui.ae2enhanced.placement.mode.bulk=批量放置
+gui.ae2enhanced.placement.mode.cable=线缆放置
+gui.ae2enhanced.placement.cable_color=线缆颜色：%s
+
+item.ae2enhanced.me_omni_tool.placement.selected=已选择：%s（%s）
 item.ae2enhanced.me_omni_tool.placement.no_selection=未选择放置物品
 item.ae2enhanced.me_omni_tool.placement.linked=已链接至 ME 网络
 item.ae2enhanced.me_omni_tool.placement.unlinked=未链接
+
+gui.ae2enhanced.omni_tool_config.cable_color=线缆颜色
+gui.ae2enhanced.omni_tool_config.cable_color.desc=放置线缆时使用的颜色
+
+gui.ae2enhanced.omni_tool_config.reach_distance=触及距离
+gui.ae2enhanced.omni_tool_config.reach_distance.desc=放置模式下的最大触及距离

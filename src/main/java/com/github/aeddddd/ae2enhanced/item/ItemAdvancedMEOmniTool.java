@@ -1,8 +1,6 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import appeng.api.features.INetworkEncodable;
-import appeng.api.implementations.items.IAEWrench;
-import cofh.api.item.IToolHammer;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.BlockWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -11,14 +9,12 @@ import com.github.aeddddd.ae2enhanced.util.BossDropHelper;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import com.github.aeddddd.ae2enhanced.util.TravelAnchorHelper;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementMode;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementToolHelper;
 import com.github.aeddddd.ae2enhanced.util.placement.SecurityTerminalBindingHelper;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import crazypants.enderio.api.tool.IConduitControl;
-import crazypants.enderio.api.tool.IHideFacades;
-import crazypants.enderio.api.tool.ITool;
-import mekanism.api.IMekWrench;
 import net.minecraft.block.Block;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyDirection;
@@ -57,13 +53,7 @@ import java.util.List;
 
 import java.util.UUID;
 
-@Optional.InterfaceList({
-    @Optional.Interface(iface = "cofh.api.item.IToolHammer", modid = "cofhcore"),
-    @Optional.Interface(iface = "mekanism.api.IMekWrench", modid = "mekanism"),
-    @Optional.Interface(iface = "crazypants.enderio.api.tool.ITool", modid = "enderio"),
-    @Optional.Interface(iface = "crazypants.enderio.api.tool.IConduitControl", modid = "enderio")
-})
-public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHammer, IMekWrench, ITool, IConduitControl, INetworkEncodable {
+public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
 
     // ---- NBT Keys ----
     public static final String NBT_MODE = "Mode";
@@ -135,7 +125,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         setTranslationKey(AE2Enhanced.MOD_ID + ".me_omni_tool");
         setCreativeTab(AE2Enhanced.CREATIVE_TAB);
         setMaxStackSize(1);
-        setHarvestLevel("wrench", 0);
+        // 扳手集成已移除
     }
 
     // ==================== Mining ====================
@@ -488,24 +478,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ==================== Item Use First (Universal Rotate) ====================
 
     @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
-        if (world.isRemote) return EnumActionResult.PASS;
-        ItemStack stack = player.getHeldItem(hand);
-        int mode = getMode(stack);
-
-        // 仅通用模式保留快速旋转；放置模式由 onItemUse 处理
-        if (mode != MODE_UNIVERSAL) return EnumActionResult.PASS;
-        if (player.isSneaking()) return EnumActionResult.PASS;
-
-        Block block = world.getBlockState(pos).getBlock();
-        if (block != null && block.rotateBlock(world, pos, side)) {
-            player.swingArm(hand);
-            return EnumActionResult.SUCCESS;
-        }
-        return EnumActionResult.PASS;
-    }
-
-    @Override
     public boolean doesSneakBypassUse(ItemStack stack, IBlockAccess world, BlockPos pos, EntityPlayer player) {
         int mode = getMode(stack);
         return mode == MODE_PLACEMENT || mode == MODE_UNIVERSAL;
@@ -610,12 +582,15 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             doBlink(player, world, stack);
             return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         } else if (mode == MODE_PLACEMENT) {
-            int slot = player.inventory.currentItem;
-            if (hand == EnumHand.OFF_HAND) {
-                slot = 40;
+            // 重做后：右键空气无动作；潜行右键清除线缆起点
+            if (player.isSneaking()) {
+                PlacementConfig config = new PlacementConfig(stack);
+                if (config.getCableStart() != null) {
+                    config.setCableStart(null);
+                    return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+                }
             }
-            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_PLACEMENT_TOOL, world, slot, 0, 0);
-            return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+            return new ActionResult<>(EnumActionResult.PASS, stack);
         }
         return new ActionResult<>(EnumActionResult.PASS, stack);
     }
@@ -627,10 +602,24 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (world.isRemote) return EnumActionResult.SUCCESS;
 
         PlacementConfig config = new PlacementConfig(stack);
-        int count = config.getPlacementCount();
+        PlacementMode subMode = config.getPlacementMode();
+        ItemStack target = PlacementTargetResolver.resolveSingleOrCable(player, config, world, pos);
+
         boolean ok;
-        if (count > 1) {
-            ok = PlacementToolHelper.placeBulk(player, world, pos, facing, hand, stack, count, hitX, hitY, hitZ);
+        if (PlacementTargetResolver.isCable(target)) {
+            // 线缆模式：右键设置起点；若已有起点则设终点并放置
+            BlockPos start = config.getCableStart();
+            if (start == null) {
+                config.setCableStart(pos.offset(facing));
+                return EnumActionResult.SUCCESS;
+            } else {
+                BlockPos end = pos.offset(facing);
+                ok = PlacementToolHelper.placeCableBetween(player, world, start, end, hand, stack);
+                config.setCableStart(null);
+                return ok ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
+            }
+        } else if (subMode == PlacementMode.BULK) {
+            ok = PlacementToolHelper.placeBulk(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
         } else {
             ok = PlacementToolHelper.placeSingle(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
         }
@@ -1295,11 +1284,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
         if (mode == MODE_PLACEMENT) {
             PlacementConfig config = new PlacementConfig(stack);
-            ItemStack selected = config.getStackInSlot(config.getSelectedSlot());
+            ItemStack selected = config.getSelectedStack();
             if (!selected.isEmpty()) {
                 tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
                     + I18n.format("item.ae2enhanced.me_omni_tool.placement.selected",
-                            TextFormatting.YELLOW + selected.getDisplayName(), config.getPlacementCount()));
+                            TextFormatting.YELLOW + selected.getDisplayName(),
+                            I18n.format("gui.ae2enhanced.placement.mode." + config.getPlacementMode().name().toLowerCase())));
             } else {
                 tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
                     + I18n.format("item.ae2enhanced.me_omni_tool.placement.no_selection"));
@@ -1357,75 +1347,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
     }
 
-    // ==================== Wrench Interface Implementations ====================
-
-    // -- IAEWrench --
-    @Override
-    public boolean canWrench(ItemStack wrench, EntityPlayer player, BlockPos pos) {
-        int mode = getMode(wrench);
-        return mode == MODE_UNIVERSAL;
-    }
-
-    // -- IToolHammer (CoFH) --
-    @Override
-    public boolean isUsable(ItemStack item, EntityLivingBase user, BlockPos pos) {
-        return item.getItem() instanceof ItemAdvancedMEOmniTool;
-    }
-
-    @Override
-    public boolean isUsable(ItemStack item, EntityLivingBase user, Entity entity) {
-        return item.getItem() instanceof ItemAdvancedMEOmniTool;
-    }
-
-    @Override
-    public void toolUsed(ItemStack item, EntityLivingBase user, BlockPos pos) {
-    }
-
-    @Override
-    public void toolUsed(ItemStack item, EntityLivingBase user, Entity entity) {
-    }
-
-    // -- IMekWrench (Mekanism) --
-    @Override
-    public boolean canUseWrench(ItemStack stack, EntityPlayer player, BlockPos pos) {
-        int mode = getMode(stack);
-        return mode == MODE_UNIVERSAL;
-    }
-
-    @Override
-    public boolean canUseWrench(EntityPlayer player, EnumHand hand, ItemStack stack, RayTraceResult rayTrace) {
-        int mode = getMode(stack);
-        return mode == MODE_UNIVERSAL;
-    }
-
-    @Override
-    public void wrenchUsed(EntityPlayer player, EnumHand hand, ItemStack stack, RayTraceResult rayTrace) {
-    }
-
-    // -- ITool / IHideFacades / IConduitControl (EnderIO) --
-    @Override
-    public boolean canUse(EnumHand hand, EntityPlayer player, BlockPos pos) {
-        ItemStack stack = player.getHeldItem(hand);
-        int mode = getMode(stack);
-        return mode == MODE_UNIVERSAL && stack.getItem() instanceof ItemAdvancedMEOmniTool;
-    }
-
-    @Override
-    public void used(EnumHand hand, EntityPlayer player, BlockPos pos) {
-    }
-
-    @Override
-    public boolean shouldHideFacades(ItemStack stack, EntityPlayer player) {
-        int mode = getMode(stack);
-        return mode == MODE_UNIVERSAL;
-    }
-
-    @Override
-    public boolean showOverlay(ItemStack stack, EntityPlayer player) {
-        int mode = getMode(stack);
-        return mode == MODE_UNIVERSAL;
-    }
-
     // ==================== Item Entity Protection (Conformal Charge) ====================
 
     private static final java.lang.reflect.Field ENTITY_IMMUNE_TO_FIRE;
@@ -1466,8 +1387,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         Multimap<String, AttributeModifier> multimap = HashMultimap.create();
         multimap.putAll(super.getAttributeModifiers(slot, stack));
         if (slot == EntityEquipmentSlot.MAINHAND) {
+            PlacementConfig config = new PlacementConfig(stack);
+            float reach = config.getReachDistance();
+            // 玩家基础触及距离为 5.0，因此 modifier = reach - 5.0
+            double modifier = Math.max(0.0, reach - 5.0);
             multimap.put(EntityPlayer.REACH_DISTANCE.getName(),
-                new AttributeModifier(REACH_MODIFIER_UUID, "AE2Enhanced OmniTool reach", 5.0, 0));
+                new AttributeModifier(REACH_MODIFIER_UUID, "AE2Enhanced OmniTool reach", modifier, 0));
         }
         return multimap;
     }

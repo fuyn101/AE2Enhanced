@@ -46,12 +46,14 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketEMCInterfaceBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlightHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementGuiAction;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementGuiActionHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndoHandler;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlot;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUpdateSlotHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementCablePlace;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementCablePlaceHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementSelectPreset;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementSelectPresetHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolPlacementSubMode;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolPlacementSubModeHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformStatus;
 import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
@@ -116,8 +118,9 @@ public final class ModNetwork {
         nw.registerMessage(PacketChunkPowerHighlightHandler.class, PacketChunkPowerHighlight.class, 39, Side.CLIENT);
         nw.registerMessage(PacketRecyclerSync.Handler.class, PacketRecyclerSync.class, 41, Side.CLIENT);
         nw.registerMessage(PacketEMCInterfaceBind.Handler.class, PacketEMCInterfaceBind.class, 42, Side.SERVER);
-        nw.registerMessage(PacketPlacementUpdateSlotHandler.class, PacketPlacementUpdateSlot.class, 43, Side.SERVER);
-        nw.registerMessage(PacketPlacementGuiActionHandler.class, PacketPlacementGuiAction.class, 44, Side.SERVER);
         nw.registerMessage(PacketPlacementUndoHandler.class, PacketPlacementUndo.class, 45, Side.SERVER);
+        nw.registerMessage(PacketPlacementCablePlaceHandler.class, PacketPlacementCablePlace.class, 46, Side.SERVER);
+        nw.registerMessage(PacketPlacementSelectPresetHandler.class, PacketPlacementSelectPreset.class, 47, Side.SERVER);
+        nw.registerMessage(PacketOmniToolPlacementSubModeHandler.class, PacketOmniToolPlacementSubMode.class, 48, Side.SERVER);
     }
 }

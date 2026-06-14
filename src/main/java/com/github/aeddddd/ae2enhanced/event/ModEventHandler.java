@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
@@ -92,18 +93,38 @@ public final class ModEventHandler {
     }
 
     /**
-     * ME 放置工具：Ctrl + 左键点击方块或空气时发送撤销请求。
+     * ME 放置工具：左键点击方块时，若已设置线缆起点，则设为终点并放置线缆。
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onPlacementToolLeftClick(PlayerInteractEvent event) {
-        if (!(event instanceof PlayerInteractEvent.LeftClickBlock) && !(event instanceof PlayerInteractEvent.LeftClickEmpty)) {
-            return;
-        }
+    public void onPlacementToolLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         if (!event.getEntityPlayer().world.isRemote || event.isCanceled()) return;
 
         EntityPlayer player = event.getEntityPlayer();
         ItemStack stack = player.getHeldItemMainhand();
         if (!(stack.getItem() instanceof ItemMEPlacementTool)) return;
+
+        PlacementConfig config = new PlacementConfig(stack);
+        BlockPos start = config.getCableStart();
+        if (start == null) return; // 无线缆起点，正常破坏
+
+        event.setCanceled(true);
+        BlockPos end = event.getPos().offset(event.getFace());
+        AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementCablePlace(start, end));
+    }
+
+    /**
+     * ME 放置工具 / 先进 ME 工具放置模式：Ctrl + 右键撤销上一次放置。
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPlacementToolRightClick(PlayerInteractEvent.RightClickItem event) {
+        if (!event.getEntityPlayer().world.isRemote || event.isCanceled()) return;
+
+        EntityPlayer player = event.getEntityPlayer();
+        ItemStack stack = player.getHeldItemMainhand();
+        boolean isPlacementTool = stack.getItem() instanceof ItemMEPlacementTool;
+        boolean isOmniPlacement = stack.getItem() instanceof ItemAdvancedMEOmniTool
+                && ItemAdvancedMEOmniTool.getMode(stack) == ItemAdvancedMEOmniTool.MODE_PLACEMENT;
+        if (!isPlacementTool && !isOmniPlacement) return;
 
         if (!org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LCONTROL)
                 && !org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RCONTROL)) {

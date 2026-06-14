@@ -92,6 +92,7 @@ public class ClientProxy extends CommonProxy {
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.hud.PlacementToolHudRenderer());
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.PlacementPreviewRenderer());
         MinecraftForge.EVENT_BUS.register(new ChunkPowerHighlightRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());
 
