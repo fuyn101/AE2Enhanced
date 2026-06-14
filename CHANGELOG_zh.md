@@ -63,16 +63,103 @@
   - **径向菜单**：按住 G 键打开，合并相同物品预设，始终保留一个“空”选项用于清除选择；鼠标中键快速选取准星目标
   - Omni Tool C 键配置新增放置模式参数：触及距离滑块、批量放置方向锁
 
+- **ME 回收节点（ME Network Recycler）**
+  - 新增方块、TileEntity、GUI 与注册资源
+  - 跨维度目标绑定系统：右键绑定、Alt+右键清除
+  - 支持万能记忆卡（UMC）Ctrl+选择目标后右键 recycler 绑定
+  - `RecyclerNetworkHandler`：超维度注入、目标适配器、倒排索引、批量收集
+  - 新增 recycler 状态同步网络包、`AdapterFactory` 与客户端 GUI 状态
+
+- **高级 ME 收集器（Advanced ME Collector）**
+  - 新增方块，支持过滤、范围控制、生成前预收集
+  - 大容量强制收集缓冲区与更早的掉落物拦截器
+  - 防止容器（箱子/熔炉/漏斗）被破坏时掉落物品的 `InventoryHelper` 拦截器
+
+- **压缩区块能源节点（Compressed Chunk Power Node）**
+  - 3×3 区块范围的能源供应
+  - 修复方块注册名冲突
+
+- **机器输出重定向（Machine Output Redirect）**
+  - Phase 0 基础设施 + 热力膨胀（Thermal Expansion）试点
+  - Tier 1：通用机械（Mekanism）、科技复兴（Tech Reborn）、末影接口（Ender IO）
+  - Tier 2：工业先锋（Industrial Foregoing）、核工艺（NuclearCraft）、科技复兴输出槽旁路适配器
+
+- **ProjectE EMC 接口**
+  - 新增 EMC 接口方块，将 ProjectE 知识转化为可自动化的样板处理目标
+  - 存储总线风格白名单 GUI（10 页）
+  - 单物品 EMC 缓存，显示上限提升至 `Long.MAX_VALUE`
+
+- **流体掉落物体系重构**
+  - 当 ae2fc 存在时，将 AE2E 流体掉落物处理委托给 ae2fc
+  - 新增 `/ae2e migratefluids` 命令转换已存储的 AE2E 流体掉落物
+  - 流体掉落物直接注入 `IFluidStorageChannel`
+  - 修复 ae2fc 流体样板编码：补充 Inputs/Outputs NBT 标签
+
+- **流水线合成模式（Pipeline Crafting）**
+  - 支持多批次配方的流水线合成模式
+  - 修复多批次 `isIdle` 判断逻辑
+
+- **万能记忆卡（Universal Memory Card）扩展**
+  - 新增科技复兴（Tech Reborn）机器支持
+  - 新增核工艺（NuclearCraft）机器支持，并兼容 2.19a 非重制版
+
+- **CraftTweaker 集成**
+  - 奇点仪式（Singularity Ritual）与装配枢纽升级支持 CT 脚本
+
+- **RF 访问节点（RF Access Node）**
+  - 新增输入/输出模式切换
+  - Shift+右键高亮目标机器
+  - 修复 Shift+右键重复触发与高亮不生效
+  - 修复专用服务端 `AEItemStack.getDisplayName` 的 `NoSuchMethodError`
+
 ### Improve
 
-- **线缆放置颜色无关匹配**：AE 网络中只要有任意颜色的同类型线缆，即可放置配置的目标颜色
-- **中键选取优化**：对 AE2 线缆/Part 方块，优先通过 `IPartHost` 获取中心 Part 的准确物品栈，避免选中“AE Cable and/or Bus”等占位物品
+- **先进 ME 全能工具**
+  - 旅行模式新增穿墙闪烁开关、闪烁距离/破坏冷却/伤害配置项
+  - 混沌核心升级配方可通过配置关闭
+  - 附魔等级上限按原始附魔书 source level 钳制
+  - Shift+AOE、不可破坏方块破坏、混沌配方默认、Travel Staff 式锚点绑定
+  - 修复闪烁落点偏移与 GUI 分页
+
+- **频道接收卡（Channel Receiver Card）**
+  - 支持中枢 ME 接口与 CELLS 部件
+  - 可在所有 CELLS 升级槽位使用
+
+- **中枢 ME 接口（Central ME Interface）**
+  - 推送/收集生命周期重构为 `TargetSession`
+  - 新增全局目标所有权跟踪器，清理死缓存
+  - 多绑定分发修复：遍历所有 IDLE 目标并为每次尝试复制 `InventoryCrafting`
+  - 添加 EIO/TE/NC 远程处理器与流体回收
+  - 强制每目标串行分发与顺序流体面 IO
+  - 抽屉控制器存储总线优化中的 NBT 区分修复
+  - 修复世界重载后抽屉存储总线需要重新放置的问题
+
+- **Omni 终端**
+  - 修复不显示外部 ME 存储的问题
+  - 外部存储合并性能优化
+  - 修复 CELLS 子网代理暴露超维度存储时的重复显示
+  - 修复双向滚动缓存策略与 `size()` 返回 `totalCount`
+  - `@` 模组搜索优化：大网络下模糊搜索阈值、使用 `contains()` 匹配、修复 `@/#` 前缀
+  - 修复抽屉适配器在 `getAvailableItems` 中丢失 NBT 的问题
+
+- **线缆放置**
+  - 颜色无关匹配：网络中任意颜色同类型线缆即可放置目标颜色
+  - 中键选取优先通过 `IPartHost` 获取准确物品栈
+
 - **ME 回收节点材质更新**
 
 ### Bug fix
 
 - 修复批量放置多格时共用 `placeStack` 被 `ItemBlock.onItemUse` 消耗，导致第一格之后全部失败并回滚的问题
-- 修复径向菜单空选项无法正确清除当前预设选择的问题
+- 修复径向菜单空选项无法清除当前预设选择的问题
+- 修复 AE2-UEL 0.56.7 中 `MixinPartStorageBus.addToWorld` 目标缺失
+- 修复 RF Access Node 主动输出由 `IGridTickable` 改为 `ITickable`
+- 修复 Tech Reborn handler 初始化与 NC legacy 升级槽位边界
+- 修复热力膨胀输入槽解锁时的材料分发问题
+- 修复核工艺 Overhauled 支持相关 NPE
+- 基于实际 EnderCore/EIO 类结构重构末影接口处理器
+- 修复 EMC 接口条件注册导致的空条目与推送非 3×3 合成样板崩溃
+- 修复回收节点提取后快照一致性，重新扫描目标
 
 ---
 
