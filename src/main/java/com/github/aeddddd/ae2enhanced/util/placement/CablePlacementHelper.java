@@ -70,7 +70,8 @@ public final class CablePlacementHelper {
             placeStack.setCount(1);
         }
 
-        IAEItemStack request = PlacementToolHelper.findMatchingStack(monitor, placeStack);
+        // 网络中查找任意同类型线缆，不区分颜色
+        IAEItemStack request = PlacementTargetResolver.findCableOfType(monitor, cableStack);
         if (request == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                     placeStack.getDisplayName()));
@@ -88,14 +89,16 @@ public final class CablePlacementHelper {
             return result;
         }
 
-        ItemStack actualPlaceStack = request.getDefinition().copy();
+        ItemStack actualPlaceStack = placeStack.copy();
         actualPlaceStack.setCount(1);
 
         List<BlockPos> placed = new ArrayList<>();
         try {
             for (BlockPos pos : path) {
                 if (!canPlaceCableAt(world, pos)) continue;
-                if (tryPlaceCable(player, world, pos, actualPlaceStack, hand)) {
+                // 每次放置使用新的 stack 副本，防止 AE placeBus 修改后影响后续放置
+                ItemStack stackForPos = actualPlaceStack.copy();
+                if (tryPlaceCable(player, world, pos, stackForPos, hand)) {
                     placed.add(pos);
                 }
             }

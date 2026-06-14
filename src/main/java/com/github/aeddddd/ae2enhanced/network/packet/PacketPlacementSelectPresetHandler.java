@@ -37,15 +37,17 @@ public class PacketPlacementSelectPresetHandler implements IMessageHandler<Packe
                 RayTraceResult ray = player.rayTrace(5.0, 1.0f);
                 if (ray == null || ray.typeOfHit != RayTraceResult.Type.BLOCK) return;
 
-                net.minecraft.block.state.IBlockState state = player.world.getBlockState(ray.getBlockPos());
-                ItemStack pick = state.getBlock().getItem(player.world, ray.getBlockPos(), state);
-                if (pick == null || pick.isEmpty()) return;
+                ItemStack pick = com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver.pickRepresentativeStack(player.world, ray.getBlockPos());
+                if (pick.isEmpty()) return;
 
-                // 合并同种选取：如果已有相同物品（忽略数量），直接选中该槽
+                // 合并同种选取：普通物品精确比较；线缆按类型比较（忽略颜色）
                 int existing = -1;
                 for (int i = 0; i < PlacementConfig.MAX_PRESETS; i++) {
                     ItemStack p = config.getStackInSlot(i);
-                    if (!p.isEmpty() && ItemStack.areItemStacksEqual(p, pick)) {
+                    if (p.isEmpty()) continue;
+                    if (com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver.isSameCableType(p, pick)
+                            || (!com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver.isCable(p)
+                            && ItemStack.areItemStacksEqual(p, pick))) {
                         existing = i;
                         break;
                     }

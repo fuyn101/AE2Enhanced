@@ -1,6 +1,13 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
+import appeng.api.AEApi;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartHost;
+import appeng.api.parts.PartItemStack;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AEColor;
+import appeng.api.util.AEPartLocation;
 import appeng.items.parts.ItemPart;
 import appeng.items.parts.PartType;
 import net.minecraft.block.Block;
@@ -8,6 +15,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -86,6 +94,29 @@ public final class PlacementTargetResolver {
     }
 
     /**
+     * 从世界中拾取一个代表性的物品栈。
+     * 对于 AE2 Part/线缆方块，优先从 IPartHost 获取中心 Part 的拾取栈，
+     * 以避免 Block.getItem 返回“AE Cable and/or Bus”等不具体的物品。
+     */
+    public static ItemStack pickRepresentativeStack(World world, BlockPos pos) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof IPartHost) {
+            IPartHost host = (IPartHost) te;
+            IPart center = host.getPart(AEPartLocation.INTERNAL);
+            if (center != null) {
+                ItemStack pick = center.getItemStack(PartItemStack.PICK);
+                if (!pick.isEmpty()) {
+                    return pick;
+                }
+            }
+        }
+
+        IBlockState state = world.getBlockState(pos);
+        ItemStack pick = state.getBlock().getItem(world, pos, state);
+        return pick != null ? pick : ItemStack.EMPTY;
+    }
+
+    /**
      * 判断物品是否可放置（方块、AE2 Part、Facade）。
      */
     public static boolean isPlaceable(ItemStack stack) {
@@ -103,6 +134,45 @@ public final class PlacementTargetResolver {
         if (!(stack.getItem() instanceof ItemPart)) return false;
         PartType type = ((ItemPart) stack.getItem()).getTypeByStack(stack);
         return type != null && type.isCable();
+    }
+
+    /**
+     * 获取线缆的基础类型（颜色视为 TRANSPARENT），用于忽略颜色进行比较。
+     */
+    public static PartType getCablePartType(ItemStack cable) {
+        if (!isCable(cable)) return null;
+        return ((ItemPart) cable.getItem()).getTypeByStack(cable);
+    }
+
+    /**
+     * 判断两种线缆是否为同一类型（忽略颜色）。
+     */
+    public static boolean isSameCableType(ItemStack a, ItemStack b) {
+        PartType typeA = getCablePartType(a);
+        PartType typeB = getCablePartType(b);
+        return typeA != null && typeA == typeB;
+    }
+
+    /**
+     * 在 AE 网络中查找任意一种同类型线缆（忽略颜色）。
+     *
+     * @param monitor   网络物品存储
+     * @param baseCable 参考线缆物品
+     * @return 找到的网络栈，无则 null
+     */
+    @Nullable
+    public static IAEItemStack findCableOfType(IMEMonitor<IAEItemStack> monitor, ItemStack baseCable) {
+        if (!isCable(baseCable)) return null;
+        PartType targetType = getCablePartType(baseCable);
+        if (targetType == null) return null;
+
+        for (IAEItemStack stack : monitor.getStorageList()) {
+            ItemStack netStack = stack.getDefinition();
+            if (isSameCableType(baseCable, netStack)) {
+                return stack.copy();
+            }
+        }
+        return null;
     }
 
     /**

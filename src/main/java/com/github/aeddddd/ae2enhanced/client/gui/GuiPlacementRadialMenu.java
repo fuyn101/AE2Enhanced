@@ -94,6 +94,10 @@ public class GuiPlacementRadialMenu extends GuiScreen {
     }
 
     private static boolean isSameItemType(ItemStack a, ItemStack b) {
+        // 线缆按类型合并，忽略颜色
+        if (com.github.aeddddd.ae2enhanced.util.placement.PlacementTargetResolver.isSameCableType(a, b)) {
+            return true;
+        }
         return a.getItem() == b.getItem()
                 && a.getMetadata() == b.getMetadata()
                 && ItemStack.areItemStackTagsEqual(a, b);
