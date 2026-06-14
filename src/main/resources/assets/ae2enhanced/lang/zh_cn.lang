@@ -1,5 +1,9 @@
 itemGroup.ae2enhanced=AE2 Enhanced
 
+config.ae2enhanced:OmniTool=先进ME工具
+config.ae2enhanced:OmniTool.breakableBlacklist=破坏黑名单
+config.ae2enhanced:OmniTool.maxEnchantmentLevel=最大附魔等级
+
 item.ae2enhanced.part_universal_import_bus.name=通用输入总线
 item.ae2enhanced.part_universal_import_bus.tooltip=§e通用输入总线 §7— 输入物品、流体、气体和源质
 gui.ae2enhanced.universal_import_bus.name=通用输入总线
@@ -358,6 +362,7 @@ item.ae2enhanced.me_omni_tool.upgrade.fortune=§a时运 %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§d旅行手杖
 item.ae2enhanced.me_omni_tool.upgrade.conformal=§b共形不变荷
 item.ae2enhanced.me_omni_tool.no_upgrades=§7未安装升级
+item.ae2enhanced.me_omni_tool.unknown_enchant=§7未知附魔 (id=%d, lvl=%d)
 item.ae2enhanced.me_omni_tool.blink_dist=§7位移距离: §e%.1f
 item.ae2enhanced.me_omni_tool.wall_phase.on=§a穿墙瞬移: 开启
 item.ae2enhanced.me_omni_tool.wall_phase.off=§c穿墙瞬移: 关闭
@@ -398,10 +403,12 @@ gui.ae2enhanced.omni_tool_config.advanced_silk_touch=高级精准采集
 gui.ae2enhanced.omni_tool_config.advanced_silk_touch.desc=破坏方块时保留其 NBT 数据
 gui.ae2enhanced.omni_tool_config.wall_phase=穿墙瞬移
 gui.ae2enhanced.omni_tool_config.wall_phase.desc=允许闪烁位移穿透墙壁
+gui.ae2enhanced.omni_tool_config.enchant.desc=调整已导入附魔书的附魔等级
 gui.ae2enhanced.omni_tool_config.next_page=下一页
 gui.ae2enhanced.omni_tool_config.prev_page=上一页
 gui.ae2enhanced.omni_tool_config.not_installed=未安装
 key.ae2enhanced.omnitool_config=ME工具: 打开配置界面
+message.ae2enhanced.omnitool.travel_anchor_not_found=§c[ME工具] 未找到有效的 Travel Anchor 目标
 
 tile.ae2enhanced.advanced_me_collector.name=先进 ME 收集器
 gui.ae2enhanced.advanced_me_collector.name=先进 ME 收集器

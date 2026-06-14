@@ -1,6 +1,9 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
 import io.netty.buffer.ByteBuf;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 
 /**
@@ -11,7 +14,7 @@ public class PacketOmniToolConfig implements IMessage {
     private int mode;
     private int dropMode;
     private boolean silkTouch;
-    private int fortune;
+    private int fortune; // 保留兼容旧版工具
     private double blinkDistance;
     private int breakCooldown;
     private int paramEnabled;
@@ -19,6 +22,7 @@ public class PacketOmniToolConfig implements IMessage {
     private boolean conformalEnabled;
     private boolean advancedSilkTouch;
     private boolean wallPhase;
+    private NBTTagList enchantments;
 
     public PacketOmniToolConfig() {
     }
@@ -26,7 +30,7 @@ public class PacketOmniToolConfig implements IMessage {
     public PacketOmniToolConfig(int mode, int dropMode, boolean silkTouch,
                                  int fortune, double blinkDistance, int breakCooldown,
                                  int paramEnabled, boolean chaosForceKill, boolean conformalEnabled,
-                                 boolean advancedSilkTouch, boolean wallPhase) {
+                                 boolean advancedSilkTouch, boolean wallPhase, NBTTagList enchantments) {
         this.mode = mode;
         this.dropMode = dropMode;
         this.silkTouch = silkTouch;
@@ -38,6 +42,7 @@ public class PacketOmniToolConfig implements IMessage {
         this.conformalEnabled = conformalEnabled;
         this.advancedSilkTouch = advancedSilkTouch;
         this.wallPhase = wallPhase;
+        this.enchantments = enchantments;
     }
 
     public int getMode() { return mode; }
@@ -51,6 +56,7 @@ public class PacketOmniToolConfig implements IMessage {
     public boolean isConformalEnabled() { return conformalEnabled; }
     public boolean isAdvancedSilkTouch() { return advancedSilkTouch; }
     public boolean isWallPhase() { return wallPhase; }
+    public NBTTagList getEnchantments() { return enchantments; }
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -65,6 +71,12 @@ public class PacketOmniToolConfig implements IMessage {
         conformalEnabled = buf.readBoolean();
         advancedSilkTouch = buf.readBoolean();
         wallPhase = buf.readBoolean();
+        NBTTagCompound wrapper = ByteBufUtils.readTag(buf);
+        if (wrapper != null && wrapper.hasKey("ench", 9)) {
+            enchantments = wrapper.getTagList("ench", 10);
+        } else {
+            enchantments = new NBTTagList();
+        }
     }
 
     @Override
@@ -80,5 +92,10 @@ public class PacketOmniToolConfig implements IMessage {
         buf.writeBoolean(conformalEnabled);
         buf.writeBoolean(advancedSilkTouch);
         buf.writeBoolean(wallPhase);
+        NBTTagCompound wrapper = new NBTTagCompound();
+        if (enchantments != null && enchantments.tagCount() > 0) {
+            wrapper.setTag("ench", enchantments);
+        }
+        ByteBufUtils.writeTag(buf, wrapper);
     }
 }

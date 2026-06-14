@@ -7,15 +7,20 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -39,14 +44,14 @@ public class GuiOmniToolConfig extends GuiContainer {
     private static final int PID_MODE = 0;
     private static final int PID_DROP = 1;
     private static final int PID_SILK = 2;
-    private static final int PID_FORTUNE = 3;
-    private static final int PID_BLINK = 4;
-    private static final int PID_COOLDOWN = 5;
-    private static final int PID_CHAOS_KILL = 6;
-    private static final int PID_CONFORMAL = 7;
-    private static final int PID_ADVANCED_SILK = 8;
-    private static final int PID_WALL_PHASE = 9;
-    private static final int PID_COUNT = 10;
+    private static final int PID_BLINK = 3;
+    private static final int PID_COOLDOWN = 4;
+    private static final int PID_CHAOS_KILL = 5;
+    private static final int PID_CONFORMAL = 6;
+    private static final int PID_ADVANCED_SILK = 7;
+    private static final int PID_WALL_PHASE = 8;
+    private static final int PID_COUNT = 9;
+    private static final int PID_ENCHANT_BASE = 1000;
 
     // ---- UV坐标：顶部按钮区 ----
     private static final int LEFT_BTN_X = 4;
@@ -89,11 +94,20 @@ public class GuiOmniToolConfig extends GuiContainer {
         final Predicate<ItemStack> visibleWhen;
         final Function<ItemStack, Integer> getter;
         final BiConsumer<ItemStack, Integer> setter;
+        final short enchantmentId; // 仅附魔参数使用，-1 表示普通参数
 
         ParamDef(int id, String nameKey, String descKey, int min, int max,
                  Predicate<ItemStack> visibleWhen,
                  Function<ItemStack, Integer> getter,
                  BiConsumer<ItemStack, Integer> setter) {
+            this(id, nameKey, descKey, min, max, visibleWhen, getter, setter, (short) -1);
+        }
+
+        ParamDef(int id, String nameKey, String descKey, int min, int max,
+                 Predicate<ItemStack> visibleWhen,
+                 Function<ItemStack, Integer> getter,
+                 BiConsumer<ItemStack, Integer> setter,
+                 short enchantmentId) {
             this.id = id;
             this.nameKey = nameKey;
             this.descKey = descKey;
@@ -102,10 +116,15 @@ public class GuiOmniToolConfig extends GuiContainer {
             this.visibleWhen = visibleWhen;
             this.getter = getter;
             this.setter = setter;
+            this.enchantmentId = enchantmentId;
+        }
+
+        boolean isEnchantment() {
+            return enchantmentId >= 0;
         }
     }
 
-    private static final ParamDef[] ALL_PARAMS = {
+    private static final ParamDef[] BASE_PARAMS = {
         new ParamDef(PID_MODE, "gui.ae2enhanced.omni_tool_config.mode",
                 "gui.ae2enhanced.omni_tool_config.mode.desc",
                 0, 3, s -> true,
@@ -121,11 +140,6 @@ public class GuiOmniToolConfig extends GuiContainer {
                 0, 1, s -> true,
                 s -> ItemAdvancedMEOmniTool.isSilkTouchEnabled(s) ? 1 : 0,
                 (s, v) -> ItemAdvancedMEOmniTool.setSilkTouchEnabled(s, v > 0)),
-        new ParamDef(PID_FORTUNE, "gui.ae2enhanced.omni_tool_config.fortune",
-                "gui.ae2enhanced.omni_tool_config.fortune.desc",
-                0, 3, ItemAdvancedMEOmniTool::hasFortuneUpgrade,
-                ItemAdvancedMEOmniTool::getFortuneLevel,
-                ItemAdvancedMEOmniTool::setFortuneLevel),
         new ParamDef(PID_BLINK, "gui.ae2enhanced.omni_tool_config.blink_dist",
                 "gui.ae2enhanced.omni_tool_config.blink_dist.desc",
                 1, 256, s -> true,
@@ -162,6 +176,7 @@ public class GuiOmniToolConfig extends GuiContainer {
     private ItemStack toolStack = ItemStack.EMPTY;
 
     private final int[] values = new int[PID_COUNT];
+    private final Map<Short, Integer> enchantValues = new LinkedHashMap<>();
     private int paramEnabledMask = 0xFF;
     private int dragParam = -1;
 
@@ -204,7 +219,6 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[PID_MODE] = ItemAdvancedMEOmniTool.getMode(toolStack);
         values[PID_DROP] = ItemAdvancedMEOmniTool.getDropMode(toolStack);
         values[PID_SILK] = ItemAdvancedMEOmniTool.isSilkTouchEnabled(toolStack) ? 1 : 0;
-        values[PID_FORTUNE] = Math.max(0, ItemAdvancedMEOmniTool.getFortuneLevel(toolStack));
         values[PID_BLINK] = (int) ItemAdvancedMEOmniTool.getBlinkDistance(toolStack);
         values[PID_COOLDOWN] = ItemAdvancedMEOmniTool.getBreakCooldown(toolStack);
         values[PID_CHAOS_KILL] = ItemAdvancedMEOmniTool.isChaosForceKillEnabled(toolStack) ? 1 : 0;
@@ -219,11 +233,40 @@ public class GuiOmniToolConfig extends GuiContainer {
             }
         }
 
+        enchantValues.clear();
+        NBTTagList stored = ItemAdvancedMEOmniTool.getStoredEnchantments(toolStack);
+        for (int i = 0; i < stored.tagCount(); i++) {
+            NBTTagCompound tag = stored.getCompoundTagAt(i);
+            enchantValues.put(tag.getShort("id"), (int) tag.getShort("lvl"));
+        }
+
         activeParams.clear();
-        for (ParamDef p : ALL_PARAMS) {
+        for (ParamDef p : BASE_PARAMS) {
             if (p.visibleWhen.test(toolStack)) {
                 activeParams.add(p);
             }
+        }
+
+        // 附魔调整参数统一放在基础参数后面
+        int enchantIdx = 0;
+        for (Map.Entry<Short, Integer> entry : enchantValues.entrySet()) {
+            short enchId = entry.getKey();
+            Enchantment ench = Enchantment.getEnchantmentByID(enchId);
+            String name = ench != null ? ench.getName() : "enchantment.unknown";
+            String nameKey = "gui.ae2enhanced.omni_tool_config.enchant." + enchId;
+            // 动态注册到 I18n 不可行，这里使用附魔自带名称；描述使用统一键
+            ParamDef p = new ParamDef(
+                    PID_ENCHANT_BASE + enchantIdx,
+                    name,
+                    "gui.ae2enhanced.omni_tool_config.enchant.desc",
+                    0, com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.maxEnchantmentLevel,
+                    s -> true,
+                    s -> enchantValues.getOrDefault(enchId, 0),
+                    (s, v) -> enchantValues.put(enchId, v),
+                    enchId
+            );
+            activeParams.add(p);
+            enchantIdx++;
         }
 
         selParam = MathHelper.clamp(selParam, 0, Math.max(0, activeParams.size() - 1));
@@ -377,7 +420,12 @@ public class GuiOmniToolConfig extends GuiContainer {
             } else if (idx == -2) {
                 text = I18n.format("gui.ae2enhanced.omni_tool_config.prev_page");
             } else if (idx >= 0) {
-                text = I18n.format(activeParams.get(idx).nameKey);
+                ParamDef p = activeParams.get(idx);
+                if (p.isEnchantment()) {
+                    text = getEnchantmentDisplayName(p.enchantmentId);
+                } else {
+                    text = I18n.format(p.nameKey);
+                }
             } else {
                 continue;
             }
@@ -389,15 +437,20 @@ public class GuiOmniToolConfig extends GuiContainer {
         if (activeParams.isEmpty()) return;
         ParamDef p = activeParams.get(selParam);
 
-        // Bar1 文字 — 参数名 + ON/OFF
-        String bar1Name = I18n.format(p.nameKey);
+        // Bar1 文字 — 参数名 + ON/OFF（附魔参数显示为等级）
+        String bar1Name;
+        if (p.isEnchantment()) {
+            bar1Name = getEnchantmentDisplayName(p.enchantmentId);
+        } else {
+            bar1Name = I18n.format(p.nameKey);
+        }
         String bar1State = isParamEnabled(p.id) ? "ON" : "OFF";
         fontRenderer.drawString(bar1Name, BAR1_X + 6, BAR1_Y + 4, 0x333333);
         fontRenderer.drawString(bar1State,
                 BAR1_X + BAR_W - 6 - fontRenderer.getStringWidth(bar1State), BAR1_Y + 4, 0x333333);
 
         // Bar2 文字 — 当前值
-        String valStr = formatValue(p, values[p.id]);
+        String valStr = formatValue(p);
         fontRenderer.drawString(valStr,
                 BAR2_X + BAR_W - 6 - fontRenderer.getStringWidth(valStr), BAR2_Y + 4, 0x333333);
 
@@ -407,33 +460,64 @@ public class GuiOmniToolConfig extends GuiContainer {
                 BAR_W - 8, 0x555555);
     }
 
-    private String formatValue(ParamDef p, int value) {
+    private String getEnchantmentDisplayName(short enchantmentId) {
+        Enchantment ench = Enchantment.getEnchantmentByID(enchantmentId);
+        if (ench != null) {
+            return ench.getTranslatedName(enchantValues.getOrDefault(enchantmentId, 0));
+        }
+        return I18n.format("item.ae2enhanced.me_omni_tool.unknown_enchant", enchantmentId,
+                enchantValues.getOrDefault(enchantmentId, 0));
+    }
+
+    private String formatValue(ParamDef p) {
+        if (p.isEnchantment()) {
+            return String.valueOf(getValue(p));
+        }
         switch (p.id) {
             case PID_MODE:
-                return I18n.format(ItemAdvancedMEOmniTool.getModeNameKey(value));
+                return I18n.format(ItemAdvancedMEOmniTool.getModeNameKey(getValue(p)));
             case PID_DROP:
-                return I18n.format(ItemAdvancedMEOmniTool.getDropModeNameKey(value));
+                return I18n.format(ItemAdvancedMEOmniTool.getDropModeNameKey(getValue(p)));
             case PID_SILK:
             case PID_CHAOS_KILL:
             case PID_CONFORMAL:
             case PID_ADVANCED_SILK:
-                return value > 0 ? "ON" : "OFF";
+            case PID_WALL_PHASE:
+                return getValue(p) > 0 ? "ON" : "OFF";
             default:
-                return String.valueOf(value);
+                return String.valueOf(getValue(p));
+        }
+    }
+
+    private int getValue(ParamDef p) {
+        if (p.isEnchantment()) {
+            return enchantValues.getOrDefault(p.enchantmentId, 0);
+        }
+        return values[p.id];
+    }
+
+    private void setValue(ParamDef p, int value) {
+        if (p.isEnchantment()) {
+            enchantValues.put(p.enchantmentId, value);
+        } else {
+            values[p.id] = value;
         }
     }
 
     private int computeKnobX(ParamDef p) {
-        float ratio = (values[p.id] - p.min) / (float) (p.max - p.min);
+        int value = getValue(p);
+        float ratio = (value - p.min) / (float) (p.max - p.min);
         int trackX = this.guiLeft + BAR2_X;
         return trackX + Math.round(ratio * (BAR_W - KNOB_W));
     }
 
     private boolean isParamEnabled(int paramId) {
+        if (paramId >= PID_ENCHANT_BASE) return true; // 附魔参数始终启用
         return (paramEnabledMask & (1 << paramId)) != 0;
     }
 
     private void setParamEnabled(int paramId, boolean enabled) {
+        if (paramId >= PID_ENCHANT_BASE) return;
         if (enabled) paramEnabledMask |= (1 << paramId);
         else paramEnabledMask &= ~(1 << paramId);
     }
@@ -483,8 +567,8 @@ public class GuiOmniToolConfig extends GuiContainer {
         if (activeParams.isEmpty()) return;
         ParamDef p = activeParams.get(selParam);
 
-        // Bar1 — 切换启用/禁用
-        if (in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR_W, BAR_H)) {
+        // Bar1 — 切换启用/禁用（附魔参数无效）
+        if (!p.isEnchantment() && in(mouseX, mouseY, this.guiLeft + BAR1_X, this.guiTop + BAR1_Y, BAR_W, BAR_H)) {
             setParamEnabled(p.id, !isParamEnabled(p.id));
             return;
         }
@@ -514,11 +598,12 @@ public class GuiOmniToolConfig extends GuiContainer {
         if (p == null) return;
         int trackX = this.guiLeft + BAR2_X;
         float ratio = MathHelper.clamp((mouseX - trackX) / (float) (BAR_W - KNOB_W), 0f, 1f);
-        values[dragParam] = p.min + Math.round(ratio * (p.max - p.min));
+        int value = p.min + Math.round(ratio * (p.max - p.min));
+        setValue(p, value);
     }
 
     private ParamDef getParamDefById(int id) {
-        for (ParamDef p : ALL_PARAMS) {
+        for (ParamDef p : activeParams) {
             if (p.id == id) return p;
         }
         return null;
@@ -535,7 +620,6 @@ public class GuiOmniToolConfig extends GuiContainer {
         ItemAdvancedMEOmniTool.setMode(toolStack, values[PID_MODE]);
         ItemAdvancedMEOmniTool.setDropMode(toolStack, values[PID_DROP]);
         ItemAdvancedMEOmniTool.setSilkTouchEnabled(toolStack, values[PID_SILK] > 0);
-        ItemAdvancedMEOmniTool.setFortuneLevel(toolStack, values[PID_FORTUNE]);
         ItemAdvancedMEOmniTool.setBlinkDistance(toolStack, values[PID_BLINK]);
         ItemAdvancedMEOmniTool.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
         ItemAdvancedMEOmniTool.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
@@ -546,11 +630,22 @@ public class GuiOmniToolConfig extends GuiContainer {
             ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
         }
 
+        // 应用附魔调整
+        NBTTagList enchList = new NBTTagList();
+        for (Map.Entry<Short, Integer> entry : enchantValues.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            NBTTagCompound tag = new NBTTagCompound();
+            tag.setShort("id", entry.getKey());
+            tag.setShort("lvl", entry.getValue().shortValue());
+            enchList.appendTag(tag);
+        }
+        ItemAdvancedMEOmniTool.setStoredEnchantments(toolStack, enchList);
+
         AE2Enhanced.network.sendToServer(new PacketOmniToolConfig(
                 values[PID_MODE], values[PID_DROP], values[PID_SILK] > 0,
-                values[PID_FORTUNE], values[PID_BLINK], values[PID_COOLDOWN],
+                ItemAdvancedMEOmniTool.getFortuneLevel(toolStack), values[PID_BLINK], values[PID_COOLDOWN],
                 paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0,
-                values[PID_ADVANCED_SILK] > 0, values[PID_WALL_PHASE] > 0));
+                values[PID_ADVANCED_SILK] > 0, values[PID_WALL_PHASE] > 0, enchList));
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {

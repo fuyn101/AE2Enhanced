@@ -198,13 +198,13 @@ public final class GameRegistryManager {
             }
         }
 
-        // ME Omni Tool - Fortune upgrade
+        // ME Omni Tool - Enchanted Book upgrade（任意附魔书）
         event.getRegistry().register(new RecipeOmniToolUpgrade(
-                new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_fortune_upgrade"),
+                new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_enchanted_book_upgrade"),
                 new ItemStack(ItemRegistry.ME_OMNI_TOOL),
-                "fortune",
+                "enchanted_book",
                 new ItemStack(ItemRegistry.ME_OMNI_TOOL),
                 new ItemStack(Items.ENCHANTED_BOOK)
-        ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_fortune_upgrade"));
+        ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_enchanted_book_upgrade"));
     }
 }

@@ -238,6 +238,21 @@ public class AE2EnhancedConfig {
             "Default: true"
         })
         public boolean enableWallPhase = true;
+
+        @Config.Comment({
+            "Blacklist of block registry names that the Advanced ME Omni Tool cannot break.",
+            "Format: modid:blockname (e.g. minecraft:bedrock).",
+            "Default: empty (all blocks are breakable by default)."
+        })
+        public String[] breakableBlacklist = {};
+
+        @Config.Comment({
+            "Maximum enchantment level that can be configured on the Advanced ME Omni Tool.",
+            "Applies to enchantments imported from enchanted books.",
+            "Range: 1 ~ 32767, Default: 255"
+        })
+        @Config.RangeInt(min = 1, max = Short.MAX_VALUE)
+        public int maxEnchantmentLevel = 255;
     }
 
     public static class WirelessChannel {

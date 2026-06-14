@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.crafting;
 
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -50,9 +49,6 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         if ("chaos".equals(upgradeType) && ItemAdvancedMEOmniTool.hasChaosCore(omniTool)) {
             return false;
         }
-        if ("fortune".equals(upgradeType) && ItemAdvancedMEOmniTool.getFortuneLevel(omniTool) > 0) {
-            return false;
-        }
 
         return true;
     }
@@ -61,26 +57,11 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         if ("chaos".equals(upgradeType)) {
             return stack.getItem().getRegistryName() != null
                     && "draconicevolution:chaotic_core".equals(stack.getItem().getRegistryName().toString());
-        } else if ("fortune".equals(upgradeType)) {
+        } else if ("enchanted_book".equals(upgradeType)) {
             if (stack.getItem() != Items.ENCHANTED_BOOK) return false;
-            return getFortuneLevelFromBook(stack) > 0;
+            return ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(stack).tagCount() > 0;
         }
         return false;
-    }
-
-    private static int getFortuneLevelFromBook(ItemStack stack) {
-        if (!stack.hasTagCompound()) return 0;
-        NBTTagList list = stack.getTagCompound().getTagList("StoredEnchantments", 10);
-        for (int i = 0; i < list.tagCount(); i++) {
-            NBTTagCompound tag = list.getCompoundTagAt(i);
-            Enchantment ench = Enchantment.getEnchantmentByID(tag.getShort("id"));
-            if (ench != null && ench.getRegistryName() != null
-                    && "minecraft".equals(ench.getRegistryName().getNamespace())
-                    && "fortune".equals(ench.getRegistryName().getPath())) {
-                return tag.getShort("lvl");
-            }
-        }
-        return 0;
     }
 
     @Override
@@ -89,9 +70,10 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         ItemStack book = ItemStack.EMPTY;
         for (int i = 0; i < inv.getSizeInventory(); i++) {
             ItemStack stack = inv.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
             if (stack.getItem() instanceof ItemAdvancedMEOmniTool) {
                 omniTool = stack;
-            } else if (stack.getItem() == Items.ENCHANTED_BOOK) {
+            } else if (matchesUpgradeItem(stack)) {
                 book = stack;
             }
         }
@@ -101,9 +83,20 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         result.setCount(1);
         if ("chaos".equals(upgradeType)) {
             ItemAdvancedMEOmniTool.setChaosCore(result, true);
-        } else if ("fortune".equals(upgradeType)) {
-            int level = getFortuneLevelFromBook(book);
-            ItemAdvancedMEOmniTool.setFortuneLevel(result, level > 0 ? level : 3);
+        } else if ("enchanted_book".equals(upgradeType)) {
+            // 将原书上的附魔合并到工具的存储附魔区
+            NBTTagList existing = ItemAdvancedMEOmniTool.getStoredEnchantments(result);
+            NBTTagList fromBook = ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(book);
+            for (int i = 0; i < fromBook.tagCount(); i++) {
+                NBTTagCompound src = fromBook.getCompoundTagAt(i);
+                short id = src.getShort("id");
+                short lvl = src.getShort("lvl");
+                // 同名附魔取较高等级
+                int current = ItemAdvancedMEOmniTool.getStoredEnchantmentLevel(result, id);
+                if (lvl > current) {
+                    ItemAdvancedMEOmniTool.setStoredEnchantmentLevel(result, id, lvl);
+                }
+            }
         }
         return result;
     }
