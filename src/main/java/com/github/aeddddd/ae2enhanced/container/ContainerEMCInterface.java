@@ -15,14 +15,21 @@ import javax.annotation.Nonnull;
 /**
  * EMC 接口容器.
  *
- * <p>复用 3.png 纹理图集风格；每页 7×9 过滤槽，共 10 页。
+ * <p>复用 3.png 纹理图集布局：顶部 17×6 大过滤格作为 EMC 白名单槽，
+ * 中部 10×3 区域显示玩家背包 9×3，底部 10×1 区域显示快捷栏。
  * 过滤槽仅允许存在 EMC 值的物品。</p>
  */
 public class ContainerEMCInterface extends Container {
 
-    public static final int PAGE_ROWS = 7;
-    public static final int PAGE_COLS = 9;
-    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS;
+    // 3.png 大过滤格区域：17 列 × 6 行
+    public static final int PAGE_ROWS = 6;
+    public static final int PAGE_COLS = 17;
+    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS; // 102
+
+    // 3.png 玩家背包区域（居中在 10 列宽度的中间 9 列）
+    private static final int INV_X = 88;
+    private static final int INV_Y = 145;
+    private static final int HOTBAR_Y = 203;
 
     private final TileEMCInterface tile;
     private int currentPage = 0;
@@ -37,14 +44,15 @@ public class ContainerEMCInterface extends Container {
         }
         refreshSlotPositions();
 
-        // 玩家背包
+        // 玩家背包 9×3（居中于 3.png 中部过滤格）
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {
-                addSlotToContainer(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 174 + i * 18));
+                addSlotToContainer(new Slot(playerInventory, j + i * 9 + 9, INV_X + j * 18, INV_Y + i * 18));
             }
         }
+        // 快捷栏
         for (int i = 0; i < 9; i++) {
-            addSlotToContainer(new Slot(playerInventory, i, 8 + i * 18, 232));
+            addSlotToContainer(new Slot(playerInventory, i, INV_X + i * 18, HOTBAR_Y));
         }
     }
 
@@ -72,8 +80,8 @@ public class ContainerEMCInterface extends Container {
             if (relative >= 0 && relative < SLOTS_PER_PAGE) {
                 int x = relative % PAGE_COLS;
                 int y = relative / PAGE_COLS;
-                slot.xPos = 8 + x * 18;
-                slot.yPos = 29 + y * 18;
+                slot.xPos = 7 + x * 18;
+                slot.yPos = 25 + y * 18;
             } else {
                 slot.xPos = -1000;
                 slot.yPos = -1000;

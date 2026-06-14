@@ -438,6 +438,8 @@ gui.ae2enhanced.emc_interface.title=EMC Interface
 gui.ae2enhanced.emc_interface.owner=Owner: %s
 gui.ae2enhanced.emc_interface.unbound=Unbound
 gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+Click title to bind current player
+gui.ae2enhanced.emc_interface.prev=Prev
+gui.ae2enhanced.emc_interface.next=Next
 chat.ae2enhanced.emc_interface.bound=EMC Interface bound to %s
 chat.ae2enhanced.emc_interface.duplicate=§eWarning: You have multiple EMC Interfaces on this network; extraction is limited by your real EMC balance.
 

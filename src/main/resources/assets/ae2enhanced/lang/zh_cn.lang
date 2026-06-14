@@ -436,6 +436,8 @@ gui.ae2enhanced.emc_interface.title=EMC 接口
 gui.ae2enhanced.emc_interface.owner=所有者: %s
 gui.ae2enhanced.emc_interface.unbound=未绑定
 gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+左键标题绑定当前玩家
+gui.ae2enhanced.emc_interface.prev=上一页
+gui.ae2enhanced.emc_interface.next=下一页
 chat.ae2enhanced.emc_interface.bound=EMC 接口已绑定至 %s
 chat.ae2enhanced.emc_interface.duplicate=§e警告: 你的 EMC 接口在网络中有多个副本,实际提取由 EMC 余额兜底.
 
