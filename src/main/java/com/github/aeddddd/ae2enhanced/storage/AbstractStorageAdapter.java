@@ -11,6 +11,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 
 import java.math.BigInteger;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +39,9 @@ import java.util.function.BiConsumer;
  */
 public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends Descriptor>
         implements IMEMonitor<T>, IMEInventoryHandler<T> {
+
+    // ---- 常量缓存：避免热路径重复创建 BigInteger ----
+    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
 
     protected final Map<D, BigInteger> storage = new ConcurrentHashMap<>();
     protected IStorageChannel<T> channel;
@@ -83,17 +87,26 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             return input; // 安全模式：拒绝写入
         }
         D key = createDescriptor(input);
+        if (key == null) {
+            return input;
+        }
         BigInteger amount = BigInteger.valueOf(input.getStackSize());
 
         if (type == Actionable.MODULATE) {
-            boolean isNew = !storage.containsKey(key);
-            storage.merge(key, amount, BigInteger::add);
-            totalCount.updateAndGet(t -> t.add(amount));
-            if (isNew) {
+            BigInteger old = storage.get(key);
+            if (old == null) {
+                storage.put(key, amount);
                 onDescriptorAdded(key);
+            } else {
+                storage.put(key, old.add(amount));
             }
+            addToTotal(amount);
             file.markDirty();
-            notifyPostChange(input.copy(), src);
+
+            // 只在真正有监听器时才构造 change 与通知
+            if (hasChangeConsumers()) {
+                notifyPostChange(input.copy(), src);
+            }
             return null; // 无限容量,全部接受
         }
         // SIMULATE: 无限容量,全部接受
@@ -104,43 +117,41 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     public T extractItems(T request, Actionable type, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
         D key = createDescriptor(request);
+        if (key == null) {
+            return null;
+        }
         BigInteger requested = BigInteger.valueOf(request.getStackSize());
-        BigInteger toExtract;
+        BigInteger available = storage.get(key);
+        if (available == null) {
+            return null;
+        }
+        BigInteger toExtract = available.min(requested);
+        if (toExtract.signum() <= 0) {
+            return null;
+        }
 
         if (type == Actionable.MODULATE) {
-            final BigInteger[] extracted = new BigInteger[1];
-            final boolean[] removed = {false};
-            storage.compute(key, (k, available) -> {
-                BigInteger avail = available == null ? BigInteger.ZERO : available;
-                BigInteger extract = avail.min(requested);
-                if (extract.signum() <= 0) {
-                    return available;
-                }
-                extracted[0] = extract;
-                BigInteger remaining = avail.subtract(extract);
-                if (remaining.signum() <= 0) {
-                    removed[0] = true;
-                    return null;
-                }
-                return remaining;
-            });
-            toExtract = extracted[0];
-            if (toExtract == null) {
-                return null;
-            }
-            totalCount.updateAndGet(t -> t.subtract(toExtract));
-            if (removed[0]) {
+            BigInteger remaining = available.subtract(toExtract);
+            if (remaining.signum() <= 0) {
+                storage.remove(key);
                 onDescriptorRemoved(key);
+            } else {
+                storage.put(key, remaining);
             }
+            subtractFromTotal(toExtract);
             file.markDirty();
-            T change = request.copy();
-            change.setStackSize(-toExtract.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
-            notifyPostChange(change, src);
-        } else {
-            BigInteger available = storage.getOrDefault(key, BigInteger.ZERO);
-            toExtract = available.min(requested);
-            if (toExtract.signum() <= 0) {
-                return null;
+
+            if (hasChangeConsumers()) {
+                T change = request.copy();
+                // 绝大部分提取量都在 long 范围内,避免 min() 分配
+                long changeSize;
+                if (toExtract.bitLength() < 63) {
+                    changeSize = -toExtract.longValue();
+                } else {
+                    changeSize = -toExtract.min(LONG_MAX).longValue();
+                }
+                change.setStackSize(changeSize);
+                notifyPostChange(change, src);
             }
         }
 
@@ -149,7 +160,6 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
     @Override
     public IItemList<T> getAvailableItems(IItemList<T> out) {
-        int added = 0;
         for (Map.Entry<D, BigInteger> entry : storage.entrySet()) {
             D desc = entry.getKey();
             T aeStack = getAETemplate(desc);
@@ -157,13 +167,12 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
             BigInteger count = entry.getValue();
             T copy = aeStack.copy();
-            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+            if (count.compareTo(LONG_MAX) > 0) {
                 copy.setStackSize(Long.MAX_VALUE);
             } else {
                 copy.setStackSize(count.longValue());
             }
             out.add(copy);
-            added++;
         }
         return out;
     }
@@ -258,12 +267,30 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
     // ---- 内部辅助 ----
 
+    private boolean hasChangeConsumers() {
+        return !listeners.isEmpty() || onChangeCallback != null || postChangeCallback != null;
+    }
+
+    private void addToTotal(BigInteger delta) {
+        BigInteger prev, next;
+        do {
+            prev = totalCount.get();
+            next = prev.add(delta);
+        } while (!totalCount.compareAndSet(prev, next));
+    }
+
+    private void subtractFromTotal(BigInteger delta) {
+        BigInteger prev, next;
+        do {
+            prev = totalCount.get();
+            next = prev.subtract(delta);
+        } while (!totalCount.compareAndSet(prev, next));
+    }
+
     protected void notifyPostChange(T change, IActionSource src) {
-        if (listeners.isEmpty() && onChangeCallback == null && postChangeCallback == null) return;
         if (!listeners.isEmpty()) {
-            List<T> changes = java.util.Collections.singletonList(change);
             for (IMEMonitorHandlerReceiver<T> listener : listeners) {
-                listener.postChange(this, changes, src);
+                listener.postChange(this, SingleItemIterable.of(change), src);
             }
         }
         if (postChangeCallback != null) {
@@ -271,6 +298,56 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         }
         if (onChangeCallback != null) {
             onChangeCallback.run();
+        }
+    }
+
+    /**
+     * 单元素不可变 Iterable，替代 {@link java.util.Collections#singletonList(Object)}，
+     * 避免每次通知都创建 List 与 Iterator 对象。
+     */
+    private static final class SingleItemIterable<E> implements Iterable<E> {
+        private final E item;
+
+        private SingleItemIterable(E item) {
+            this.item = item;
+        }
+
+        @SuppressWarnings("unchecked")
+        static <E> SingleItemIterable<E> of(E item) {
+            return new SingleItemIterable<>(item);
+        }
+
+        @Override
+        public Iterator<E> iterator() {
+            return new SingleItemIterator<>(item);
+        }
+    }
+
+    private static final class SingleItemIterator<E> implements Iterator<E> {
+        private final E item;
+        private boolean hasNext = true;
+
+        private SingleItemIterator(E item) {
+            this.item = item;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return hasNext;
+        }
+
+        @Override
+        public E next() {
+            if (!hasNext) {
+                throw new java.util.NoSuchElementException();
+            }
+            hasNext = false;
+            return item;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
     }
 }
