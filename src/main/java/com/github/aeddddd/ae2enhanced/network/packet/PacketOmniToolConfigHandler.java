@@ -31,8 +31,18 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(stack, message.isAdvancedSilkTouch());
                     ItemAdvancedMEOmniTool.setWallPhaseEnabled(stack, message.isWallPhase());
 
-                    // 同步附魔存储
+                    // 同步附魔存储，并按已有 source level 上限进行钳制
                     NBTTagList ench = message.getEnchantments();
+                    if (ench != null) {
+                        for (int i = 0; i < ench.tagCount(); i++) {
+                            net.minecraft.nbt.NBTTagCompound tag = ench.getCompoundTagAt(i);
+                            short id = tag.getShort("id");
+                            int source = ItemAdvancedMEOmniTool.getEnchantmentSourceLevel(stack, id);
+                            if (source > 0) {
+                                tag.setShort("lvl", (short) Math.min(tag.getShort("lvl"), source));
+                            }
+                        }
+                    }
                     ItemAdvancedMEOmniTool.setStoredEnchantments(stack, ench != null ? ench : new NBTTagList());
 
                     // 强制同步NBT到客户端

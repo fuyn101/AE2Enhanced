@@ -84,19 +84,41 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         if ("chaos".equals(upgradeType)) {
             ItemAdvancedMEOmniTool.setChaosCore(result, true);
         } else if ("enchanted_book".equals(upgradeType)) {
-            // 将原书上的附魔合并到工具的存储附魔区
-            NBTTagList existing = ItemAdvancedMEOmniTool.getStoredEnchantments(result);
+            // 将原书上的附魔合并到工具的存储附魔区，等级上限取合成时书本等级
             NBTTagList fromBook = ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(book);
+            NBTTagList current = ItemAdvancedMEOmniTool.getStoredEnchantments(result);
+
             for (int i = 0; i < fromBook.tagCount(); i++) {
                 NBTTagCompound src = fromBook.getCompoundTagAt(i);
                 short id = src.getShort("id");
-                short lvl = src.getShort("lvl");
-                // 同名附魔取较高等级
-                int current = ItemAdvancedMEOmniTool.getStoredEnchantmentLevel(result, id);
-                if (lvl > current) {
-                    ItemAdvancedMEOmniTool.setStoredEnchantmentLevel(result, id, lvl);
+                short bookLvl = src.getShort("lvl");
+                short bookMax = src.hasKey("max", net.minecraftforge.common.util.Constants.NBT.TAG_SHORT)
+                        ? src.getShort("max") : bookLvl;
+
+                boolean found = false;
+                for (int j = 0; j < current.tagCount(); j++) {
+                    NBTTagCompound entry = current.getCompoundTagAt(j);
+                    if (entry.getShort("id") == id) {
+                        short oldMax = entry.hasKey("max", net.minecraftforge.common.util.Constants.NBT.TAG_SHORT)
+                                ? entry.getShort("max") : entry.getShort("lvl");
+                        short newMax = (short) Math.max(oldMax, bookMax);
+                        short newLvl = (short) Math.max(entry.getShort("lvl"), bookLvl);
+                        if (newLvl > newMax) newLvl = newMax;
+                        entry.setShort("lvl", newLvl);
+                        entry.setShort("max", newMax);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    NBTTagCompound entry = new NBTTagCompound();
+                    entry.setShort("id", id);
+                    entry.setShort("lvl", bookLvl);
+                    entry.setShort("max", bookMax);
+                    current.appendTag(entry);
                 }
             }
+            ItemAdvancedMEOmniTool.setStoredEnchantments(result, current);
         }
         return result;
     }

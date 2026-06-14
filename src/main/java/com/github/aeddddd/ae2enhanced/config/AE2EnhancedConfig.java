@@ -204,9 +204,9 @@ public class AE2EnhancedConfig {
             "Enable the Chaos Core upgrade recipe for the Advanced ME Omni Tool.",
             "Requires Draconic Evolution to be loaded. When disabled, the recipe",
             "is not registered and players cannot craft the Chaos Core upgrade.",
-            "Default: false"
+            "Default: true"
         })
-        public boolean enableChaosCoreUpgrade = false;
+        public boolean enableChaosCoreUpgrade = true;
 
         @Config.Comment({
             "Maximum blink (teleport) distance in blocks for Travel Mode.",

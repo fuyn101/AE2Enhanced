@@ -24,6 +24,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -33,6 +34,7 @@ import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerDropsEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -63,6 +65,28 @@ public final class ModEventHandler {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new ModEventHandler());
+    }
+
+    /**
+     * 允许先进 ME 工具破坏不可破坏方块（如基岩、命令方块等 hardness < 0 的方块）。
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getWorld().isRemote || event.isCanceled()) return;
+        EntityPlayer player = event.getEntityPlayer();
+        ItemStack stack = player.getHeldItemMainhand();
+        if (!(stack.getItem() instanceof ItemAdvancedMEOmniTool)) return;
+
+        int mode = ItemAdvancedMEOmniTool.getMode(stack);
+        if (mode != ItemAdvancedMEOmniTool.MODE_UNIVERSAL && mode != ItemAdvancedMEOmniTool.MODE_TRAVEL) return;
+
+        BlockPos pos = event.getPos();
+        IBlockState state = event.getWorld().getBlockState(pos);
+        if (state.getBlock().getBlockHardness(state, event.getWorld(), pos) >= 0.0f) return;
+        if (ItemAdvancedMEOmniTool.isBlacklisted(state.getBlock())) return;
+
+        event.setCanceled(true);
+        ItemAdvancedMEOmniTool.forceBreakBlock(player, event.getWorld(), pos, stack);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)

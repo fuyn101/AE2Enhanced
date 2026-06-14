@@ -76,6 +76,11 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public static final String NBT_AE_Y = "AEY";
     public static final String NBT_AE_Z = "AEZ";
     public static final String NBT_AE_DIM = "AEDim";
+    public static final String NBT_TRAVEL_ANCHOR_BOUND = "TravelAnchorBound";
+    public static final String NBT_TRAVEL_ANCHOR_X = "TravelAnchorX";
+    public static final String NBT_TRAVEL_ANCHOR_Y = "TravelAnchorY";
+    public static final String NBT_TRAVEL_ANCHOR_Z = "TravelAnchorZ";
+    public static final String NBT_TRAVEL_ANCHOR_DIM = "TravelAnchorDim";
     public static final String NBT_ANTI_HEAL = "AE2E_AntiHeal";
     public static final String NBT_CONFORMAL = "ConformalCharge";
     public static final String NBT_PARAM_ENABLED = "ParamEnabled";
@@ -194,12 +199,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         return super.onBlockStartBreak(stack, pos, player);
     }
 
-    private boolean breakBlockWithNBT(ItemStack stack, World world, BlockPos pos, EntityPlayer player) {
+    private static boolean breakBlockWithNBT(ItemStack stack, World world, BlockPos pos, EntityPlayer player) {
         if (world.isRemote) return true;
         IBlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
         if (isBlacklisted(block)) {
-            return super.onBlockStartBreak(stack, pos, player);
+            return false;
         }
 
         // 1. 保存 TileEntity NBT
@@ -268,6 +273,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
         if (targetEntity instanceof EntityLivingBase) {
             EntityLivingBase target = (EntityLivingBase) targetEntity;
+
+            // Shift+左键：范围攻击
+            if (player.isSneaking()) {
+                performAreaAttack(stack, player, target, getFortuneLevel(stack));
+                return true;
+            }
+
             if (hasChaosCore(stack) && isChaosForceKillEnabled(stack)) {
                 applyChaosDamage(target, player, getFortuneLevel(stack));
             } else {
@@ -277,6 +289,36 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             return true; // 阻止默认攻击逻辑（绕过攻击冷却衰减）
         }
         return super.onLeftClickEntity(stack, player, entity);
+    }
+
+    private static final double AOE_RADIUS = 4.0;
+
+    private void performAreaAttack(ItemStack stack, EntityPlayer player, EntityLivingBase primaryTarget, int fortune) {
+        if (player.world.isRemote) return;
+
+        boolean chaosKill = hasChaosCore(stack) && isChaosForceKillEnabled(stack);
+        float baseDamage = (float) AE2EnhancedConfig.omniTool.baseAttackDamage;
+
+        AxisAlignedBB aoe = new AxisAlignedBB(
+                primaryTarget.posX - AOE_RADIUS, primaryTarget.posY - AOE_RADIUS, primaryTarget.posZ - AOE_RADIUS,
+                primaryTarget.posX + AOE_RADIUS, primaryTarget.posY + AOE_RADIUS, primaryTarget.posZ + AOE_RADIUS);
+
+        List<EntityLivingBase> hits = player.world.getEntitiesWithinAABB(EntityLivingBase.class, aoe,
+                e -> e != null && e.isEntityAlive() && e != player);
+
+        // 确保主目标被包含且只处理一次
+        if (!hits.contains(primaryTarget) && primaryTarget.isEntityAlive()) {
+            hits.add(primaryTarget);
+        }
+
+        for (EntityLivingBase target : hits) {
+            if (target == null || !target.isEntityAlive()) continue;
+            if (chaosKill) {
+                applyChaosDamage(target, player, fortune);
+            } else {
+                applyTrueDamage(target, player, baseDamage, OMNITOOL_DAMAGE, fortune);
+            }
+        }
     }
 
     /**
@@ -446,20 +488,6 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         ItemStack stack = player.getHeldItem(hand);
         int mode = getMode(stack);
 
-        // 旅行模式优先处理 Travel Anchor 传送（需安装旅行手杖）
-        if (mode == MODE_TRAVEL && hasTravelStaff(stack)) {
-            if (TravelAnchorHelper.isTravelAnchor(world, pos)) {
-                BlockPos target = TravelAnchorHelper.getAnchorTarget(world, pos);
-                if (target != null) {
-                    if (TravelAnchorHelper.teleportToAnchor(player, world, target)) {
-                        player.swingArm(hand);
-                        return EnumActionResult.SUCCESS;
-                    }
-                }
-            }
-            return EnumActionResult.PASS;
-        }
-
         if (mode != MODE_WRENCH && mode != MODE_UNIVERSAL) return EnumActionResult.PASS;
         if (player.isSneaking()) return EnumActionResult.PASS;
 
@@ -498,7 +526,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
             case MODE_UNIVERSAL:
                 // 通用模式右键直接破坏方块（Shift 绑定 AE 已在上方处理）
                 if (!player.isSneaking()) {
-                    breakBlockAt(player, world, pos, stack);
+                    forceBreakBlock(player, world, pos, stack);
                     player.swingArm(hand);
                     return EnumActionResult.SUCCESS;
                 }
@@ -514,7 +542,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
     }
 
-    private void breakBlockAt(EntityPlayer player, World world, BlockPos pos, ItemStack stack) {
+    public static void forceBreakBlock(EntityPlayer player, World world, BlockPos pos, ItemStack stack) {
         if (world.isRemote) return;
         IBlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
@@ -561,17 +589,16 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (mode == MODE_TRAVEL) {
             player.fallDistance = 0.0f; // 每次尝试位移都重置摔落伤害
 
-            // 安装旅行手杖且准星指向 Travel Anchor 时直接传送
-            if (hasTravelStaff(stack)) {
-                RayTraceResult ray = rayTrace(world, player, false);
-                if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK
-                        && TravelAnchorHelper.isTravelAnchor(world, ray.getBlockPos())) {
-                    BlockPos target = TravelAnchorHelper.getAnchorTarget(world, ray.getBlockPos());
-                    if (target != null && TravelAnchorHelper.teleportToAnchor(player, world, target)) {
-                        player.swingArm(hand);
-                        return new ActionResult<>(EnumActionResult.SUCCESS, stack);
-                    }
+            // 安装旅行手杖且已绑定锚点时，右键空气传送到绑定锚点
+            if (hasTravelStaff(stack) && isTravelAnchorBound(stack)) {
+                BlockPos target = getBoundTravelAnchorPos(stack);
+                int targetDim = getBoundTravelAnchorDim(stack);
+                if (target != null && world.provider.getDimension() == targetDim
+                        && TravelAnchorHelper.teleportToAnchor(player, world, target)) {
+                    player.swingArm(hand);
+                    return new ActionResult<>(EnumActionResult.SUCCESS, stack);
                 }
+                player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.travel_anchor_unavailable"), true);
             }
 
             doBlink(player, world, stack);
@@ -663,13 +690,16 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (world.isRemote) return EnumActionResult.SUCCESS;
         player.fallDistance = 0.0f;
 
-        // 安装旅行手杖且右键点击 Travel Anchor 方块时传送到其目标
+        // 安装旅行手杖且 Shift+右键 Travel Anchor 时将其绑定为传送目标
         if (hasTravelStaff(stack) && TravelAnchorHelper.isTravelAnchor(world, pos)) {
-            BlockPos target = TravelAnchorHelper.getAnchorTarget(world, pos);
-            if (target != null && TravelAnchorHelper.teleportToAnchor(player, world, target)) {
+            if (player.isSneaking()) {
+                setBoundTravelAnchor(stack, pos, world.provider.getDimension());
+                player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.travel_anchor_bound", pos.getX(), pos.getY(), pos.getZ()), true);
                 player.swingArm(hand);
                 return EnumActionResult.SUCCESS;
             }
+            // 非 Shift 右键不直接传送，允许锚点方块自身交互
+            return EnumActionResult.PASS;
         }
 
         return doBlink(player, world, stack);
@@ -868,6 +898,47 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
     }
 
+    // ==================== Travel Anchor Binding ====================
+
+    public static boolean isTravelAnchorBound(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_TRAVEL_ANCHOR_BOUND);
+    }
+
+    public static void setBoundTravelAnchor(ItemStack stack, BlockPos pos, int dim) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        NBTTagCompound tag = stack.getTagCompound();
+        tag.setBoolean(NBT_TRAVEL_ANCHOR_BOUND, true);
+        tag.setInteger(NBT_TRAVEL_ANCHOR_X, pos.getX());
+        tag.setInteger(NBT_TRAVEL_ANCHOR_Y, pos.getY());
+        tag.setInteger(NBT_TRAVEL_ANCHOR_Z, pos.getZ());
+        tag.setInteger(NBT_TRAVEL_ANCHOR_DIM, dim);
+    }
+
+    public static BlockPos getBoundTravelAnchorPos(ItemStack stack) {
+        if (!isTravelAnchorBound(stack)) return null;
+        NBTTagCompound tag = stack.getTagCompound();
+        return new BlockPos(tag.getInteger(NBT_TRAVEL_ANCHOR_X), tag.getInteger(NBT_TRAVEL_ANCHOR_Y), tag.getInteger(NBT_TRAVEL_ANCHOR_Z));
+    }
+
+    public static int getBoundTravelAnchorDim(ItemStack stack) {
+        if (!isTravelAnchorBound(stack)) return Integer.MIN_VALUE;
+        return stack.getTagCompound().getInteger(NBT_TRAVEL_ANCHOR_DIM);
+    }
+
+    public static void clearBoundTravelAnchor(ItemStack stack) {
+        if (stack.hasTagCompound()) {
+            NBTTagCompound tag = stack.getTagCompound();
+            tag.removeTag(NBT_TRAVEL_ANCHOR_BOUND);
+            tag.removeTag(NBT_TRAVEL_ANCHOR_X);
+            tag.removeTag(NBT_TRAVEL_ANCHOR_Y);
+            tag.removeTag(NBT_TRAVEL_ANCHOR_Z);
+            tag.removeTag(NBT_TRAVEL_ANCHOR_DIM);
+            if (tag.getSize() == 0) {
+                stack.setTagCompound(null);
+            }
+        }
+    }
+
     // ==================== Silk Touch ====================
 
     public static boolean isSilkTouchEnabled(ItemStack stack) {
@@ -945,6 +1016,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                 NBTTagCompound ench = new NBTTagCompound();
                 ench.setShort("id", (short) Enchantment.getEnchantmentID(net.minecraft.init.Enchantments.FORTUNE));
                 ench.setShort("lvl", (short) fortune);
+                ench.setShort("max", (short) fortune);
                 list.appendTag(ench);
                 tag.setTag(NBT_ENCHANTMENTS, list);
             }
@@ -965,16 +1037,30 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         return 0;
     }
 
+    public static int getEnchantmentSourceLevel(ItemStack stack, short enchantmentId) {
+        NBTTagList list = getStoredEnchantments(stack);
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound tag = list.getCompoundTagAt(i);
+            if (tag.getShort("id") == enchantmentId) {
+                return tag.hasKey("max", net.minecraftforge.common.util.Constants.NBT.TAG_SHORT)
+                        ? tag.getShort("max") : tag.getShort("lvl");
+            }
+        }
+        return 0;
+    }
+
     public static void setStoredEnchantmentLevel(ItemStack stack, short enchantmentId, int level) {
         NBTTagList list = getStoredEnchantments(stack);
         boolean found = false;
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound tag = list.getCompoundTagAt(i);
             if (tag.getShort("id") == enchantmentId) {
+                int max = tag.hasKey("max", net.minecraftforge.common.util.Constants.NBT.TAG_SHORT)
+                        ? tag.getShort("max") : tag.getShort("lvl");
                 if (level <= 0) {
                     list.removeTag(i);
                 } else {
-                    tag.setShort("lvl", (short) Math.min(level, AE2EnhancedConfig.omniTool.maxEnchantmentLevel));
+                    tag.setShort("lvl", (short) Math.min(level, max));
                 }
                 found = true;
                 break;
@@ -983,7 +1069,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         if (!found && level > 0) {
             NBTTagCompound tag = new NBTTagCompound();
             tag.setShort("id", enchantmentId);
-            tag.setShort("lvl", (short) Math.min(level, AE2EnhancedConfig.omniTool.maxEnchantmentLevel));
+            tag.setShort("lvl", (short) level);
+            tag.setShort("max", (short) level);
             list.appendTag(tag);
         }
         setStoredEnchantments(stack, list);
@@ -1005,9 +1092,14 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         NBTTagList stored = book.getTagCompound().getTagList("StoredEnchantments", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < stored.tagCount(); i++) {
             NBTTagCompound src = stored.getCompoundTagAt(i);
+            short lvl = src.getShort("lvl");
+            short max = AE2EnhancedConfig.omniTool.maxEnchantmentLevel > 0
+                    ? (short) Math.min(lvl, AE2EnhancedConfig.omniTool.maxEnchantmentLevel)
+                    : lvl;
             NBTTagCompound dst = new NBTTagCompound();
             dst.setShort("id", src.getShort("id"));
-            dst.setShort("lvl", (short) Math.min(src.getShort("lvl"), AE2EnhancedConfig.omniTool.maxEnchantmentLevel));
+            dst.setShort("lvl", max);
+            dst.setShort("max", max);
             result.appendTag(dst);
         }
         return result;
@@ -1217,6 +1309,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
         if (!hasUpgrades) {
             tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2enhanced.me_omni_tool.no_upgrades"));
+        }
+
+        if (isTravelAnchorBound(stack)) {
+            BlockPos anchorPos = getBoundTravelAnchorPos(stack);
+            int anchorDim = getBoundTravelAnchorDim(stack);
+            tooltip.add(TextFormatting.LIGHT_PURPLE + "● " + TextFormatting.WHITE
+                + I18n.format("item.ae2enhanced.me_omni_tool.travel_anchor_bound", anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(), anchorDim));
         }
 
         if (isAEBound(stack)) {

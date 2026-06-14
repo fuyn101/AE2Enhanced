@@ -374,6 +374,7 @@ item.ae2enhanced.me_omni_tool.drop_mode.normal=Normal
 item.ae2enhanced.me_omni_tool.drop_mode.inventory=Inventory
 item.ae2enhanced.me_omni_tool.drop_mode.ae=AE Network
 item.ae2enhanced.me_omni_tool.ae_bound=§7AE: §e[%d, %d, %d] §7Dim §e%d
+item.ae2enhanced.me_omni_tool.travel_anchor_bound=§7Travel Anchor: §e[%d, %d, %d] §7Dim §e%d
 item.ae2enhanced.me_omni_tool.ae_unbound=§7AE: §eUnbound
 key.ae2enhanced.omnitool_mode=ME Omni Tool: Cycle Mode
 key.ae2enhanced.omnitool_silk=ME Omni Tool: Toggle Silk Touch
@@ -410,6 +411,8 @@ gui.ae2enhanced.omni_tool_config.next_page=Next
 gui.ae2enhanced.omni_tool_config.prev_page=Prev
 gui.ae2enhanced.omni_tool_config.not_installed=Not Installed
 key.ae2enhanced.omnitool_config=ME Omni Tool: Open Config GUI
+message.ae2enhanced.omnitool.travel_anchor_bound=§b[ME Tool] §aBound to Travel Anchor [%d, %d, %d]
+message.ae2enhanced.omnitool.travel_anchor_unavailable=§c[ME Tool] Bound Travel Anchor is unavailable or in another dimension
 message.ae2enhanced.omnitool.travel_anchor_not_found=§c[ME Tool] No valid Travel Anchor target found
 
 tile.ae2enhanced.advanced_me_collector.name=Advanced ME Collector

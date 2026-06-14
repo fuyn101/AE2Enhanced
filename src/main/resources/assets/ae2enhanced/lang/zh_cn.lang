@@ -372,6 +372,7 @@ item.ae2enhanced.me_omni_tool.drop_mode.normal=正常掉落
 item.ae2enhanced.me_omni_tool.drop_mode.inventory=直接进入背包
 item.ae2enhanced.me_omni_tool.drop_mode.ae=直接进入AE
 item.ae2enhanced.me_omni_tool.ae_bound=§7AE绑定: §e[%d, %d, %d] §7维度 §e%d
+item.ae2enhanced.me_omni_tool.travel_anchor_bound=§7旅行锚绑定: §e[%d, %d, %d] §7维度 §e%d
 item.ae2enhanced.me_omni_tool.ae_unbound=§7AE: §e未绑定
 key.ae2enhanced.omnitool_mode=ME工具: 切换模式
 key.ae2enhanced.omnitool_silk=ME工具: 切换精准采集
@@ -408,6 +409,8 @@ gui.ae2enhanced.omni_tool_config.next_page=下一页
 gui.ae2enhanced.omni_tool_config.prev_page=上一页
 gui.ae2enhanced.omni_tool_config.not_installed=未安装
 key.ae2enhanced.omnitool_config=ME工具: 打开配置界面
+message.ae2enhanced.omnitool.travel_anchor_bound=§b[ME工具] §a已绑定 Travel Anchor [%d, %d, %d]
+message.ae2enhanced.omnitool.travel_anchor_unavailable=§c[ME工具] 绑定的 Travel Anchor 不可用或位于其他维度
 message.ae2enhanced.omnitool.travel_anchor_not_found=§c[ME工具] 未找到有效的 Travel Anchor 目标
 
 tile.ae2enhanced.advanced_me_collector.name=先进 ME 收集器

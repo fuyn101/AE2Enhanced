@@ -253,13 +253,14 @@ public class GuiOmniToolConfig extends GuiContainer {
             short enchId = entry.getKey();
             Enchantment ench = Enchantment.getEnchantmentByID(enchId);
             String name = ench != null ? ench.getName() : "enchantment.unknown";
-            String nameKey = "gui.ae2enhanced.omni_tool_config.enchant." + enchId;
-            // 动态注册到 I18n 不可行，这里使用附魔自带名称；描述使用统一键
+            // 等级上限取决于合成时附魔书的原始等级
+            int sourceLevel = ItemAdvancedMEOmniTool.getEnchantmentSourceLevel(toolStack, enchId);
+            int maxLevel = Math.max(1, sourceLevel);
             ParamDef p = new ParamDef(
                     PID_ENCHANT_BASE + enchantIdx,
                     name,
                     "gui.ae2enhanced.omni_tool_config.enchant.desc",
-                    0, com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.maxEnchantmentLevel,
+                    0, maxLevel,
                     s -> true,
                     s -> enchantValues.getOrDefault(enchId, 0),
                     (s, v) -> enchantValues.put(enchId, v),
