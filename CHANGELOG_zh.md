@@ -66,9 +66,9 @@
 - **ME 回收节点（ME Network Recycler）**
   - 新增方块、TileEntity、GUI 与注册资源
   - 跨维度目标绑定系统：右键绑定、Alt+右键清除
-  - 支持万能记忆卡（UMC）Ctrl+选择目标后右键 recycler 绑定
-  - `RecyclerNetworkHandler`：超维度注入、目标适配器、倒排索引、批量收集
-  - 新增 recycler 状态同步网络包、`AdapterFactory` 与客户端 GUI 状态
+  - 支持通用记忆卡（UMC）Ctrl+选择目标后右键绑定
+  - `RecyclerNetworkHandler`：超维度多方块注入、目标适配器、倒排索引、批量收集
+  - 新增状态同步网络包、`AdapterFactory` 与客户端 GUI 状态
 
 - **高级 ME 收集器（Advanced ME Collector）**
   - 新增方块，支持过滤、范围控制、生成前预收集
@@ -80,9 +80,9 @@
   - 修复方块注册名冲突
 
 - **机器输出重定向（Machine Output Redirect）**
-  - Phase 0 基础设施 + 热力膨胀（Thermal Expansion）试点
-  - Tier 1：通用机械（Mekanism）、科技复兴（Tech Reborn）、末影接口（Ender IO）
-  - Tier 2：工业先锋（Industrial Foregoing）、核工艺（NuclearCraft）、科技复兴输出槽旁路适配器
+  - 基础设施 + 热力膨胀
+  - 通用机械、科技复兴、末影接口
+  - 工业先锋、核工艺、科技复兴
 
 - **ProjectE EMC 接口**
   - 新增 EMC 接口方块，将 ProjectE 知识转化为可自动化的样板处理目标
@@ -99,12 +99,12 @@
   - 支持多批次配方的流水线合成模式
   - 修复多批次 `isIdle` 判断逻辑
 
-- **万能记忆卡（Universal Memory Card）扩展**
-  - 新增科技复兴（Tech Reborn）机器支持
-  - 新增核工艺（NuclearCraft）机器支持，并兼容 2.19a 非重制版
+- **通用记忆卡（Universal Memory Card）扩展**
+  - 新增科技复兴机器支持
+  - 新增核电工艺机器支持
 
 - **CraftTweaker 集成**
-  - 奇点仪式（Singularity Ritual）与装配枢纽升级支持 CT 脚本
+  - 奇点仪式与装配枢纽升级支持 CT 脚本
 
 - **RF 访问节点（RF Access Node）**
   - 新增输入/输出模式切换
@@ -115,14 +115,14 @@
 ### Improve
 
 - **先进 ME 全能工具**
-  - 旅行模式新增穿墙闪烁开关、闪烁距离/破坏冷却/伤害配置项
+  - 旅行模式新增穿墙开关、位移距离/破坏冷却/伤害配置项
   - 混沌核心升级配方可通过配置关闭
   - 附魔等级上限按原始附魔书 source level 钳制
-  - Shift+AOE、不可破坏方块破坏、混沌配方默认、Travel Staff 式锚点绑定
+  - Shift+AOE、混沌配方默认、Travel Staff 式锚点绑定
   - 修复闪烁落点偏移与 GUI 分页
 
 - **频道接收卡（Channel Receiver Card）**
-  - 支持中枢 ME 接口与 CELLS 部件
+  - 支持 CELLS 部件
   - 可在所有 CELLS 升级槽位使用
 
 - **中枢 ME 接口（Central ME Interface）**
