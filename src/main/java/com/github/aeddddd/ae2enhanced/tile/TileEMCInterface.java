@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 
 /**
  * EMC 接口 TileEntity.
@@ -43,13 +44,15 @@ import java.util.UUID;
  */
 public class TileEMCInterface extends TileAENetworkBase implements ICellContainer, ITickable, IAEAppEngInventory {
 
-    public static final int WHITELIST_SIZE = 9;
+    public static final int WHITELIST_PAGES = 10;
+    public static final int WHITELIST_SLOTS_PER_PAGE = 63; // 7×9, 与存储总线一致
+    public static final int WHITELIST_SIZE = WHITELIST_PAGES * WHITELIST_SLOTS_PER_PAGE;
     private static final int WARNING_INTERVAL = 1200; // 60 秒警告冷却
 
     private final EMCInventoryHandler handler = new EMCInventoryHandler(this);
     private final AppEngInternalAEInventory config;
     private final ItemStack[] whitelist = new ItemStack[WHITELIST_SIZE];
-    private final Set<ItemStack> whitelistSet = new HashSet<>();
+    private final Set<ItemDescriptor> whitelistSet = new HashSet<>();
 
     @Nullable
     private UUID ownerUUID;
@@ -158,20 +161,15 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     }
 
     public boolean isWhitelisted(@Nonnull ItemStack stack) {
-        if (whitelistSet.isEmpty()) return true; // 空白名单 = 全部暴露
-        for (ItemStack entry : whitelistSet) {
-            if (entry.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(entry, stack)) {
-                return true;
-            }
-        }
-        return false;
+        if (whitelistSet.isEmpty()) return false; // 空白名单 = 不暴露任何物品
+        return whitelistSet.contains(new ItemDescriptor(stack));
     }
 
     private void rebuildWhitelistSet() {
         whitelistSet.clear();
         for (ItemStack stack : whitelist) {
             if (!stack.isEmpty()) {
-                whitelistSet.add(stack);
+                whitelistSet.add(new ItemDescriptor(stack));
             }
         }
     }

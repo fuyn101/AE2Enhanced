@@ -13,36 +13,70 @@ import javax.annotation.Nonnull;
 
 /**
  * EMC 接口容器.
+ *
+ * <p>仿存储总线布局:每页 7×9 过滤槽,共 10 页.</p>
  */
 public class ContainerEMCInterface extends Container {
 
+    public static final int PAGE_ROWS = 7;
+    public static final int PAGE_COLS = 9;
+    public static final int SLOTS_PER_PAGE = PAGE_ROWS * PAGE_COLS;
+
     private final TileEMCInterface tile;
+    private int currentPage = 0;
 
     public ContainerEMCInterface(InventoryPlayer playerInventory, TileEMCInterface tile) {
         this.tile = tile;
 
         AppEngInternalAEInventory config = tile.getConfig();
-        // 白名单槽 3×3
-        for (int y = 0; y < 3; y++) {
-            for (int x = 0; x < 3; x++) {
-                int slot = y * 3 + x;
-                this.addSlotToContainer(new SlotFakeTypeOnly(config, slot, 62 + x * 18, 20 + y * 18));
-            }
+        // 创建所有过滤槽,初始只显示第 0 页
+        for (int i = 0; i < TileEMCInterface.WHITELIST_SIZE; i++) {
+            this.addSlotToContainer(new SlotFakeTypeOnly(config, i, -1000, -1000));
         }
+        refreshSlotPositions();
 
         // 玩家背包
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {
-                addSlotToContainer(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
+                addSlotToContainer(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 174 + i * 18));
             }
         }
         for (int i = 0; i < 9; i++) {
-            addSlotToContainer(new Slot(playerInventory, i, 8 + i * 18, 142));
+            addSlotToContainer(new Slot(playerInventory, i, 8 + i * 18, 232));
         }
     }
 
     public TileEMCInterface getTile() {
         return tile;
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int page) {
+        if (page < 0) page = 0;
+        if (page >= TileEMCInterface.WHITELIST_PAGES) page = TileEMCInterface.WHITELIST_PAGES - 1;
+        if (page == this.currentPage) return;
+        this.currentPage = page;
+        refreshSlotPositions();
+    }
+
+    private void refreshSlotPositions() {
+        int startSlot = this.currentPage * SLOTS_PER_PAGE;
+        for (int i = 0; i < TileEMCInterface.WHITELIST_SIZE; i++) {
+            Slot slot = this.inventorySlots.get(i);
+            int relative = i - startSlot;
+            if (relative >= 0 && relative < SLOTS_PER_PAGE) {
+                int x = relative % PAGE_COLS;
+                int y = relative / PAGE_COLS;
+                slot.xPos = 8 + x * 18;
+                slot.yPos = 29 + y * 18;
+            } else {
+                slot.xPos = -1000;
+                slot.yPos = -1000;
+            }
+        }
     }
 
     @Override
@@ -58,13 +92,13 @@ public class ContainerEMCInterface extends Container {
         if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
         ItemStack stack = slot.getStack();
 
-        // 白名单槽 -> 背包
+        // 过滤槽 -> 背包
         if (index < TileEMCInterface.WHITELIST_SIZE) {
             if (!this.mergeItemStack(stack, TileEMCInterface.WHITELIST_SIZE, this.inventorySlots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         }
-        // 背包 -> 白名单槽
+        // 背包 -> 过滤槽:放入第一个空槽(不依赖页码)
         else {
             ItemStack copy = stack.copy();
             copy.setCount(1);

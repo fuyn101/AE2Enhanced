@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerEMCInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
+import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
@@ -13,6 +14,8 @@ import java.io.IOException;
 
 /**
  * EMC 接口 GUI.
+ *
+ * <p>仿存储总线:7×9 过滤槽,支持 10 页翻页.</p>
  */
 public class GuiEMCInterface extends GuiContainer {
 
@@ -20,12 +23,25 @@ public class GuiEMCInterface extends GuiContainer {
             new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/emc_interface.png");
 
     private final TileEMCInterface tile;
+    private final ContainerEMCInterface container;
+    private GuiButton prevButton;
+    private GuiButton nextButton;
 
     public GuiEMCInterface(InventoryPlayer playerInventory, ContainerEMCInterface container) {
         super(container);
         this.tile = container.getTile();
+        this.container = container;
         this.xSize = 176;
-        this.ySize = 166;
+        this.ySize = 251;
+    }
+
+    @Override
+    public void initGui() {
+        super.initGui();
+        this.prevButton = new GuiButton(0, this.guiLeft + 120, this.guiTop + 4, 20, 12, "<");
+        this.nextButton = new GuiButton(1, this.guiLeft + 150, this.guiTop + 4, 20, 12, ">");
+        this.buttonList.add(this.prevButton);
+        this.buttonList.add(this.nextButton);
     }
 
     @Override
@@ -38,13 +54,26 @@ public class GuiEMCInterface extends GuiContainer {
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         String title = I18n.format("gui.ae2enhanced.emc_interface.title");
-        this.fontRenderer.drawString(title, (this.xSize - this.fontRenderer.getStringWidth(title)) / 2, 6, 0x404040);
+        this.fontRenderer.drawString(title, 8, 6, 0x404040);
+
+        String pageText = String.format("%d/%d", this.container.getCurrentPage() + 1, TileEMCInterface.WHITELIST_PAGES);
+        this.fontRenderer.drawString(pageText, 90 - this.fontRenderer.getStringWidth(pageText) / 2, 6, 0x404040);
 
         String owner = tile.isBound() ? tile.getOwnerName() : I18n.format("gui.ae2enhanced.emc_interface.unbound");
-        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.emc_interface.owner", owner), 8, 80, 0x404040);
+        this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.emc_interface.owner", owner), 8, 166, 0x404040);
 
         if (tile.isBound()) {
-            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.emc_interface.shift_to_bind"), 8, 70, 0xFFAA00);
+            this.fontRenderer.drawString(I18n.format("gui.ae2enhanced.emc_interface.shift_to_bind"), 8, 156, 0xFFAA00);
+        }
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) throws IOException {
+        super.actionPerformed(button);
+        if (button == this.prevButton) {
+            this.container.setCurrentPage(this.container.getCurrentPage() - 1);
+        } else if (button == this.nextButton) {
+            this.container.setCurrentPage(this.container.getCurrentPage() + 1);
         }
     }
 
@@ -52,9 +81,9 @@ public class GuiEMCInterface extends GuiContainer {
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         // Shift+左键点击标题区域绑定当前玩家
         if (mouseButton == 0 && isShiftKeyDown()
-                && mouseX >= this.guiLeft + 8 && mouseX <= this.guiLeft + 168
+                && mouseX >= this.guiLeft + 8 && mouseX <= this.guiLeft + 100
                 && mouseY >= this.guiTop + 6 && mouseY <= this.guiTop + 18) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendToServer(
+            AE2Enhanced.network.sendToServer(
                     new com.github.aeddddd.ae2enhanced.network.packet.PacketEMCInterfaceBind(tile.getPos()));
             return;
         }
