@@ -77,6 +77,7 @@ public class ProjectEEventHandler {
                     continue;
                 }
                 tile.invalidateHandlerCache();
+                tile.invalidateEmcCache();
             }
         }
     }

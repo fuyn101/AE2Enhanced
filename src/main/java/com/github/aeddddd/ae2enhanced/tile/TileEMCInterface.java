@@ -58,7 +58,11 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     private boolean registeredEvents = false;
 
     public void invalidateHandlerCache() {
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
+    }
+
+    public void invalidateEmcCache() {
+        handler.invalidateEmcCache();
     }
     private int tickCounter = 0;
     private long lastWarningTick = -WARNING_INTERVAL;
@@ -91,7 +95,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         // 安全破坏时不掉落,仅解绑
         ownerUUID = null;
         ownerName = "";
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
         markDirty();
     }
 
@@ -118,7 +122,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
             this.ownerUUID = player.getUniqueID();
             this.ownerName = player.getName();
         }
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
         markDirty();
         notifyCellArrayUpdate();
     }
@@ -144,7 +148,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         whitelist[index].setCount(1);
         config.setStackInSlot(index, whitelist[index]);
         rebuildWhitelistSet();
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
         markDirty();
         notifyCellArrayUpdate();
     }
@@ -265,7 +269,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         for (int i = 0; i < WHITELIST_SIZE; i++) {
             config.setStackInSlot(i, whitelist[i]);
         }
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
     }
 
     @Override
@@ -385,7 +389,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         // EMC 接口无结构,解绑即可
         ownerUUID = null;
         ownerName = "";
-        handler.invalidateCache();
+        handler.invalidateAvailableCache();
         markDirty();
     }
 
@@ -402,7 +406,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
             whitelist[slot] = added.isEmpty() ? ItemStack.EMPTY : added.copy();
             whitelist[slot].setCount(1);
             rebuildWhitelistSet();
-            handler.invalidateCache();
+            handler.invalidateAvailableCache();
             markDirty();
             notifyCellArrayUpdate();
         }

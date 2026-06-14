@@ -22,7 +22,9 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -39,6 +41,9 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
     private long availableCacheTick = -100;
     private long emcBalanceCache = 0;
     private long emcBalanceCacheTick = -100;
+
+    // 物品 EMC 值缓存,避免每次刷新都对每个物品做反射
+    private final Map<ItemDescriptor, Long> emcValueCache = new HashMap<>();
 
     public EMCInventoryHandler(TileEMCInterface tile) {
         this.tile = tile;
@@ -59,7 +64,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         // 白名单校验
         if (!tile.isWhitelisted(definition)) return null;
 
-        long itemEmc = ProjectEHelper.getEmcValue(definition);
+        long itemEmc = getCachedEmcValue(definition);
         if (itemEmc <= 0) return null;
 
         Object provider = tile.getKnowledgeProvider();
@@ -161,9 +166,13 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
 
     // ---- 缓存控制 ----
 
-    public void invalidateCache() {
+    public void invalidateAvailableCache() {
         availableCacheTick = -100;
         emcBalanceCacheTick = -100;
+    }
+
+    public void invalidateEmcCache() {
+        emcValueCache.clear();
     }
 
     private long getEmcBalance(Object provider, boolean forceRefresh) {
@@ -191,7 +200,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         for (ItemStack knowledge : ProjectEHelper.getKnowledge(provider)) {
             if (knowledge.isEmpty()) continue;
             if (!tile.isWhitelisted(knowledge)) continue;
-            long itemEmc = ProjectEHelper.getEmcValue(knowledge);
+            long itemEmc = getCachedEmcValue(knowledge);
             if (itemEmc <= 0) continue;
             long maxCount = balance / itemEmc;
             if (maxCount <= 0) continue;
@@ -204,6 +213,15 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         availableCache = list;
         availableCacheTick = now;
         return list;
+    }
+
+    private long getCachedEmcValue(@Nonnull ItemStack stack) {
+        ItemDescriptor key = new ItemDescriptor(stack);
+        Long cached = emcValueCache.get(key);
+        if (cached != null) return cached;
+        long value = ProjectEHelper.getEmcValue(stack);
+        emcValueCache.put(key, value);
+        return value;
     }
 
     private void syncOwnerIfOnline() {
