@@ -1527,7 +1527,7 @@ public class ContainerOmniTerm extends ContainerMEMonitorable
         if (hasChanges) {
             ItemStorageAdapter adapter = findItemStorageAdapter();
             if (adapter != null) {
-                adapter.onStorageChanged();
+                adapter.onStorageChanged(this.getPlayerInv().player.world.getTotalWorldTime());
             }
             this.omniNeedsFullSync = false;
             this.omniItems.resetStatus();

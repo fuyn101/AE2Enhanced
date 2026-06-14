@@ -22,6 +22,11 @@ public class FluidStorageAdapter extends AbstractStorageAdapter<IAEFluidStack, F
     }
 
     @Override
+    protected StorageSection getStorageSection() {
+        return StorageSection.FLUID;
+    }
+
+    @Override
     protected FluidDescriptor createDescriptor(IAEFluidStack input) {
         FluidStack fs = input.getFluidStack();
         if (fs == null) return null;
@@ -34,7 +39,7 @@ public class FluidStorageAdapter extends AbstractStorageAdapter<IAEFluidStack, F
         if (fs == null) return null;
         IAEFluidStack result = ((IFluidStorageChannel) channel).createStack(fs);
         if (result == null) return null;
-        if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+        if (amount.compareTo(StorageConstants.LONG_MAX) > 0) {
             result.setStackSize(Long.MAX_VALUE);
         } else {
             result.setStackSize(amount.longValueExact());

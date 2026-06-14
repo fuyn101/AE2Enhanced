@@ -7,8 +7,6 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
-import java.util.Objects;
-
 /**
  * 流体描述符,用于在内存中作为存储 Map 的 Key.
  * 基于 Fluid registryName + NBT 内容做 equals/hashCode.
@@ -24,23 +22,19 @@ public class FluidDescriptor implements Descriptor {
     public FluidDescriptor(FluidStack stack) {
         this.fluid = stack.getFluid();
         this.nbt = stack.tag != null ? stack.tag.copy() : null;
-        this.hash = Objects.hash(
-            fluid != null ? fluid.getName() : null,
-            nbtString(nbt)
-        );
-    }
-
-    private static String nbtString(NBTTagCompound nbt) {
-        return nbt != null ? nbt.toString() : null;
+        this.hash = computeHash();
     }
 
     private FluidDescriptor(Fluid fluid, NBTTagCompound nbt) {
         this.fluid = fluid;
         this.nbt = nbt != null ? nbt.copy() : null;
-        this.hash = Objects.hash(
-            fluid != null ? fluid.getName() : null,
-            nbtString(this.nbt)
-        );
+        this.hash = computeHash();
+    }
+
+    private int computeHash() {
+        // 只以 fluid 计算 hash,避免 NBT toString 与 Objects.hash 数组分配.
+        // 不同 NBT 的流体产生碰撞,equals 会进一步区分,符合 hashCode 契约.
+        return fluid != null ? fluid.hashCode() : 0;
     }
 
     /**
@@ -117,7 +111,6 @@ public class FluidDescriptor implements Descriptor {
 
     @Override
     public int hashCode() {
-        // hashCode 不依赖 NBT 内容,避免 HashMap 迭代顺序导致的查找失败
-        return Objects.hash(fluid != null ? fluid.getName() : null);
+        return hash;
     }
 }

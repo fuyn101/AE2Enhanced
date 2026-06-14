@@ -22,13 +22,18 @@ public class HyperdimensionalEnergyStorageAdapter extends AbstractStorageAdapter
     }
 
     @Override
+    protected StorageSection getStorageSection() {
+        return StorageSection.ENERGY;
+    }
+
+    @Override
     protected EnergyDescriptor createDescriptor(IAEEnergyStack input) {
         return EnergyDescriptor.INSTANCE;
     }
 
     @Override
     protected IAEEnergyStack createResult(IAEEnergyStack request, BigInteger amount) {
-        if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+        if (amount.compareTo(StorageConstants.LONG_MAX) > 0) {
             return AEEnergyStack.create(Long.MAX_VALUE);
         }
         return AEEnergyStack.create(amount.longValueExact());

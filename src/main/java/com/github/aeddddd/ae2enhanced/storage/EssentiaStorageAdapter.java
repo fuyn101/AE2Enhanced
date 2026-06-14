@@ -19,6 +19,11 @@ public class EssentiaStorageAdapter extends AbstractStorageAdapter<thaumicenergi
     }
 
     @Override
+    protected StorageSection getStorageSection() {
+        return StorageSection.ESSENTIA;
+    }
+
+    @Override
     protected EssentiaDescriptor createDescriptor(thaumicenergistics.api.storage.IAEEssentiaStack input) {
         return new EssentiaDescriptor(input);
     }
@@ -26,7 +31,7 @@ public class EssentiaStorageAdapter extends AbstractStorageAdapter<thaumicenergi
     @Override
     protected thaumicenergistics.api.storage.IAEEssentiaStack createResult(thaumicenergistics.api.storage.IAEEssentiaStack request, BigInteger amount) {
         thaumicenergistics.api.storage.IAEEssentiaStack result = request.copy();
-        if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+        if (amount.compareTo(StorageConstants.LONG_MAX) > 0) {
             result.setStackSize(Long.MAX_VALUE);
         } else {
             result.setStackSize(amount.longValueExact());

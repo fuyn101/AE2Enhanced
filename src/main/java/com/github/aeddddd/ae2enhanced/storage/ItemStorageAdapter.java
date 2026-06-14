@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -95,6 +96,11 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     }
 
     @Override
+    protected StorageSection getStorageSection() {
+        return StorageSection.ITEM;
+    }
+
+    @Override
     protected ItemDescriptor createDescriptor(IAEItemStack input) {
         // 使用 getDefinition() 避免 count=0 的 craftable 物品被识别为 air
         ItemStack definition = input.getDefinition();
@@ -105,7 +111,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     protected IAEItemStack createResult(IAEItemStack request, BigInteger amount) {
         IAEItemStack result = ((IItemStorageChannel) channel).createStack(request.createItemStack());
         if (result == null) return null;
-        if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+        if (amount.compareTo(StorageConstants.LONG_MAX) > 0) {
             result.setStackSize(Long.MAX_VALUE);
         } else {
             result.setStackSize(amount.longValueExact());
@@ -269,7 +275,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                         IAEItemStack stack = getAETemplate(desc);
                         if (stack == null) continue;
                         stack = stack.copy();
-                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                        if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                             stack.setStackSize(Long.MAX_VALUE);
                         } else {
                             stack.setStackSize(count.longValue());
@@ -287,7 +293,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                         IAEItemStack stack = getAETemplate(desc);
                         if (stack == null) continue;
                         stack = stack.copy();
-                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                        if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                             stack.setStackSize(Long.MAX_VALUE);
                         } else {
                             stack.setStackSize(count.longValue());
@@ -385,7 +391,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             IAEItemStack stack = getAETemplate(entry.getKey());
             if (stack == null) continue;
             stack = stack.copy();
-            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+            if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                 stack.setStackSize(Long.MAX_VALUE);
             } else {
                 stack.setStackSize(count.longValue());
@@ -577,7 +583,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
             IAEItemStack stack = getAETemplate(entry.getKey());
             if (stack == null) continue;
             stack = stack.copy();
-            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+            if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                 stack.setStackSize(Long.MAX_VALUE);
             } else {
                 stack.setStackSize(count.longValue());
@@ -648,7 +654,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                             IAEItemStack stack = getAETemplate(desc);
                             if (stack == null) continue;
                             stack = stack.copy();
-                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                                 stack.setStackSize(Long.MAX_VALUE);
                             } else {
                                 stack.setStackSize(count.longValue());
@@ -665,7 +671,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                             IAEItemStack stack = getAETemplate(desc);
                             if (stack == null) continue;
                             stack = stack.copy();
-                            if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                                 stack.setStackSize(Long.MAX_VALUE);
                             } else {
                                 stack.setStackSize(count.longValue());
@@ -710,7 +716,7 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
                         IAEItemStack stack = getAETemplate(desc);
                         if (stack == null) continue;
                         stack = stack.copy();
-                        if (count.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                        if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                             stack.setStackSize(Long.MAX_VALUE);
                         } else {
                             stack.setStackSize(count.longValue());
@@ -785,7 +791,19 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
         return appeng.util.ItemSorters.CONFIG_BASED_SORT_BY_NAME;
     }
 
-    public void onStorageChanged() {
+    // 用于同一 tick 内去重通知，避免多玩家开终端时 N×N 网络包
+    private long lastNotifyTick = -1;
+
+    /**
+     * 通知所有打开该终端的玩家刷新。同一 tick 内多次调用只发送一次包。
+     *
+     * @param currentTick 当前世界总 tick 数
+     */
+    public void onStorageChanged(long currentTick) {
+        if (currentTick == lastNotifyTick) {
+            return;
+        }
+        lastNotifyTick = currentTick;
         markSortedListDirty();
         for (net.minecraft.entity.player.EntityPlayerMP player : this.openPlayers) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(

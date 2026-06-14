@@ -58,6 +58,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     private int cellArrayRetry = 0;
     private int delayedNotifyTick = 0;
 
+    // 缓存 MachineSource,避免每次 postAlteration 都重新创建
+    private final appeng.me.helpers.MachineSource machineSource = new appeng.me.helpers.MachineSource(this);
+
     // 客户端同步的存储统计
     private int clientStorageTypes = 0;
     private String clientStorageTotal = "0";
@@ -263,6 +266,13 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     private static final java.lang.reflect.Method FORCE_UPDATE_METHOD;
     private static final java.lang.reflect.Field SEND_EVENT_FIELD;
     private static final java.lang.reflect.Method ON_TICK_METHOD;
+
+    // 缓存可选存储通道的 Class 与实例,避免每次变更都反射查找
+    private static final Class<?> GAS_STORAGE_CHANNEL_CLASS = optionalChannelClass("com.mekeng.github.common.me.storage.IGasStorageChannel");
+    private static final Object GAS_STORAGE_CHANNEL = optionalChannelInstance(GAS_STORAGE_CHANNEL_CLASS);
+    private static final Class<?> ESSENTIA_STORAGE_CHANNEL_CLASS = optionalChannelClass("thaumicenergistics.api.storage.IEssentiaStorageChannel");
+    private static final Object ESSENTIA_STORAGE_CHANNEL = optionalChannelInstance(ESSENTIA_STORAGE_CHANNEL_CLASS);
+
     static {
         java.lang.reflect.Field f = null;
         java.lang.reflect.Method m = null;
@@ -286,6 +296,34 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         FORCE_UPDATE_METHOD = m;
         SEND_EVENT_FIELD = se;
         ON_TICK_METHOD = ot;
+    }
+
+    private static Class<?> optionalChannelClass(String name) {
+        try {
+            return Class.forName(name);
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object optionalChannelInstance(Class<?> clazz) {
+        if (clazz == null) return null;
+        try {
+            return appeng.api.AEApi.instance().storage().getStorageChannel((Class) clazz);
+        } catch (Exception e) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to get optional storage channel for {}", clazz.getName(), e);
+            return null;
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void postOptionalAlteration(appeng.api.networking.storage.IStorageGrid storageGrid,
+                                               Object channel, Object change,
+                                               appeng.api.networking.security.IActionSource src) {
+        if (channel == null) return;
+        java.lang.Iterable list = java.util.Collections.singletonList(change);
+        storageGrid.postAlterationOfStoredItems((appeng.api.storage.IStorageChannel) channel, list, src);
     }
 
     /**
@@ -369,10 +407,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
             // 使用 MachineSource 替代原始 src，避免 CELLS Subnet Proxy 因 origin grid 判定而过滤通知
-            appeng.api.networking.security.IActionSource machineSrc = new MachineSource(this);
             storageGrid.postAlterationOfStoredItems(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IItemStorageChannel.class),
-                java.util.Collections.singletonList(change), machineSrc);
+                java.util.Collections.singletonList(change), machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
                 "[AE2E] Failed to post item alteration", e);
@@ -385,10 +422,9 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            appeng.api.networking.security.IActionSource machineSrc = new MachineSource(this);
             storageGrid.postAlterationOfStoredItems(
                 AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class),
-                java.util.Collections.singletonList(change), machineSrc);
+                java.util.Collections.singletonList(change), machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
                 "[AE2E] Failed to post energy alteration", e);
@@ -401,49 +437,36 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            appeng.api.networking.security.IActionSource machineSrc = new MachineSource(this);
             storageGrid.postAlterationOfStoredItems(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class),
-                java.util.Collections.singletonList(change), machineSrc);
+                java.util.Collections.singletonList(change), machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
                 "[AE2E] Failed to post fluid alteration", e);
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void postGasAlteration(Object change, appeng.api.networking.security.IActionSource src) {
+        if (GAS_STORAGE_CHANNEL == null) return;
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            Class<?> gasChannelClass = Class.forName("com.mekeng.github.common.me.storage.IGasStorageChannel");
-            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-            Object gasChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), gasChannelClass);
-            java.lang.reflect.Method postAlteration = storageGrid.getClass().getMethod("postAlterationOfStoredItems",
-                appeng.api.storage.IStorageChannel.class, java.lang.Iterable.class, appeng.api.networking.security.IActionSource.class);
-            appeng.api.networking.security.IActionSource machineSrc = new MachineSource(this);
-            postAlteration.invoke(storageGrid, gasChannel, java.util.Collections.singletonList(change), machineSrc);
+            postOptionalAlteration(storageGrid, GAS_STORAGE_CHANNEL, change, machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post gas alteration", e);
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void postEssentiaAlteration(Object change, appeng.api.networking.security.IActionSource src) {
+        if (ESSENTIA_STORAGE_CHANNEL == null) return;
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
-            Class<?> essentiaChannelClass = Class.forName("thaumicenergistics.api.storage.IEssentiaStorageChannel");
-            java.lang.reflect.Method getChannel = appeng.api.AEApi.instance().storage().getClass().getMethod("getStorageChannel", Class.class);
-            Object essentiaChannel = getChannel.invoke(appeng.api.AEApi.instance().storage(), essentiaChannelClass);
-            java.lang.reflect.Method postAlteration = storageGrid.getClass().getMethod("postAlterationOfStoredItems",
-                appeng.api.storage.IStorageChannel.class, java.lang.Iterable.class, appeng.api.networking.security.IActionSource.class);
-            appeng.api.networking.security.IActionSource machineSrc = new MachineSource(this);
-            postAlteration.invoke(storageGrid, essentiaChannel, java.util.Collections.singletonList(change), machineSrc);
+            postOptionalAlteration(storageGrid, ESSENTIA_STORAGE_CHANNEL, change, machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post essentia alteration", e);
         }

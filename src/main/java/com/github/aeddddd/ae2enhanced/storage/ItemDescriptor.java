@@ -18,6 +18,7 @@ public class ItemDescriptor implements Descriptor {
     private final Item item;
     private final int meta;
     private final NBTTagCompound nbt;
+    private final int hash;
     // 缓存 AE2 的 IAEItemStack 模板,避免终端刷新时重复创建
     private transient volatile IAEItemStack aeTemplate;
     // 缓存显示名称和 modId，避免搜索时重复计算
@@ -28,12 +29,20 @@ public class ItemDescriptor implements Descriptor {
         this.item = stack.getItem();
         this.meta = stack.getMetadata();
         this.nbt = stack.hasTagCompound() ? stack.getTagCompound().copy() : null;
+        this.hash = computeHash();
     }
 
     private ItemDescriptor(Item item, int meta, NBTTagCompound nbt) {
         this.item = item;
         this.meta = meta;
         this.nbt = nbt != null ? nbt.copy() : null;
+        this.hash = computeHash();
+    }
+
+    private int computeHash() {
+        int result = item != null ? item.hashCode() : 0;
+        result = 31 * result + meta;
+        return result;
     }
 
     /**
@@ -142,11 +151,6 @@ public class ItemDescriptor implements Descriptor {
 
     @Override
     public int hashCode() {
-        // hashCode 不依赖 NBT 内容,避免 HashMap 迭代顺序导致的查找失败
-        // 相同 item+meta 的不同 NBT 会落在同一 bucket,由 equals() 精确区分
-        return Objects.hash(
-            item != null ? item.getRegistryName() : null,
-            meta
-        );
+        return hash;
     }
 }

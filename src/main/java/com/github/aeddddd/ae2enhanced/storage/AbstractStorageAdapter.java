@@ -40,9 +40,6 @@ import java.util.function.BiConsumer;
 public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends Descriptor>
         implements IMEMonitor<T>, IMEInventoryHandler<T> {
 
-    // ---- 常量缓存：避免热路径重复创建 BigInteger ----
-    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
-
     protected final Map<D, BigInteger> storage = new ConcurrentHashMap<>();
     protected IStorageChannel<T> channel;
     protected final HyperdimensionalStorageFile file;
@@ -78,6 +75,11 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     @Override
     public abstract IStorageChannel<T> getChannel();
 
+    /**
+     * 返回本适配器对应的存储分区，用于 section 级脏标记。
+     */
+    protected abstract StorageSection getStorageSection();
+
     // ---- 核心存储操作(通用实现) ----
 
     @Override
@@ -86,31 +88,32 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         if (file != null && file.isSafeMode()) {
             return input; // 安全模式：拒绝写入
         }
+        // SIMULATE 分支不修改 storage，直接返回 null（全部接受）。
+        // 跳过 createDescriptor 可避免大量合成预演时的描述符分配。
+        if (type != Actionable.MODULATE) {
+            return null;
+        }
         D key = createDescriptor(input);
         if (key == null) {
             return input;
         }
         BigInteger amount = BigInteger.valueOf(input.getStackSize());
 
-        if (type == Actionable.MODULATE) {
-            BigInteger old = storage.get(key);
-            if (old == null) {
-                storage.put(key, amount);
-                onDescriptorAdded(key);
-            } else {
-                storage.put(key, old.add(amount));
-            }
-            addToTotal(amount);
-            file.markDirty();
-
-            // 只在真正有监听器时才构造 change 与通知
-            if (hasChangeConsumers()) {
-                notifyPostChange(input.copy(), src);
-            }
-            return null; // 无限容量,全部接受
+        BigInteger old = storage.get(key);
+        if (old == null) {
+            storage.put(key, amount);
+            onDescriptorAdded(key);
+        } else {
+            storage.put(key, old.add(amount));
         }
-        // SIMULATE: 无限容量,全部接受
-        return null;
+        addToTotal(amount);
+        if (file != null) file.markDirty(getStorageSection());
+
+        // 只在真正有监听器时才构造 change 与通知
+        if (hasChangeConsumers()) {
+            notifyPostChange(input.copy(), src);
+        }
+        return null; // 无限容量,全部接受
     }
 
     @Override
@@ -139,7 +142,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
                 storage.put(key, remaining);
             }
             subtractFromTotal(toExtract);
-            file.markDirty();
+            if (file != null) file.markDirty(getStorageSection());
 
             if (hasChangeConsumers()) {
                 T change = request.copy();
@@ -148,7 +151,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
                 if (toExtract.bitLength() < 63) {
                     changeSize = -toExtract.longValue();
                 } else {
-                    changeSize = -toExtract.min(LONG_MAX).longValue();
+                    changeSize = -toExtract.min(StorageConstants.LONG_MAX).longValue();
                 }
                 change.setStackSize(changeSize);
                 notifyPostChange(change, src);
@@ -167,7 +170,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
 
             BigInteger count = entry.getValue();
             T copy = aeStack.copy();
-            if (count.compareTo(LONG_MAX) > 0) {
+            if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                 copy.setStackSize(Long.MAX_VALUE);
             } else {
                 copy.setStackSize(count.longValue());

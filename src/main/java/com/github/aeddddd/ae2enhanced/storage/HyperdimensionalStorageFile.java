@@ -59,6 +59,11 @@ public class HyperdimensionalStorageFile {
     private final File oldFile;
     private final ScheduledFuture<?> flushTask;
     private volatile boolean dirty = false;
+    private volatile boolean itemDirty = false;
+    private volatile boolean fluidDirty = false;
+    private volatile boolean gasDirty = false;
+    private volatile boolean essentiaDirty = false;
+    private volatile boolean energyDirty = false;
     private volatile boolean closed = false;
     private volatile boolean safeMode = false;
 
@@ -247,18 +252,29 @@ public class HyperdimensionalStorageFile {
     // ---- Save ----
 
     public boolean save() {
-        boolean ok = true;
-        ok &= saveSection(itemFile, itemCodec, storageRef, "item");
-        ok &= saveSection(fluidFile, fluidCodec, fluidStorageRef, "fluid");
-        ok &= saveSection(energyFile, energyCodec, energyStorageRef, "energy");
-        if (gasFile != null && gasCodec != null && gasStorageRef != null) {
-            ok &= saveSectionReflective(gasFile, gasCodec, gasStorageRef, "gas");
+        boolean itemOk = true, fluidOk = true, energyOk = true, gasOk = true, essentiaOk = true;
+        if (itemDirty) {
+            itemOk = saveSection(itemFile, itemCodec, storageRef, "item");
+            if (itemOk) itemDirty = false;
         }
-        if (essentiaFile != null && essentiaCodec != null && essentiaStorageRef != null) {
-            ok &= saveSectionReflective(essentiaFile, essentiaCodec, essentiaStorageRef, "essentia");
-        } else {
+        if (fluidDirty) {
+            fluidOk = saveSection(fluidFile, fluidCodec, fluidStorageRef, "fluid");
+            if (fluidOk) fluidDirty = false;
         }
-        return ok;
+        if (energyDirty) {
+            energyOk = saveSection(energyFile, energyCodec, energyStorageRef, "energy");
+            if (energyOk) energyDirty = false;
+        }
+        if (gasDirty && gasFile != null && gasCodec != null && gasStorageRef != null) {
+            gasOk = saveSectionReflective(gasFile, gasCodec, gasStorageRef, "gas");
+            if (gasOk) gasDirty = false;
+        }
+        if (essentiaDirty && essentiaFile != null && essentiaCodec != null && essentiaStorageRef != null) {
+            essentiaOk = saveSectionReflective(essentiaFile, essentiaCodec, essentiaStorageRef, "essentia");
+            if (essentiaOk) essentiaDirty = false;
+        }
+        dirty = itemDirty || fluidDirty || gasDirty || essentiaDirty || energyDirty;
+        return itemOk && fluidOk && energyOk && gasOk && essentiaOk;
     }
 
     private <D extends Descriptor> boolean saveSection(File file, DescriptorCodec<D> codec, Map<D, BigInteger> source, String typeName) {
@@ -471,7 +487,30 @@ public class HyperdimensionalStorageFile {
     // ---- Lifecycle ----
 
     public void markDirty() {
-        this.dirty = true;
+        if (!this.dirty) {
+            this.dirty = true;
+        }
+    }
+
+    public void markDirty(StorageSection section) {
+        switch (section) {
+            case ITEM:
+                if (!this.itemDirty) this.itemDirty = true;
+                break;
+            case FLUID:
+                if (!this.fluidDirty) this.fluidDirty = true;
+                break;
+            case GAS:
+                if (!this.gasDirty) this.gasDirty = true;
+                break;
+            case ESSENTIA:
+                if (!this.essentiaDirty) this.essentiaDirty = true;
+                break;
+            case ENERGY:
+                if (!this.energyDirty) this.energyDirty = true;
+                break;
+        }
+        markDirty();
     }
 
     public void setStorageRef(Map<ItemDescriptor, BigInteger> ref) {
@@ -496,9 +535,7 @@ public class HyperdimensionalStorageFile {
 
     private void flush() {
         if (!dirty || closed) return;
-        if (save()) {
-            dirty = false;
-        }
+        save(); // save() 内部已按 section 重置 dirty 并更新全局 dirty
     }
 
     public void close() {

@@ -19,6 +19,11 @@ public class GasStorageAdapter extends AbstractStorageAdapter<com.mekeng.github.
     }
 
     @Override
+    protected StorageSection getStorageSection() {
+        return StorageSection.GAS;
+    }
+
+    @Override
     protected GasDescriptor createDescriptor(com.mekeng.github.common.me.data.IAEGasStack input) {
         return new GasDescriptor(input);
     }
@@ -26,7 +31,7 @@ public class GasStorageAdapter extends AbstractStorageAdapter<com.mekeng.github.
     @Override
     protected com.mekeng.github.common.me.data.IAEGasStack createResult(com.mekeng.github.common.me.data.IAEGasStack request, BigInteger amount) {
         com.mekeng.github.common.me.data.IAEGasStack result = request.copy();
-        if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+        if (amount.compareTo(StorageConstants.LONG_MAX) > 0) {
             result.setStackSize(Long.MAX_VALUE);
         } else {
             result.setStackSize(amount.longValueExact());
