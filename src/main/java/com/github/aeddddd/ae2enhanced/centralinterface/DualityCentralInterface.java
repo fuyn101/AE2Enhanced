@@ -1053,10 +1053,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // ---- 默认单份材料发配工具方法 ----
 
     private InventoryCrafting copyInventoryCrafting(InventoryCrafting original) {
+        int size = original.getSizeInventory();
+        int dim = (int) Math.round(Math.sqrt(size));
+        if (dim * dim != size) {
+            // 非方阵时按 3×3 回退(正常配方均为方阵)
+            dim = 3;
+        }
         InventoryCrafting copy = new InventoryCrafting(new net.minecraft.inventory.Container() {
             @Override public boolean canInteractWith(net.minecraft.entity.player.EntityPlayer playerIn) { return false; }
-        }, 3, 3);
-        for (int i = 0; i < original.getSizeInventory(); i++) {
+        }, dim, dim);
+        for (int i = 0; i < size && i < copy.getSizeInventory(); i++) {
             ItemStack stack = original.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 copy.setInventorySlotContents(i, stack.copy());
