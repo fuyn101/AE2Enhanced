@@ -27,7 +27,11 @@ public class PlacementToolHudRenderer {
         if (player == null) return;
 
         ItemStack held = player.getHeldItemMainhand();
-        if (!(held.getItem() instanceof ItemMEPlacementTool)) return;
+        boolean show = held.getItem() instanceof ItemMEPlacementTool
+                || (held.getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool
+                    && com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool.getMode(held)
+                        == com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool.MODE_PLACEMENT);
+        if (!show) return;
 
         ScaledResolution sr = event.getResolution();
         int x = sr.getScaledWidth() / 2 + 16;

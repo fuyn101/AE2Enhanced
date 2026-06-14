@@ -87,10 +87,16 @@ public class KeyHandlerOmniTool {
             AE2Enhanced.network.sendToServer(new PacketOmniToolMode());
         } else if (KEY_PLACEMENT_RADIAL.isPressed()) {
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
-            if (mc.player != null && mc.player.getHeldItemMainhand().getItem()
-                    instanceof com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool) {
-                mc.displayGuiScreen(new com.github.aeddddd.ae2enhanced.client.gui.GuiPlacementRadialMenu(
-                        mc.player, KEY_PLACEMENT_RADIAL.getKeyCode()));
+            if (mc.player != null) {
+                net.minecraft.item.ItemStack held = mc.player.getHeldItemMainhand();
+                boolean canOpen = held.getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool
+                        || (held.getItem() instanceof com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool
+                            && com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool.getMode(held)
+                                == com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool.MODE_PLACEMENT);
+                if (canOpen) {
+                    mc.displayGuiScreen(new com.github.aeddddd.ae2enhanced.client.gui.GuiPlacementRadialMenu(
+                            mc.player, KEY_PLACEMENT_RADIAL.getKeyCode()));
+                }
             }
         }
     }

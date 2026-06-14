@@ -1,13 +1,18 @@
 package com.github.aeddddd.ae2enhanced.item;
 
+import appeng.api.features.INetworkEncodable;
 import appeng.api.implementations.items.IAEWrench;
 import cofh.api.item.IToolHammer;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.BlockWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import com.github.aeddddd.ae2enhanced.util.BossDropHelper;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import com.github.aeddddd.ae2enhanced.util.TravelAnchorHelper;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
+import com.github.aeddddd.ae2enhanced.util.placement.PlacementToolHelper;
+import com.github.aeddddd.ae2enhanced.util.placement.SecurityTerminalBindingHelper;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import crazypants.enderio.api.tool.IConduitControl;
@@ -58,7 +63,7 @@ import java.util.UUID;
     @Optional.Interface(iface = "crazypants.enderio.api.tool.ITool", modid = "enderio"),
     @Optional.Interface(iface = "crazypants.enderio.api.tool.IConduitControl", modid = "enderio")
 })
-public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHammer, IMekWrench, ITool, IConduitControl {
+public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHammer, IMekWrench, ITool, IConduitControl, INetworkEncodable {
 
     // ---- NBT Keys ----
     public static final String NBT_MODE = "Mode";
@@ -98,12 +103,12 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     // ---- Modes ----
     public static final int MODE_COUNT = 4;
     public static final int MODE_UNIVERSAL = 0;
-    public static final int MODE_WRENCH = 1;
+    public static final int MODE_PLACEMENT = 1;
     public static final int MODE_ROTATE = 2;
     public static final int MODE_TRAVEL = 3;
 
     private static final String[] MODE_NAMES = {
-        "mode.universal", "mode.wrench", "mode.rotate", "mode.travel"
+        "mode.universal", "mode.placement", "mode.rotate", "mode.travel"
     };
 
     // ---- Damage Sources ----
@@ -480,7 +485,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         }
     }
 
-    // ==================== Item Use First (Wrench Rotate) ====================
+    // ==================== Item Use First (Universal Rotate) ====================
 
     @Override
     public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
@@ -488,7 +493,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
         ItemStack stack = player.getHeldItem(hand);
         int mode = getMode(stack);
 
-        if (mode != MODE_WRENCH && mode != MODE_UNIVERSAL) return EnumActionResult.PASS;
+        // 仅通用模式保留快速旋转；放置模式由 onItemUse 处理
+        if (mode != MODE_UNIVERSAL) return EnumActionResult.PASS;
         if (player.isSneaking()) return EnumActionResult.PASS;
 
         Block block = world.getBlockState(pos).getBlock();
@@ -502,7 +508,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     @Override
     public boolean doesSneakBypassUse(ItemStack stack, IBlockAccess world, BlockPos pos, EntityPlayer player) {
         int mode = getMode(stack);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_PLACEMENT || mode == MODE_UNIVERSAL;
     }
 
     // ==================== Right-Click on Block ====================
@@ -531,8 +537,8 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                     return EnumActionResult.SUCCESS;
                 }
                 return EnumActionResult.PASS;
-            case MODE_WRENCH:
-                return doWrench(player, world, pos, facing, hand);
+            case MODE_PLACEMENT:
+                return doPlacement(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
             case MODE_ROTATE:
                 return doRotate(player, world, pos, facing);
             case MODE_TRAVEL:
@@ -603,38 +609,32 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
 
             doBlink(player, world, stack);
             return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+        } else if (mode == MODE_PLACEMENT) {
+            int slot = player.inventory.currentItem;
+            if (hand == EnumHand.OFF_HAND) {
+                slot = 40;
+            }
+            player.openGui(AE2Enhanced.instance, GuiHandler.GUI_PLACEMENT_TOOL, world, slot, 0, 0);
+            return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         }
         return new ActionResult<>(EnumActionResult.PASS, stack);
     }
 
-    // ==================== Wrench Mode ====================
+    // ==================== Placement Mode ====================
 
-    private EnumActionResult doWrench(EntityPlayer player, World world, BlockPos pos, EnumFacing facing, EnumHand hand) {
+    private EnumActionResult doPlacement(EntityPlayer player, World world, BlockPos pos, EnumFacing facing, EnumHand hand,
+                                         ItemStack stack, float hitX, float hitY, float hitZ) {
         if (world.isRemote) return EnumActionResult.SUCCESS;
 
-        // 首先尝试通用旋转
-        IBlockState state = world.getBlockState(pos);
-        Block block = state.getBlock();
-        if (block.rotateBlock(world, pos, facing)) {
-            player.swingArm(hand);
-            return EnumActionResult.SUCCESS;
+        PlacementConfig config = new PlacementConfig(stack);
+        int count = config.getPlacementCount();
+        boolean ok;
+        if (count > 1) {
+            ok = PlacementToolHelper.placeBulk(player, world, pos, facing, hand, stack, count, hitX, hitY, hitZ);
+        } else {
+            ok = PlacementToolHelper.placeSingle(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
         }
-
-        // PropertyDirection 手动循环回退（用于扳手模式旋转）
-        for (IProperty<?> prop : state.getPropertyKeys()) {
-            if (prop instanceof PropertyDirection) {
-                PropertyDirection dirProp = (PropertyDirection) prop;
-                EnumFacing current = state.getValue(dirProp);
-                EnumFacing next = getNextFacing(current, facing, dirProp);
-                if (next != null && next != current && dirProp.getAllowedValues().contains(next)) {
-                    world.setBlockState(pos, state.withProperty(dirProp, next));
-                    player.swingArm(hand);
-                    return EnumActionResult.SUCCESS;
-                }
-            }
-        }
-
-        return EnumActionResult.PASS;
+        return ok ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
     }
 
     // ==================== Rotate Mode ====================
@@ -858,6 +858,17 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     }
 
     // ==================== AE Binding ====================
+
+    // INetworkEncodable —— 用于放置模式的安全终端绑定（不影响原有的无线频道发射器绑定）
+    @Override
+    public String getEncryptionKey(ItemStack item) {
+        return SecurityTerminalBindingHelper.getEncryptionKey(item);
+    }
+
+    @Override
+    public void setEncryptionKey(ItemStack item, String encKey, String name) {
+        SecurityTerminalBindingHelper.setEncryptionKey(item, encKey);
+    }
 
     public static boolean isAEBound(ItemStack stack) {
         return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_AE_BOUND);
@@ -1282,6 +1293,26 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
                 + I18n.format("item.ae2enhanced.me_omni_tool.drop_mode", TextFormatting.YELLOW + dropModeName));
         }
 
+        if (mode == MODE_PLACEMENT) {
+            PlacementConfig config = new PlacementConfig(stack);
+            ItemStack selected = config.getStackInSlot(config.getSelectedSlot());
+            if (!selected.isEmpty()) {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                    + I18n.format("item.ae2enhanced.me_omni_tool.placement.selected",
+                            TextFormatting.YELLOW + selected.getDisplayName(), config.getPlacementCount()));
+            } else {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                    + I18n.format("item.ae2enhanced.me_omni_tool.placement.no_selection"));
+            }
+            if (SecurityTerminalBindingHelper.isLinked(stack)) {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                    + I18n.format("item.ae2enhanced.me_omni_tool.placement.linked"));
+            } else {
+                tooltip.add(TextFormatting.GRAY + "▸ " + TextFormatting.WHITE
+                    + I18n.format("item.ae2enhanced.me_omni_tool.placement.unlinked"));
+            }
+        }
+
         tooltip.add(TextFormatting.AQUA + "━━━━━━━━━━━━━━━━━━━━");
 
         boolean hasUpgrades = false;
@@ -1332,7 +1363,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     @Override
     public boolean canWrench(ItemStack wrench, EntityPlayer player, BlockPos pos) {
         int mode = getMode(wrench);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_UNIVERSAL;
     }
 
     // -- IToolHammer (CoFH) --
@@ -1358,13 +1389,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     @Override
     public boolean canUseWrench(ItemStack stack, EntityPlayer player, BlockPos pos) {
         int mode = getMode(stack);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_UNIVERSAL;
     }
 
     @Override
     public boolean canUseWrench(EntityPlayer player, EnumHand hand, ItemStack stack, RayTraceResult rayTrace) {
         int mode = getMode(stack);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_UNIVERSAL;
     }
 
     @Override
@@ -1376,7 +1407,7 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     public boolean canUse(EnumHand hand, EntityPlayer player, BlockPos pos) {
         ItemStack stack = player.getHeldItem(hand);
         int mode = getMode(stack);
-        return (mode == MODE_WRENCH || mode == MODE_UNIVERSAL) && stack.getItem() instanceof ItemAdvancedMEOmniTool;
+        return mode == MODE_UNIVERSAL && stack.getItem() instanceof ItemAdvancedMEOmniTool;
     }
 
     @Override
@@ -1386,13 +1417,13 @@ public class ItemAdvancedMEOmniTool extends Item implements IAEWrench, IToolHamm
     @Override
     public boolean shouldHideFacades(ItemStack stack, EntityPlayer player) {
         int mode = getMode(stack);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_UNIVERSAL;
     }
 
     @Override
     public boolean showOverlay(ItemStack stack, EntityPlayer player) {
         int mode = getMode(stack);
-        return mode == MODE_WRENCH || mode == MODE_UNIVERSAL;
+        return mode == MODE_UNIVERSAL;
     }
 
     // ==================== Item Entity Protection (Conformal Charge) ====================
