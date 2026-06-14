@@ -198,7 +198,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
 
             IAEItemStack ae = AEItemStack.fromItemStack(knowledge);
             if (ae == null) continue;
-            ae.setStackSize(Math.min(maxCount, Integer.MAX_VALUE));
+            ae.setStackSize(Math.min(maxCount, Long.MAX_VALUE));
             list.add(ae);
         }
         availableCache = list;
