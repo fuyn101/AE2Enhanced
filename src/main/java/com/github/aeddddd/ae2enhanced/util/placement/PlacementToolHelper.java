@@ -228,7 +228,9 @@ public final class PlacementToolHelper {
         try {
             for (BlockPos placePos : positions) {
                 snapshots.add(BlockSnapshot.getBlockSnapshot(world, placePos));
-                if (!tryPlaceBlockAt(player, world, placePos, side, hand, placeStack, hitX, hitY, hitZ)) {
+                // 每次放置都使用新的 stack 副本，防止 ItemBlock 消耗同一份 stack
+                ItemStack stackForPos = placeStack.copy();
+                if (!tryPlaceBlockAt(player, world, placePos, side, hand, stackForPos, hitX, hitY, hitZ)) {
                     success = false;
                     break;
                 }
