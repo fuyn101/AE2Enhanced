@@ -51,11 +51,20 @@ public class KeyHandlerOmniTool {
         "key.categories.ae2enhanced"
     );
 
+    public static final KeyBinding KEY_PLACEMENT_RADIAL = new KeyBinding(
+        "key.ae2enhanced.placement_radial",
+        KeyConflictContext.IN_GAME,
+        KeyModifier.NONE,
+        Keyboard.KEY_G,
+        "key.categories.ae2enhanced"
+    );
+
     public static void init() {
         ClientRegistry.registerKeyBinding(KEY_MODE);
         ClientRegistry.registerKeyBinding(KEY_SILK);
         ClientRegistry.registerKeyBinding(KEY_DROP);
         ClientRegistry.registerKeyBinding(KEY_CONFIG);
+        ClientRegistry.registerKeyBinding(KEY_PLACEMENT_RADIAL);
     }
 
     @SubscribeEvent
@@ -76,6 +85,13 @@ public class KeyHandlerOmniTool {
             AE2Enhanced.network.sendToServer(new PacketOmniToolSilkTouch());
         } else if (KEY_MODE.isPressed()) {
             AE2Enhanced.network.sendToServer(new PacketOmniToolMode());
+        } else if (KEY_PLACEMENT_RADIAL.isPressed()) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+            if (mc.player != null && mc.player.getHeldItemMainhand().getItem()
+                    instanceof com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool) {
+                mc.displayGuiScreen(new com.github.aeddddd.ae2enhanced.client.gui.GuiPlacementRadialMenu(
+                        mc.player, KEY_PLACEMENT_RADIAL.getKeyCode()));
+            }
         }
     }
 }

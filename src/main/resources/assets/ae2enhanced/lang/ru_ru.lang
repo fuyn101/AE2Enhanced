@@ -443,3 +443,6 @@ gui.ae2enhanced.placement_tool.page=Page %d/%d
 gui.ae2enhanced.placement_tool.count=Count: %d
 message.ae2enhanced.placement.nothing_to_undo=Nothing to undo
 message.ae2enhanced.placement.undone=Placement undone
+key.ae2enhanced.placement_radial=ME Placement Tool Radial Menu
+gui.ae2enhanced.placement_radial.title=Select Placement Item
+gui.ae2enhanced.placement_radial.count=Count: %d

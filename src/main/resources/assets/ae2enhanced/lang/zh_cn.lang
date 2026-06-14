@@ -460,3 +460,6 @@ gui.ae2enhanced.placement_tool.page=第 %d/%d 页
 gui.ae2enhanced.placement_tool.count=数量：%d
 message.ae2enhanced.placement.nothing_to_undo=没有可撤销的操作
 message.ae2enhanced.placement.undone=已撤销放置
+key.ae2enhanced.placement_radial=ME 放置工具径向菜单
+gui.ae2enhanced.placement_radial.title=选择放置物品
+gui.ae2enhanced.placement_radial.count=数量：%d

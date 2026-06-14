@@ -91,6 +91,7 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new KeyHandlerOmniTool());
         com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard.registerClientEvents();
         MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
+        MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.hud.PlacementToolHudRenderer());
         MinecraftForge.EVENT_BUS.register(new ChunkPowerHighlightRenderer());
         MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.client.render.BindingLineRenderer());
 
@@ -276,6 +277,9 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.SMART_BLANK_PATTERN);
         registerItemModel(ItemRegistry.SMART_PATTERN);
         registerItemModel(ItemRegistry.ENERGY_DROP);
+
+        // ME 放置工具
+        registerItemModel(ItemRegistry.ME_PLACEMENT_TOOL);
 
         // 先进ME工具：4模式使用 ItemMeshDefinition 动态切换模型
         if (ItemRegistry.ME_OMNI_TOOL != null) {
