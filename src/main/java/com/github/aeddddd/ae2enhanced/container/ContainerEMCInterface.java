@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.container.slot.SlotFakeTypeOnly;
 import appeng.tile.inventory.AppEngInternalAEInventory;
+import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -14,7 +15,8 @@ import javax.annotation.Nonnull;
 /**
  * EMC 接口容器.
  *
- * <p>仿存储总线布局:每页 7×9 过滤槽,共 10 页.</p>
+ * <p>复用 3.png 纹理图集风格；每页 7×9 过滤槽，共 10 页。
+ * 过滤槽仅允许存在 EMC 值的物品。</p>
  */
 public class ContainerEMCInterface extends Container {
 
@@ -29,9 +31,9 @@ public class ContainerEMCInterface extends Container {
         this.tile = tile;
 
         AppEngInternalAEInventory config = tile.getConfig();
-        // 创建所有过滤槽,初始只显示第 0 页
+        // 创建所有过滤槽，初始只显示第 0 页
         for (int i = 0; i < TileEMCInterface.WHITELIST_SIZE; i++) {
-            this.addSlotToContainer(new SlotFakeTypeOnly(config, i, -1000, -1000));
+            this.addSlotToContainer(new SlotFakeEMCOnly(config, i, -1000, -1000));
         }
         refreshSlotPositions();
 
@@ -98,13 +100,14 @@ public class ContainerEMCInterface extends Container {
                 return ItemStack.EMPTY;
             }
         }
-        // 背包 -> 过滤槽:放入第一个空槽(不依赖页码)
+        // 背包 -> 过滤槽：仅允许有 EMC 值的物品，放入第一个空槽
         else {
             ItemStack copy = stack.copy();
             copy.setCount(1);
+            if (!hasEmc(copy)) return ItemStack.EMPTY;
             for (int i = 0; i < TileEMCInterface.WHITELIST_SIZE; i++) {
                 Slot fakeSlot = this.inventorySlots.get(i);
-                if (!fakeSlot.getHasStack()) {
+                if (!fakeSlot.getHasStack() && fakeSlot.isItemValid(copy)) {
                     fakeSlot.putStack(copy);
                     return ItemStack.EMPTY;
                 }
@@ -114,5 +117,23 @@ public class ContainerEMCInterface extends Container {
 
         slot.onSlotChanged();
         return stack;
+    }
+
+    private static boolean hasEmc(@Nonnull ItemStack stack) {
+        return ProjectEHelper.isAvailable() && ProjectEHelper.getEmcValue(stack) > 0;
+    }
+
+    /**
+     * 仅接受存在 EMC 值的假物品槽.
+     */
+    private static class SlotFakeEMCOnly extends SlotFakeTypeOnly {
+        SlotFakeEMCOnly(AppEngInternalAEInventory inv, int idx, int x, int y) {
+            super(inv, idx, x, y);
+        }
+
+        @Override
+        public boolean isItemValid(@Nonnull ItemStack stack) {
+            return hasEmc(stack);
+        }
     }
 }

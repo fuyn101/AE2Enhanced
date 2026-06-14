@@ -20,7 +20,7 @@ import java.io.IOException;
 public class GuiEMCInterface extends GuiContainer {
 
     private static final ResourceLocation TEXTURE =
-            new ResourceLocation("appliedenergistics2", "textures/guis/storagebus.png");
+            new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/3.png");
 
     private final TileEMCInterface tile;
     private final ContainerEMCInterface container;
@@ -48,7 +48,7 @@ public class GuiEMCInterface extends GuiContainer {
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.getTextureManager().bindTexture(TEXTURE);
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+        this.drawModalRectWithCustomSizedTexture(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize, 512, 512);
     }
 
     @Override
