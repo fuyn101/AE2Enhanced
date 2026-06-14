@@ -502,12 +502,7 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
         int mode = getMode(stack);
         switch (mode) {
             case MODE_UNIVERSAL:
-                // 通用模式右键直接破坏方块（Shift 绑定 AE 已在上方处理）
-                if (!player.isSneaking()) {
-                    forceBreakBlock(player, world, pos, stack);
-                    player.swingArm(hand);
-                    return EnumActionResult.SUCCESS;
-                }
+                // 通用模式不再右键破坏方块，仅保留 Shift 右键绑定 AE（已在上方处理）
                 return EnumActionResult.PASS;
             case MODE_PLACEMENT:
                 return doPlacement(player, world, pos, facing, hand, stack, hitX, hitY, hitZ);
