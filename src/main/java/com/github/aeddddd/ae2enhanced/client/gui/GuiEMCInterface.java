@@ -15,12 +15,12 @@ import java.io.IOException;
 /**
  * EMC 接口 GUI.
  *
- * <p>仿存储总线:7×9 过滤槽,支持 10 页翻页.</p>
+ * <p>使用 AE2 存储总线背景纹理,保持与存储总线一致的视觉风格.</p>
  */
 public class GuiEMCInterface extends GuiContainer {
 
     private static final ResourceLocation TEXTURE =
-            new ResourceLocation(AE2Enhanced.MOD_ID, "textures/gui/emc_interface.png");
+            new ResourceLocation("appliedenergistics2", "textures/guis/storagebus.png");
 
     private final TileEMCInterface tile;
     private final ContainerEMCInterface container;
@@ -31,7 +31,7 @@ public class GuiEMCInterface extends GuiContainer {
         super(container);
         this.tile = container.getTile();
         this.container = container;
-        this.xSize = 176;
+        this.xSize = 177;
         this.ySize = 251;
     }
 

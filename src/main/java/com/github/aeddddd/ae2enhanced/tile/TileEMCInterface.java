@@ -165,6 +165,10 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         return whitelistSet.contains(new ItemDescriptor(stack));
     }
 
+    public boolean isWhitelistActive() {
+        return !whitelistSet.isEmpty();
+    }
+
     private void rebuildWhitelistSet() {
         whitelistSet.clear();
         for (ItemStack stack : whitelist) {

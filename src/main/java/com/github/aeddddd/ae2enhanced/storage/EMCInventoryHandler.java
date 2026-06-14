@@ -23,8 +23,10 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -197,15 +199,31 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         }
 
         List<IAEItemStack> list = new ArrayList<>();
+        if (!tile.isWhitelistActive()) {
+            availableCache = list;
+            availableCacheTick = now;
+            return list;
+        }
+
+        // 将已学知识转换为 HashSet,用 O(1) 判断白名单物品是否已学
+        Set<ItemDescriptor> knownSet = new HashSet<>();
         for (ItemStack knowledge : ProjectEHelper.getKnowledge(provider)) {
-            if (knowledge.isEmpty()) continue;
-            if (!tile.isWhitelisted(knowledge)) continue;
-            long itemEmc = getCachedEmcValue(knowledge);
+            if (!knowledge.isEmpty()) {
+                knownSet.add(new ItemDescriptor(knowledge));
+            }
+        }
+
+        // 只遍历白名单,不再遍历全部已学物品
+        for (ItemStack whitelistItem : tile.getWhitelist()) {
+            if (whitelistItem.isEmpty()) continue;
+            ItemDescriptor desc = new ItemDescriptor(whitelistItem);
+            if (!knownSet.contains(desc)) continue;
+            long itemEmc = getCachedEmcValue(whitelistItem);
             if (itemEmc <= 0) continue;
             long maxCount = balance / itemEmc;
             if (maxCount <= 0) continue;
 
-            IAEItemStack ae = AEItemStack.fromItemStack(knowledge);
+            IAEItemStack ae = AEItemStack.fromItemStack(whitelistItem);
             if (ae == null) continue;
             ae.setStackSize(Math.min(maxCount, Long.MAX_VALUE));
             list.add(ae);
