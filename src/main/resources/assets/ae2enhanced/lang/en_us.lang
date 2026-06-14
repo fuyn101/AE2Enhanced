@@ -458,3 +458,5 @@ message.ae2enhanced.placement.network_missing=Network missing: %s
 message.ae2enhanced.placement.cannot_place=Cannot place here
 message.ae2enhanced.placement.no_storage=No ME storage found
 message.ae2enhanced.placement.not_implemented=Not implemented yet
+gui.ae2enhanced.placement_tool.page=Page %d/%d
+gui.ae2enhanced.placement_tool.count=Count: %d
