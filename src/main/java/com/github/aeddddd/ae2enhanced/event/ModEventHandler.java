@@ -9,6 +9,8 @@ import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
+import com.github.aeddddd.ae2enhanced.omnitool.module.CombatModule;
+import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.omnitool.network.WirelessTransmitterNetworkLink;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
@@ -82,10 +84,10 @@ public final class ModEventHandler {
         BlockPos pos = event.getPos();
         IBlockState state = event.getWorld().getBlockState(pos);
         if (state.getBlock().getBlockHardness(state, event.getWorld(), pos) >= 0.0f) return;
-        if (ItemAdvancedMEOmniTool.isBlacklisted(state.getBlock())) return;
+        if (MiningModule.isBlacklisted(state.getBlock())) return;
 
         event.setCanceled(true);
-        ItemAdvancedMEOmniTool.forceBreakBlock(player, event.getWorld(), pos, stack);
+        MiningModule.forceBreakBlock(player, event.getWorld(), pos, stack);
     }
 
     /**
@@ -291,7 +293,7 @@ public final class ModEventHandler {
 
     @SubscribeEvent
     public void onLivingHeal(LivingHealEvent event) {
-        if (ItemAdvancedMEOmniTool.hasAntiHeal(event.getEntityLiving())) {
+        if (CombatModule.hasAntiHeal(event.getEntityLiving())) {
             event.setCanceled(true);
         }
     }
@@ -305,7 +307,7 @@ public final class ModEventHandler {
     public void onWorldTick(net.minecraftforge.fml.common.gameevent.TickEvent.WorldTickEvent event) {
         if (event.phase != net.minecraftforge.fml.common.gameevent.TickEvent.Phase.END || event.world.isRemote) return;
         for (net.minecraft.entity.Entity entity : event.world.loadedEntityList) {
-            if (entity instanceof EntityLivingBase && ItemAdvancedMEOmniTool.hasAntiHeal((EntityLivingBase) entity)) {
+            if (entity instanceof EntityLivingBase && CombatModule.hasAntiHeal((EntityLivingBase) entity)) {
                 if (!entity.isDead) {
                     ForceKillHelper.forceSetIsDead(entity, true);
                 }

@@ -2,6 +2,8 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 
 import appeng.api.util.AEColor;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
+import com.github.aeddddd.ae2enhanced.omnitool.module.TravelModule;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -22,8 +24,8 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setMode(stack, message.getMode());
                     ItemAdvancedMEOmniTool.setDropMode(stack, message.getDropMode());
                     ItemAdvancedMEOmniTool.setSilkTouchEnabled(stack, message.isSilkTouch());
-                    ItemAdvancedMEOmniTool.setBlinkDistance(stack, message.getBlinkDistance());
-                    ItemAdvancedMEOmniTool.setBreakCooldown(stack, Math.max(0, message.getBreakCooldown()));
+                    TravelModule.setBlinkDistance(stack, message.getBlinkDistance());
+                    MiningModule.setBreakCooldown(stack, Math.max(0, message.getBreakCooldown()));
                     int mask = message.getParamEnabled();
                     for (int i = 0; i < 12; i++) {
                         ItemAdvancedMEOmniTool.setParamEnabled(stack, i, (mask & (1 << i)) != 0);
@@ -31,7 +33,7 @@ public class PacketOmniToolConfigHandler implements IMessageHandler<PacketOmniTo
                     ItemAdvancedMEOmniTool.setChaosForceKillEnabled(stack, message.isChaosForceKill());
                     ItemAdvancedMEOmniTool.setConformalCharge(stack, message.isConformalEnabled());
                     ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(stack, message.isAdvancedSilkTouch());
-                    ItemAdvancedMEOmniTool.setWallPhaseEnabled(stack, message.isWallPhase());
+                    TravelModule.setWallPhaseEnabled(stack, message.isWallPhase());
 
                     // 应用放置工具配置：线缆颜色、触及距离
                     PlacementConfig placementConfig = new PlacementConfig(stack);

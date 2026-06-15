@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
+import com.github.aeddddd.ae2enhanced.omnitool.module.TravelModule;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementRestriction;
@@ -148,13 +150,13 @@ public class GuiOmniToolConfig extends GuiContainer {
         new ParamDef(PID_BLINK, "gui.ae2enhanced.omni_tool_config.blink_dist",
                 "gui.ae2enhanced.omni_tool_config.blink_dist.desc",
                 1, 256, s -> true,
-                s -> (int) ItemAdvancedMEOmniTool.getBlinkDistance(s),
-                (s, v) -> ItemAdvancedMEOmniTool.setBlinkDistance(s, v)),
+                s -> (int) TravelModule.getBlinkDistance(s),
+                (s, v) -> TravelModule.setBlinkDistance(s, v)),
         new ParamDef(PID_COOLDOWN, "gui.ae2enhanced.omni_tool_config.break_cooldown",
                 "gui.ae2enhanced.omni_tool_config.break_cooldown.desc",
                 0, 100, s -> true,
-                ItemAdvancedMEOmniTool::getBreakCooldown,
-                ItemAdvancedMEOmniTool::setBreakCooldown),
+                MiningModule::getBreakCooldown,
+                MiningModule::setBreakCooldown),
         new ParamDef(PID_CHAOS_KILL, "gui.ae2enhanced.omni_tool_config.chaos_force_kill",
                 "gui.ae2enhanced.omni_tool_config.chaos_force_kill.desc",
                 0, 1, ItemAdvancedMEOmniTool::hasChaosCore,
@@ -173,8 +175,8 @@ public class GuiOmniToolConfig extends GuiContainer {
         new ParamDef(PID_WALL_PHASE, "gui.ae2enhanced.omni_tool_config.wall_phase",
                 "gui.ae2enhanced.omni_tool_config.wall_phase.desc",
                 0, 1, s -> true,
-                s -> ItemAdvancedMEOmniTool.isWallPhaseEnabled(s) ? 1 : 0,
-                (s, v) -> ItemAdvancedMEOmniTool.setWallPhaseEnabled(s, v > 0)),
+                s -> TravelModule.isWallPhaseEnabled(s) ? 1 : 0,
+                (s, v) -> TravelModule.setWallPhaseEnabled(s, v > 0)),
         new ParamDef(PID_CABLE_COLOR, "gui.ae2enhanced.omni_tool_config.cable_color",
                 "gui.ae2enhanced.omni_tool_config.cable_color.desc",
                 0, 16, s -> true,
@@ -239,12 +241,12 @@ public class GuiOmniToolConfig extends GuiContainer {
         values[PID_MODE] = ItemAdvancedMEOmniTool.getMode(toolStack);
         values[PID_DROP] = ItemAdvancedMEOmniTool.getDropMode(toolStack);
         values[PID_SILK] = ItemAdvancedMEOmniTool.isSilkTouchEnabled(toolStack) ? 1 : 0;
-        values[PID_BLINK] = (int) ItemAdvancedMEOmniTool.getBlinkDistance(toolStack);
-        values[PID_COOLDOWN] = ItemAdvancedMEOmniTool.getBreakCooldown(toolStack);
+        values[PID_BLINK] = (int) TravelModule.getBlinkDistance(toolStack);
+        values[PID_COOLDOWN] = MiningModule.getBreakCooldown(toolStack);
         values[PID_CHAOS_KILL] = ItemAdvancedMEOmniTool.isChaosForceKillEnabled(toolStack) ? 1 : 0;
         values[PID_CONFORMAL] = ItemAdvancedMEOmniTool.hasConformalCharge(toolStack) ? 1 : 0;
         values[PID_ADVANCED_SILK] = ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(toolStack) ? 1 : 0;
-        values[PID_WALL_PHASE] = ItemAdvancedMEOmniTool.isWallPhaseEnabled(toolStack) ? 1 : 0;
+        values[PID_WALL_PHASE] = TravelModule.isWallPhaseEnabled(toolStack) ? 1 : 0;
         values[PID_CABLE_COLOR] = new PlacementConfig(toolStack).getCableColor().ordinal();
         values[PID_REACH_DISTANCE] = (int) new PlacementConfig(toolStack).getReachDistance();
         values[PID_PLACEMENT_RESTRICTION] = new PlacementConfig(toolStack).getPlacementRestriction().ordinal();
@@ -646,12 +648,12 @@ public class GuiOmniToolConfig extends GuiContainer {
         ItemAdvancedMEOmniTool.setMode(toolStack, values[PID_MODE]);
         ItemAdvancedMEOmniTool.setDropMode(toolStack, values[PID_DROP]);
         ItemAdvancedMEOmniTool.setSilkTouchEnabled(toolStack, values[PID_SILK] > 0);
-        ItemAdvancedMEOmniTool.setBlinkDistance(toolStack, values[PID_BLINK]);
-        ItemAdvancedMEOmniTool.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
+        TravelModule.setBlinkDistance(toolStack, values[PID_BLINK]);
+        MiningModule.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
         ItemAdvancedMEOmniTool.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
         ItemAdvancedMEOmniTool.setConformalCharge(toolStack, values[PID_CONFORMAL] > 0);
         ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(toolStack, values[PID_ADVANCED_SILK] > 0);
-        ItemAdvancedMEOmniTool.setWallPhaseEnabled(toolStack, values[PID_WALL_PHASE] > 0);
+        TravelModule.setWallPhaseEnabled(toolStack, values[PID_WALL_PHASE] > 0);
 
         PlacementConfig placementConfig = new PlacementConfig(toolStack);
         int colorIdx = values[PID_CABLE_COLOR];
