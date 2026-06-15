@@ -40,7 +40,8 @@
     "world.MixinWorldSpawnEntity",
     "world.MixinBlockSpawnAsEntity",
     "world.MixinEntityPlayerDropItem",
-    "world.MixinInventoryHelperDropItems"
+    "world.MixinInventoryHelperDropItems",
+    "world.MixinPlayerInteractionManager"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",
@@ -53,7 +54,8 @@
     "terminal.MixinGuiMEMonitorable",
     "terminal.MixinGuiMEMonitorableKeyHandler",
     "terminal.MixinItemRepo",
-    "terminal.MixinGuiScreenHelper"
+    "terminal.MixinGuiScreenHelper",
+    "world.MixinPlayerControllerMP"
   ],
   "server": []
 }
