@@ -361,6 +361,7 @@ item.ae2enhanced.me_omni_tool.mode.travel=§e旅行
 item.ae2enhanced.me_omni_tool.silk_touch.on=§a精准采集: 开启
 item.ae2enhanced.me_omni_tool.silk_touch.off=§c精准采集: 关闭
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6混沌核心
+item.ae2enhanced.me_omni_tool.upgrade.bedrock=§4基岩破坏者
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§a时运 %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§d旅行手杖
 item.ae2enhanced.me_omni_tool.upgrade.conformal=§b共形不变荷

@@ -217,6 +217,14 @@ public class AE2EnhancedConfig {
         public boolean enableChaosCoreUpgrade = true;
 
         @Config.Comment({
+            "Enable the Bedrock Breaker upgrade recipe for the Advanced ME Omni Tool.",
+            "When enabled, players can craft the Omni Tool with Bedrock to break",
+            "all unbreakable blocks (block hardness < 0).",
+            "Default: true"
+        })
+        public boolean enableBedrockBreakerUpgrade = true;
+
+        @Config.Comment({
             "Maximum blink (teleport) distance in blocks for Travel Mode.",
             "Players can configure a shorter distance in-game, but cannot exceed this value.",
             "Range: 1 ~ 1000, Default: 256"

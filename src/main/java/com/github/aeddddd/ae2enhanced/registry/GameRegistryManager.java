@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.tile.*;
 import com.github.aeddddd.ae2enhanced.crafting.RecipeOmniToolUpgrade;
 import net.minecraft.block.Block;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -208,5 +209,19 @@ public final class GameRegistryManager {
                 new ItemStack(ItemRegistry.ME_OMNI_TOOL),
                 new ItemStack(Items.ENCHANTED_BOOK)
         ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_enchanted_book_upgrade"));
+
+        // ME Omni Tool - Bedrock Breaker upgrade
+        if (AE2EnhancedConfig.omniTool.enableBedrockBreakerUpgrade) {
+            Item bedrockItem = Item.getItemFromBlock(Blocks.BEDROCK);
+            if (bedrockItem != null && bedrockItem != Items.AIR) {
+                event.getRegistry().register(new RecipeOmniToolUpgrade(
+                        new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_bedrock_upgrade"),
+                        new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                        "bedrock",
+                        new ItemStack(ItemRegistry.ME_OMNI_TOOL),
+                        new ItemStack(bedrockItem)
+                ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_bedrock_upgrade"));
+            }
+        }
     }
 }

@@ -241,6 +241,7 @@ item.ae2enhanced.me_omni_tool.mode.travel=§eTravel
 item.ae2enhanced.me_omni_tool.silk_touch.on=§aSilk Touch: ON
 item.ae2enhanced.me_omni_tool.silk_touch.off=§cSilk Touch: OFF
 item.ae2enhanced.me_omni_tool.upgrade.chaos=§6Chaos Core
+item.ae2enhanced.me_omni_tool.upgrade.bedrock=§4Bedrock Breaker
 item.ae2enhanced.me_omni_tool.upgrade.fortune=§aFortune %d
 item.ae2enhanced.me_omni_tool.upgrade.travel=§dTravel Staff
 item.ae2enhanced.me_omni_tool.upgrade.conformal=§bConformal Invariant Charge

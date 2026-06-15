@@ -81,6 +81,7 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
     public static final String NBT_PARAM_ENABLED = "ParamEnabled";
     public static final String NBT_CHAOS_FORCE_KILL = "ChaosForceKill";
     public static final String NBT_ADVANCED_SILK = "AdvancedSilkTouch";
+    public static final String NBT_BEDROCK_BREAKER = "BedrockBreaker";
     public static final String NBT_WALL_PHASE = "WallPhase";
     public static final String NBT_ENCHANTMENTS = "AE2E_Enchantments";
 
@@ -184,6 +185,20 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
                 return true;
             }
             setLastBreakTick(stack, now);
+        }
+
+        // 基岩破坏者：允许破坏硬度为 -1 的不可破坏方块
+        if (hasBedrockBreaker(stack)) {
+            IBlockState state = player.world.getBlockState(pos);
+            Block block = state.getBlock();
+            if (block.getBlockHardness(state, player.world, pos) < 0.0F) {
+                if (!player.world.isRemote) {
+                    block.dropBlockAsItem(player.world, pos, state, getFortuneLevel(stack));
+                    player.world.setBlockToAir(pos);
+                    block.breakBlock(player.world, pos, state);
+                }
+                return true;
+            }
         }
 
         // 高级精准采集：保留方块 NBT 掉落
@@ -959,6 +974,15 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
         stack.getTagCompound().setBoolean(NBT_ADVANCED_SILK, enabled);
     }
 
+    public static boolean hasBedrockBreaker(ItemStack stack) {
+        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_BEDROCK_BREAKER);
+    }
+
+    public static void setBedrockBreaker(ItemStack stack, boolean has) {
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound().setBoolean(NBT_BEDROCK_BREAKER, has);
+    }
+
     // ==================== Upgrades ====================
 
     public static boolean hasChaosCore(ItemStack stack) {
@@ -1303,6 +1327,10 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
         boolean hasUpgrades = false;
         if (hasChaosCore(stack)) {
             tooltip.add(TextFormatting.GOLD + "● " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.upgrade.chaos"));
+            hasUpgrades = true;
+        }
+        if (hasBedrockBreaker(stack)) {
+            tooltip.add(TextFormatting.DARK_RED + "● " + TextFormatting.WHITE + I18n.format("item.ae2enhanced.me_omni_tool.upgrade.bedrock"));
             hasUpgrades = true;
         }
         NBTTagList storedEnch = getStoredEnchantments(stack);

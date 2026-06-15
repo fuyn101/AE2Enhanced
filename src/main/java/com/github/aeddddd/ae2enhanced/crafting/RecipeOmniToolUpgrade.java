@@ -49,6 +49,9 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         if ("chaos".equals(upgradeType) && ItemAdvancedMEOmniTool.hasChaosCore(omniTool)) {
             return false;
         }
+        if ("bedrock".equals(upgradeType) && ItemAdvancedMEOmniTool.hasBedrockBreaker(omniTool)) {
+            return false;
+        }
 
         return true;
     }
@@ -60,6 +63,9 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         } else if ("enchanted_book".equals(upgradeType)) {
             if (stack.getItem() != Items.ENCHANTED_BOOK) return false;
             return ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(stack).tagCount() > 0;
+        } else if ("bedrock".equals(upgradeType)) {
+            return stack.getItem().getRegistryName() != null
+                    && "minecraft:bedrock".equals(stack.getItem().getRegistryName().toString());
         }
         return false;
     }
@@ -83,6 +89,8 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         result.setCount(1);
         if ("chaos".equals(upgradeType)) {
             ItemAdvancedMEOmniTool.setChaosCore(result, true);
+        } else if ("bedrock".equals(upgradeType)) {
+            ItemAdvancedMEOmniTool.setBedrockBreaker(result, true);
         } else if ("enchanted_book".equals(upgradeType)) {
             // 将原书上的附魔合并到工具的存储附魔区，等级上限取合成时书本等级
             NBTTagList fromBook = ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(book);
