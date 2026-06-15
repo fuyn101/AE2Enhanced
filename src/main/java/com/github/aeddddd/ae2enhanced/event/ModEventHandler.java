@@ -1,22 +1,19 @@
 package com.github.aeddddd.ae2enhanced.event;
 
 import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEPartLocation;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
+import com.github.aeddddd.ae2enhanced.omnitool.network.WirelessTransmitterNetworkLink;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
-import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
@@ -25,7 +22,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumParticleTypes;
@@ -169,43 +165,15 @@ public final class ModEventHandler {
                 }
             }
         } else if (dropMode == ItemAdvancedMEOmniTool.DROP_AE) {
-            if (!ItemAdvancedMEOmniTool.isAEBound(mainHand)) {
-                // 未绑定 AE，回退到正常掉落
+            IMEMonitor<IAEItemStack> monitor = WirelessTransmitterNetworkLink.getItemMonitor(mainHand, player.world);
+            if (monitor == null) {
+                // 未绑定 AE 或发射器不可用，回退到正常掉落
                 for (ItemStack drop : drops) {
                     EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
                     player.world.spawnEntity(entityItem);
                 }
                 return;
             }
-            BlockPos txPos = ItemAdvancedMEOmniTool.getAETransmitterPos(mainHand);
-            int txDim = ItemAdvancedMEOmniTool.getAETransmitterDim(mainHand);
-            if (txPos == null || player.world.provider.getDimension() != txDim) {
-                for (ItemStack drop : drops) {
-                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
-                    player.world.spawnEntity(entityItem);
-                }
-                return;
-            }
-            TileEntity te = player.world.getTileEntity(txPos);
-            if (!(te instanceof TileWirelessChannelTransmitter)) {
-                for (ItemStack drop : drops) {
-                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
-                    player.world.spawnEntity(entityItem);
-                }
-                return;
-            }
-            TileWirelessChannelTransmitter transmitter = (TileWirelessChannelTransmitter) te;
-            IGridNode node = transmitter.getGridNode(AEPartLocation.INTERNAL);
-            if (node == null || node.getGrid() == null) {
-                for (ItemStack drop : drops) {
-                    EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, drop);
-                    player.world.spawnEntity(entityItem);
-                }
-                return;
-            }
-            IGrid grid = node.getGrid();
-            appeng.api.networking.storage.IStorageGrid storage = (appeng.api.networking.storage.IStorageGrid) grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
-            IMEMonitor<IAEItemStack> monitor = storage.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             IActionSource source = new IActionSource() {
                 @Override

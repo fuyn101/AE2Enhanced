@@ -1,7 +1,11 @@
 package com.github.aeddddd.ae2enhanced.item;
 
 import appeng.api.features.INetworkEncodable;
+import appeng.api.networking.IGrid;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.omnitool.network.OmniToolNetworkLinks;
+import com.github.aeddddd.ae2enhanced.omnitool.network.SecurityTerminalNetworkLink;
+import com.github.aeddddd.ae2enhanced.omnitool.network.WirelessTransmitterNetworkLink;
 import com.github.aeddddd.ae2enhanced.block.BlockWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
@@ -66,11 +70,7 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
     public static final String NBT_BREAK_COOLDOWN = "BreakCooldown";
     public static final String NBT_LAST_BREAK = "LastBreak";
     public static final String NBT_DROP_MODE = "DropMode";
-    public static final String NBT_AE_BOUND = "AEBound";
-    public static final String NBT_AE_X = "AEX";
-    public static final String NBT_AE_Y = "AEY";
-    public static final String NBT_AE_Z = "AEZ";
-    public static final String NBT_AE_DIM = "AEDim";
+    // AE-bound 坐标绑定已迁移到 WirelessTransmitterNetworkLink，此处保留别名以便兼容旧调用方
     public static final String NBT_TRAVEL_ANCHOR_BOUND = "TravelAnchorBound";
     public static final String NBT_TRAVEL_ANCHOR_X = "TravelAnchorX";
     public static final String NBT_TRAVEL_ANCHOR_Y = "TravelAnchorY";
@@ -508,7 +508,7 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
         // 蹲下右键无线频道发生器：绑定 AE
         Block targetBlock = world.getBlockState(pos).getBlock();
         if (targetBlock instanceof BlockWirelessChannelTransmitter && player.isSneaking()) {
-            setAEBound(stack, pos, world.provider.getDimension());
+            WirelessTransmitterNetworkLink.setBound(stack, pos, world.provider.getDimension());
             player.sendStatusMessage(new TextComponentTranslation("message.ae2enhanced.omnitool.ae_bound", pos.getX(), pos.getY(), pos.getZ()), true);
             player.setHeldItem(hand, stack);
             return EnumActionResult.SUCCESS;
@@ -861,51 +861,47 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
     // INetworkEncodable —— 用于放置模式的安全终端绑定（不影响原有的无线频道发射器绑定）
     @Override
     public String getEncryptionKey(ItemStack item) {
-        return SecurityTerminalBindingHelper.getEncryptionKey(item);
+        return SecurityTerminalNetworkLink.INSTANCE.isLinked(item)
+                ? SecurityTerminalBindingHelper.getEncryptionKey(item)
+                : "";
     }
 
     @Override
     public void setEncryptionKey(ItemStack item, String encKey, String name) {
-        SecurityTerminalBindingHelper.setEncryptionKey(item, encKey);
-    }
-
-    public static boolean isAEBound(ItemStack stack) {
-        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(NBT_AE_BOUND);
-    }
-
-    public static void setAEBound(ItemStack stack, BlockPos pos, int dim) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        NBTTagCompound tag = stack.getTagCompound();
-        tag.setBoolean(NBT_AE_BOUND, true);
-        tag.setInteger(NBT_AE_X, pos.getX());
-        tag.setInteger(NBT_AE_Y, pos.getY());
-        tag.setInteger(NBT_AE_Z, pos.getZ());
-        tag.setInteger(NBT_AE_DIM, dim);
-    }
-
-    public static BlockPos getAETransmitterPos(ItemStack stack) {
-        if (!isAEBound(stack)) return null;
-        NBTTagCompound tag = stack.getTagCompound();
-        return new BlockPos(tag.getInteger(NBT_AE_X), tag.getInteger(NBT_AE_Y), tag.getInteger(NBT_AE_Z));
-    }
-
-    public static int getAETransmitterDim(ItemStack stack) {
-        if (!isAEBound(stack)) return Integer.MIN_VALUE;
-        return stack.getTagCompound().getInteger(NBT_AE_DIM);
-    }
-
-    public static void clearAEBinding(ItemStack stack) {
-        if (stack.hasTagCompound()) {
-            NBTTagCompound tag = stack.getTagCompound();
-            tag.removeTag(NBT_AE_BOUND);
-            tag.removeTag(NBT_AE_X);
-            tag.removeTag(NBT_AE_Y);
-            tag.removeTag(NBT_AE_Z);
-            tag.removeTag(NBT_AE_DIM);
-            if (tag.getSize() == 0) {
-                stack.setTagCompound(null);
-            }
+        SecurityTerminalNetworkLink.INSTANCE.clear(item);
+        if (encKey != null && !encKey.isEmpty()) {
+            SecurityTerminalBindingHelper.setEncryptionKey(item, encKey);
         }
+    }
+
+    // AE 坐标绑定已迁移到 WirelessTransmitterNetworkLink；以下方法保留为兼容包装
+    public static boolean isAEBound(ItemStack stack) {
+        return WirelessTransmitterNetworkLink.INSTANCE.isLinked(stack);
+    }
+
+    @Deprecated
+    public static void setAEBound(ItemStack stack, BlockPos pos, int dim) {
+        WirelessTransmitterNetworkLink.setBound(stack, pos, dim);
+    }
+
+    @Deprecated
+    public static BlockPos getAETransmitterPos(ItemStack stack) {
+        return WirelessTransmitterNetworkLink.getTransmitterPos(stack);
+    }
+
+    @Deprecated
+    public static int getAETransmitterDim(ItemStack stack) {
+        return WirelessTransmitterNetworkLink.getTransmitterDim(stack);
+    }
+
+    @Deprecated
+    public static void clearAEBinding(ItemStack stack) {
+        WirelessTransmitterNetworkLink.INSTANCE.clear(stack);
+    }
+
+    @Nullable
+    public static IGrid getAELinkedGrid(ItemStack stack, World world) {
+        return WirelessTransmitterNetworkLink.INSTANCE.getLinkedGrid(stack, world, null);
     }
 
     // ==================== Travel Anchor Binding ====================
@@ -1362,11 +1358,13 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
                 + I18n.format("item.ae2enhanced.me_omni_tool.travel_anchor_bound", anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(), anchorDim));
         }
 
-        if (isAEBound(stack)) {
-            BlockPos aePos = getAETransmitterPos(stack);
-            int aeDim = getAETransmitterDim(stack);
-            tooltip.add(TextFormatting.DARK_AQUA + "● " + TextFormatting.WHITE
-                + I18n.format("item.ae2enhanced.me_omni_tool.ae_bound", aePos.getX(), aePos.getY(), aePos.getZ(), aeDim));
+        if (WirelessTransmitterNetworkLink.INSTANCE.isLinked(stack)) {
+            BlockPos aePos = WirelessTransmitterNetworkLink.getTransmitterPos(stack);
+            int aeDim = WirelessTransmitterNetworkLink.getTransmitterDim(stack);
+            if (aePos != null) {
+                tooltip.add(TextFormatting.DARK_AQUA + "● " + TextFormatting.WHITE
+                    + I18n.format("item.ae2enhanced.me_omni_tool.ae_bound", aePos.getX(), aePos.getY(), aePos.getZ(), aeDim));
+            }
         }
     }
 
