@@ -9,6 +9,7 @@ import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.omnitool.module.CombatModule;
 import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
@@ -152,7 +153,7 @@ public final class ModEventHandler {
         ItemStack mainHand = player.getHeldItemMainhand();
         if (!(mainHand.getItem() instanceof ItemAdvancedMEOmniTool)) return;
 
-        int dropMode = ItemAdvancedMEOmniTool.getDropMode(mainHand);
+        int dropMode = OmniToolUpgrades.getDropMode(mainHand);
         if (dropMode == ItemAdvancedMEOmniTool.DROP_NORMAL) return;
 
         List<ItemStack> drops = new ArrayList<>(event.getDrops());
@@ -344,7 +345,7 @@ public final class ModEventHandler {
             if (!original.isEmpty() && original.hasTagCompound()) {
                 result.setTagCompound(original.getTagCompound().copy());
             }
-            ItemAdvancedMEOmniTool.setConformalCharge(result, true);
+            OmniToolUpgrades.setConformalCharge(result, true);
         }
     }
 
@@ -367,7 +368,7 @@ public final class ModEventHandler {
         while (it.hasNext()) {
             EntityItem drop = it.next();
             ItemStack stack = drop.getItem();
-            if (stack.getItem() instanceof ItemAdvancedMEOmniTool && ItemAdvancedMEOmniTool.hasConformalCharge(stack)) {
+            if (stack.getItem() instanceof ItemAdvancedMEOmniTool && OmniToolUpgrades.hasConformalCharge(stack)) {
                 it.remove();
                 preserved.appendTag(stack.writeToNBT(new NBTTagCompound()));
             }

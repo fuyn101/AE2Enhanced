@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.omnitool.module;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.util.ITooltipFlag;
@@ -251,22 +252,18 @@ public class MiningModule implements IOmniToolModule {
     // ==================== Break Cooldown ====================
 
     public static int getBreakCooldown(ItemStack stack) {
-        int max = AE2EnhancedConfig.omniTool.maxBreakCooldown;
-        int cooldown = stack.hasTagCompound() ? stack.getTagCompound().getInteger(ItemAdvancedMEOmniTool.NBT_BREAK_COOLDOWN) : max;
-        return Math.min(cooldown, max);
+        return OmniToolUpgrades.getBreakCooldown(stack);
     }
 
     public static void setBreakCooldown(ItemStack stack, int ticks) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        stack.getTagCompound().setInteger(ItemAdvancedMEOmniTool.NBT_BREAK_COOLDOWN, ticks);
+        OmniToolUpgrades.setBreakCooldown(stack, ticks);
     }
 
     private static long getLastBreakTick(ItemStack stack) {
-        return stack.hasTagCompound() ? stack.getTagCompound().getLong(ItemAdvancedMEOmniTool.NBT_LAST_BREAK) : 0;
+        return OmniToolUpgrades.getLastBreakTick(stack);
     }
 
     private static void setLastBreakTick(ItemStack stack, long tick) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        stack.getTagCompound().setLong(ItemAdvancedMEOmniTool.NBT_LAST_BREAK, tick);
+        OmniToolUpgrades.setLastBreakTick(stack, tick);
     }
 }

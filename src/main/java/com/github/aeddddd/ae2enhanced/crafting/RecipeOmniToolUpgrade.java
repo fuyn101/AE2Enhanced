@@ -1,6 +1,8 @@
 package com.github.aeddddd.ae2enhanced.crafting;
 
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolEnchantments;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -46,10 +48,10 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         }
 
         // 防止重复升级
-        if ("chaos".equals(upgradeType) && ItemAdvancedMEOmniTool.hasChaosCore(omniTool)) {
+        if ("chaos".equals(upgradeType) && OmniToolUpgrades.hasChaosCore(omniTool)) {
             return false;
         }
-        if ("bedrock".equals(upgradeType) && ItemAdvancedMEOmniTool.hasBedrockBreaker(omniTool)) {
+        if ("bedrock".equals(upgradeType) && OmniToolUpgrades.hasBedrockBreaker(omniTool)) {
             return false;
         }
 
@@ -62,7 +64,7 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
                     && "draconicevolution:chaotic_core".equals(stack.getItem().getRegistryName().toString());
         } else if ("enchanted_book".equals(upgradeType)) {
             if (stack.getItem() != Items.ENCHANTED_BOOK) return false;
-            return ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(stack).tagCount() > 0;
+            return OmniToolEnchantments.copyEnchantmentsFromBook(stack).tagCount() > 0;
         } else if ("bedrock".equals(upgradeType)) {
             return stack.getItem().getRegistryName() != null
                     && "minecraft:bedrock".equals(stack.getItem().getRegistryName().toString());
@@ -88,13 +90,13 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
         ItemStack result = omniTool.copy();
         result.setCount(1);
         if ("chaos".equals(upgradeType)) {
-            ItemAdvancedMEOmniTool.setChaosCore(result, true);
+            OmniToolUpgrades.setChaosCore(result, true);
         } else if ("bedrock".equals(upgradeType)) {
-            ItemAdvancedMEOmniTool.setBedrockBreaker(result, true);
+            OmniToolUpgrades.setBedrockBreaker(result, true);
         } else if ("enchanted_book".equals(upgradeType)) {
             // 将原书上的附魔合并到工具的存储附魔区，等级上限取合成时书本等级
-            NBTTagList fromBook = ItemAdvancedMEOmniTool.copyEnchantmentsFromBook(book);
-            NBTTagList current = ItemAdvancedMEOmniTool.getStoredEnchantments(result);
+            NBTTagList fromBook = OmniToolEnchantments.copyEnchantmentsFromBook(book);
+            NBTTagList current = OmniToolEnchantments.getStoredEnchantments(result);
 
             for (int i = 0; i < fromBook.tagCount(); i++) {
                 NBTTagCompound src = fromBook.getCompoundTagAt(i);
@@ -126,7 +128,7 @@ public class RecipeOmniToolUpgrade extends ShapelessOreRecipe {
                     current.appendTag(entry);
                 }
             }
-            ItemAdvancedMEOmniTool.setStoredEnchantments(result, current);
+            OmniToolEnchantments.setStoredEnchantments(result, current);
         }
         return result;
     }

@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.entity;
 
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.DamageSource;
@@ -21,7 +22,7 @@ public class MixinEntityLivingBase {
     @Inject(method = "setHealth", at = @At("HEAD"), cancellable = true)
     private void ae2e$onSetHealth(float health, CallbackInfo ci) {
         EntityLivingBase self = (EntityLivingBase) (Object) this;
-        if (health > self.getHealth() && ItemAdvancedMEOmniTool.hasAntiHeal(self)) {
+        if (health > self.getHealth() && OmniToolUpgrades.hasAntiHeal(self)) {
             ci.cancel();
         }
     }
@@ -29,7 +30,7 @@ public class MixinEntityLivingBase {
     @Inject(method = "getHealth", at = @At("RETURN"), cancellable = true)
     private void ae2e$onGetHealth(CallbackInfoReturnable<Float> cir) {
         EntityLivingBase self = (EntityLivingBase) (Object) this;
-        if (ItemAdvancedMEOmniTool.hasAntiHeal(self)) {
+        if (OmniToolUpgrades.hasAntiHeal(self)) {
             cir.setReturnValue(0.0f);
         }
     }
@@ -37,7 +38,7 @@ public class MixinEntityLivingBase {
     @Inject(method = "onDeath", at = @At("HEAD"))
     private void ae2e$onDeathHead(DamageSource cause, CallbackInfo ci) {
         EntityLivingBase self = (EntityLivingBase) (Object) this;
-        if (ItemAdvancedMEOmniTool.hasAntiHeal(self)) {
+        if (OmniToolUpgrades.hasAntiHeal(self)) {
             self.setDead();
         }
     }

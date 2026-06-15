@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.world;
 
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -29,7 +30,7 @@ public class MixinPlayerControllerMP {
 
         ItemStack stack = player.getHeldItemMainhand();
         if (!(stack.getItem() instanceof ItemAdvancedMEOmniTool)) return;
-        if (!ItemAdvancedMEOmniTool.hasBedrockBreaker(stack)) return;
+        if (!OmniToolUpgrades.hasBedrockBreaker(stack)) return;
 
         WorldClient world = Minecraft.getMinecraft().world;
         if (world == null) return;

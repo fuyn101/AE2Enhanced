@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.entity;
 
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -72,7 +73,7 @@ public class MixinEntityDataManager {
             if (entity == null || !(entity instanceof EntityLivingBase)) return;
 
             EntityLivingBase living = (EntityLivingBase) entity;
-            if (!ItemAdvancedMEOmniTool.hasAntiHeal(living)) return;
+            if (!OmniToolUpgrades.hasAntiHeal(living)) return;
 
             float newHealth = value instanceof Float ? (Float) value : 0.0f;
             Object currentValue = EDM_GET.invoke(this, key);

@@ -2,13 +2,13 @@ package com.github.aeddddd.ae2enhanced.omnitool.module;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.util.TravelAnchorHelper;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
@@ -20,7 +20,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import net.minecraftforge.common.util.Constants;
 
 import java.util.List;
 
@@ -80,44 +79,23 @@ public class TravelModule implements IOmniToolModule {
     // ==================== Travel Anchor Binding ====================
 
     public static boolean isTravelAnchorBound(ItemStack stack) {
-        return stack.hasTagCompound() && stack.getTagCompound().getBoolean(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_BOUND);
+        return OmniToolUpgrades.isTravelAnchorBound(stack);
     }
 
     public static void setBoundTravelAnchor(ItemStack stack, BlockPos pos, int dim) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        NBTTagCompound tag = stack.getTagCompound();
-        tag.setBoolean(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_BOUND, true);
-        tag.setInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_X, pos.getX());
-        tag.setInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Y, pos.getY());
-        tag.setInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Z, pos.getZ());
-        tag.setInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_DIM, dim);
+        OmniToolUpgrades.setBoundTravelAnchor(stack, pos, dim);
     }
 
     public static BlockPos getBoundTravelAnchorPos(ItemStack stack) {
-        if (!isTravelAnchorBound(stack)) return null;
-        NBTTagCompound tag = stack.getTagCompound();
-        return new BlockPos(tag.getInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_X),
-                tag.getInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Y),
-                tag.getInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Z));
+        return OmniToolUpgrades.getBoundTravelAnchorPos(stack);
     }
 
     public static int getBoundTravelAnchorDim(ItemStack stack) {
-        if (!isTravelAnchorBound(stack)) return Integer.MIN_VALUE;
-        return stack.getTagCompound().getInteger(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_DIM);
+        return OmniToolUpgrades.getBoundTravelAnchorDim(stack);
     }
 
     public static void clearBoundTravelAnchor(ItemStack stack) {
-        if (stack.hasTagCompound()) {
-            NBTTagCompound tag = stack.getTagCompound();
-            tag.removeTag(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_BOUND);
-            tag.removeTag(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_X);
-            tag.removeTag(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Y);
-            tag.removeTag(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_Z);
-            tag.removeTag(ItemAdvancedMEOmniTool.NBT_TRAVEL_ANCHOR_DIM);
-            if (tag.getSize() == 0) {
-                stack.setTagCompound(null);
-            }
-        }
+        OmniToolUpgrades.clearBoundTravelAnchor(stack);
     }
 
     // ==================== Travel Mode ====================
@@ -258,44 +236,28 @@ public class TravelModule implements IOmniToolModule {
     // ==================== Blink Distance / Cooldown ====================
 
     public static double getBlinkDistance(ItemStack stack) {
-        double max = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.maxBlinkDistance;
-        if (!stack.hasTagCompound()) return max;
-        NBTTagCompound tag = stack.getTagCompound();
-        if (!tag.hasKey(ItemAdvancedMEOmniTool.NBT_BLINK_DIST, Constants.NBT.TAG_DOUBLE)) {
-            tag.setDouble(ItemAdvancedMEOmniTool.NBT_BLINK_DIST, max);
-        }
-        double dist = tag.getDouble(ItemAdvancedMEOmniTool.NBT_BLINK_DIST);
-        return Math.min(dist, max);
+        return OmniToolUpgrades.getBlinkDistance(stack);
     }
 
     public static void setBlinkDistance(ItemStack stack, double dist) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        stack.getTagCompound().setDouble(ItemAdvancedMEOmniTool.NBT_BLINK_DIST, dist);
+        OmniToolUpgrades.setBlinkDistance(stack, dist);
     }
 
     private static long getLastBlink(ItemStack stack) {
-        return stack.hasTagCompound() ? stack.getTagCompound().getLong(ItemAdvancedMEOmniTool.NBT_LAST_BLINK) : 0;
+        return OmniToolUpgrades.getLastBlinkTick(stack);
     }
 
     private static void setLastBlink(ItemStack stack, long tick) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        stack.getTagCompound().setLong(ItemAdvancedMEOmniTool.NBT_LAST_BLINK, tick);
+        OmniToolUpgrades.setLastBlinkTick(stack, tick);
     }
 
     // ==================== Wall Phase ====================
 
     public static boolean isWallPhaseEnabled(ItemStack stack) {
-        if (!stack.hasTagCompound()) {
-            return com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableWallPhase;
-        }
-        if (!stack.getTagCompound().hasKey(ItemAdvancedMEOmniTool.NBT_WALL_PHASE)) {
-            return com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableWallPhase;
-        }
-        return stack.getTagCompound().getBoolean(ItemAdvancedMEOmniTool.NBT_WALL_PHASE);
+        return OmniToolUpgrades.isWallPhaseEnabled(stack);
     }
 
     public static void setWallPhaseEnabled(ItemStack stack, boolean enabled) {
-        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-        stack.getTagCompound().setBoolean(ItemAdvancedMEOmniTool.NBT_WALL_PHASE, enabled);
+        OmniToolUpgrades.setWallPhaseEnabled(stack, enabled);
     }
 }

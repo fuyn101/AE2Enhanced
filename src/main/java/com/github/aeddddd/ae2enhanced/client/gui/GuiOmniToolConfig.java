@@ -3,8 +3,8 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
-import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
-import com.github.aeddddd.ae2enhanced.omnitool.module.TravelModule;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolEnchantments;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementRestriction;
@@ -135,48 +135,48 @@ public class GuiOmniToolConfig extends GuiContainer {
         new ParamDef(PID_MODE, "gui.ae2enhanced.omni_tool_config.mode",
                 "gui.ae2enhanced.omni_tool_config.mode.desc",
                 0, 3, s -> true,
-                ItemAdvancedMEOmniTool::getMode,
-                ItemAdvancedMEOmniTool::setMode),
+                OmniToolUpgrades::getMode,
+                OmniToolUpgrades::setMode),
         new ParamDef(PID_DROP, "gui.ae2enhanced.omni_tool_config.drop_mode",
                 "gui.ae2enhanced.omni_tool_config.drop_mode.desc",
                 0, 2, s -> true,
-                ItemAdvancedMEOmniTool::getDropMode,
-                ItemAdvancedMEOmniTool::setDropMode),
+                OmniToolUpgrades::getDropMode,
+                OmniToolUpgrades::setDropMode),
         new ParamDef(PID_SILK, "gui.ae2enhanced.omni_tool_config.silk_touch",
                 "gui.ae2enhanced.omni_tool_config.silk_touch.desc",
                 0, 1, s -> true,
-                s -> ItemAdvancedMEOmniTool.isSilkTouchEnabled(s) ? 1 : 0,
-                (s, v) -> ItemAdvancedMEOmniTool.setSilkTouchEnabled(s, v > 0)),
+                s -> OmniToolUpgrades.isSilkTouchEnabled(s) ? 1 : 0,
+                (s, v) -> OmniToolUpgrades.setSilkTouchEnabled(s, v > 0)),
         new ParamDef(PID_BLINK, "gui.ae2enhanced.omni_tool_config.blink_dist",
                 "gui.ae2enhanced.omni_tool_config.blink_dist.desc",
                 1, 256, s -> true,
-                s -> (int) TravelModule.getBlinkDistance(s),
-                (s, v) -> TravelModule.setBlinkDistance(s, v)),
+                s -> (int) OmniToolUpgrades.getBlinkDistance(s),
+                (s, v) -> OmniToolUpgrades.setBlinkDistance(s, v)),
         new ParamDef(PID_COOLDOWN, "gui.ae2enhanced.omni_tool_config.break_cooldown",
                 "gui.ae2enhanced.omni_tool_config.break_cooldown.desc",
                 0, 100, s -> true,
-                MiningModule::getBreakCooldown,
-                MiningModule::setBreakCooldown),
+                OmniToolUpgrades::getBreakCooldown,
+                OmniToolUpgrades::setBreakCooldown),
         new ParamDef(PID_CHAOS_KILL, "gui.ae2enhanced.omni_tool_config.chaos_force_kill",
                 "gui.ae2enhanced.omni_tool_config.chaos_force_kill.desc",
-                0, 1, ItemAdvancedMEOmniTool::hasChaosCore,
-                s -> ItemAdvancedMEOmniTool.isChaosForceKillEnabled(s) ? 1 : 0,
-                (s, v) -> ItemAdvancedMEOmniTool.setChaosForceKillEnabled(s, v > 0)),
+                0, 1, OmniToolUpgrades::hasChaosCore,
+                s -> OmniToolUpgrades.isChaosForceKillEnabled(s) ? 1 : 0,
+                (s, v) -> OmniToolUpgrades.setChaosForceKillEnabled(s, v > 0)),
         new ParamDef(PID_CONFORMAL, "gui.ae2enhanced.omni_tool_config.conformal",
                 "gui.ae2enhanced.omni_tool_config.conformal.desc",
-                0, 1, ItemAdvancedMEOmniTool::hasConformalCharge,
-                s -> ItemAdvancedMEOmniTool.hasConformalCharge(s) ? 1 : 0,
-                (s, v) -> ItemAdvancedMEOmniTool.setConformalCharge(s, v > 0)),
+                0, 1, OmniToolUpgrades::hasConformalCharge,
+                s -> OmniToolUpgrades.hasConformalCharge(s) ? 1 : 0,
+                (s, v) -> OmniToolUpgrades.setConformalCharge(s, v > 0)),
         new ParamDef(PID_ADVANCED_SILK, "gui.ae2enhanced.omni_tool_config.advanced_silk_touch",
                 "gui.ae2enhanced.omni_tool_config.advanced_silk_touch.desc",
                 0, 1, s -> true,
-                s -> ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(s) ? 1 : 0,
-                (s, v) -> ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(s, v > 0)),
+                s -> OmniToolUpgrades.isAdvancedSilkTouchEnabled(s) ? 1 : 0,
+                (s, v) -> OmniToolUpgrades.setAdvancedSilkTouchEnabled(s, v > 0)),
         new ParamDef(PID_WALL_PHASE, "gui.ae2enhanced.omni_tool_config.wall_phase",
                 "gui.ae2enhanced.omni_tool_config.wall_phase.desc",
                 0, 1, s -> true,
-                s -> TravelModule.isWallPhaseEnabled(s) ? 1 : 0,
-                (s, v) -> TravelModule.setWallPhaseEnabled(s, v > 0)),
+                s -> OmniToolUpgrades.isWallPhaseEnabled(s) ? 1 : 0,
+                (s, v) -> OmniToolUpgrades.setWallPhaseEnabled(s, v > 0)),
         new ParamDef(PID_CABLE_COLOR, "gui.ae2enhanced.omni_tool_config.cable_color",
                 "gui.ae2enhanced.omni_tool_config.cable_color.desc",
                 0, 16, s -> true,
@@ -238,28 +238,28 @@ public class GuiOmniToolConfig extends GuiContainer {
             return;
         }
 
-        values[PID_MODE] = ItemAdvancedMEOmniTool.getMode(toolStack);
-        values[PID_DROP] = ItemAdvancedMEOmniTool.getDropMode(toolStack);
-        values[PID_SILK] = ItemAdvancedMEOmniTool.isSilkTouchEnabled(toolStack) ? 1 : 0;
-        values[PID_BLINK] = (int) TravelModule.getBlinkDistance(toolStack);
-        values[PID_COOLDOWN] = MiningModule.getBreakCooldown(toolStack);
-        values[PID_CHAOS_KILL] = ItemAdvancedMEOmniTool.isChaosForceKillEnabled(toolStack) ? 1 : 0;
-        values[PID_CONFORMAL] = ItemAdvancedMEOmniTool.hasConformalCharge(toolStack) ? 1 : 0;
-        values[PID_ADVANCED_SILK] = ItemAdvancedMEOmniTool.isAdvancedSilkTouchEnabled(toolStack) ? 1 : 0;
-        values[PID_WALL_PHASE] = TravelModule.isWallPhaseEnabled(toolStack) ? 1 : 0;
+        values[PID_MODE] = OmniToolUpgrades.getMode(toolStack);
+        values[PID_DROP] = OmniToolUpgrades.getDropMode(toolStack);
+        values[PID_SILK] = OmniToolUpgrades.isSilkTouchEnabled(toolStack) ? 1 : 0;
+        values[PID_BLINK] = (int) OmniToolUpgrades.getBlinkDistance(toolStack);
+        values[PID_COOLDOWN] = OmniToolUpgrades.getBreakCooldown(toolStack);
+        values[PID_CHAOS_KILL] = OmniToolUpgrades.isChaosForceKillEnabled(toolStack) ? 1 : 0;
+        values[PID_CONFORMAL] = OmniToolUpgrades.hasConformalCharge(toolStack) ? 1 : 0;
+        values[PID_ADVANCED_SILK] = OmniToolUpgrades.isAdvancedSilkTouchEnabled(toolStack) ? 1 : 0;
+        values[PID_WALL_PHASE] = OmniToolUpgrades.isWallPhaseEnabled(toolStack) ? 1 : 0;
         values[PID_CABLE_COLOR] = new PlacementConfig(toolStack).getCableColor().ordinal();
         values[PID_REACH_DISTANCE] = (int) new PlacementConfig(toolStack).getReachDistance();
         values[PID_PLACEMENT_RESTRICTION] = new PlacementConfig(toolStack).getPlacementRestriction().ordinal();
 
         paramEnabledMask = 0;
         for (int i = 0; i < PID_COUNT; i++) {
-            if (ItemAdvancedMEOmniTool.isParamEnabled(toolStack, i)) {
+            if (OmniToolUpgrades.isParamEnabled(toolStack, i)) {
                 paramEnabledMask |= (1 << i);
             }
         }
 
         enchantValues.clear();
-        NBTTagList stored = ItemAdvancedMEOmniTool.getStoredEnchantments(toolStack);
+        NBTTagList stored = OmniToolEnchantments.getStoredEnchantments(toolStack);
         for (int i = 0; i < stored.tagCount(); i++) {
             NBTTagCompound tag = stored.getCompoundTagAt(i);
             enchantValues.put(tag.getShort("id"), (int) tag.getShort("lvl"));
@@ -279,7 +279,7 @@ public class GuiOmniToolConfig extends GuiContainer {
             Enchantment ench = Enchantment.getEnchantmentByID(enchId);
             String name = ench != null ? ench.getName() : "enchantment.unknown";
             // 等级上限取决于合成时附魔书的原始等级
-            int sourceLevel = ItemAdvancedMEOmniTool.getEnchantmentSourceLevel(toolStack, enchId);
+            int sourceLevel = OmniToolEnchantments.getEnchantmentSourceLevel(toolStack, enchId);
             int maxLevel = Math.max(1, sourceLevel);
             ParamDef p = new ParamDef(
                     PID_ENCHANT_BASE + enchantIdx,
@@ -645,15 +645,15 @@ public class GuiOmniToolConfig extends GuiContainer {
 
     private void apply() {
         if (toolStack.isEmpty()) return;
-        ItemAdvancedMEOmniTool.setMode(toolStack, values[PID_MODE]);
-        ItemAdvancedMEOmniTool.setDropMode(toolStack, values[PID_DROP]);
-        ItemAdvancedMEOmniTool.setSilkTouchEnabled(toolStack, values[PID_SILK] > 0);
-        TravelModule.setBlinkDistance(toolStack, values[PID_BLINK]);
-        MiningModule.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
-        ItemAdvancedMEOmniTool.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
-        ItemAdvancedMEOmniTool.setConformalCharge(toolStack, values[PID_CONFORMAL] > 0);
-        ItemAdvancedMEOmniTool.setAdvancedSilkTouchEnabled(toolStack, values[PID_ADVANCED_SILK] > 0);
-        TravelModule.setWallPhaseEnabled(toolStack, values[PID_WALL_PHASE] > 0);
+        OmniToolUpgrades.setMode(toolStack, values[PID_MODE]);
+        OmniToolUpgrades.setDropMode(toolStack, values[PID_DROP]);
+        OmniToolUpgrades.setSilkTouchEnabled(toolStack, values[PID_SILK] > 0);
+        OmniToolUpgrades.setBlinkDistance(toolStack, values[PID_BLINK]);
+        OmniToolUpgrades.setBreakCooldown(toolStack, values[PID_COOLDOWN]);
+        OmniToolUpgrades.setChaosForceKillEnabled(toolStack, values[PID_CHAOS_KILL] > 0);
+        OmniToolUpgrades.setConformalCharge(toolStack, values[PID_CONFORMAL] > 0);
+        OmniToolUpgrades.setAdvancedSilkTouchEnabled(toolStack, values[PID_ADVANCED_SILK] > 0);
+        OmniToolUpgrades.setWallPhaseEnabled(toolStack, values[PID_WALL_PHASE] > 0);
 
         PlacementConfig placementConfig = new PlacementConfig(toolStack);
         int colorIdx = values[PID_CABLE_COLOR];
@@ -664,7 +664,7 @@ public class GuiOmniToolConfig extends GuiContainer {
         placementConfig.setPlacementRestriction(PlacementRestriction.fromOrdinal(values[PID_PLACEMENT_RESTRICTION]));
 
         for (int i = 0; i < PID_COUNT; i++) {
-            ItemAdvancedMEOmniTool.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
+            OmniToolUpgrades.setParamEnabled(toolStack, i, (paramEnabledMask & (1 << i)) != 0);
         }
 
         // 应用附魔调整
@@ -676,11 +676,11 @@ public class GuiOmniToolConfig extends GuiContainer {
             tag.setShort("lvl", entry.getValue().shortValue());
             enchList.appendTag(tag);
         }
-        ItemAdvancedMEOmniTool.setStoredEnchantments(toolStack, enchList);
+        OmniToolEnchantments.setStoredEnchantments(toolStack, enchList);
 
         AE2Enhanced.network.sendToServer(new PacketOmniToolConfig(
                 values[PID_MODE], values[PID_DROP], values[PID_SILK] > 0,
-                ItemAdvancedMEOmniTool.getFortuneLevel(toolStack), values[PID_BLINK], values[PID_COOLDOWN],
+                OmniToolUpgrades.getFortuneLevel(toolStack), values[PID_BLINK], values[PID_COOLDOWN],
                 paramEnabledMask, values[PID_CHAOS_KILL] > 0, values[PID_CONFORMAL] > 0,
                 values[PID_ADVANCED_SILK] > 0, values[PID_WALL_PHASE] > 0,
                 values[PID_CABLE_COLOR], values[PID_REACH_DISTANCE],

@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.omnitool.module;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
+import com.github.aeddddd.ae2enhanced.omnitool.OmniToolNBT;
 import com.github.aeddddd.ae2enhanced.util.BossDropHelper;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
 import net.minecraft.entity.Entity;
@@ -235,14 +236,14 @@ public class CombatModule implements IOmniToolModule {
     // ==================== Anti-Heal ====================
 
     public static void applyAntiHeal(EntityLivingBase entity) {
-        entity.getEntityData().setBoolean(ItemAdvancedMEOmniTool.NBT_ANTI_HEAL, true);
+        entity.getEntityData().setBoolean(OmniToolNBT.ANTI_HEAL, true);
     }
 
     public static boolean hasAntiHeal(EntityLivingBase entity) {
-        return entity.getEntityData().getBoolean(ItemAdvancedMEOmniTool.NBT_ANTI_HEAL);
+        return entity.getEntityData().getBoolean(OmniToolNBT.ANTI_HEAL);
     }
 
     public static void clearAntiHeal(EntityLivingBase entity) {
-        entity.getEntityData().removeTag(ItemAdvancedMEOmniTool.NBT_ANTI_HEAL);
+        entity.getEntityData().removeTag(OmniToolNBT.ANTI_HEAL);
     }
 }
