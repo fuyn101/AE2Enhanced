@@ -71,17 +71,24 @@ public class MixinPartStorageBus {
     @Inject(method = "tickingRequest", at = @At("RETURN"), cancellable = true)
     private void ae2enhanced$reconnectIfDisconnected(IGridNode node, int ticksSinceLastCall,
                                                      CallbackInfoReturnable<TickRateModulation> cir) {
-        // 首次 tick 且未连接时启动重连窗口
+        // 首次 tick 且未连接时,只对 StorageDrawers 容器启动重连窗口
+        // 避免普通箱子/机器等非 SD 容器在每次加载时都被迫执行 8 次 full cache reset
         if (this.ae2enhanced$reconnectAttempts == 0 && this.monitor == null) {
-            this.ae2enhanced$reconnectAttempts = 8;
+            TileEntity target = ae2enhanced$getNeighborTile();
+            if (ae2enhanced$isStorageDrawersTarget(target)) {
+                this.ae2enhanced$reconnectAttempts = 8;
+            }
         }
 
         if (this.ae2enhanced$reconnectAttempts > 0) {
             this.ae2enhanced$reconnectAttempts--;
             if (this.monitor == null) {
                 TileEntity target = ae2enhanced$getNeighborTile();
-                if (target != null) {
+                if (ae2enhanced$isStorageDrawersTarget(target)) {
                     this.resetCache(true);
+                } else {
+                    // 目标不是 SD 容器,继续重试无意义,立即停止
+                    this.ae2enhanced$reconnectAttempts = 0;
                 }
             }
             // 仍未连接且还有剩余次数时保持唤醒,继续重试
@@ -101,6 +108,19 @@ public class MixinPartStorageBus {
             return hostTile.getWorld().getTileEntity(neighbor);
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    private boolean ae2enhanced$isStorageDrawersTarget(TileEntity target) {
+        if (target == null || PartStorageBus.ITEM_REPOSITORY_CAPABILITY == null) {
+            return false;
+        }
+        try {
+            PartStorageBus self = (PartStorageBus) (Object) this;
+            EnumFacing targetSide = self.getSide().getFacing().getOpposite();
+            return target.hasCapability(PartStorageBus.ITEM_REPOSITORY_CAPABILITY, targetSide);
+        } catch (Exception ignored) {
+            return false;
         }
     }
 }
