@@ -185,6 +185,10 @@ tile.ae2enhanced.chunk_power_node.name=区块供电节点
 tile.ae2enhanced.chunk_power_node.tooltip=§e区块供电节点 §7— 通过ME网络RF存储向本区块机器供能
 tile.ae2enhanced.compressed_chunk_power_node.name=压缩区块供电节点
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§e压缩区块供电节点 §7— 通过ME网络RF存储向3×3区块范围机器供能
+tile.ae2enhanced.chunk_mana_node.name=区块魔力节点
+tile.ae2enhanced.chunk_mana_node.tooltip=§e区块魔力节点 §7— 免费向本区块Botania魔力设施供给魔力
+tile.ae2enhanced.compressed_chunk_mana_node.name=压缩区块魔力节点
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§e压缩区块魔力节点 §7— 免费向3×3区块范围Botania魔力设施供给魔力
 
 gui.ae2enhanced.wireless_channel_transmitter.title=无线频道发生器
 

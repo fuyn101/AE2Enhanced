@@ -187,6 +187,10 @@ tile.ae2enhanced.chunk_power_node.name=Chunk Power Node
 tile.ae2enhanced.chunk_power_node.tooltip=§eChunk Power Node §7— Powers all machines in the chunk via ME network RF storage
 tile.ae2enhanced.compressed_chunk_power_node.name=Compressed Chunk Power Node
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eCompressed Chunk Power Node §7— Powers all machines in 3×3 chunks via ME network RF storage
+tile.ae2enhanced.chunk_mana_node.name=Chunk Mana Node
+tile.ae2enhanced.chunk_mana_node.tooltip=§eChunk Mana Node §7— Supplies free Mana to Botania facilities in the chunk
+tile.ae2enhanced.compressed_chunk_mana_node.name=Compressed Chunk Mana Node
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§eCompressed Chunk Mana Node §7— Supplies free Mana to Botania facilities in 3×3 chunks
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 

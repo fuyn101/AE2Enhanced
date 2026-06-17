@@ -25,7 +25,9 @@ public class MixinTileIOPort {
             if (ItemFluidDrop.isFluidDrop(mcStack)
                     || "com.github.aeddddd.ae2enhanced.item.ItemGasDrop".equals(className)
                     || EssentiaFakeItemChecks.isEssentiaFakeItem(mcStack)
-                    || "com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop".equals(className)) {
+                    || "com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop".equals(className)
+                    || "com.github.aeddddd.ae2enhanced.item.ItemManaDrop".equals(className)
+                    || "com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop".equals(className)) {
                 return 0L;
             }
         }

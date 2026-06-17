@@ -50,6 +50,12 @@ public final class BlockRegistry {
     // 压缩区块供电节点(从 ME 网络向 3×3 区块设备供能)
     public static BlockCompressedChunkPowerNode COMPRESSED_CHUNK_POWER_NODE;
 
+    // 区块魔力节点(免费向本区块 Botania 魔力设施供魔)
+    public static BlockChunkManaNode CHUNK_MANA_NODE;
+
+    // 压缩区块魔力节点(免费向 3×3 区块 Botania 魔力设施供魔)
+    public static BlockCompressedChunkManaNode COMPRESSED_CHUNK_MANA_NODE;
+
     // 先进中枢平台
     public static BlockAdvancedPlatformController ADVANCED_PLATFORM_CONTROLLER;
 

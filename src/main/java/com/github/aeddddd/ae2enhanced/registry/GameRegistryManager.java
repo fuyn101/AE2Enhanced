@@ -125,6 +125,16 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileStarlightAccessNode.class, AE2Enhanced.MOD_ID + ":starlight_access_node");
         GameRegistry.registerTileEntity(TileChunkPowerNode.class, AE2Enhanced.MOD_ID + ":chunk_power_node");
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
+        if (Loader.isModLoaded("botania")) {
+            BlockRegistry.CHUNK_MANA_NODE = new BlockChunkManaNode();
+            BlockRegistry.COMPRESSED_CHUNK_MANA_NODE = new BlockCompressedChunkManaNode();
+            event.getRegistry().registerAll(
+                BlockRegistry.CHUNK_MANA_NODE,
+                BlockRegistry.COMPRESSED_CHUNK_MANA_NODE
+            );
+            GameRegistry.registerTileEntity(TileChunkManaNode.class, AE2Enhanced.MOD_ID + ":chunk_mana_node");
+            GameRegistry.registerTileEntity(TileCompressedChunkManaNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_mana_node");
+        }
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
         GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
@@ -164,6 +174,14 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
+        if (Loader.isModLoaded("botania") && BlockRegistry.CHUNK_MANA_NODE != null) {
+            event.getRegistry().register(new ItemBlock(BlockRegistry.CHUNK_MANA_NODE)
+                    .setRegistryName(BlockRegistry.CHUNK_MANA_NODE.getRegistryName())
+                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
+            event.getRegistry().register(new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE)
+                    .setRegistryName(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE.getRegistryName())
+                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
+        }
         if (BlockRegistry.EMC_INTERFACE != null) {
             event.getRegistry().register(new ItemBlock(BlockRegistry.EMC_INTERFACE)
                     .setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName())

@@ -164,6 +164,10 @@ tile.ae2enhanced.chunk_power_node.name=Узел питания чанка
 tile.ae2enhanced.chunk_power_node.tooltip=§eУзел питания чанка §7— Питает все машины в чанке через RF-хранилище ME-сети
 tile.ae2enhanced.compressed_chunk_power_node.name=Сжатый узел питания чанка
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eСжатый узел питания чанка §7— Питает все машины в 3×3 чанках через RF-хранилище ME-сети
+tile.ae2enhanced.chunk_mana_node.name=Узел маны чанка
+tile.ae2enhanced.chunk_mana_node.tooltip=§eУзел маны чанка §7— Бесплатно снабжает маной сооружения Botania в чанке
+tile.ae2enhanced.compressed_chunk_mana_node.name=Сжатый узел маны чанка
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§eСжатый узел маны чанка §7— Бесплатно снабжает маной сооружения Botania в 3×3 чанках
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Генератор беспроводного канала
 

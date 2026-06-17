@@ -83,30 +83,9 @@ public class MixinNetworkMonitorStarlight {
         ItemStack mcStack = itemStack.createItemStack();
         if (!ItemStarlightDrop.isStarlightDrop(mcStack)) return;
 
-        IMEMonitor<IAEStarlightStack> starlightMonitor = ae2enhanced$getStarlightMonitor();
-        if (starlightMonitor == null) {
-            cir.setReturnValue(request);
-            return;
-        }
-
-        IAEStarlightStack starlightRequest = AEStarlightStack.create(itemStack.getStackSize());
-        IAEStarlightStack notExtracted = starlightMonitor.extractItems(starlightRequest, mode, source);
-        long notExtractedSize = notExtracted != null ? notExtracted.getStackSize() : 0;
-        long extractedSize = itemStack.getStackSize() - notExtractedSize;
-
-        if (extractedSize > 0 && mode == Actionable.MODULATE) {
-            IAEItemStack diff = itemStack.copy();
-            diff.setStackSize(-extractedSize);
-            ae2enhanced$notifyListeners(Collections.singletonList(diff), source);
-        }
-
-        if (notExtractedSize == 0) {
-            cir.setReturnValue(null);
-        } else {
-            IAEItemStack result = itemStack.copy();
-            result.setStackSize(notExtractedSize);
-            cir.setReturnValue(result);
-        }
+        // E2a：Starlight 假物品仅用于终端展示,禁止作为真实物品被取出.
+        // 与 RF 假物品保持一致,玩家不能从 ME 终端将其拿到背包.
+        cir.setReturnValue(request);
     }
 
     @Inject(method = "injectItems", at = @At("HEAD"), cancellable = true)

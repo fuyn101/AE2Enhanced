@@ -171,6 +171,10 @@ tile.ae2enhanced.chunk_power_node.name=チャンク給電ノード
 tile.ae2enhanced.chunk_power_node.tooltip=§eチャンク給電ノード §7— MEネットワークのRFストレージからチャンク内の機械に給電
 tile.ae2enhanced.compressed_chunk_power_node.name=圧縮チャンク給電ノード
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§e圧縮チャンク給電ノード §7— MEネットワークのRFストレージから3×3チャンクの機械に給電
+tile.ae2enhanced.chunk_mana_node.name=チャンクマナノード
+tile.ae2enhanced.chunk_mana_node.tooltip=§eチャンクマナノード §7— チャンク内のBotaniaマナ設備に無料でマナを供給
+tile.ae2enhanced.compressed_chunk_mana_node.name=圧縮チャンクマナノード
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§e圧縮チャンクマナノード §7— 3×3チャンクのBotaniaマナ設備に無料でマナを供給
 
 gui.ae2enhanced.wireless_channel_transmitter.title=無線チャネル発生器
 
