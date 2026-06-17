@@ -13,6 +13,7 @@ import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.MachineSource;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
 import com.github.aeddddd.ae2enhanced.storage.mana.IAEManaStack;
@@ -60,6 +61,9 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
     private int clientFlags = 0;
     private boolean lastPowered = false;
     private boolean lastActive = false;
+
+    // 调试用：每隔 5 秒输出一次状态日志
+    private int debugCooldown = 0;
 
     public TileChunkManaNode() {
     }
@@ -141,7 +145,24 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
             getProxy().onReady();
         }
 
-        if (!isActive()) return;
+        if (!isActive()) {
+            if (debugCooldown <= 0) {
+                AE2Enhanced.LOGGER.info("[ChunkManaNode] pos={} not active (powered={}, active={})",
+                        pos, isPowered(), isActive());
+                debugCooldown = 100;
+            } else {
+                debugCooldown--;
+            }
+            return;
+        }
+
+        if (debugCooldown <= 0) {
+            AE2Enhanced.LOGGER.info("[ChunkManaNode] pos={} powered={} active={} botaniaAvailable={} targets={}",
+                    pos, isPowered(), isActive(), BotaniaManaHelper.isAvailable(), cachedTargets.size());
+            debugCooldown = 100;
+        } else {
+            debugCooldown--;
+        }
 
         doManaTick();
         syncClientState();
@@ -189,6 +210,8 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
             if (leftover > 0) {
                 manaMonitor.injectItems(AEManaStack.create(leftover), Actionable.MODULATE, source);
             }
+            AE2Enhanced.LOGGER.info("[ChunkManaNode] target={} current={}/{} extracted={} accepted={} leftover={}",
+                    targetPos, current, capacity, extracted.getStackSize(), accepted, leftover);
         }
     }
 

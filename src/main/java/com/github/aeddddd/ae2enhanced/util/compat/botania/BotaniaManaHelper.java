@@ -35,7 +35,6 @@ public final class BotaniaManaHelper {
 
     private static Method isFullMethod;
     private static Method receiveManaMethod;
-    private static Method getMaxManaMethod;
 
     private static Field subTileField;
     private static Field poolVariantPropertyField;
@@ -73,12 +72,6 @@ public final class BotaniaManaHelper {
 
             subTileField = tileSpecialFlowerClass.getField("subTile");
 
-            try {
-                getMaxManaMethod = Class.forName(SUB_TILE_ENTITY).getMethod("getMaxMana");
-            } catch (Throwable ignored) {
-                getMaxManaMethod = null;
-            }
-
             Class<?> botaniaStatePropsClass = Class.forName(BOTANIA_STATE_PROPS);
             poolVariantPropertyField = botaniaStatePropsClass.getField("POOL_VARIANT");
             poolVariantClass = Class.forName(POOL_VARIANT_ENUM);
@@ -93,7 +86,6 @@ public final class BotaniaManaHelper {
             blockManaVoidClass = null;
             isFullMethod = null;
             receiveManaMethod = null;
-            getMaxManaMethod = null;
             subTileField = null;
             poolVariantPropertyField = null;
             poolVariantClass = null;
@@ -236,13 +228,15 @@ public final class BotaniaManaHelper {
         if (!available || !isManaReceiver(te)) return 0;
         Integer cap = getIntField(te, "manaCap");
         if (cap != null) return cap;
-        if (tileSpecialFlowerClass != null && tileSpecialFlowerClass.isInstance(te) && subTileField != null && getMaxManaMethod != null) {
+        if (tileSpecialFlowerClass != null && tileSpecialFlowerClass.isInstance(te) && subTileField != null) {
             try {
                 Object subTile = subTileField.get(te);
                 if (subTile != null) {
-                    Object result = getMaxManaMethod.invoke(subTile);
+                    Method maxManaMethod = subTile.getClass().getMethod("getMaxMana");
+                    Object result = maxManaMethod.invoke(subTile);
                     if (result instanceof Number) return ((Number) result).intValue();
                 }
+            } catch (NoSuchMethodException ignored) {
             } catch (Throwable ignored) {
             }
         }
