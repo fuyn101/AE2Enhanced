@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify;
@@ -478,17 +479,30 @@ public class GuiSmartPatternInterface extends GuiContainer {
             lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict"));
             return lines;
         }
+        ItemStack output = tile.getInventory().getStackInSlot(1);
+        if (!output.isEmpty()) {
+            if (output.getItem() instanceof ItemSmartPattern && isSamePatternData(output, data)) {
+                lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_update_tooltip"));
+            } else {
+                lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_mismatch"));
+            }
+            return lines;
+        }
         ItemStack input = tile.getInventory().getStackInSlot(0);
         if (input.isEmpty() || !(input.getItem() instanceof ItemSmartBlankPattern)) {
             lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank"));
             return lines;
         }
-        if (!tile.getInventory().getStackInSlot(1).isEmpty()) {
-            lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full"));
-            return lines;
-        }
         lines.add(I18n.format("gui.ae2enhanced.smart_pattern_interface.encode_tooltip"));
         return lines;
+    }
+
+    private boolean isSamePatternData(ItemStack output, SmartPatternData data) {
+        if (!output.hasTagCompound()) {
+            return false;
+        }
+        java.util.UUID outputId = output.getTagCompound().getUniqueId("patternDataId");
+        return outputId != null && outputId.equals(data.getPatternDataId());
     }
 
     @Override
@@ -499,10 +513,17 @@ public class GuiSmartPatternInterface extends GuiContainer {
         // 编码按钮
         if (isInEncodeButton(relX, relY) && mouseButton == 0) {
             SmartPatternData data = tile.getPatternData();
-            if (data != null && !data.hasConflicts()
-                    && !tile.getInventory().getStackInSlot(0).isEmpty()
-                    && tile.getInventory().getStackInSlot(1).isEmpty()) {
-                AE2Enhanced.network.sendToServer(new PacketSmartPatternEncode(tile.getPos()));
+            if (data != null && !data.hasConflicts()) {
+                ItemStack output = tile.getInventory().getStackInSlot(1);
+                boolean canUpdate = !output.isEmpty()
+                        && output.getItem() instanceof ItemSmartPattern
+                        && isSamePatternData(output, data);
+                boolean canCreate = output.isEmpty()
+                        && !tile.getInventory().getStackInSlot(0).isEmpty()
+                        && tile.getInventory().getStackInSlot(0).getItem() instanceof ItemSmartBlankPattern;
+                if (canUpdate || canCreate) {
+                    AE2Enhanced.network.sendToServer(new PacketSmartPatternEncode(tile.getPos()));
+                }
             }
             return;
         }
