@@ -30,7 +30,13 @@ public final class BotaniaManaHelper {
 
     private static Method isFullMethod;
     private static Method receiveManaMethod;
+    private static Method getCurrentManaMethod;
+    private static Method getMaxManaMethod;
+
     private static Field subTileField;
+    private static Field manaField;
+    private static Field manaCapField;
+    private static Field manaToGetField;
 
     private static boolean initialized = false;
     private static boolean available = false;
@@ -59,7 +65,40 @@ public final class BotaniaManaHelper {
             isFullMethod = imanaReceiverClass.getMethod("isFull");
             receiveManaMethod = imanaReceiverClass.getMethod("recieveMana", int.class);
 
+            // TilePool#getCurrentMana() 等常见查询方法
+            try {
+                getCurrentManaMethod = imanaReceiverClass.getMethod("getCurrentMana");
+            } catch (NoSuchMethodException ignored) {
+                getCurrentManaMethod = null;
+            }
+
             subTileField = tileSpecialFlowerClass.getField("subTile");
+
+            // 通用 mana / manaCap 字段(魔力池等)
+            try {
+                manaField = imanaReceiverClass.getField("mana");
+            } catch (NoSuchFieldException ignored) {
+                manaField = null;
+            }
+            try {
+                manaCapField = imanaReceiverClass.getField("manaCap");
+            } catch (NoSuchFieldException ignored) {
+                manaCapField = null;
+            }
+
+            // 符文祭坛的配方目标魔力
+            try {
+                manaToGetField = Class.forName("vazkii.botania.common.block.tile.mana.TileRuneAltar").getField("manaToGet");
+            } catch (Throwable ignored) {
+                manaToGetField = null;
+            }
+
+            // 花/功能子 tile 的 getMaxMana()
+            try {
+                getMaxManaMethod = Class.forName("vazkii.botania.api.subtile.SubTileEntity").getMethod("getMaxMana");
+            } catch (Throwable ignored) {
+                getMaxManaMethod = null;
+            }
 
             available = true;
         } catch (Throwable t) {
@@ -69,7 +108,12 @@ public final class BotaniaManaHelper {
             blockManaVoidClass = null;
             isFullMethod = null;
             receiveManaMethod = null;
+            getCurrentManaMethod = null;
+            getMaxManaMethod = null;
             subTileField = null;
+            manaField = null;
+            manaCapField = null;
+            manaToGetField = null;
             available = false;
         }
     }
@@ -135,5 +179,79 @@ public final class BotaniaManaHelper {
             receiveManaMethod.invoke(te, amount);
         } catch (Throwable ignored) {
         }
+    }
+
+    /**
+     * 获取目标当前 Mana.
+     *
+     * <p>按以下优先级尝试：</p>
+     * <ol>
+     *   <li>IManaReceiver#getCurrentMana()</li>
+     *   <li>public int mana 字段</li>
+     *   <li>TileSpecialFlower 子 tile 的 mana 字段</li>
+     * </ol>
+     *
+     * @return 当前 mana,无法获取时返回 0
+     */
+    public static int getCurrentMana(TileEntity te) {
+        if (!available || !isManaReceiver(te)) return 0;
+        try {
+            if (getCurrentManaMethod != null) {
+                Object result = getCurrentManaMethod.invoke(te);
+                if (result instanceof Number) return ((Number) result).intValue();
+            }
+            if (manaField != null) {
+                Object result = manaField.get(te);
+                if (result instanceof Number) return ((Number) result).intValue();
+            }
+            if (tileSpecialFlowerClass != null && tileSpecialFlowerClass.isInstance(te) && subTileField != null) {
+                Object subTile = subTileField.get(te);
+                if (subTile != null) {
+                    try {
+                        Field subMana = subTile.getClass().getField("mana");
+                        Object result = subMana.get(subTile);
+                        if (result instanceof Number) return ((Number) result).intValue();
+                    } catch (NoSuchFieldException ignored) {
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    /**
+     * 获取目标 Mana 容量.
+     *
+     * <p>按以下优先级尝试：</p>
+     * <ol>
+     *   <li>public int manaCap 字段(魔力池等)</li>
+     *   <li>TileSpecialFlower 子 tile 的 getMaxMana()</li>
+     *   <li>符文祭坛的 manaToGet 字段(目标配方 mana)</li>
+     * </ol>
+     *
+     * @return 容量,无法获取时返回 0
+     */
+    public static int getManaCapacity(TileEntity te) {
+        if (!available || !isManaReceiver(te)) return 0;
+        try {
+            if (manaCapField != null) {
+                Object result = manaCapField.get(te);
+                if (result instanceof Number) return ((Number) result).intValue();
+            }
+            if (tileSpecialFlowerClass != null && tileSpecialFlowerClass.isInstance(te) && subTileField != null && getMaxManaMethod != null) {
+                Object subTile = subTileField.get(te);
+                if (subTile != null) {
+                    Object result = getMaxManaMethod.invoke(subTile);
+                    if (result instanceof Number) return ((Number) result).intValue();
+                }
+            }
+            if (manaToGetField != null && manaToGetField.getDeclaringClass().isInstance(te)) {
+                Object result = manaToGetField.get(te);
+                if (result instanceof Number) return ((Number) result).intValue();
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
     }
 }

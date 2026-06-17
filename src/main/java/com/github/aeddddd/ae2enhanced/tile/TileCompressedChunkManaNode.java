@@ -9,7 +9,8 @@ import net.minecraft.world.gen.ChunkProviderServer;
 /**
  * 压缩区块魔力节点的 TileEntity.
  *
- * <p>与区块魔力节点一致,但供魔范围扩展为 3×3 区块(以自身所在区块为中心).</p>
+ * <p>与区块魔力节点一致,从 ME 网络 Mana 存储通道提取 Mana,
+ * 但供魔范围扩展为 3×3 区块(以自身所在区块为中心).</p>
  */
 public class TileCompressedChunkManaNode extends TileChunkManaNode {
 

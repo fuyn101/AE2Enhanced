@@ -1,14 +1,22 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import appeng.api.AEApi;
+import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
 import appeng.api.networking.security.IActionHost;
+import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.storage.IMEMonitor;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.me.GridAccessException;
+import appeng.me.helpers.MachineSource;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
+import com.github.aeddddd.ae2enhanced.storage.mana.IAEManaStack;
+import com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel;
 import com.github.aeddddd.ae2enhanced.util.compat.botania.BotaniaManaHelper;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
@@ -28,8 +36,8 @@ import java.util.List;
 /**
  * 区块魔力节点的 TileEntity.
  *
- * <p>消耗 1 个 AE 频道,作为免费魔力源向所在区块(16×16)内所有 Botania
- * 魔力接收设施供魔.不会从 ME 网络扣除 Mana.</p>
+ * <p>消耗 1 个 AE 频道,从连接的 ME 网络 Mana 存储通道提取 Mana,
+ * 向所在区块(16×16)内所有 Botania 魔力接收设施供魔.</p>
  *
  * <p>供魔目标排除：</p>
  * <ul>
@@ -42,6 +50,7 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
     private static final int CACHE_REFRESH_INTERVAL = 20;
 
     private EnumFacing forward = EnumFacing.NORTH;
+    private MachineSource machineSource;
 
     // 目标设备缓存(只存 BlockPos,每 tick 重新获取 TE 和 cap)
     protected final List<BlockPos> cachedTargets = new ArrayList<>();
@@ -141,6 +150,9 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
     private void doManaTick() {
         if (!BotaniaManaHelper.isAvailable()) return;
 
+        IMEMonitor<IAEManaStack> manaMonitor = getManaMonitor();
+        if (manaMonitor == null) return;
+
         if (cacheRefreshCooldown <= 0) {
             refreshTargetCache();
             cacheRefreshCooldown = CACHE_REFRESH_INTERVAL;
@@ -148,14 +160,35 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
             cacheRefreshCooldown--;
         }
 
+        MachineSource source = getMachineSource();
+
         for (BlockPos targetPos : cachedTargets) {
             TileEntity te = world.getTileEntity(targetPos);
             if (te == null || te.isInvalid()) continue;
             if (!BotaniaManaHelper.isManaReceiver(te)) continue;
             if (BotaniaManaHelper.isFull(te)) continue;
 
-            // 无上限供魔：传入 Integer.MAX_VALUE,由 Botania 内部 clamp 到容量上限
-            BotaniaManaHelper.receiveMana(te, Integer.MAX_VALUE);
+            int current = BotaniaManaHelper.getCurrentMana(te);
+            int capacity = BotaniaManaHelper.getManaCapacity(te);
+            if (capacity <= current) continue;
+
+            int demand = capacity - current;
+            if (demand <= 0) continue;
+
+            IAEManaStack request = AEManaStack.create(demand);
+            IAEManaStack extracted = manaMonitor.extractItems(request, Actionable.MODULATE, source);
+            if (extracted == null || extracted.getStackSize() <= 0) continue;
+
+            int toReceive = (int) Math.min(extracted.getStackSize(), Integer.MAX_VALUE);
+            BotaniaManaHelper.receiveMana(te, toReceive);
+
+            // 计算实际接受了多少,未注入部分返还 ME 网络
+            int after = BotaniaManaHelper.getCurrentMana(te);
+            int accepted = Math.max(0, after - current);
+            long leftover = extracted.getStackSize() - accepted;
+            if (leftover > 0) {
+                manaMonitor.injectItems(AEManaStack.create(leftover), Actionable.MODULATE, source);
+            }
         }
     }
 
@@ -237,6 +270,25 @@ public class TileChunkManaNode extends TileAENetworkBase implements ITickable, I
         } catch (Exception e) {
             return false;
         }
+    }
+
+    // ---------- 辅助 ----------
+
+    private IMEMonitor<IAEManaStack> getManaMonitor() {
+        try {
+            IStorageGrid storageGrid = getProxy().getGrid().getCache(IStorageGrid.class);
+            if (storageGrid == null) return null;
+            return storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class));
+        } catch (GridAccessException e) {
+            return null;
+        }
+    }
+
+    private MachineSource getMachineSource() {
+        if (this.machineSource == null) {
+            this.machineSource = new MachineSource(this);
+        }
+        return this.machineSource;
     }
 
     // ---------- NBT ----------
