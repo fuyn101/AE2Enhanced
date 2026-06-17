@@ -15,6 +15,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
+import com.github.aeddddd.ae2enhanced.util.compat.botania.BotaniaManaHelper;
 import com.github.aeddddd.ae2enhanced.storage.mana.IAEManaStack;
 import com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel;
 import net.minecraft.item.ItemStack;
@@ -131,6 +132,21 @@ public class TileManaAccessNode extends TileAENetworkBase
     private void doAdjacentPoolDrain() {
         TileEntity pool = findAdjacentManaPool();
         if (pool == null) return;
+
+        BlockPos poolPos = pool.getPos();
+
+        // 小彩蛋：若相邻的是永恒魔力池且网络中存在已成型的超维度仓储,
+        // 则向网络注入 Long.MAX 的 Mana,并把永恒魔力池变为神话魔力池.
+        if (BotaniaManaHelper.isEverlastingManaPool(world, poolPos)) {
+            if (hasFormedHyperdimensionalController()) {
+                IMEMonitor<IAEManaStack> monitor = getManaMonitor();
+                if (monitor != null) {
+                    monitor.injectItems(AEManaStack.create(Long.MAX_VALUE), Actionable.MODULATE, getMachineSource());
+                    BotaniaManaHelper.convertEverlastingToFabulous(world, poolPos);
+                    return;
+                }
+            }
+        }
 
         Integer current = getPoolMana(pool);
         if (current == null || current <= 0) return;
@@ -308,6 +324,28 @@ public class TileManaAccessNode extends TileAENetworkBase
         } catch (GridAccessException e) {
             return null;
         }
+    }
+
+    /**
+     * 检查当前 ME 网络中是否存在已成型的超维度仓储中枢.
+     */
+    private boolean hasFormedHyperdimensionalController() {
+        try {
+            appeng.api.networking.IGrid grid = getProxy().getGrid();
+            if (grid == null) return false;
+            for (appeng.api.networking.IGridNode node : grid.getNodes()) {
+                if (node == null) continue;
+                Object machine = node.getMachine();
+                if (machine instanceof TileHyperdimensionalController) {
+                    if (((TileHyperdimensionalController) machine).isFormed()) {
+                        return true;
+                    }
+                }
+            }
+        } catch (GridAccessException e) {
+            return false;
+        }
+        return false;
     }
 
     private MachineSource getMachineSource() {

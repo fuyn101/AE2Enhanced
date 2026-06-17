@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.util.compat.botania;
 
+import net.minecraft.block.properties.IProperty;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -23,6 +25,9 @@ public final class BotaniaManaHelper {
     private static final String SUB_TILE_GENERATING = "vazkii.botania.api.subtile.SubTileGenerating";
     private static final String SUB_TILE_ENTITY = "vazkii.botania.api.subtile.SubTileEntity";
     private static final String BLOCK_MANA_VOID = "vazkii.botania.common.block.mana.BlockManaVoid";
+    private static final String BOTANIA_STATE_PROPS = "vazkii.botania.api.state.BotaniaStateProps";
+    private static final String POOL_VARIANT_ENUM = "vazkii.botania.api.state.enums.PoolVariant";
+
     private static Class<?> imanaReceiverClass;
     private static Class<?> tileSpecialFlowerClass;
     private static Class<?> subTileGeneratingClass;
@@ -33,6 +38,11 @@ public final class BotaniaManaHelper {
     private static Method getMaxManaMethod;
 
     private static Field subTileField;
+    private static Field poolVariantPropertyField;
+
+    private static Class<?> poolVariantClass;
+    private static Object poolVariantCreative;
+    private static Object poolVariantFabulous;
 
     private static boolean initialized = false;
     private static boolean available = false;
@@ -69,6 +79,12 @@ public final class BotaniaManaHelper {
                 getMaxManaMethod = null;
             }
 
+            Class<?> botaniaStatePropsClass = Class.forName(BOTANIA_STATE_PROPS);
+            poolVariantPropertyField = botaniaStatePropsClass.getField("POOL_VARIANT");
+            poolVariantClass = Class.forName(POOL_VARIANT_ENUM);
+            poolVariantCreative = Enum.valueOf((Class<Enum>) poolVariantClass, "CREATIVE");
+            poolVariantFabulous = Enum.valueOf((Class<Enum>) poolVariantClass, "FABULOUS");
+
             available = true;
         } catch (Throwable t) {
             imanaReceiverClass = null;
@@ -79,6 +95,10 @@ public final class BotaniaManaHelper {
             receiveManaMethod = null;
             getMaxManaMethod = null;
             subTileField = null;
+            poolVariantPropertyField = null;
+            poolVariantClass = null;
+            poolVariantCreative = null;
+            poolVariantFabulous = null;
             available = false;
         }
     }
@@ -229,5 +249,36 @@ public final class BotaniaManaHelper {
         Integer toGet = getIntField(te, "manaToGet");
         if (toGet != null) return toGet;
         return 0;
+    }
+
+    /**
+     * 判断指定位置是否是 Botania 永恒魔力池(Creative / Everlasting Mana Pool).
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static boolean isEverlastingManaPool(World world, BlockPos pos) {
+        if (!available || poolVariantPropertyField == null || poolVariantCreative == null) return false;
+        try {
+            IBlockState state = world.getBlockState(pos);
+            IProperty property = (IProperty) poolVariantPropertyField.get(null);
+            Object value = state.getValue(property);
+            return poolVariantCreative.equals(value);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * 将指定位置的永恒魔力池变为神话魔力池(Fabulous Mana Pool).
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static void convertEverlastingToFabulous(World world, BlockPos pos) {
+        if (!available || poolVariantPropertyField == null || poolVariantFabulous == null) return;
+        try {
+            IBlockState state = world.getBlockState(pos);
+            IProperty property = (IProperty) poolVariantPropertyField.get(null);
+            IBlockState newState = state.withProperty(property, (Comparable) poolVariantFabulous);
+            world.setBlockState(pos, newState);
+        } catch (Throwable ignored) {
+        }
     }
 }
