@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.container;
 
 import appeng.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
+import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -74,10 +75,11 @@ public class ContainerSmartPatternInterface extends Container {
         });
 
         // 编码样板输出槽
+        // 允许放入已编码的智能样板以触发配方数据重载
         this.addSlotToContainer(new SlotItemHandler(tile.getInventory(), 1, 152, 20) {
             @Override
             public boolean isItemValid(ItemStack stack) {
-                return false;
+                return stack.getItem() instanceof ItemSmartPattern;
             }
         });
 
@@ -203,7 +205,13 @@ public class ContainerSmartPatternInterface extends Container {
             } else if (index >= SLOT_PLAYER_START) {
                 // 从玩家背包移到空白样板输入槽
                 if (!this.mergeItemStack(stackInSlot, SLOT_BLANK_INPUT, SLOT_BLANK_INPUT + 1, false)) {
-                    return ItemStack.EMPTY;
+                    // 空白槽失败时，如果是已编码智能样板，尝试放入编码输出槽以触发重载
+                    if (stackInSlot.getItem() instanceof ItemSmartPattern
+                            && this.mergeItemStack(stackInSlot, SLOT_ENCODED_OUTPUT, SLOT_ENCODED_OUTPUT + 1, false)) {
+                        // 已成功移入编码输出槽
+                    } else {
+                        return ItemStack.EMPTY;
+                    }
                 }
             }
 

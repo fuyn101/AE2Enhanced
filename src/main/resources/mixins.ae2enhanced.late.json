@@ -25,6 +25,7 @@
     "ae2.MixinSlotRestrictedInput",
     "ae2.MixinTileIOPort",
     "ae2.MixinToolMatterCannon",
+    "ae2.MixinContainerInterfaceTerminal",
     "ae2.MixinContainerMEMonitorable",
     "fluid.MixinGridStorageCacheFluid",
     "fluid.MixinNetworkInventoryHandlerFluid",
@@ -54,6 +55,7 @@
     "terminal.MixinGuiMEMonitorable",
     "terminal.MixinGuiMEMonitorableKeyHandler",
     "terminal.MixinItemRepo",
+    "terminal.MixinGuiInterfaceTerminal",
     "terminal.MixinGuiScreenHelper",
     "world.MixinPlayerControllerMP"
   ],
