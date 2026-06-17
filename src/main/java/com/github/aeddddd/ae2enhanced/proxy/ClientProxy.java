@@ -212,6 +212,8 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
         registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
         registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
+        registerBlockItemModel(BlockRegistry.MANA_ACCESS_NODE);
+        registerBlockItemModel(BlockRegistry.STARLIGHT_ACCESS_NODE);
         registerBlockItemModel(BlockRegistry.ADVANCED_ME_COLLECTOR);
         registerBlockItemModel(BlockRegistry.ME_NETWORK_RECYCLER);
         if (BlockRegistry.EMC_INTERFACE != null) {

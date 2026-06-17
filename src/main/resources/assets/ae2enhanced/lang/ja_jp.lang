@@ -273,6 +273,13 @@ message.ae2enhanced.omnitool.ae_bound=§b[ME Tool] §aBound to AE transmitter at
 message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
 message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
 
+tile.ae2enhanced.mana_access_node.name=Mana Access Node
+tile.ae2enhanced.starlight_access_node.name=Starlight Access Node
+message.ae2enhanced.mana_access_node.mode.input=§b[Mana Node] §aMode: INPUT
+message.ae2enhanced.mana_access_node.mode.output=§b[Mana Node] §cMode: OUTPUT
+message.ae2enhanced.starlight_access_node.mode.input=§b[Starlight Node] §aMode: INPUT
+message.ae2enhanced.starlight_access_node.mode.output=§b[Starlight Node] §cMode: OUTPUT
+
 gui.ae2enhanced.omni_tool_config.title=ME Omni Tool Configuration
 gui.ae2enhanced.omni_tool_config.mode=Mode
 gui.ae2enhanced.omni_tool_config.drop_mode=Drop Mode

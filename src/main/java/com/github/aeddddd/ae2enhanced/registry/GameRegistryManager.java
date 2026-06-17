@@ -97,6 +97,8 @@ public final class GameRegistryManager {
             BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
             BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
             BlockRegistry.RF_ACCESS_NODE = new BlockRFAccessNode(),
+            BlockRegistry.MANA_ACCESS_NODE = new BlockManaAccessNode(),
+            BlockRegistry.STARLIGHT_ACCESS_NODE = new BlockStarlightAccessNode(),
             BlockRegistry.CHUNK_POWER_NODE = new BlockChunkPowerNode(),
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
@@ -119,6 +121,8 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
         GameRegistry.registerTileEntity(TileRFAccessNode.class, AE2Enhanced.MOD_ID + ":rf_access_node");
+        GameRegistry.registerTileEntity(TileManaAccessNode.class, AE2Enhanced.MOD_ID + ":mana_access_node");
+        GameRegistry.registerTileEntity(TileStarlightAccessNode.class, AE2Enhanced.MOD_ID + ":starlight_access_node");
         GameRegistry.registerTileEntity(TileChunkPowerNode.class, AE2Enhanced.MOD_ID + ":chunk_power_node");
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
@@ -152,6 +156,8 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.RF_ACCESS_NODE).setRegistryName(BlockRegistry.RF_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.MANA_ACCESS_NODE).setRegistryName(BlockRegistry.MANA_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.STARLIGHT_ACCESS_NODE).setRegistryName(BlockRegistry.STARLIGHT_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CHUNK_POWER_NODE).setRegistryName(BlockRegistry.CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
