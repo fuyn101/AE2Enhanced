@@ -8,6 +8,8 @@ import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEnergies;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeMana;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeStarlight;
 import appeng.api.config.Upgrades;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
@@ -28,6 +30,12 @@ public final class ModContent {
         }
         if (Loader.isModLoaded("thaumcraft")) {
             FakeEssentias.init();
+        }
+        if (Loader.isModLoaded("botania")) {
+            FakeMana.init();
+        }
+        if (Loader.isModLoaded("astralsorcery")) {
+            FakeStarlight.init();
         }
 
         com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardHandlerRegistry.init();

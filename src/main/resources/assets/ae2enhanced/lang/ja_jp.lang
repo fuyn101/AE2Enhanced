@@ -232,6 +232,8 @@ message.ae2enhanced.magnet.inventory=§aMagnet: Inventory Mode
 message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 
 item.ae2enhanced.energy_drop.name=RFエネルギー滴
+item.ae2enhanced.mana_drop.name=マナ滴
+item.ae2enhanced.starlight_drop.name=星明かり滴
 key.ae2enhanced.rtsToggle=RTSモードの切り替え
 
 item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool

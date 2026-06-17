@@ -12,6 +12,10 @@ import com.github.aeddddd.ae2enhanced.registry.ModRecipes;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageChannel;
 import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.mana.ManaStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.starlight.StarlightStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.starlight.IStarlightStorageChannel;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.ConfigManager;
@@ -80,6 +84,22 @@ public class AE2Enhanced {
                 IEnergyStorageChannel.class,
                 new EnergyStorageChannel()
         );
+
+        // 注册 Botania Mana 存储通道
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
+            appeng.api.AEApi.instance().storage().registerStorageChannel(
+                    IManaStorageChannel.class,
+                    new ManaStorageChannel()
+            );
+        }
+
+        // 注册 Astral Sorcery Starlight 存储通道
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
+            appeng.api.AEApi.instance().storage().registerStorageChannel(
+                    IStarlightStorageChannel.class,
+                    new StarlightStorageChannel()
+            );
+        }
 
         ModContent.init();
         ModRecipes.init();

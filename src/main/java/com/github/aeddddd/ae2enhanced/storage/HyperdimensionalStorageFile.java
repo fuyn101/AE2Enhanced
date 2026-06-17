@@ -64,6 +64,8 @@ public class HyperdimensionalStorageFile {
     private volatile boolean gasDirty = false;
     private volatile boolean essentiaDirty = false;
     private volatile boolean energyDirty = false;
+    private volatile boolean manaDirty = false;
+    private volatile boolean starlightDirty = false;
     private volatile boolean closed = false;
     private volatile boolean safeMode = false;
 
@@ -72,11 +74,15 @@ public class HyperdimensionalStorageFile {
     private volatile Map<?, BigInteger> gasStorageRef = null;
     private volatile Map<?, BigInteger> essentiaStorageRef = null;
     private volatile Map<EnergyDescriptor, BigInteger> energyStorageRef = null;
+    private volatile Map<?, BigInteger> manaStorageRef = null;
+    private volatile Map<?, BigInteger> starlightStorageRef = null;
 
     // Section files
     private final File itemFile;
     private final File fluidFile;
     private final File energyFile;
+    private File manaFile = null;
+    private File starlightFile = null;
     private File gasFile = null;
     private File essentiaFile = null;
 
@@ -87,6 +93,8 @@ public class HyperdimensionalStorageFile {
     // Conditional codecs loaded via reflection to avoid NoClassDefFoundError
     private Object gasCodec = null;
     private Object essentiaCodec = null;
+    private Object manaCodec = null;
+    private Object starlightCodec = null;
 
     public HyperdimensionalStorageFile(World world, UUID nexusId) {
         this.nexusId = nexusId;
@@ -119,8 +127,8 @@ public class HyperdimensionalStorageFile {
 
     @SuppressWarnings("unchecked")
     private void initConditionalCodecs() {
-        // GasDescriptorCodec / EssentiaDescriptorCodec 类本身不硬引用可选 Mod 类,
-        // 但为了绝对安全(JVM 链接阶段行为不确定),仍通过反射加载.
+        // GasDescriptorCodec / EssentiaDescriptorCodec / ManaDescriptorCodec / StarlightDescriptorCodec
+        // 类本身不硬引用可选 Mod 类,但为了绝对安全(JVM 链接阶段行为不确定),仍通过反射加载.
         try {
             Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.codec.GasDescriptorCodec");
             this.gasCodec = clazz.getField("INSTANCE").get(null);
@@ -136,6 +144,22 @@ public class HyperdimensionalStorageFile {
         } catch (Throwable e) {
             this.essentiaCodec = null;
             this.essentiaFile = null;
+        }
+        try {
+            Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.codec.ManaDescriptorCodec");
+            this.manaCodec = clazz.getField("INSTANCE").get(null);
+            this.manaFile = new File(baseDir, "mana.bin");
+        } catch (Throwable e) {
+            this.manaCodec = null;
+            this.manaFile = null;
+        }
+        try {
+            Class<?> clazz = Class.forName("com.github.aeddddd.ae2enhanced.storage.codec.StarlightDescriptorCodec");
+            this.starlightCodec = clazz.getField("INSTANCE").get(null);
+            this.starlightFile = new File(baseDir, "starlight.bin");
+        } catch (Throwable e) {
+            this.starlightCodec = null;
+            this.starlightFile = null;
         }
     }
 
@@ -161,6 +185,16 @@ public class HyperdimensionalStorageFile {
 
     public void loadEnergy(Map<EnergyDescriptor, BigInteger> target) {
         loadSection(energyFile, energyCodec, target, "energy");
+    }
+
+    @SuppressWarnings("unchecked")
+    public void loadMana(Map<?, BigInteger> target) {
+        loadSectionReflective(manaFile, manaCodec, target, "mana");
+    }
+
+    @SuppressWarnings("unchecked")
+    public void loadStarlight(Map<?, BigInteger> target) {
+        loadSectionReflective(starlightFile, starlightCodec, target, "starlight");
     }
 
     private <D extends Descriptor> void loadSection(File file, DescriptorCodec<D> codec, Map<D, BigInteger> target, String typeName) {
@@ -252,7 +286,7 @@ public class HyperdimensionalStorageFile {
     // ---- Save ----
 
     public boolean save() {
-        boolean itemOk = true, fluidOk = true, energyOk = true, gasOk = true, essentiaOk = true;
+        boolean itemOk = true, fluidOk = true, energyOk = true, gasOk = true, essentiaOk = true, manaOk = true, starlightOk = true;
         if (itemDirty) {
             itemOk = saveSection(itemFile, itemCodec, storageRef, "item");
             if (itemOk) itemDirty = false;
@@ -273,8 +307,16 @@ public class HyperdimensionalStorageFile {
             essentiaOk = saveSectionReflective(essentiaFile, essentiaCodec, essentiaStorageRef, "essentia");
             if (essentiaOk) essentiaDirty = false;
         }
-        dirty = itemDirty || fluidDirty || gasDirty || essentiaDirty || energyDirty;
-        return itemOk && fluidOk && energyOk && gasOk && essentiaOk;
+        if (manaDirty && manaFile != null && manaCodec != null && manaStorageRef != null) {
+            manaOk = saveSectionReflective(manaFile, manaCodec, manaStorageRef, "mana");
+            if (manaOk) manaDirty = false;
+        }
+        if (starlightDirty && starlightFile != null && starlightCodec != null && starlightStorageRef != null) {
+            starlightOk = saveSectionReflective(starlightFile, starlightCodec, starlightStorageRef, "starlight");
+            if (starlightOk) starlightDirty = false;
+        }
+        dirty = itemDirty || fluidDirty || gasDirty || essentiaDirty || energyDirty || manaDirty || starlightDirty;
+        return itemOk && fluidOk && energyOk && gasOk && essentiaOk && manaOk && starlightOk;
     }
 
     private <D extends Descriptor> boolean saveSection(File file, DescriptorCodec<D> codec, Map<D, BigInteger> source, String typeName) {
@@ -509,6 +551,12 @@ public class HyperdimensionalStorageFile {
             case ENERGY:
                 if (!this.energyDirty) this.energyDirty = true;
                 break;
+            case MANA:
+                if (!this.manaDirty) this.manaDirty = true;
+                break;
+            case STARLIGHT:
+                if (!this.starlightDirty) this.starlightDirty = true;
+                break;
         }
         markDirty();
     }
@@ -531,6 +579,14 @@ public class HyperdimensionalStorageFile {
 
     public void setEnergyStorageRef(Map<EnergyDescriptor, BigInteger> ref) {
         this.energyStorageRef = ref;
+    }
+
+    public void setManaStorageRef(Map<?, BigInteger> ref) {
+        this.manaStorageRef = ref;
+    }
+
+    public void setStarlightStorageRef(Map<?, BigInteger> ref) {
+        this.starlightStorageRef = ref;
     }
 
     private void flush() {

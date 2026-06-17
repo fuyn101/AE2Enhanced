@@ -303,6 +303,8 @@ message.ae2enhanced.magnet.network=§b磁引卡：网络模式
 # 先进中枢平台
 tile.ae2enhanced.rf_access_node.name=RF访问节点
 item.ae2enhanced.energy_drop.name=RF能量滴
+item.ae2enhanced.mana_drop.name=魔力滴
+item.ae2enhanced.starlight_drop.name=星能滴
 
 
 tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器

@@ -64,6 +64,12 @@ public final class GameRegistryManager {
         ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
         ItemRegistry.ENERGY_DROP = new ItemEnergyDrop();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
+            ItemRegistry.MANA_DROP = new com.github.aeddddd.ae2enhanced.item.ItemManaDrop();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
+            ItemRegistry.STARLIGHT_DROP = new com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop();
+        }
         ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
         ItemRegistry.ME_PLACEMENT_TOOL = new ItemMEPlacementTool();
@@ -180,6 +186,12 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
         event.getRegistry().register(ItemRegistry.ENERGY_DROP);
+        if (ItemRegistry.MANA_DROP != null) {
+            event.getRegistry().register(ItemRegistry.MANA_DROP);
+        }
+        if (ItemRegistry.STARLIGHT_DROP != null) {
+            event.getRegistry().register(ItemRegistry.STARLIGHT_DROP);
+        }
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
         event.getRegistry().register(ItemRegistry.ME_PLACEMENT_TOOL);

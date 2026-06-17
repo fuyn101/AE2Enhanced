@@ -27,6 +27,12 @@ public final class ItemRegistry {
     // 先进中枢平台 — RF 假物品
     public static ItemEnergyDrop ENERGY_DROP;
 
+    // Botania Mana 假物品(条件加载)
+    public static Item MANA_DROP;
+
+    // Astral Sorcery Starlight 假物品(条件加载)
+    public static Item STARLIGHT_DROP;
+
     // 先进中枢平台 — 平台开发许可
     public static ItemPlatformDevelopmentLicense PLATFORM_DEVELOPMENT_LICENSE;
 
