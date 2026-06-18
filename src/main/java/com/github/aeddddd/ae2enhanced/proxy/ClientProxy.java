@@ -4,7 +4,6 @@ import appeng.api.AEApi;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
-import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.client.handler.KeyHandlerOmniTool;
 import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
 import com.github.aeddddd.ae2enhanced.client.model.StarlightDropModel;
@@ -16,9 +15,6 @@ import com.github.aeddddd.ae2enhanced.client.render.ChunkPowerHighlightRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
-import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
-import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
-import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -267,24 +263,8 @@ public class ClientProxy extends CommonProxy {
             }
         }
 
-        // E1a：注册通用输入总线的 Part 模型和物品模型
-        if (PartRegistry.PART_UNIVERSAL_IMPORT_BUS != null) {
-            AEApi.instance().registries().partModels().registerModels(PartUniversalImportBus.MODELS);
-            registerItemModel(PartRegistry.PART_UNIVERSAL_IMPORT_BUS);
-        }
-        // E1b：注册通用输出总线的 Part 模型和物品模型
-        if (PartRegistry.PART_UNIVERSAL_EXPORT_BUS != null) {
-            AEApi.instance().registries().partModels().registerModels(PartUniversalExportBus.MODELS);
-            registerItemModel(PartRegistry.PART_UNIVERSAL_EXPORT_BUS);
-        }
-
-        // E1c：注册 Stocking 总线的 Part 模型和物品模型
-        if (PartRegistry.PART_STOCKING_BUS != null) {
-            AEApi.instance().registries().partModels().registerModels(PartStockingBus.MODELS);
-            registerItemModel(PartRegistry.PART_STOCKING_BUS);
-            registerItemModel(ItemRegistry.CHANNEL_RECEIVER_CARD);
+        registerItemModel(ItemRegistry.CHANNEL_RECEIVER_CARD);
         registerItemModel(ItemRegistry.UNIVERSAL_MEMORY_CARD);
-        }
 
         // Omni 无线终端物品模型
         registerItemModel(ItemRegistry.OMNI_WIRELESS_TERMINAL);

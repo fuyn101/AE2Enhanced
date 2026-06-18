@@ -142,7 +142,6 @@ gui.ae2enhanced.nexus.nexus_id.none=Не сгенерирован
 gui.ae2enhanced.nexus.label.storage_types=Типы хранилищ: §e%s
 gui.ae2enhanced.nexus.label.storage_total=Всего хранится: §e%s
 gui.ae2enhanced.nexus.storage.empty=Ядро хранилища: §7Пусто
-gui.ae2enhanced.stocking_bus.set_amount=Установить целевое количество
 
 item.ae2enhanced.channel_receiver_card.name=Карта приема канала
 item.ae2enhanced.channel_receiver_card.tooltip.bound=§aПривязана §7к [%d, %d, %d] Изм: %d
@@ -230,22 +229,6 @@ key.ae2enhanced.rtsToggle=Режим RTS
 
 # add missing keys
 
-item.ae2enhanced.part_universal_import_bus.name=Универсальная шина импорта
-item.ae2enhanced.part_universal_import_bus.tooltip=§eУниверсальная шина импорта §7— Импортирует предметы, жидкости, газы и эссенцию
-gui.ae2enhanced.universal_import_bus.name=Универсальная шина импорта
-gui.ae2enhanced.bus_mode.sequential=Последовательный
-gui.ae2enhanced.bus_mode.round_robin=Циклический
-gui.ae2enhanced.bus_mode.random=Случайный
-item.ae2enhanced.part_universal_export_bus.name=Универсальная шина экспорта
-item.ae2enhanced.part_universal_export_bus.tooltip=§eУниверсальная шина экспорта §7— Экспортирует предметы, жидкости, газы и эссенцию
-gui.ae2enhanced.universal_export_bus.name=Универсальная шина экспорта
-item.ae2enhanced.part_stocking_bus.name=Шина пополнения запасов
-item.ae2enhanced.part_stocking_bus.tooltip=§eШина пополнения запасов §7— Поддерживает целевое количество во внешнем инвентаре
-gui.ae2enhanced.stocking_bus.name=Шина пополнения запасов
-gui.ae2enhanced.stocking_bus.tooltip.mode=Режим: %s
-gui.ae2enhanced.stocking_bus.mode.bidirectional=Двунаправленный
-gui.ae2enhanced.stocking_bus.mode.supply=Только пополнение
-gui.ae2enhanced.stocking_bus.mode.recover=Только изъятие
 key.ae2enhanced.jeiSearchTerminal=Искать предмет JEI в терминале
 item.ae2enhanced.universal_memory_card.name=Универсальная карта памяти
 item.ae2enhanced.universal_memory_card.tooltip.header=§b§lУниверсальная карта памяти

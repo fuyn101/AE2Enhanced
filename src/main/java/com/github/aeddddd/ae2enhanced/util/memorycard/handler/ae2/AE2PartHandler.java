@@ -10,8 +10,6 @@ import appeng.parts.AEBasePart;
 import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.util.SettingsFrom;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
-import com.github.aeddddd.ae2enhanced.part.PartUniversalBusBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -50,20 +48,6 @@ public class AE2PartHandler implements IMemoryCardHandler {
         IItemHandler configInv = part.getInventoryByName("config");
         if (configInv instanceof AppEngInternalAEInventory) {
             ((AppEngInternalAEInventory) configInv).writeToNBT(output, "config");
-        }
-
-        // 4. 本 mod Part 的自定义状态
-        if (part instanceof PartStockingBus) {
-            PartStockingBus stocking = (PartStockingBus) part;
-            output.setInteger("stockingMode", stocking.getMode().ordinal());
-            for (int i = 0; i < 9; i++) {
-                output.setLong("targetAmount_" + i, stocking.getTargetAmount(i));
-            }
-        }
-        if (part instanceof PartUniversalBusBase) {
-            PartUniversalBusBase bus = (PartUniversalBusBase) part;
-            output.setInteger("busMode", bus.getBusMode().ordinal());
-            output.setInteger("roundRobinIndex", bus.getRoundRobinIndex());
         }
 
         // 5. 额外复制升级槽

@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.registry;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
-import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEnergies;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
@@ -43,36 +42,6 @@ public final class ModContent {
     }
 
     public static void init() {
-        // E1a：通用输入总线升级卡
-        if (PartRegistry.PART_UNIVERSAL_IMPORT_BUS != null) {
-            ItemStack busStack = new ItemStack(PartRegistry.PART_UNIVERSAL_IMPORT_BUS);
-            Upgrades.SPEED.registerItem(busStack, 4);
-            Upgrades.CAPACITY.registerItem(busStack, 5);
-            Upgrades.REDSTONE.registerItem(busStack, 1);
-            Upgrades.FUZZY.registerItem(busStack, 1);
-            Upgrades.CRAFTING.registerItem(busStack, 1);
-        }
-
-        // E1b：通用输出总线升级卡
-        if (PartRegistry.PART_UNIVERSAL_EXPORT_BUS != null) {
-            ItemStack busStack = new ItemStack(PartRegistry.PART_UNIVERSAL_EXPORT_BUS);
-            Upgrades.SPEED.registerItem(busStack, 4);
-            Upgrades.CAPACITY.registerItem(busStack, 5);
-            Upgrades.REDSTONE.registerItem(busStack, 1);
-            Upgrades.FUZZY.registerItem(busStack, 1);
-            Upgrades.CRAFTING.registerItem(busStack, 1);
-        }
-
-        // Stocking 总线升级卡
-        if (PartRegistry.PART_STOCKING_BUS != null) {
-            ItemStack busStack = new ItemStack(PartRegistry.PART_STOCKING_BUS);
-            Upgrades.SPEED.registerItem(busStack, 4);
-            Upgrades.CAPACITY.registerItem(busStack, 4);
-            Upgrades.REDSTONE.registerItem(busStack, 1);
-            Upgrades.FUZZY.registerItem(busStack, 1);
-            Upgrades.CRAFTING.registerItem(busStack, 1);
-        }
-
         // 中枢 ME 接口升级卡
         if (BlockRegistry.CENTRAL_ME_INTERFACE != null) {
             ItemStack centralInterface = new ItemStack(BlockRegistry.CENTRAL_ME_INTERFACE);

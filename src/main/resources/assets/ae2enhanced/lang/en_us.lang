@@ -7,12 +7,6 @@ config.ae2enhanced:OmniTool.maxEnchantmentLevel=Max Enchantment Level
 config.ae2enhanced:ChannelPathing=Experimental Fast Channel Pathing
 config.ae2enhanced:ChannelPathing.fastPathing=Enable Fast Pathing
 
-item.ae2enhanced.part_universal_import_bus.name=Universal Import Bus
-item.ae2enhanced.part_universal_import_bus.tooltip=§eUniversal Import Bus §7— Imports items, fluids, gases and essentia
-gui.ae2enhanced.universal_import_bus.name=Universal Import Bus
-gui.ae2enhanced.bus_mode.sequential=Sequential
-gui.ae2enhanced.bus_mode.round_robin=Round Robin
-gui.ae2enhanced.bus_mode.random=Random
 
 tile.ae2enhanced.central_me_interface.name=Central ME Interface
 tile.ae2enhanced.assembly_controller.name=Assembly Controller
@@ -164,18 +158,7 @@ gui.ae2enhanced.nexus.label.storage_types=Storage Types: §e%s
 gui.ae2enhanced.nexus.label.storage_total=Total Stored: §e%s
 gui.ae2enhanced.nexus.storage.empty=Storage Core: §7Empty
 
-item.ae2enhanced.part_universal_export_bus.name=Universal Export Bus
-item.ae2enhanced.part_universal_export_bus.tooltip=§eUniversal Export Bus §7— Exports items, fluids, gases and essentia
-gui.ae2enhanced.universal_export_bus.name=Universal Export Bus
 
-item.ae2enhanced.part_stocking_bus.name=Stocking Bus
-item.ae2enhanced.part_stocking_bus.tooltip=§eStocking Bus §7— Maintains target quantities in external inventory
-gui.ae2enhanced.stocking_bus.name=Stocking Bus
-gui.ae2enhanced.stocking_bus.tooltip.mode=Mode: %s
-gui.ae2enhanced.stocking_bus.mode.bidirectional=Bidirectional
-gui.ae2enhanced.stocking_bus.mode.supply=Supply Only
-gui.ae2enhanced.stocking_bus.mode.recover=Recover Only
-gui.ae2enhanced.stocking_bus.set_amount=Set Target Amount
 
 item.ae2enhanced.channel_receiver_card.name=Channel Receiver Card
 item.ae2enhanced.channel_receiver_card.tooltip.bound=§aBound §7to [%d, %d, %d] Dim: %d

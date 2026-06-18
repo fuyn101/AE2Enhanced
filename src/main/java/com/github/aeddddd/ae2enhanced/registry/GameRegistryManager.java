@@ -7,7 +7,6 @@ import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.item.*;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
-import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.tile.*;
 import com.github.aeddddd.ae2enhanced.crafting.RecipeOmniToolUpgrade;
 import net.minecraft.block.Block;
@@ -54,9 +53,6 @@ public final class GameRegistryManager {
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemGasDrop", e);
         }
-        PartRegistry.PART_UNIVERSAL_IMPORT_BUS = new ItemPartUniversalImportBus();
-        PartRegistry.PART_UNIVERSAL_EXPORT_BUS = new ItemPartUniversalExportBus();
-        PartRegistry.PART_STOCKING_BUS = new ItemPartStockingBus();
         ItemRegistry.CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
         ItemRegistry.UNIVERSAL_MEMORY_CARD = new ItemUniversalMemoryCard();
         ItemRegistry.OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
@@ -200,9 +196,6 @@ public final class GameRegistryManager {
         if (ItemRegistry.GAS_DROP != null) {
             event.getRegistry().register(ItemRegistry.GAS_DROP);
         }
-        event.getRegistry().register(PartRegistry.PART_UNIVERSAL_IMPORT_BUS);
-        event.getRegistry().register(PartRegistry.PART_UNIVERSAL_EXPORT_BUS);
-        event.getRegistry().register(PartRegistry.PART_STOCKING_BUS);
         event.getRegistry().register(ItemRegistry.CHANNEL_RECEIVER_CARD);
         event.getRegistry().register(ItemRegistry.UNIVERSAL_MEMORY_CARD);
         event.getRegistry().register(ItemRegistry.OMNI_WIRELESS_TERMINAL);

@@ -6,9 +6,6 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiComputationFormed;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiComputationUnformed;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiHyperdimensionalUnformed;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiStockingBus;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalExportBus;
-import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiMENetworkRecycler;
@@ -19,16 +16,12 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiEMCInterface;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
-import com.github.aeddddd.ae2enhanced.container.ContainerStockingBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.container.ContainerEMCInterface;
@@ -36,16 +29,11 @@ import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 
-import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
-import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
-import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
-import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
-import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -70,9 +58,6 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_HYPERDIMENSIONAL_UNFORMED = 3;
     public static final int GUI_COMPUTATION_FORMED = 4;
     public static final int GUI_COMPUTATION_UNFORMED = 5;
-    public static final int GUI_UNIVERSAL_IMPORT_BUS = 6;
-    public static final int GUI_UNIVERSAL_EXPORT_BUS = 7;
-    public static final int GUI_STOCKING_BUS = 8;
     public static final int GUI_WIRELESS_CHANNEL_TRANSMITTER = 9;
     public static final int GUI_UNIVERSAL_MEMORY_CARD = 10;
     public static final int GUI_OMNI_TERMINAL = 11;
@@ -167,36 +152,6 @@ public class GuiHandler implements IGuiHandler {
 
         // Part GUI：解码 side ordinal
         int baseId = ID & 0xFF;
-        if (baseId == GUI_UNIVERSAL_IMPORT_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartUniversalImportBus) {
-                    return new ContainerUniversalImportBus(player.inventory, (PartUniversalImportBus) part);
-                }
-            }
-        }
-        if (baseId == GUI_UNIVERSAL_EXPORT_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartUniversalExportBus) {
-                    return new ContainerUniversalExportBus(player.inventory, (PartUniversalExportBus) part);
-                }
-            }
-        }
-        if (baseId == GUI_STOCKING_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartStockingBus) {
-                    return new ContainerStockingBus(player.inventory, (PartStockingBus) part);
-                }
-            }
-        }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
             if (te instanceof TileWirelessChannelTransmitter) {
                 return new ContainerWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
@@ -305,36 +260,6 @@ public class GuiHandler implements IGuiHandler {
 
         // Part GUI：解码 side ordinal
         int baseId = ID & 0xFF;
-        if (baseId == GUI_UNIVERSAL_IMPORT_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartUniversalImportBus) {
-                    return new GuiUniversalImportBus(player.inventory, (PartUniversalImportBus) part);
-                }
-            }
-        }
-        if (baseId == GUI_UNIVERSAL_EXPORT_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartUniversalExportBus) {
-                    return new GuiUniversalExportBus(player.inventory, (PartUniversalExportBus) part);
-                }
-            }
-        }
-        if (baseId == GUI_STOCKING_BUS) {
-            int sideOrdinal = (ID >> 8) & 0xFF;
-            AEPartLocation side = AEPartLocation.fromOrdinal(sideOrdinal);
-            if (te instanceof IPartHost) {
-                IPart part = ((IPartHost) te).getPart(side);
-                if (part instanceof PartStockingBus) {
-                    return new GuiStockingBus(player.inventory, (PartStockingBus) part);
-                }
-            }
-        }
         if (baseId == GUI_WIRELESS_CHANNEL_TRANSMITTER) {
             if (te instanceof TileWirelessChannelTransmitter) {
                 return new GuiWirelessChannelTransmitter(player.inventory, (TileWirelessChannelTransmitter) te);
