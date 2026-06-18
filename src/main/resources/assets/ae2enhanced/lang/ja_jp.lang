@@ -261,7 +261,7 @@ gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=エンコード
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=エンコード不可: レシピが読み込まれていません
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=エンコード不可: スマートブランクパターンをセットしてください
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=エンコード不可: 出力スロットが一杯です
-gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7無効(クリックして有効化)
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7無効(クリックで有効化)
 gui.ae2enhanced.smart_pattern_interface.conflict_marker=§c競合 — 他のレシピと出力が重複しています
 gui.ae2enhanced.smart_pattern_interface.recipe_count=レシピ: %d / %d 個有効
 tooltip.ae2enhanced.smart_pattern.bound_to=§バインド先: §f%s
@@ -273,7 +273,7 @@ gui.ae2enhanced.smart_pattern_interface.bind_wrong_dim=§c▸ 選択した対象
 gui.ae2enhanced.smart_pattern_interface.bind_blacklisted=§c▸ %sはブラックリストに登録されています
 gui.ae2enhanced.smart_pattern_interface.bind_no_jei=§c▸ JEIが使用できません
 gui.ae2enhanced.smart_pattern_interface.bind_no_recipes=§c▸ %sのレシピが見つかりません
-gui.ae2enhanced.smart_pattern_interface.bind_success=§a▸ §f%2$s§a用の§e%1$d§a個のレシピを読み込みました
+gui.ae2enhanced.smart_pattern_interface.bind_success=§a▸ §e%d§a個の§f%s§a用のレシピを読み込みました
 gui.ae2enhanced.smart_pattern_interface.keep_primary=主産物以外を削除
 gui.ae2enhanced.smart_pattern_interface.double_amounts=全数量を2倍にする
 gui.ae2enhanced.smart_pattern_interface.delete_disabled=無効化したレシピを削除 (%d)
@@ -311,7 +311,7 @@ message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflict
 message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
 message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
 
-key.ae2enhanced.rtsToggle=Enter/Exit RTS Mode
+key.ae2enhanced.rtsToggle=RTSモードの切り替え
 
 item.ae2enhanced.universal_memory_card.tooltip.mode=§b▸ モード: §f%s
 item.ae2enhanced.universal_memory_card.tooltip.mode.config_copy=設定コピー
