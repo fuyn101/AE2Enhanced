@@ -143,7 +143,7 @@ gui.ae2enhanced.computation.label.queue_capacity=キュー上限: §7%s
 gui.ae2enhanced.computation.orders.empty=§7実行中のクラフトはありません
 gui.ae2enhanced.computation.orders.placeholder=§7ここにオーダー一覧が表示されます
 gui.ae2enhanced.computation.engine.initializing=§8エンジン: §7初期化中…
-gui.ae2enhanced.computation.hint.close=§8ESCを押して閉じる
+gui.ae2enhanced.computation.hint.close=§8ESCで閉じる
 
 # Hyperdimensional Nexus GUI
 gui.ae2enhanced.nexus.title=§b超次元ストレージネクサス
