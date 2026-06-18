@@ -1,12 +1,5 @@
 itemGroup.ae2enhanced=AE2 Enhanced
 
-config.ae2enhanced:OmniTool=Advanced ME Omni Tool
-config.ae2enhanced:OmniTool.breakableBlacklist=Breakable Blacklist
-config.ae2enhanced:OmniTool.maxEnchantmentLevel=Max Enchantment Level
-
-config.ae2enhanced:ChannelPathing=Experimental Fast Channel Pathing
-config.ae2enhanced:ChannelPathing.fastPathing=Enable Fast Pathing
-
 item.ae2enhanced.part_universal_import_bus.name=MEユニバーサル入力バス
 item.ae2enhanced.part_universal_import_bus.tooltip=§eMEユニバーサル入力バス §7— アイテム、流体、ガス、エッセンシアを搬入します
 gui.ae2enhanced.universal_import_bus.name=MEユニバーサル入力バス
@@ -68,7 +61,7 @@ gui.ae2enhanced.tooltip.upgrades.speed=オーバークロック処理モジュ�
 gui.ae2enhanced.tooltip.upgrades.efficiency=エネルギー最適化モジュール
 gui.ae2enhanced.tooltip.upgrades.capacity=次元圧縮モジュール
 gui.ae2enhanced.tooltip.upgrades.upload=自動アップロードモジュール
-gui.ae2enhanced.tooltip.upgrades.reserved2=拡張モジュール（予約）
+gui.ae2enhanced.tooltip.upgrades.reserved2=拡張モジュール(予約)
 gui.ae2enhanced.tooltip.upgrades.installed=%d 枚インストール済み
 gui.ae2enhanced.tooltip.upgrades.empty=空きスロット - 対応するアップグレードをインストールできます
 gui.ae2enhanced.tooltip.upgrades.parallel.status=現在の並列数: %s | 1枚ごとに32倍
@@ -104,7 +97,7 @@ item.ae2enhanced.upgrade_card.capacity.tooltip.detail=§7一枚につきパタ�
 item.ae2enhanced.upgrade_card.reserved1.name=自動アップロードモジュール
 item.ae2enhanced.upgrade_card.upload.tooltip=§b§l自動アップロードモジュール §r§8[タイプ: アップロード]
 item.ae2enhanced.upgrade_card.upload.tooltip.detail=§7パターンターミナルで§eエンコードしたパターン§7を自動で最寄りの組立ハブにアップロードします\n§7§8(加工パターンは自動アップロードされません)\n§7コントローラーが組み立てられており、かつアップグレードがインストールされている必要があります\n§7スタック上限: §b%d §7枚\n §b§l「知識こそが力だ」
-item.ae2enhanced.upgrade_card.reserved2.name=拡張モジュール（予約）
+item.ae2enhanced.upgrade_card.reserved2.name=拡張モジュール(予約)
 item.ae2enhanced.upgrade_card.reserved2.tooltip=§7予約済みのインターフェース — 機能は未実装
 
 item.ae2enhanced.conformal_invariant_charge.name=共形不変荷
@@ -157,7 +150,7 @@ gui.ae2enhanced.nexus.network.online=§aオンライン
 gui.ae2enhanced.nexus.network.offline=§cオフライン
 gui.ae2enhanced.nexus.label.power=電力状況: %s
 gui.ae2enhanced.nexus.power.ok=§a正常
-gui.ae2enhanced.nexus.power.none=§e未供給
+gui.ae2enhanced.nexus.power.none=§e未給電
 gui.ae2enhanced.nexus.label.nexus_id=Nexus ID: §7%s
 gui.ae2enhanced.nexus.nexus_id.none=未生成
 gui.ae2enhanced.nexus.label.storage_types=タイプ: §e%s 種類
@@ -185,8 +178,6 @@ tile.ae2enhanced.wireless_channel_transmitter.name=無線チャンネル送信�
 tile.ae2enhanced.wireless_channel_transmitter.tooltip=§e無線チャンネル送信機 §7— 受信機に対して32チャンネルを送信します
 tile.ae2enhanced.chunk_power_node.name=チャンク給電ノード
 tile.ae2enhanced.chunk_power_node.tooltip=§eチャンク給電ノード §7— MEネットワークのRFストレージからチャンク内のすべてのマシンに電力を供給します
-tile.ae2enhanced.compressed_chunk_power_node.name=Compressed Chunk Power Node
-tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eCompressed Chunk Power Node §7— Powers all machines in 3×3 chunks via ME network RF storage
 
 gui.ae2enhanced.wireless_channel_transmitter.title=無線チャンネル送信機
 
@@ -261,7 +252,7 @@ gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=エンコード
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=エンコード不可: レシピが読み込まれていません
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=エンコード不可: スマートブランクパターンをセットしてください
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=エンコード不可: 出力スロットが一杯です
-gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7無効（クリックして有効化）
+gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7無効(クリックして有効化)
 gui.ae2enhanced.smart_pattern_interface.conflict_marker=§c競合 — 他のレシピと出力が重複しています
 gui.ae2enhanced.smart_pattern_interface.recipe_count=レシピ: %d / %d 個有効
 tooltip.ae2enhanced.smart_pattern.bound_to=§バインド先: §f%s
@@ -302,14 +293,12 @@ message.ae2enhanced.magnet.network=§bマグネット: ネットワークモー�
 
 # Advanced Platform
 tile.ae2enhanced.rf_access_node.name=RF Access Node
-item.ae2enhanced.energy_drop.name=RF Energy Drop
+item.ae2enhanced.energy_drop.name=RFエネルギー滴
 
 
 tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
 item.ae2enhanced.platform_development_license.name=Platform Development License
 message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.
-message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
-message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
 
 key.ae2enhanced.rtsToggle=Enter/Exit RTS Mode
 
@@ -352,144 +341,3 @@ gui.ae2enhanced.advanced_platform.click_to_cycle=Click to cycle mode
 gui.ae2enhanced.advanced_platform.zone.blocks=Blocks: %d
 gui.ae2enhanced.advanced_platform.zone.right_click_unbind=Right-click to unbind
 gui.ae2enhanced.advanced_platform.zone.click_to_assign=Click to assign
-
-# Advanced ME Omni Tool
-item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool
-item.ae2enhanced.me_omni_tool.mode=§fMode: %s
-item.ae2enhanced.me_omni_tool.mode.universal=§eUniversal
-item.ae2enhanced.me_omni_tool.mode.placement=§ePlacement
-item.ae2enhanced.me_omni_tool.mode.rotate=§eRotate
-item.ae2enhanced.me_omni_tool.mode.travel=§eTravel
-item.ae2enhanced.me_omni_tool.silk_touch.on=§aSilk Touch: ON
-item.ae2enhanced.me_omni_tool.silk_touch.off=§cSilk Touch: OFF
-item.ae2enhanced.me_omni_tool.upgrade.chaos=§6Chaos Core
-item.ae2enhanced.me_omni_tool.upgrade.bedrock=§4Bedrock Breaker
-item.ae2enhanced.me_omni_tool.upgrade.fortune=§aFortune %d
-item.ae2enhanced.me_omni_tool.upgrade.travel=§dTravel Staff
-item.ae2enhanced.me_omni_tool.upgrade.conformal=§bConformal Invariant Charge
-item.ae2enhanced.me_omni_tool.no_upgrades=§7No upgrades installed
-item.ae2enhanced.me_omni_tool.unknown_enchant=§7Unknown Enchantment (id=%d, lvl=%d)
-item.ae2enhanced.me_omni_tool.blink_dist=§7Displacement Distance: §e%.1f
-item.ae2enhanced.me_omni_tool.wall_phase.on=§aWall Phase: ON
-item.ae2enhanced.me_omni_tool.wall_phase.off=§cWall Phase: OFF
-item.ae2enhanced.me_omni_tool.break_cooldown=§7Break Cooldown: §e%d tick
-item.ae2enhanced.me_omni_tool.drop_mode=§7Drop Mode: §e%s
-item.ae2enhanced.me_omni_tool.drop_mode.normal=Normal
-item.ae2enhanced.me_omni_tool.drop_mode.inventory=Inventory
-item.ae2enhanced.me_omni_tool.drop_mode.ae=AE Network
-item.ae2enhanced.me_omni_tool.ae_bound=§7AE: §e[%d, %d, %d] §7Dim §e%d
-item.ae2enhanced.me_omni_tool.travel_anchor_bound=§7Travel Anchor: §e[%d, %d, %d] §7Dim §e%d
-item.ae2enhanced.me_omni_tool.ae_unbound=§7AE: §eUnbound
-key.ae2enhanced.omnitool_mode=ME Omni Tool: Cycle Mode
-key.ae2enhanced.omnitool_silk=ME Omni Tool: Toggle Silk Touch
-key.ae2enhanced.omnitool_drop_mode=ME Omni Tool: Cycle Drop Mode
-message.ae2enhanced.omnitool.mode_changed=§b[ME Tool] §fMode: §e%s
-message.ae2enhanced.omnitool.silk_on=§b[ME Tool] §aSilk Touch: ON
-message.ae2enhanced.omnitool.silk_off=§b[ME Tool] §cSilk Touch: OFF
-message.ae2enhanced.omnitool.drop_changed=§b[ME Tool] §fDrop Mode: §e%s
-message.ae2enhanced.omnitool.ae_bound=§b[ME Tool] §aBound to AE transmitter at [%d, %d, %d]
-
-gui.ae2enhanced.omni_tool_config.title=ME Omni Tool Configuration
-gui.ae2enhanced.omni_tool_config.mode=Mode
-gui.ae2enhanced.omni_tool_config.drop_mode=Drop Mode
-gui.ae2enhanced.omni_tool_config.silk_touch=Silk Touch
-gui.ae2enhanced.omni_tool_config.fortune=Fortune
-gui.ae2enhanced.omni_tool_config.blink_dist=Blink Distance
-gui.ae2enhanced.omni_tool_config.break_cooldown=Break Cooldown
-gui.ae2enhanced.omni_tool_config.mode.desc=Tool operation mode
-gui.ae2enhanced.omni_tool_config.drop_mode.desc=Where dropped blocks go
-gui.ae2enhanced.omni_tool_config.silk_touch.desc=Harvest blocks as-is
-gui.ae2enhanced.omni_tool_config.fortune.desc=Fortune enchantment level
-gui.ae2enhanced.omni_tool_config.blink_dist.desc=Blink displacement distance
-gui.ae2enhanced.omni_tool_config.break_cooldown.desc=Minimum ticks between block breaks
-gui.ae2enhanced.omni_tool_config.chaos_force_kill=Chaos Force Kill
-gui.ae2enhanced.omni_tool_config.chaos_force_kill.desc=Enable advanced chaos damage with force kill
-gui.ae2enhanced.omni_tool_config.conformal=Conformal Invariant Charge
-gui.ae2enhanced.omni_tool_config.conformal.desc=Enable conformal invariant charge effects
-gui.ae2enhanced.omni_tool_config.advanced_silk_touch=Advanced Silk Touch
-gui.ae2enhanced.omni_tool_config.advanced_silk_touch.desc=Harvest blocks while preserving their NBT data
-gui.ae2enhanced.omni_tool_config.wall_phase=Wall Phase
-gui.ae2enhanced.omni_tool_config.wall_phase.desc=Allow blink to pass through walls
-gui.ae2enhanced.omni_tool_config.enchant.desc=Adjust enchantment levels imported from enchanted books
-gui.ae2enhanced.omni_tool_config.next_page=Next
-gui.ae2enhanced.omni_tool_config.prev_page=Prev
-gui.ae2enhanced.omni_tool_config.not_installed=Not Installed
-key.ae2enhanced.omnitool_config=ME Omni Tool: Open Config GUI
-message.ae2enhanced.omnitool.travel_anchor_bound=§b[ME Tool] §aBound to Travel Anchor [%d, %d, %d]
-message.ae2enhanced.omnitool.travel_anchor_unavailable=§c[ME Tool] Bound Travel Anchor is unavailable or in another dimension
-message.ae2enhanced.omnitool.travel_anchor_not_found=§c[ME Tool] No valid Travel Anchor target found
-
-tile.ae2enhanced.advanced_me_collector.name=Advanced ME Collector
-gui.ae2enhanced.advanced_me_collector.name=Advanced ME Collector
-gui.ae2enhanced.advanced_me_collector.range=Range: %d×%d×%d
-gui.ae2enhanced.advanced_me_collector.range.increase=Increase range
-gui.ae2enhanced.advanced_me_collector.range.decrease=Decrease range
-tooltip.ae2enhanced.advanced_me_collector.range=Current collection range: %d×%d×%d
-tile.ae2enhanced.me_network_recycler.name=ME Network Recycler
-gui.ae2enhanced.me_network_recycler.name=ME Network Recycler
-gui.ae2enhanced.me_network_recycler.targets=Bound Targets: %d
-gui.ae2enhanced.me_network_recycler.active=Status: Active
-gui.ae2enhanced.me_network_recycler.powered=Status: Powered
-gui.ae2enhanced.me_network_recycler.offline=Status: Offline
-gui.ae2enhanced.me_network_recycler.last_recycled=Last Recycled: %d
-gui.ae2enhanced.umc.msg.bind_invalid_recycler=This block is not an ME Network Recycler.
-gui.ae2enhanced.umc.msg.bind_recycler_success=Bound %d targets to recycler (%d skipped).
-gui.ae2enhanced.umc.msg.clear_recycler_bindings=Cleared %d recycler bindings.
-
-tile.ae2enhanced.emc_interface.name=EMC Interface
-tile.ae2enhanced.emc_interface.tooltip=§eEMC Interface §7— exposes ProjectE EMC balance as AE network item source
-gui.ae2enhanced.emc_interface.title=EMC Interface
-gui.ae2enhanced.emc_interface.owner=Owner: %s
-gui.ae2enhanced.emc_interface.unbound=Unbound
-gui.ae2enhanced.emc_interface.shift_to_bind=§eShift+Click title to bind current player
-gui.ae2enhanced.emc_interface.prev=Prev
-gui.ae2enhanced.emc_interface.next=Next
-chat.ae2enhanced.emc_interface.bound=EMC Interface bound to %s
-chat.ae2enhanced.emc_interface.duplicate=§eWarning: You have multiple EMC Interfaces on this network; extraction is limited by your real EMC balance.
-
-# ME Placement Tool
-item.ae2enhanced.me_placement_tool.name=ME Placement Tool
-item.ae2enhanced.me_placement_tool.tooltip=Place blocks directly from your ME network
-item.ae2enhanced.me_placement_tool.linked=Linked to ME Network
-item.ae2enhanced.me_placement_tool.unlinked=Not Linked
-item.ae2enhanced.me_placement_tool.selected=Selected: %s
-item.ae2enhanced.me_placement_tool.no_selection=No item selected
-
-message.ae2enhanced.placement.no_configured_item=No placement item configured
-message.ae2enhanced.placement.network_missing=Network missing: %s
-message.ae2enhanced.placement.cannot_place=Cannot place here
-message.ae2enhanced.placement.no_storage=No ME storage found
-message.ae2enhanced.placement.not_implemented=Not implemented yet
-
-message.ae2enhanced.placement.nothing_to_undo=Nothing to undo
-message.ae2enhanced.placement.undone=Placement undone
-
-key.ae2enhanced.placement_radial=ME Placement Tool Radial Menu
-gui.ae2enhanced.placement_radial.title=Select Placement Preset
-gui.ae2enhanced.placement_radial.aim_to_select=Aim at sector to select
-gui.ae2enhanced.placement_radial.pick_current=Pick current target
-gui.ae2enhanced.placement_radial.empty=Clear Selection
-gui.ae2enhanced.placement_radial.count=Count: %d
-gui.ae2enhanced.placement_restriction.no_lock=No Lock
-gui.ae2enhanced.placement_restriction.horizontal=Horizontal
-gui.ae2enhanced.placement_restriction.vertical=Vertical
-gui.ae2enhanced.placement_restriction.north_south=North-South
-gui.ae2enhanced.placement_restriction.east_west=East-West
-
-gui.ae2enhanced.placement.mode.single=Single Placement
-gui.ae2enhanced.placement.mode.bulk=Bulk Placement
-gui.ae2enhanced.placement.mode.cable=Cable Placement
-gui.ae2enhanced.placement.cable_color=Cable Color: %s
-
-item.ae2enhanced.me_omni_tool.placement.selected=Selected: %s (%s)
-item.ae2enhanced.me_omni_tool.placement.no_selection=No placement item selected
-item.ae2enhanced.me_omni_tool.placement.linked=Linked to ME Network
-item.ae2enhanced.me_omni_tool.placement.unlinked=Not Linked
-
-gui.ae2enhanced.omni_tool_config.cable_color=Cable Color
-gui.ae2enhanced.omni_tool_config.cable_color.desc=Color used when placing cables
-
-gui.ae2enhanced.omni_tool_config.reach_distance=Reach Distance
-gui.ae2enhanced.omni_tool_config.reach_distance.desc=Maximum reach distance in placement mode
-gui.ae2enhanced.omni_tool_config.placement_restriction=Placement Restriction
-gui.ae2enhanced.omni_tool_config.placement_restriction.desc=Bulk placement direction lock (Construction Wand style)
