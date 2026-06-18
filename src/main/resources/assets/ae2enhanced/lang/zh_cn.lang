@@ -185,6 +185,10 @@ tile.ae2enhanced.chunk_power_node.name=区块供电节点
 tile.ae2enhanced.chunk_power_node.tooltip=§e区块供电节点 §7— 通过ME网络RF存储向本区块机器供能
 tile.ae2enhanced.compressed_chunk_power_node.name=压缩区块供电节点
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§e压缩区块供电节点 §7— 通过ME网络RF存储向3×3区块范围机器供能
+tile.ae2enhanced.chunk_mana_node.name=区块魔力节点
+tile.ae2enhanced.chunk_mana_node.tooltip=§e区块魔力节点 §7— 从ME网络Mana存储向本区块Botania魔力设施供魔
+tile.ae2enhanced.compressed_chunk_mana_node.name=压缩区块魔力节点
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§e压缩区块魔力节点 §7— 从ME网络Mana存储向3×3区块范围Botania魔力设施供魔
 
 gui.ae2enhanced.wireless_channel_transmitter.title=无线频道发生器
 
@@ -259,6 +263,8 @@ gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=无法编码：
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=无法编码：未加载配方
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=无法编码：请放入智能空白样板
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=无法编码：输出槽已满
+gui.ae2enhanced.smart_pattern_interface.encode_update_tooltip=更新已编码样板
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_mismatch=无法编码：输出槽中的样板与当前数据不匹配
 gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7已禁用 (点击启用)
 gui.ae2enhanced.smart_pattern_interface.conflict_marker=§c冲突 — 与其他配方输出相同
 gui.ae2enhanced.smart_pattern_interface.recipe_count=配方: %d / %d 已启用
@@ -301,6 +307,8 @@ message.ae2enhanced.magnet.network=§b磁引卡：网络模式
 # 先进中枢平台
 tile.ae2enhanced.rf_access_node.name=RF访问节点
 item.ae2enhanced.energy_drop.name=RF能量滴
+item.ae2enhanced.mana_drop.name=魔力滴
+item.ae2enhanced.starlight_drop.name=星能滴
 
 
 tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器
@@ -308,6 +316,13 @@ item.ae2enhanced.platform_development_license.name=平台开发许可
 message.ae2enhanced.platform.conflict=§c平台生成失败：检测到 %d 处冲突.
 message.ae2enhanced.rf_access_node.mode.input=§b[RF节点] §a模式: 输入
 message.ae2enhanced.rf_access_node.mode.output=§b[RF节点] §c模式: 输出
+
+tile.ae2enhanced.mana_access_node.name=魔力访问节点
+tile.ae2enhanced.starlight_access_node.name=星能访问节点
+message.ae2enhanced.mana_access_node.mode.input=§b[魔力节点] §a模式: 输入
+message.ae2enhanced.mana_access_node.mode.output=§b[魔力节点] §c模式: 输出
+message.ae2enhanced.starlight_access_node.mode.input=§b[星能节点] §a模式: 输入
+message.ae2enhanced.starlight_access_node.mode.output=§b[星能节点] §c模式: 输出
 
 key.ae2enhanced.rtsToggle=进入/退出 RTS 模式
 

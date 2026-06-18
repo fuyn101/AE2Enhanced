@@ -7,6 +7,7 @@ import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.client.handler.KeyHandlerOmniTool;
 import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
+import com.github.aeddddd.ae2enhanced.client.model.StarlightDropModel;
 import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
@@ -208,9 +209,15 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
         registerBlockItemModel(BlockRegistry.CHUNK_POWER_NODE);
         registerBlockItemModel(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE);
+        if (BlockRegistry.CHUNK_MANA_NODE != null) {
+            registerBlockItemModel(BlockRegistry.CHUNK_MANA_NODE);
+            registerBlockItemModel(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE);
+        }
         registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
         registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
         registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
+        registerBlockItemModel(BlockRegistry.MANA_ACCESS_NODE);
+        registerBlockItemModel(BlockRegistry.STARLIGHT_ACCESS_NODE);
         registerBlockItemModel(BlockRegistry.ADVANCED_ME_COLLECTOR);
         registerBlockItemModel(BlockRegistry.ME_NETWORK_RECYCLER);
         if (BlockRegistry.EMC_INTERFACE != null) {
@@ -238,10 +245,16 @@ public class ClientProxy extends CommonProxy {
                     new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
         }
 
-        // 注册 FluidDrop / GasDrop 的自定义模型加载器
+        // 注册 FluidDrop / GasDrop / StarlightDrop 的自定义模型加载器
         ModelLoaderRegistry.registerLoader(new FluidDropModel.Loader());
         ModelLoader.setCustomModelResourceLocation(ItemRegistry.FLUID_DROP, 0,
                 new ModelResourceLocation(FluidDropModel.MODEL_LOCATION, "inventory"));
+
+        if (ItemRegistry.STARLIGHT_DROP != null) {
+            ModelLoaderRegistry.registerLoader(new StarlightDropModel.Loader());
+            ModelLoader.setCustomModelResourceLocation(ItemRegistry.STARLIGHT_DROP, 0,
+                    new ModelResourceLocation(StarlightDropModel.MODEL_LOCATION, "inventory"));
+        }
 
         if (ItemRegistry.GAS_DROP != null) {
             try {
@@ -278,6 +291,9 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.SMART_BLANK_PATTERN);
         registerItemModel(ItemRegistry.SMART_PATTERN);
         registerItemModel(ItemRegistry.ENERGY_DROP);
+        if (ItemRegistry.MANA_DROP != null) {
+            registerItemModel(ItemRegistry.MANA_DROP);
+        }
 
         // ME 放置工具
         registerItemModel(ItemRegistry.ME_PLACEMENT_TOOL);

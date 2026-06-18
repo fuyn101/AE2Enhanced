@@ -65,6 +65,7 @@ public class TileSmartPatternInterface extends TileEntity {
 
     // 防止 onContentsChanged 递归
     private boolean isUpdatingMiniGui = false;
+    private boolean isUpdatingEncodedPattern = false;
 
     // MiniGUI 物品栏：前81=输入(9组 x 3x3),后9=输出(1组 x 3x3)
     private final ItemStackHandler miniGuiInventory = new ItemStackHandler(90) {
@@ -108,7 +109,7 @@ public class TileSmartPatternInterface extends TileEntity {
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
-            if (slot == 1 && world != null && !world.isRemote) {
+            if (slot == 1 && world != null && !world.isRemote && !isUpdatingEncodedPattern) {
                 ItemStack stack = getStackInSlot(1);
                 if (!stack.isEmpty() && stack.getItem() instanceof ItemSmartPattern) {
                     reloadPatternFromStack(stack);
@@ -207,18 +208,52 @@ public class TileSmartPatternInterface extends TileEntity {
     /**
      * 编码：将输入槽的空白样板转换为编码后的智能样板,放入输出槽.
      *
+     * <p>如果输出槽已存在同一 patternDataId 的已编码智能样板,则直接更新该样板的 NBT,
+     * 不会消耗新的空白样板.</p>
+     *
      * @return 是否编码成功
      */
     public boolean encodePattern(@Nonnull EntityPlayer player) {
         if (patternData == null || patternData.hasConflicts()) {
             return false;
         }
+
+        ItemStack output = inventory.getStackInSlot(1);
+        if (!output.isEmpty()) {
+            // 输出槽已有物品：只有是同一份智能样板时才允许更新
+            if (!(output.getItem() instanceof ItemSmartPattern)) {
+                return false;
+            }
+            if (!isSamePatternData(output)) {
+                return false;
+            }
+
+            boolean saved = SmartPatternStorageFile.save(world, patternData);
+            if (!saved) {
+                return false;
+            }
+
+            ItemStack updated = ItemSmartPattern.createPattern(
+                    patternData.getPatternDataId(),
+                    patternData.getDisabledMask(),
+                    patternData.getRecipeCount(),
+                    patternData.getTargetBlockId()
+            );
+
+            isUpdatingEncodedPattern = true;
+            try {
+                inventory.setStackInSlot(1, updated);
+            } finally {
+                isUpdatingEncodedPattern = false;
+            }
+            markDirty();
+            syncToClient();
+            return true;
+        }
+
         ItemStack input = inventory.getStackInSlot(0);
         if (input.isEmpty() || !(input.getItem() instanceof ItemSmartBlankPattern)) {
             return false;
-        }
-        if (!inventory.getStackInSlot(1).isEmpty()) {
-            return false; // 输出槽已满
         }
 
         // 保存配方数据到文件
@@ -243,6 +278,17 @@ public class TileSmartPatternInterface extends TileEntity {
         inventory.setStackInSlot(1, encoded);
         markDirty();
         return true;
+    }
+
+    /**
+     * 检查输出槽中的已编码样板是否与当前 patternData 属于同一份数据.
+     */
+    private boolean isSamePatternData(@Nonnull ItemStack output) {
+        if (!output.hasTagCompound()) {
+            return false;
+        }
+        UUID outputId = output.getTagCompound().getUniqueId("patternDataId");
+        return outputId != null && outputId.equals(patternData.getPatternDataId());
     }
 
     /**

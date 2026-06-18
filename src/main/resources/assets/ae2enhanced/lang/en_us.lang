@@ -187,6 +187,10 @@ tile.ae2enhanced.chunk_power_node.name=Chunk Power Node
 tile.ae2enhanced.chunk_power_node.tooltip=§eChunk Power Node §7— Powers all machines in the chunk via ME network RF storage
 tile.ae2enhanced.compressed_chunk_power_node.name=Compressed Chunk Power Node
 tile.ae2enhanced.compressed_chunk_power_node.tooltip=§eCompressed Chunk Power Node §7— Powers all machines in 3×3 chunks via ME network RF storage
+tile.ae2enhanced.chunk_mana_node.name=Chunk Mana Node
+tile.ae2enhanced.chunk_mana_node.tooltip=§eChunk Mana Node §7— Supplies Mana from ME network to Botania facilities in the chunk
+tile.ae2enhanced.compressed_chunk_mana_node.name=Compressed Chunk Mana Node
+tile.ae2enhanced.compressed_chunk_mana_node.tooltip=§eCompressed Chunk Mana Node §7— Supplies Mana from ME network to Botania facilities in 3×3 chunks
 
 gui.ae2enhanced.wireless_channel_transmitter.title=Wireless Channel Transmitter
 
@@ -261,6 +265,8 @@ gui.ae2enhanced.smart_pattern_interface.encode_disabled_conflict=Cannot encode: 
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_data=Cannot encode: no recipes loaded
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_no_blank=Cannot encode: insert Smart Blank Pattern
 gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_full=Cannot encode: output slot occupied
+gui.ae2enhanced.smart_pattern_interface.encode_update_tooltip=Update encoded pattern
+gui.ae2enhanced.smart_pattern_interface.encode_disabled_output_mismatch=Cannot encode: output slot contains a different pattern
 gui.ae2enhanced.smart_pattern_interface.disabled_marker=§7Disabled (click to enable)
 gui.ae2enhanced.smart_pattern_interface.conflict_marker=§cConflict — identical output with another recipe
 gui.ae2enhanced.smart_pattern_interface.recipe_count=Recipes: %d / %d enabled
@@ -303,6 +309,8 @@ message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 # Advanced Platform
 tile.ae2enhanced.rf_access_node.name=RF Access Node
 item.ae2enhanced.energy_drop.name=RF Energy Drop
+item.ae2enhanced.mana_drop.name=Mana Drop
+item.ae2enhanced.starlight_drop.name=Starlight Drop
 
 
 tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
@@ -310,6 +318,13 @@ item.ae2enhanced.platform_development_license.name=Platform Development License
 message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.
 message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
 message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
+
+tile.ae2enhanced.mana_access_node.name=Mana Access Node
+tile.ae2enhanced.starlight_access_node.name=Starlight Access Node
+message.ae2enhanced.mana_access_node.mode.input=§b[Mana Node] §aMode: INPUT
+message.ae2enhanced.mana_access_node.mode.output=§b[Mana Node] §cMode: OUTPUT
+message.ae2enhanced.starlight_access_node.mode.input=§b[Starlight Node] §aMode: INPUT
+message.ae2enhanced.starlight_access_node.mode.output=§b[Starlight Node] §cMode: OUTPUT
 
 key.ae2enhanced.rtsToggle=Enter/Exit RTS Mode
 

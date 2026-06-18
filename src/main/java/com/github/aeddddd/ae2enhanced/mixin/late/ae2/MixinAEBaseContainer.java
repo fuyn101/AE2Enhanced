@@ -26,6 +26,8 @@ public class MixinAEBaseContainer {
     private static final String ESSENTIA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop";
     private static final String GAS_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemGasDrop";
     private static final String ENERGY_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop";
+    private static final String MANA_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemManaDrop";
+    private static final String STARLIGHT_DROP_CLASS = "com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop";
     @Inject(method = "doAction", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$preventFakeItemExtraction(EntityPlayerMP player, InventoryAction action, int slot, long id,
                                                         CallbackInfo ci) {
@@ -57,6 +59,18 @@ public class MixinAEBaseContainer {
 
         // 拦截 RF 能量假物品
         if (ENERGY_DROP_CLASS.equals(itemClass)) {
+            ci.cancel();
+            return;
+        }
+
+        // 拦截 Mana 假物品(Botania)
+        if (MANA_DROP_CLASS.equals(itemClass)) {
+            ci.cancel();
+            return;
+        }
+
+        // 拦截 Starlight 假物品(Astral Sorcery)
+        if (STARLIGHT_DROP_CLASS.equals(itemClass)) {
             ci.cancel();
         }
     }

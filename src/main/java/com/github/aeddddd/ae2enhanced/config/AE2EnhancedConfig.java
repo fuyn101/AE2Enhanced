@@ -102,6 +102,14 @@ public class AE2EnhancedConfig {
     })
     public static Energy energy = new Energy();
 
+    @Config.Name("Mana")
+    @Config.Comment("Botania Mana bridge settings for Mana Access Node.")
+    public static Mana mana = new Mana();
+
+    @Config.Name("Starlight")
+    @Config.Comment("Astral Sorcery Starlight bridge settings for Starlight Access Node.")
+    public static Starlight starlight = new Starlight();
+
     @Config.Name("AdvancedPlatform")
     @Config.Comment({
         "Advanced Central Platform settings.",
@@ -436,6 +444,33 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
         public int rfAccessNodeMaxTransfer = 1_000_000;
+    }
+
+    public static class Mana {
+        @Config.Comment({
+            "Maximum Mana transfer per tick for Mana Access Node when NOT adjacent to a Mana Pool.",
+            "When adjacent to a Mana Pool, the node bypasses this limit and exchanges mana directly.",
+            "Range: 1 ~ 2147483647, Default: 10000"
+        })
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public int manaAccessNodeMaxTransfer = 10_000;
+    }
+
+    public static class Starlight {
+        @Config.Comment({
+            "Maximum Starlight the node can collect into the ME network per tick.",
+            "This is a hard cap to prevent players from stockpiling huge amounts of starlight too quickly.",
+            "Range: 1 ~ 2147483647, Default: 100"
+        })
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public int starlightAccessNodeMaxInput = 100;
+
+        @Config.Comment({
+            "Maximum Starlight the node can output from the ME network per tick.",
+            "Range: 1 ~ 2147483647, Default: 1000"
+        })
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public int starlightAccessNodeMaxOutput = 1_000;
     }
 
     public static class AdvancedPlatform {

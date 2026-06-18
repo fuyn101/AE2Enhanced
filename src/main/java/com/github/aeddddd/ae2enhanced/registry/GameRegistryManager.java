@@ -64,6 +64,12 @@ public final class GameRegistryManager {
         ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
         ItemRegistry.ENERGY_DROP = new ItemEnergyDrop();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
+            ItemRegistry.MANA_DROP = new com.github.aeddddd.ae2enhanced.item.ItemManaDrop();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
+            ItemRegistry.STARLIGHT_DROP = new com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop();
+        }
         ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
         ItemRegistry.ME_PLACEMENT_TOOL = new ItemMEPlacementTool();
@@ -91,6 +97,8 @@ public final class GameRegistryManager {
             BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
             BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
             BlockRegistry.RF_ACCESS_NODE = new BlockRFAccessNode(),
+            BlockRegistry.MANA_ACCESS_NODE = new BlockManaAccessNode(),
+            BlockRegistry.STARLIGHT_ACCESS_NODE = new BlockStarlightAccessNode(),
             BlockRegistry.CHUNK_POWER_NODE = new BlockChunkPowerNode(),
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
@@ -113,8 +121,20 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
         GameRegistry.registerTileEntity(TileRFAccessNode.class, AE2Enhanced.MOD_ID + ":rf_access_node");
+        GameRegistry.registerTileEntity(TileManaAccessNode.class, AE2Enhanced.MOD_ID + ":mana_access_node");
+        GameRegistry.registerTileEntity(TileStarlightAccessNode.class, AE2Enhanced.MOD_ID + ":starlight_access_node");
         GameRegistry.registerTileEntity(TileChunkPowerNode.class, AE2Enhanced.MOD_ID + ":chunk_power_node");
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
+        if (Loader.isModLoaded("botania")) {
+            BlockRegistry.CHUNK_MANA_NODE = new BlockChunkManaNode();
+            BlockRegistry.COMPRESSED_CHUNK_MANA_NODE = new BlockCompressedChunkManaNode();
+            event.getRegistry().registerAll(
+                BlockRegistry.CHUNK_MANA_NODE,
+                BlockRegistry.COMPRESSED_CHUNK_MANA_NODE
+            );
+            GameRegistry.registerTileEntity(TileChunkManaNode.class, AE2Enhanced.MOD_ID + ":chunk_mana_node");
+            GameRegistry.registerTileEntity(TileCompressedChunkManaNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_mana_node");
+        }
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
         GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
@@ -146,12 +166,22 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.RF_ACCESS_NODE).setRegistryName(BlockRegistry.RF_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.MANA_ACCESS_NODE).setRegistryName(BlockRegistry.MANA_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.STARLIGHT_ACCESS_NODE).setRegistryName(BlockRegistry.STARLIGHT_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CHUNK_POWER_NODE).setRegistryName(BlockRegistry.CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
+        if (Loader.isModLoaded("botania") && BlockRegistry.CHUNK_MANA_NODE != null) {
+            event.getRegistry().register(new ItemBlock(BlockRegistry.CHUNK_MANA_NODE)
+                    .setRegistryName(BlockRegistry.CHUNK_MANA_NODE.getRegistryName())
+                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
+            event.getRegistry().register(new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE)
+                    .setRegistryName(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE.getRegistryName())
+                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
+        }
         if (BlockRegistry.EMC_INTERFACE != null) {
             event.getRegistry().register(new ItemBlock(BlockRegistry.EMC_INTERFACE)
                     .setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName())
@@ -180,6 +210,12 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
         event.getRegistry().register(ItemRegistry.ENERGY_DROP);
+        if (ItemRegistry.MANA_DROP != null) {
+            event.getRegistry().register(ItemRegistry.MANA_DROP);
+        }
+        if (ItemRegistry.STARLIGHT_DROP != null) {
+            event.getRegistry().register(ItemRegistry.STARLIGHT_DROP);
+        }
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
         event.getRegistry().register(ItemRegistry.ME_PLACEMENT_TOOL);

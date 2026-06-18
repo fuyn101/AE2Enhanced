@@ -9,5 +9,7 @@ public enum StorageSection {
     FLUID,
     GAS,
     ESSENTIA,
-    ENERGY
+    ENERGY,
+    MANA,
+    STARLIGHT
 }
