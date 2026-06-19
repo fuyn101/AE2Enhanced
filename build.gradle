@@ -188,7 +188,9 @@ jar {
 
     manifest {
         attributes([
-            'MixinConfigs': 'mixins.ae2enhanced.late.json'
+            'MixinConfigs': 'mixins.ae2enhanced.late.json',
+            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AE2EnhancedCorePlugin',
+            'FMLCorePluginContainsFMLMod': 'true'
         ])
     }
 }
