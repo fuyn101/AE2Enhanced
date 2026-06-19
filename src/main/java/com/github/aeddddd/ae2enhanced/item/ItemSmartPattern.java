@@ -1,10 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import ae2.api.implementations.ICraftingPatternItem;
-import ae2.api.networking.crafting.ICraftingPatternDetails;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
-import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternStorageFile;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
@@ -23,21 +20,23 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 编码后的智能样板.
- * 实现 {@link ICraftingPatternItem},但 {@link #getPatternForItem} 返回 null,
- * 实际展开逻辑由 Mixin 注入 {@code InterfaceLogic.addToCraftingList} 处理.
+ * 编码后的智能样板。
  *
- * <p>NBT 结构(最小化)：</p>
+ * <p>AE2S 迁移：原 {@code ICraftingPatternItem} 已不存在，改为通过
+ * {@link ae2.api.crafting.PatternDetailsHelper} 的 decoder 机制解码（如后续需要接入网络）。
+ * 当前保留数据存取与展开工具方法。</p>
+ *
+ * <p>NBT 结构（最小化）：</p>
  * <pre>
  * {
  *   patternDataId: UUID
  *   disabledMask: String (Base64 BitSet)
  *   recipeCount: int
- *   targetBlockId: String (诊断信息,可选)
+ *   targetBlockId: String (诊断信息，可选)
  * }
  * </pre>
  */
-public class ItemSmartPattern extends Item implements ICraftingPatternItem {
+public class ItemSmartPattern extends Item {
 
     private static final String NBT_PATTERN_DATA_ID = "patternDataId";
     private static final String NBT_DISABLED_MASK = "disabledMask";
@@ -52,7 +51,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 创建编码后的智能样板 ItemStack.
+     * 创建编码后的智能样板 ItemStack。
      */
     @Nonnull
     public static ItemStack createPattern(@Nonnull UUID patternDataId,
@@ -70,7 +69,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取 patternDataId.
+     * 从 ItemStack 中提取 patternDataId。
      */
     @Nullable
     public static UUID getPatternDataId(@Nonnull ItemStack stack) {
@@ -85,7 +84,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取禁用掩码.
+     * 从 ItemStack 中提取禁用掩码。
      */
     @Nonnull
     public static BitSet getDisabledMask(@Nonnull ItemStack stack) {
@@ -100,7 +99,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取配方数量(诊断信息).
+     * 从 ItemStack 中提取配方数量（诊断信息）。
      */
     public static int getRecipeCount(@Nonnull ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemSmartPattern)) {
@@ -111,7 +110,7 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 从 ItemStack 中提取目标方块 ID(诊断信息).
+     * 从 ItemStack 中提取目标方块 ID（诊断信息）。
      */
     @Nonnull
     public static String getTargetBlockId(@Nonnull ItemStack stack) {
@@ -123,13 +122,13 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
     }
 
     /**
-     * 将智能样板展开为多个 {@link ICraftingPatternDetails}.
-     * 由 Mixin 调用.
+     * 将智能样板展开为多个 {@link ae2.api.crafting.IPatternDetails}。
+     * 供可能的 decoder / Mixin 接入使用。
      */
     @Nonnull
     public static List<SmartPatternSubDetails> expandPatterns(@Nonnull ItemStack stack, @Nullable World world) {
         if (world == null) {
-            // TileEntity.readFromNBT 时 world 字段尚未设置,延迟到 initialize() 再展开
+            // TileEntity.readFromNBT 时 world 字段尚未设置，延迟到 initialize() 再展开
             return Collections.emptyList();
         }
         UUID dataId = getPatternDataId(stack);
@@ -149,12 +148,6 @@ public class ItemSmartPattern extends Item implements ICraftingPatternItem {
             result.add(new SmartPatternSubDetails(stack, data.getRecipes().get(i)));
         }
         return result;
-    }
-
-    @Override
-    public ICraftingPatternDetails getPatternForItem(@Nonnull ItemStack stack, @Nonnull World world) {
-        // 返回 null,由 Mixin 在 addToCraftingList 中拦截并展开
-        return null;
     }
 
     @Override

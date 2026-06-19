@@ -1,17 +1,21 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
 import ae2.api.parts.IPart;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.GenericStack;
 import ae2.api.util.AEPartLocation;
 import ae2.helpers.InterfaceLogic;
 import ae2.parts.misc.InterfacePart;
 import ae2.tile.misc.TileInterface;
 import ae2.tile.networking.TileCableBus;
+import ae2.util.ConfigInventory;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.MinecraftForge;
@@ -28,16 +32,16 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 智能样板文件的垃圾回收器.
+ * 智能样板文件的垃圾回收器。
  *
  * <p>复合策略：</p>
  * <ul>
- *   <li>基础：文件最后访问时间过期({@link SmartPatternStorageFile#load} 时更新 mtime)</li>
- *   <li>白名单：扫描所有加载的 ME 接口(AE2 原版、流体接口、ae2fc 二合一/三合一、本模组中枢接口),
+ *   <li>基础：文件最后访问时间过期（{@link SmartPatternStorageFile#load} 时更新 mtime）</li>
+ *   <li>白名单：扫描所有加载的 ME 接口（AE2S 原版、本模组中枢接口），
  *       其中存放的 {@link ItemSmartPattern} 对应的 UUID 不受过期删除影响</li>
  * </ul>
  *
- * <p>扫描周期和过期天数由 {@link AE2EnhancedConfig.SmartPattern} 配置.</p>
+ * <p>扫描周期和过期天数由 {@link AE2EnhancedConfig.SmartPattern} 配置。</p>
  */
 public class SmartPatternGarbageCollector {
 
@@ -46,13 +50,13 @@ public class SmartPatternGarbageCollector {
     private static final String AE2FC_DUAL_PART = "com.glodblock.github.common.part.PartDualInterface";
     private static final String AE2FC_TRIO_PART = "com.glodblock.github.common.part.PartTrioInterface";
 
-    // ae2fc 反射缓存(可能不存在,延迟初始化)
+    // ae2fc 反射缓存（可能不存在，延迟初始化）
     private static Class<?> ae2fcDualTileClass;
     private static Class<?> ae2fcTrioTileClass;
     private static Class<?> ae2fcDualPartClass;
     private static Class<?> ae2fcTrioPartClass;
-    private static Method ae2fcGetDualityMethod;
-    private static Method ae2fcGetPatternsMethod;
+    private static Method ae2fcGetLogicMethod;
+    private static Method ae2fcGetConfigMethod;
     private static boolean ae2fcReflected = false;
 
     private int tickCounter = 0;
@@ -91,7 +95,7 @@ public class SmartPatternGarbageCollector {
     }
 
     /**
-     * 手动触发一次垃圾回收,返回删除的文件数量.
+     * 手动触发一次垃圾回收，返回删除的文件数量。
      */
     public static int runManualGC() {
         try {
@@ -108,7 +112,7 @@ public class SmartPatternGarbageCollector {
     }
 
     /**
-     * 遍历所有已加载维度的 TileEntity,收集 ME 接口中存放的智能样板 UUID.
+     * 遍历所有已加载维度的 TileEntity，收集 ME 接口中存放的智能样板 UUID。
      */
     @Nonnull
     private static Set<UUID> collectReferencedIds() {
@@ -118,12 +122,12 @@ public class SmartPatternGarbageCollector {
                 if (te == null || te.isInvalid()) {
                     continue;
                 }
-                // 1. AE2 原版 TileInterface
+                // 1. AE2S 原版 TileInterface
                 if (te instanceof TileInterface) {
-                    scanHandler(ids, ((TileInterface) te).getInterfaceDuality().getPatterns());
+                    scanConfigInventory(ids, ((TileInterface) te).getInterfaceLogic());
                     continue;
                 }
-                // 2. AE2 原版 TileCableBus(扫描其中的 Part)
+                // 2. AE2S 原版 TileCableBus（扫描其中的 Part）
                 if (te instanceof TileCableBus) {
                     scanCableBus(ids, (TileCableBus) te);
                     continue;
@@ -133,7 +137,7 @@ public class SmartPatternGarbageCollector {
                     scanHandler(ids, ((TileSmartPatternInterface) te).getInventory());
                     continue;
                 }
-                // 4. ae2fc TileDualInterface / TileTrioInterface(反射)
+                // 4. ae2fc TileDualInterface / TileTrioInterface（反射）
                 if (isAe2fcTileInterface(te)) {
                     scanAe2fcInterface(ids, te);
                 }
@@ -143,33 +147,54 @@ public class SmartPatternGarbageCollector {
     }
 
     private static void scanCableBus(@Nonnull Set<UUID> ids, @Nonnull TileCableBus cableBus) {
-        for (AEPartLocation side : AEPartLocation.values()) {
+        for (EnumFacing side : EnumFacing.values()) {
             IPart part = cableBus.getPart(side);
             if (part == null) {
                 continue;
             }
-            // AE2 原版 InterfacePart
+            // AE2S 原版 InterfacePart
             if (part instanceof InterfacePart) {
-                scanHandler(ids, ((InterfacePart) part).getInterfaceDuality().getPatterns());
+                scanConfigInventory(ids, ((InterfacePart) part).getInterfaceLogic());
                 continue;
             }
-            // ae2fc PartDualInterface / PartTrioInterface(反射)
+            // ae2fc PartDualInterface / PartTrioInterface（反射）
             if (isAe2fcPartInterface(part)) {
                 scanAe2fcPart(ids, part);
             }
         }
     }
 
+    private static void scanConfigInventory(@Nonnull Set<UUID> ids, @Nonnull InterfaceLogic logic) {
+        ConfigInventory config = logic.getConfig();
+        scanConfigInventory(ids, config);
+    }
+
+    private static void scanConfigInventory(@Nonnull Set<UUID> ids, @Nullable ConfigInventory config) {
+        if (config == null) return;
+        for (int i = 0; i < config.size(); i++) {
+            GenericStack stack = config.getStack(i);
+            if (stack == null || !(stack.what() instanceof AEItemKey)) {
+                continue;
+            }
+            ItemStack itemStack = ((AEItemKey) stack.what()).toStack((int) Math.min(stack.amount(), Integer.MAX_VALUE));
+            addPatternId(ids, itemStack);
+        }
+    }
+
     private static void scanHandler(@Nonnull Set<UUID> ids, @Nonnull IItemHandler handler) {
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
-            if (stack.isEmpty() || !(stack.getItem() instanceof ItemSmartPattern)) {
-                continue;
-            }
-            UUID uuid = ItemSmartPattern.getPatternDataId(stack);
-            if (uuid != null) {
-                ids.add(uuid);
-            }
+            addPatternId(ids, stack);
+        }
+    }
+
+    private static void addPatternId(@Nonnull Set<UUID> ids, @Nonnull ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof ItemSmartPattern)) {
+            return;
+        }
+        UUID uuid = ItemSmartPattern.getPatternDataId(stack);
+        if (uuid != null) {
+            ids.add(uuid);
         }
     }
 
@@ -184,10 +209,10 @@ public class SmartPatternGarbageCollector {
             ae2fcTrioTileClass = Class.forName(AE2FC_TRIO_TILE);
             ae2fcDualPartClass = Class.forName(AE2FC_DUAL_PART);
             ae2fcTrioPartClass = Class.forName(AE2FC_TRIO_PART);
-            ae2fcGetDualityMethod = ae2fcDualTileClass.getMethod("getDuality");
-            ae2fcGetPatternsMethod = ae2fcGetDualityMethod.getReturnType().getMethod("getPatterns");
+            ae2fcGetLogicMethod = ae2fcDualTileClass.getMethod("getInterfaceLogic");
+            ae2fcGetConfigMethod = ae2fcGetLogicMethod.getReturnType().getMethod("getConfig");
         } catch (Exception ignored) {
-            // ae2fc 未安装或类名不匹配
+            // ae2fc 未安装或类名/方法名不匹配
         }
         ae2fcReflected = true;
     }
@@ -207,15 +232,15 @@ public class SmartPatternGarbageCollector {
     }
 
     private static void scanAe2fcInterface(@Nonnull Set<UUID> ids, @Nonnull TileEntity te) {
-        if (ae2fcGetDualityMethod == null || ae2fcGetPatternsMethod == null) {
+        if (ae2fcGetLogicMethod == null || ae2fcGetConfigMethod == null) {
             return;
         }
         try {
-            Object duality = ae2fcGetDualityMethod.invoke(te);
-            if (duality == null) return;
-            Object patterns = ae2fcGetPatternsMethod.invoke(duality);
-            if (patterns instanceof IItemHandler) {
-                scanHandler(ids, (IItemHandler) patterns);
+            Object logic = ae2fcGetLogicMethod.invoke(te);
+            if (logic == null) return;
+            Object config = ae2fcGetConfigMethod.invoke(logic);
+            if (config instanceof ConfigInventory) {
+                scanConfigInventory(ids, (ConfigInventory) config);
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to scan ae2fc interface at {}.", te.getPos(), e);
@@ -223,15 +248,15 @@ public class SmartPatternGarbageCollector {
     }
 
     private static void scanAe2fcPart(@Nonnull Set<UUID> ids, @Nonnull IPart part) {
-        if (ae2fcGetDualityMethod == null || ae2fcGetPatternsMethod == null) {
+        if (ae2fcGetLogicMethod == null || ae2fcGetConfigMethod == null) {
             return;
         }
         try {
-            Object duality = ae2fcGetDualityMethod.invoke(part);
-            if (duality == null) return;
-            Object patterns = ae2fcGetPatternsMethod.invoke(duality);
-            if (patterns instanceof IItemHandler) {
-                scanHandler(ids, (IItemHandler) patterns);
+            Object logic = ae2fcGetLogicMethod.invoke(part);
+            if (logic == null) return;
+            Object config = ae2fcGetConfigMethod.invoke(logic);
+            if (config instanceof ConfigInventory) {
+                scanConfigInventory(ids, (ConfigInventory) config);
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to scan ae2fc part {}.", part.getClass().getName(), e);

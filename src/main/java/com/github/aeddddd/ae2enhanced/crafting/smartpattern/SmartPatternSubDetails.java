@@ -1,128 +1,64 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import ae2.api.networking.crafting.ICraftingPatternDetails;
+import ae2.api.crafting.IPatternDetails;
 import ae2.api.stacks.AEItemKey;
-import ae2.api.stacks.AEItemKey;
-import net.minecraft.inventory.InventoryCrafting;
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.GenericStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
 import javax.annotation.Nonnull;
-import java.util.*;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * 智能样板展开后的单个配方详情.
- * 实现 {@link ICraftingPatternDetails},使 AE2 网络将其视为独立的普通样板.
+ * 智能样板展开后的单个配方详情。
+ * 实现 {@link IPatternDetails}，使 AE2 网络将其视为独立的普通样板。
  *
  * <p>关键设计点：</p>
  * <ul>
- *   <li>{@link #getPattern()} 返回 parent 智能样板 ItemStack(用于 InterfaceLogic 的 identity 验证)</li>
- *   <li>{@link #equals(Object)} / {@link #hashCode()} 基于配方内容,确保 Set 中不重复</li>
- *   <li>processing 配方：{@link #isCraftable()} = false, {@link #canSubstitute()} = false</li>
+ *   <li>{@link #getDefinition()} 返回 parent 智能样板 ItemStack（用于 identity 验证）</li>
+ *   <li>{@link #equals(Object)} / {@link #hashCode()} 基于配方内容，确保 Set 中不重复</li>
+ *   <li>processing 配方：不提供合成网格验证</li>
  * </ul>
  */
-public class SmartPatternSubDetails implements ICraftingPatternDetails {
+public class SmartPatternSubDetails implements IPatternDetails {
 
     private final ItemStack parentPattern;
     private final SmartRecipe recipe;
-    private final AEItemKey[] condensedInputs;
-    private final AEItemKey[] condensedOutputs;
-    private final AEItemKey pattern; // 用于 equals/hashCode
-    private int priority = 0;
+    private final IInput[] inputs;
 
     public SmartPatternSubDetails(@Nonnull ItemStack parentPattern, @Nonnull SmartRecipe recipe) {
         this.parentPattern = parentPattern;
         this.recipe = recipe;
-        this.condensedInputs = condenseStacks(recipe.getInputs());
-        this.condensedOutputs = condenseStacks(recipe.getOutputs());
-        this.pattern = AEItemKey.fromItemStack(parentPattern);
+        this.inputs = buildInputs(recipe.getInputs());
     }
 
     @Override
     @Nonnull
-    public ItemStack getPattern() {
-        return parentPattern;
+    public AEItemKey getDefinition() {
+        return AEItemKey.of(parentPattern);
     }
 
     @Override
-    public boolean isValidItemForSlot(int slotIndex, ItemStack item, World world) {
-        // processing 配方不支持合成网格验证
-        if (!recipe.isCrafting()) {
-            return false;
+    @Nonnull
+    public IInput[] getInputs() {
+        return inputs;
+    }
+
+    @Override
+    @Nonnull
+    public List<GenericStack> getOutputs() {
+        List<GenericStack> result = new ArrayList<>();
+        for (GenericStack output : recipe.getOutputs()) {
+            if (output != null && output.amount() > 0) {
+                result.add(output);
+            }
         }
-        // 对于 crafting 配方,检查 slotIndex 位置的输入是否匹配
-        AEItemKey[] inputs = recipe.getInputs();
-        if (slotIndex < 0 || slotIndex >= inputs.length) {
-            return false;
-        }
-        AEItemKey expected = inputs[slotIndex];
-        if (expected == null || item.isEmpty()) {
-            return expected == null && item.isEmpty();
-        }
-        return expected.equals(AEItemKey.fromItemStack(item));
-    }
-
-    @Override
-    public boolean isCraftable() {
-        // 智能样板统一作为 processing 配方处理，避免 AE2 硬编码 3x3 合成网格限制
-        return false;
-    }
-
-    @Override
-    @Nonnull
-    public AEItemKey[] getInputs() {
-        return recipe.getInputs();
-    }
-
-    @Override
-    @Nonnull
-    public AEItemKey[] getCondensedInputs() {
-        return condensedInputs;
-    }
-
-    @Override
-    @Nonnull
-    public AEItemKey[] getCondensedOutputs() {
-        return condensedOutputs;
-    }
-
-    @Override
-    @Nonnull
-    public AEItemKey[] getOutputs() {
-        return recipe.getOutputs();
-    }
-
-    @Override
-    public boolean canSubstitute() {
-        return false;
-    }
-
-    @Override
-    @Nonnull
-    public List<AEItemKey> getSubstituteInputs(int slot) {
-        return Collections.emptyList();
-    }
-
-    @Override
-    @Nonnull
-    public ItemStack getOutput(InventoryCrafting craftingGrid, World world) {
-        // processing 配方不通过合成网格计算输出
-        if (!recipe.isCrafting()) {
-            return ItemStack.EMPTY;
-        }
-        // crafting 配方：返回主要输出(AE2 内部通常只在 crafting grid 验证后调用)
-        AEItemKey primary = recipe.getPrimaryOutput();
-        return primary != null ? primary.createItemStack() : ItemStack.EMPTY;
-    }
-
-    @Override
-    public int getPriority() {
-        return priority;
-    }
-
-    @Override
-    public void setPriority(int priority) {
-        this.priority = priority;
+        return result;
     }
 
     @Nonnull
@@ -130,47 +66,64 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
         return recipe;
     }
 
-    /**
-     * 压缩 AEItemKey 数组：合并相同的物品,累加数量.
-     */
-    @Nonnull
-    private static AEItemKey[] condenseStacks(@Nonnull AEItemKey[] stacks) {
-        Map<AEItemKey, AEItemKey> map = new LinkedHashMap<>();
-        for (AEItemKey stack : stacks) {
-            if (stack == null || stack.getStackSize() <= 0) {
-                continue;
-            }
-            AEItemKey existing = null;
-            for (AEItemKey key : map.keySet()) {
-                if (key.equals(stack)) {
-                    existing = map.get(key);
-                    break;
-                }
-            }
-            if (existing != null) {
-                existing.add(stack);
-            } else {
-                map.put(stack.copy(), stack.copy());
-            }
-        }
-        return map.values().toArray(new AEItemKey[0]);
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof SmartPatternSubDetails)) return false;
         SmartPatternSubDetails other = (SmartPatternSubDetails) obj;
-        return recipe.isCrafting() == other.recipe.isCrafting()
-            && Arrays.equals(recipe.getInputs(), other.recipe.getInputs())
+        return Arrays.equals(recipe.getInputs(), other.recipe.getInputs())
             && Arrays.equals(recipe.getOutputs(), other.recipe.getOutputs());
     }
 
     @Override
     public int hashCode() {
-        int result = Boolean.hashCode(recipe.isCrafting());
-        result = 31 * result + Arrays.hashCode(recipe.getInputs());
+        int result = Arrays.hashCode(recipe.getInputs());
         result = 31 * result + Arrays.hashCode(recipe.getOutputs());
         return result;
+    }
+
+    @Nonnull
+    private static IInput[] buildInputs(@Nonnull GenericStack[] stacks) {
+        List<IInput> result = new ArrayList<>();
+        for (GenericStack stack : stacks) {
+            if (stack != null && stack.amount() > 0) {
+                result.add(new SmartPatternInput(stack));
+            }
+        }
+        return result.toArray(new IInput[0]);
+    }
+
+    /**
+     * 单个输入槽位的 IPatternDetails.IInput 实现。
+     */
+    private static final class SmartPatternInput implements IInput {
+
+        private final GenericStack template;
+
+        SmartPatternInput(@Nonnull GenericStack template) {
+            this.template = template;
+        }
+
+        @Override
+        @Nonnull
+        public GenericStack[] possibleInputs() {
+            return new GenericStack[] { template };
+        }
+
+        @Override
+        public long getMultiplier() {
+            return template.amount();
+        }
+
+        @Override
+        public boolean isValid(@Nonnull AEKey input, @Nonnull World world) {
+            return template.what().equals(input);
+        }
+
+        @Override
+        @Nullable
+        public AEKey getRemainingKey(@Nonnull AEKey input) {
+            return null;
+        }
     }
 }

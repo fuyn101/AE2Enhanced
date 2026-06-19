@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
 import com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface;
-import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 import net.minecraft.inventory.Slot;
@@ -13,8 +12,11 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * JEI Ghost Ingredient Handler for Smart Pattern Interface MiniGUI.
- * Supports dragging items/fluids/gases/essentia into the 81-slot input area.
+ * JEI Ghost Ingredient Handler for Smart Pattern Interface MiniGUI。
+ *
+ * <p>AE2S 迁移：原 {@code ae2.core.sync.packets.PacketInventoryAction} 与
+ * {@code InventoryAction.PLACE_JEI_GHOST_ITEM} 已不存在。当前保留目标区域高亮，
+ * 实际放置逻辑暂存根，避免引入大量自定义网络基础设施。</p>
  */
 public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandler<GuiSmartPatternInterface> {
 
@@ -25,17 +27,7 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
             return Collections.emptyList();
         }
 
-        boolean isItem = ingredient instanceof net.minecraft.item.ItemStack;
-        boolean isFluid = ingredient instanceof net.minecraftforge.fluids.FluidStack;
-        boolean isGas = false;
-        if (!isItem && !isFluid) {
-            try {
-                isGas = ingredient.getClass().getName().equals("mekanism.api.gas.GasStack");
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (!isItem && !isFluid && !isGas) {
+        if (!(ingredient instanceof net.minecraft.item.ItemStack)) {
             return Collections.emptyList();
         }
 
@@ -47,7 +39,7 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
         for (Slot slot : gui.inventorySlots.inventorySlots) {
             int slotNumber = slot.slotNumber;
             if (slotNumber >= slotStart && slotNumber < slotEnd) {
-                if (slot instanceof ae2.container.slot.SlotFake) {
+                if (slot instanceof ae2.container.slot.FakeSlot) {
                     Target<I> target = new GhostIngredientTargetWrapper<>(gui.getGuiLeft(), gui.getGuiTop(), slot);
                     targets.add(target);
                 }
@@ -66,7 +58,7 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
     }
 
     /**
-     * Wrapper around GhostIngredientTarget that implements JEI's generic Target interface.
+     * Wrapper around a fake slot that implements JEI's generic Target interface.
      */
     private static class GhostIngredientTargetWrapper<I> implements Target<I> {
         private final int guiLeft;
@@ -87,19 +79,8 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
 
         @Override
         public void accept(@Nonnull I ingredient) {
-            ae2.api.storage.data.AEItemKey aeStack = GhostIngredientTarget.resolveIngredient(ingredient);
-            if (aeStack == null) return;
-            try {
-                ae2.core.sync.network.NetworkHandler.instance().sendToServer(
-                    new ae2.core.sync.packets.PacketInventoryAction(
-                        ae2.helpers.InventoryAction.PLACE_JEI_GHOST_ITEM,
-                        (ae2.container.slot.SlotFake) this.slot,
-                        aeStack
-                    )
-                );
-            } catch (java.io.IOException e) {
-                e.printStackTrace();
-            }
+            // AE2S 暂无等效 ghost item 网络包，暂存根。
+            // 用户仍可通过手动点击 MiniGUI 槽位配置配方。
         }
     }
 }

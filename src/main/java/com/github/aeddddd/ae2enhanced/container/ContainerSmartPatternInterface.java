@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.container;
 
-import ae2.container.slot.SlotFake;
+import ae2.api.inventories.PlatformInventoryWrapper;
+import ae2.container.slot.FakeSlot;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
@@ -13,17 +14,17 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.SlotItemHandler;
 
 /**
- * 智能样板接口的 Container.
+ * 智能样板接口的 Container。
  *
- * <p>槽位布局(v4 - 81 输入 + 滚动条)：</p>
+ * <p>槽位布局（v4 - 81 输入 + 滚动条）：</p>
  * <ul>
- *   <li>0~44:   配方显示槽位 (9列 x 5行, SlotFake)</li>
- *   <li>45:     空白样板输入槽 (116, 20)</li>
- *   <li>46:     编码样板输出槽 (152, 20)</li>
- *   <li>47~82:  玩家背包 (3行, Y=141/159/177)</li>
- *   <li>83~163: MiniGUI 输入槽 (9组 x 3x3, SlotFake, 仅当前组可见)</li>
- *   <li>164~172: MiniGUI 输出槽 (3x3, SlotFake, 始终可见)</li>
- *   <li>173~174: 替换槽位 (176/212, 162, SlotItemHandler)</li>
+ *   <li>0~44:   配方显示槽位（9列 x 5行，FakeSlot）</li>
+ *   <li>45:     空白样板输入槽（116, 20）</li>
+ *   <li>46:     编码样板输出槽（152, 20）</li>
+ *   <li>47~82:  玩家背包（3行，Y=141/159/177）</li>
+ *   <li>83~163: MiniGUI 输入槽（9组 x 3x3，FakeSlot，仅当前组可见）</li>
+ *   <li>164~172: MiniGUI 输出槽（3x3，FakeSlot，始终可见）</li>
+ *   <li>173~174: 替换槽位（176/212, 162，SlotItemHandler）</li>
  * </ul>
  */
 public class ContainerSmartPatternInterface extends Container {
@@ -54,12 +55,12 @@ public class ContainerSmartPatternInterface extends Container {
     public ContainerSmartPatternInterface(InventoryPlayer playerInv, TileSmartPatternInterface tile) {
         this.tile = tile;
 
-        // 配方显示槽位 (45个 SlotFake)
+        // 配方显示槽位（45个 FakeSlot）
         int slotIndex = 0;
         for (int row = 0; row < RECIPE_ROW_Y.length; row++) {
             for (int col = 0; col < RECIPE_COL_X.length; col++) {
-                this.addSlotToContainer(new SlotFake(
-                    tile.getRecipeDisplayInventory(), slotIndex,
+                this.addSlotToContainer(new FakeSlot(
+                    new PlatformInventoryWrapper(tile.getRecipeDisplayInventory()), slotIndex,
                     RECIPE_COL_X[col], RECIPE_ROW_Y[row]
                 ));
                 slotIndex++;
@@ -83,7 +84,7 @@ public class ContainerSmartPatternInterface extends Container {
             }
         });
 
-        // 玩家背包 (3行)
+        // 玩家背包（3行）
         for (int row = 0; row < 3; row++) {
             int y = 141 + row * 18;
             for (int col = 0; col < 9; col++) {
@@ -95,7 +96,7 @@ public class ContainerSmartPatternInterface extends Container {
             this.addSlotToContainer(new Slot(playerInv, col, 8 + col * 18, 199));
         }
 
-        // MiniGUI 输入槽 (9组 x 3x3 = 81个 SlotFake)
+        // MiniGUI 输入槽（9组 x 3x3 = 81个 FakeSlot）
         for (int g = 0; g < 9; g++) {
             for (int s = 0; s < 9; s++) {
                 int row = s / 3;
@@ -103,25 +104,25 @@ public class ContainerSmartPatternInterface extends Container {
                 int idx = g * 9 + s;
                 int x = MINIGUI_COL_X[col];
                 int y = MINIGUI_INPUT_ROW_Y[row];
-                Slot slot = new SlotFake(tile.getMiniGuiInventory(), idx, x, y);
+                Slot slot = new FakeSlot(new PlatformInventoryWrapper(tile.getMiniGuiInventory()), idx, x, y);
                 this.miniGuiInputSlots[g][s] = slot;
                 this.addSlotToContainer(slot);
             }
         }
 
-        // MiniGUI 输出槽 (3x3 = 9个 SlotFake)
+        // MiniGUI 输出槽（3x3 = 9个 FakeSlot）
         for (int s = 0; s < 9; s++) {
             int row = s / 3;
             int col = s % 3;
             int idx = 81 + s;
             int x = MINIGUI_COL_X[col];
             int y = MINIGUI_OUTPUT_ROW_Y[row];
-            Slot slot = new SlotFake(tile.getMiniGuiInventory(), idx, x, y);
+            Slot slot = new FakeSlot(new PlatformInventoryWrapper(tile.getMiniGuiInventory()), idx, x, y);
             this.miniGuiOutputSlots[s] = slot;
             this.addSlotToContainer(slot);
         }
 
-        // 底部替换槽位 (2个 SlotItemHandler)
+        // 底部替换槽位（2个 SlotItemHandler）
         this.addSlotToContainer(new SlotItemHandler(tile.getReplaceInventory(), 0, 176, 162));
         this.addSlotToContainer(new SlotItemHandler(tile.getReplaceInventory(), 1, 212, 162));
 
@@ -130,7 +131,7 @@ public class ContainerSmartPatternInterface extends Container {
     }
 
     /**
-     * 设置 MiniGUI 滚动偏移,控制哪一组输入/输出可见.
+     * 设置 MiniGUI 滚动偏移，控制哪一组输入/输出可见。
      */
     public void setScrollOffset(int offset) {
         offset = Math.max(0, Math.min(8, offset));
@@ -155,7 +156,7 @@ public class ContainerSmartPatternInterface extends Container {
             if (tile.getLockedRecipeIndex() < 0) {
                 return player.inventory.getItemStack();
             }
-            // 覆盖 SlotFake 的默认交互,确保能正常编辑
+            // 覆盖 FakeSlot 的默认交互，确保能正常编辑
             if (clickTypeIn == ClickType.PICKUP) {
                 Slot slot = this.inventorySlots.get(slotId);
                 ItemStack held = player.inventory.getItemStack();

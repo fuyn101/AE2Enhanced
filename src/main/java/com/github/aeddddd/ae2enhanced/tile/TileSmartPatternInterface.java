@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.GenericStack;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternStorageFile;
@@ -497,21 +498,21 @@ public class TileSmartPatternInterface extends TileEntity {
             return;
         }
         SmartRecipe recipe = patternData.getRecipes().get(original);
-        AEItemKey[] inputs = recipe.getInputs();
-        AEItemKey[] outputs = recipe.getOutputs();
+        GenericStack[] inputs = recipe.getInputs();
+        GenericStack[] outputs = recipe.getOutputs();
 
         isUpdatingMiniGui = true;
         try {
             for (int i = 0; i < 81; i++) {
                 if (i < inputs.length && inputs[i] != null) {
-                    miniGuiInventory.setStackInSlot(i, inputs[i].toStack());
+                    miniGuiInventory.setStackInSlot(i, toItemStack(inputs[i]));
                 } else {
                     miniGuiInventory.setStackInSlot(i, ItemStack.EMPTY);
                 }
             }
             for (int i = 0; i < 9; i++) {
                 if (i < outputs.length && outputs[i] != null) {
-                    miniGuiInventory.setStackInSlot(i + 81, outputs[i].toStack());
+                    miniGuiInventory.setStackInSlot(i + 81, toItemStack(outputs[i]));
                 } else {
                     miniGuiInventory.setStackInSlot(i + 81, ItemStack.EMPTY);
                 }
@@ -526,11 +527,11 @@ public class TileSmartPatternInterface extends TileEntity {
         if (original < 0) return;
         SmartRecipe recipe = patternData.getRecipes().get(original);
         ItemStack stack = miniGuiInventory.getStackInSlot(slot);
-        AEItemKey aeStack = stack.isEmpty() ? null : AEItemKey.of(stack);
+        GenericStack genericStack = stack.isEmpty() ? null : GenericStack.fromItemStack(stack);
         if (slot < 81) {
-            recipe.setInput(slot, aeStack);
+            recipe.setInput(slot, genericStack);
         } else {
-            recipe.setOutput(slot - 81, aeStack);
+            recipe.setOutput(slot - 81, genericStack);
         }
         patternData.detectConflicts();
         updateRecipeDisplay();
@@ -548,6 +549,14 @@ public class TileSmartPatternInterface extends TileEntity {
 
     public int getMaxScrollOffset() {
         return 8;
+    }
+
+    @Nonnull
+    private static ItemStack toItemStack(@Nonnull GenericStack stack) {
+        if (stack.what() instanceof AEItemKey) {
+            return ((AEItemKey) stack.what()).toStack((int) Math.min(stack.amount(), Integer.MAX_VALUE));
+        }
+        return GenericStack.wrapInItemStack(stack);
     }
 
     // ---- 配方显示 ----
@@ -569,8 +578,8 @@ public class TileSmartPatternInterface extends TileEntity {
             if (sortedIndex < recipeCount) {
                 SmartRecipe recipe = patternData.getRecipe(sortedIndex);
                 if (recipe != null) {
-                    AEItemKey primary = recipe.getPrimaryOutput();
-                    recipeDisplayInventory.setStackInSlot(i, primary != null ? primary.toStack() : ItemStack.EMPTY);
+                    GenericStack primary = recipe.getPrimaryOutput();
+                    recipeDisplayInventory.setStackInSlot(i, primary != null ? toItemStack(primary) : ItemStack.EMPTY);
                 } else {
                     recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);
                 }
