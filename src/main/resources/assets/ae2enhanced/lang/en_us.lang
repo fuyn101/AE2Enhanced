@@ -296,8 +296,6 @@ item.ae2enhanced.mana_drop.name=Mana Drop
 item.ae2enhanced.starlight_drop.name=Starlight Drop
 
 
-tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
-item.ae2enhanced.platform_development_license.name=Platform Development License
 message.ae2enhanced.platform.conflict=§cPlatform generation failed: %d conflicts detected.
 message.ae2enhanced.rf_access_node.mode.input=§b[RF Node] §aMode: INPUT
 message.ae2enhanced.rf_access_node.mode.output=§b[RF Node] §cMode: OUTPUT
@@ -318,38 +316,6 @@ gui.ae2enhanced.umc.msg.zone_loaded=§a▸ Loaded §e%d§a positions into zone
 gui.ae2enhanced.umc.msg.mode_changed=§a▸ Mode switched to §e%s
 
 # Advanced Platform GUI
-gui.ae2enhanced.advanced_platform.close=Close
-gui.ae2enhanced.advanced_platform.back=Back
-gui.ae2enhanced.advanced_platform.input_mode=Input Mode
-gui.ae2enhanced.advanced_platform.output_mode=Output Mode
-gui.ae2enhanced.advanced_platform.add_zone=Manage Zones
-gui.ae2enhanced.advanced_platform.zone.other_subnet=Belongs to another subnet
-gui.ae2enhanced.advanced_platform.no_subnet=No Subnet
-gui.ae2enhanced.advanced_platform.no_zone=No Zone Selected
-gui.ae2enhanced.advanced_platform.io_mode.cycle=Cycle IO Mode
-gui.ae2enhanced.advanced_platform.io_mode.none=None
-gui.ae2enhanced.advanced_platform.io_mode.input=Input
-gui.ae2enhanced.advanced_platform.io_mode.output=Output
-gui.ae2enhanced.advanced_platform.io_mode.both=Both
-gui.ae2enhanced.advanced_platform.face.up=Up
-gui.ae2enhanced.advanced_platform.face.down=Down
-gui.ae2enhanced.advanced_platform.face.front=Front
-gui.ae2enhanced.advanced_platform.face.back=Back
-gui.ae2enhanced.advanced_platform.face.left=Left
-gui.ae2enhanced.advanced_platform.face.right=Right
-gui.ae2enhanced.advanced_platform.main_net=Main Network
-gui.ae2enhanced.advanced_platform.main_net_desc=Main ME Network
-gui.ae2enhanced.advanced_platform.create_subnet=Create Subnet
-gui.ae2enhanced.advanced_platform.new_subnet=New Subnet
-gui.ae2enhanced.advanced_platform.rename_subnet=Rename
-gui.ae2enhanced.advanced_platform.main_net_filter_disabled=Main Net: No Filter
-gui.ae2enhanced.advanced_platform.delete_subnet=Delete Subnet
-gui.ae2enhanced.advanced_platform.delete_zone=Delete Zone
-gui.ae2enhanced.advanced_platform.current_mode=Current Mode
-gui.ae2enhanced.advanced_platform.click_to_cycle=Click to cycle mode
-gui.ae2enhanced.advanced_platform.zone.blocks=Blocks: %d
-gui.ae2enhanced.advanced_platform.zone.right_click_unbind=Right-click to unbind
-gui.ae2enhanced.advanced_platform.zone.click_to_assign=Click to assign
 
 # Advanced ME Omni Tool
 item.ae2enhanced.me_omni_tool.name=§bAdvanced ME Omni Tool

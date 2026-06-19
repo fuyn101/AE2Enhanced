@@ -13,9 +13,6 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiEMCInterface;
 
-import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
-import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu;
-
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyUnformed;
@@ -29,8 +26,6 @@ import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 
-import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformController;
-import com.github.aeddddd.ae2enhanced.container.platform.ContainerAdvancedPlatformSubmenu;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
@@ -38,7 +33,6 @@ import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
-import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
@@ -63,22 +57,11 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_OMNI_TERMINAL = 11;
     public static final int GUI_CENTRAL_ME_INTERFACE = 12;
     public static final int GUI_SMART_PATTERN_INTERFACE = 13;
-    public static final int GUI_ADVANCED_PLATFORM_CONTROLLER = 24;
-    public static final int GUI_ADVANCED_PLATFORM_SUBMENU = 25;
-    public static final int GUI_OMNI_TOOL_CONFIG = 26;
+    public static final int GUI_OMNI_TOOL_CONFIG = 24;
 
-    public static final int GUI_ADVANCED_ME_COLLECTOR = 27;
+    public static final int GUI_ADVANCED_ME_COLLECTOR = 25;
     public static final int GUI_ME_NETWORK_RECYCLER = 28;
     public static final int GUI_EMC_INTERFACE = 29;
-
-    /** 编码二级菜单 GUI ID：低8位为 base ID,bit8-31为子网 ID */
-    public static int encodeSubmenuId(int subnetId) {
-        return GUI_ADVANCED_PLATFORM_SUBMENU | (subnetId << 8);
-    }
-
-    public static int decodeSubmenuSubnetId(int id) {
-        return (id >> 8) & 0xFFFFFF;
-    }
 
     /** 编码页码到 GUI ID：低4位为 base ID,bit8-15为页码,bit16-20为 patternPages */
     public static int encodePatternId(int page, int patternPages) {
@@ -185,25 +168,6 @@ public class GuiHandler implements IGuiHandler {
                 return new com.github.aeddddd.ae2enhanced.container.ContainerSmartPatternInterface(player.inventory, (com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) te);
             }
         }
-        if (ID == GUI_ADVANCED_PLATFORM_CONTROLLER) {
-            if (te instanceof TileAdvancedPlatformController) {
-                TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
-                if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
-                    controller.sendPlatformInitToPlayer((net.minecraft.entity.player.EntityPlayerMP) player);
-                }
-                return new ContainerAdvancedPlatformController(player.inventory, controller);
-            }
-        }
-        if (baseId == GUI_ADVANCED_PLATFORM_SUBMENU) {
-            if (te instanceof TileAdvancedPlatformController) {
-                TileAdvancedPlatformController controller = (TileAdvancedPlatformController) te;
-                if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
-                    controller.sendPlatformInitToPlayer((net.minecraft.entity.player.EntityPlayerMP) player);
-                }
-                int subnetId = decodeSubmenuSubnetId(ID);
-                return new ContainerAdvancedPlatformSubmenu(player.inventory, controller, subnetId);
-            }
-        }
         if (ID == GUI_OMNI_TOOL_CONFIG) {
             return new ContainerOmniToolConfig();
         }
@@ -291,18 +255,6 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_SMART_PATTERN_INTERFACE) {
             if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) {
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface(player.inventory, (com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface) te);
-            }
-        }
-        if (ID == GUI_ADVANCED_PLATFORM_CONTROLLER) {
-            if (te instanceof TileAdvancedPlatformController) {
-                return new GuiAdvancedPlatformController(player.inventory, (TileAdvancedPlatformController) te);
-            }
-        }
-        int clientBaseId = ID & 0xFF;
-        if (clientBaseId == GUI_ADVANCED_PLATFORM_SUBMENU) {
-            if (te instanceof TileAdvancedPlatformController) {
-                int subnetId = decodeSubmenuSubnetId(ID);
-                return new GuiAdvancedPlatformSubmenu(player.inventory, (TileAdvancedPlatformController) te, subnetId);
             }
         }
         if (ID == GUI_OMNI_TOOL_CONFIG) {

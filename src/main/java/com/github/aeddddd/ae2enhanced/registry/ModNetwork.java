@@ -27,9 +27,6 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternEncode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternModify;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternReplace;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformEnergySync;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformGenerateRequest;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformGenerateResult;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketSmartPatternMiniGuiScroll;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolMode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolModeHandler;
@@ -52,10 +49,6 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementSelectPreset
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementSelectPresetHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolPlacementSubMode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolPlacementSubModeHandler;
-import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformInit;
-import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketPlatformStatus;
-import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketSubnetAction;
-import com.github.aeddddd.ae2enhanced.network.packet.platform.PacketZoneAction;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
@@ -97,16 +90,7 @@ public final class ModNetwork {
         nw.registerMessage(PacketSmartPatternReplace.Handler.class, PacketSmartPatternReplace.class, 19, Side.SERVER);
         nw.registerMessage(PacketSmartPatternMiniGuiScroll.Handler.class, PacketSmartPatternMiniGuiScroll.class, 20, Side.SERVER);
 
-        nw.registerMessage(PacketPlatformGenerateRequest.Handler.class, PacketPlatformGenerateRequest.class, 21, Side.SERVER);
-        nw.registerMessage(PacketPlatformGenerateResult.Handler.class, PacketPlatformGenerateResult.class, 22, Side.CLIENT);
-        nw.registerMessage(PacketPlatformEnergySync.Handler.class, PacketPlatformEnergySync.class, 23, Side.CLIENT);
-
-        nw.registerMessage(PacketSubnetAction.Handler.class, PacketSubnetAction.class, 24, Side.SERVER);
-        nw.registerMessage(PacketZoneAction.Handler.class, PacketZoneAction.class, 25, Side.SERVER);
-        nw.registerMessage(PacketPlatformInit.Handler.class, PacketPlatformInit.class, 26, Side.CLIENT);
-        nw.registerMessage(PacketPlatformStatus.Handler.class, PacketPlatformStatus.class, 27, Side.CLIENT);
-
-        nw.registerMessage(PacketOmniToolModeHandler.class, PacketOmniToolMode.class, 28, Side.SERVER);
+        nw.registerMessage(PacketOmniToolModeHandler.class, PacketOmniToolMode.class, 21, Side.SERVER);
         nw.registerMessage(PacketOmniToolSilkTouchHandler.class, PacketOmniToolSilkTouch.class, 29, Side.SERVER);
         nw.registerMessage(PacketOmniToolDropModeHandler.class, PacketOmniToolDropMode.class, 30, Side.SERVER);
         nw.registerMessage(PacketOpenOmniToolGuiHandler.class, PacketOpenOmniToolGui.class, 31, Side.SERVER);

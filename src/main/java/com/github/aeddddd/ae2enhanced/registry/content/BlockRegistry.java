@@ -36,9 +36,6 @@ public final class BlockRegistry {
     // 压缩区块供电节点(从 ME 网络向 3×3 区块设备供能)
     public static BlockCompressedChunkPowerNode COMPRESSED_CHUNK_POWER_NODE;
 
-    // 先进中枢平台
-    public static BlockAdvancedPlatformController ADVANCED_PLATFORM_CONTROLLER;
-
     // 先进 ME 收集器
     public static BlockAdvancedMECollector ADVANCED_ME_COLLECTOR;
 

@@ -294,8 +294,6 @@ item.ae2enhanced.mana_drop.name=魔力滴
 item.ae2enhanced.starlight_drop.name=星能滴
 
 
-tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器
-item.ae2enhanced.platform_development_license.name=平台开发许可
 message.ae2enhanced.platform.conflict=§c平台生成失败：检测到 %d 处冲突.
 message.ae2enhanced.rf_access_node.mode.input=§b[RF节点] §a模式: 输入
 message.ae2enhanced.rf_access_node.mode.output=§b[RF节点] §c模式: 输出
@@ -316,38 +314,6 @@ gui.ae2enhanced.umc.msg.zone_loaded=§a▸ 已载入 §e%d§a 个方块到选区
 gui.ae2enhanced.umc.msg.mode_changed=§a▸ 模式已切换为 §e%s
 
 # 先进中枢平台 GUI
-gui.ae2enhanced.advanced_platform.close=关闭
-gui.ae2enhanced.advanced_platform.back=返回
-gui.ae2enhanced.advanced_platform.input_mode=输入模式
-gui.ae2enhanced.advanced_platform.output_mode=输出模式
-gui.ae2enhanced.advanced_platform.add_zone=管理选区
-gui.ae2enhanced.advanced_platform.zone.other_subnet=属于其他子网
-gui.ae2enhanced.advanced_platform.no_subnet=无子网
-gui.ae2enhanced.advanced_platform.no_zone=未选择选区
-gui.ae2enhanced.advanced_platform.io_mode.cycle=切换IO模式
-gui.ae2enhanced.advanced_platform.io_mode.none=无
-gui.ae2enhanced.advanced_platform.io_mode.input=输入
-gui.ae2enhanced.advanced_platform.io_mode.output=输出
-gui.ae2enhanced.advanced_platform.io_mode.both=双向
-gui.ae2enhanced.advanced_platform.face.up=上
-gui.ae2enhanced.advanced_platform.face.down=下
-gui.ae2enhanced.advanced_platform.face.front=前
-gui.ae2enhanced.advanced_platform.face.back=后
-gui.ae2enhanced.advanced_platform.face.left=左
-gui.ae2enhanced.advanced_platform.face.right=右
-gui.ae2enhanced.advanced_platform.main_net=主网
-gui.ae2enhanced.advanced_platform.main_net_desc=主 ME 网络
-gui.ae2enhanced.advanced_platform.create_subnet=创建子网
-gui.ae2enhanced.advanced_platform.new_subnet=新子网
-gui.ae2enhanced.advanced_platform.rename_subnet=重命名
-gui.ae2enhanced.advanced_platform.main_net_filter_disabled=主网：无过滤
-gui.ae2enhanced.advanced_platform.delete_subnet=删除子网
-gui.ae2enhanced.advanced_platform.delete_zone=删除选区
-gui.ae2enhanced.advanced_platform.current_mode=当前模式
-gui.ae2enhanced.advanced_platform.click_to_cycle=点击切换模式
-gui.ae2enhanced.advanced_platform.zone.blocks=方块数: %d
-gui.ae2enhanced.advanced_platform.zone.right_click_unbind=右键解绑
-gui.ae2enhanced.advanced_platform.zone.click_to_assign=点击分配
 
 # 先进ME工具
 item.ae2enhanced.me_omni_tool.name=§b先进ME工具

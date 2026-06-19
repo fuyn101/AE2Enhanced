@@ -14,9 +14,6 @@ import ae2.me.GridAccessException;
 import ae2.me.helpers.MachineSource;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
-import com.github.aeddddd.ae2enhanced.platform.energy.EnergyAdapterRegistry;
-import com.github.aeddddd.ae2enhanced.platform.energy.IEnergyAdapter;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
@@ -51,7 +48,7 @@ import java.util.Set;
  * <p>供能策略：</p>
  * <ul>
  *   <li>每 {@link #CACHE_REFRESH_INTERVAL} tick 重新扫描本区块目标设备并缓存位置</li>
- *   <li>每 tick 遍历缓存,按需从 ME 网络提取并注入(支持 {@link IEnergyAdapter} 模组优化)</li>
+ *   <li>每 tick 遍历缓存,按需从 ME 网络提取并注入</li>
  *   <li>未用完的能量立即返还 ME 网络</li>
  * </ul>
  */
@@ -201,20 +198,19 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
             }
             if (cap == null) continue;
 
-            String blockId = world.getBlockState(targetPos).getBlock().getRegistryName().toString();
-            IEnergyAdapter adapter = EnergyAdapterRegistry.findAdapter(blockId);
+            // TODO: platform removed — energy adapter registry deleted; fall back to direct Forge Energy simulation
+            int simulated = cap.receiveEnergy(Integer.MAX_VALUE, true);
+            if (simulated <= 0) continue;
 
-            long demand = adapter.getReceiveableEnergy(te, cap);
-            if (demand <= 0) continue;
-
+            long demand = Math.min(simulated, (long) Integer.MAX_VALUE);
             IAEEnergyStack request = AEEnergyStack.create(demand);
             IAEEnergyStack extracted = energyMonitor.extractItems(request, Actionable.MODULATE, source);
             if (extracted == null || extracted.getStackSize() <= 0) continue;
 
-            long toInject = extracted.getStackSize();
-            long actual = adapter.injectEnergy(te, cap, toInject, false);
+            int toInject = (int) Math.min(extracted.getStackSize(), (long) Integer.MAX_VALUE);
+            int actual = cap.receiveEnergy(toInject, false);
 
-            long leftover = extracted.getStackSize() - actual;
+            int leftover = toInject - actual;
             if (leftover > 0) {
                 energyMonitor.injectItems(AEEnergyStack.create(leftover), Actionable.MODULATE, source);
             }

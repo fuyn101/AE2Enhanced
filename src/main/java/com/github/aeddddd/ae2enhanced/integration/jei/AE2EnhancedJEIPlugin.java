@@ -55,14 +55,6 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
             blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.GAS_DROP));
         }
 
-        // 隐藏未完成的先进中枢平台相关物品
-        if (BlockRegistry.ADVANCED_PLATFORM_CONTROLLER != null) {
-            blacklist.addIngredientToBlacklist(new ItemStack(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER));
-        }
-        if (ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE != null) {
-            blacklist.addIngredientToBlacklist(new ItemStack(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE));
-        }
-
         // 必须将 BlackHoleRecipe 包装为 BlackHoleRecipeWrapper,与 IRecipeCategory 的泛型匹配
         List<BlackHoleRecipeWrapper> wrappers = new ArrayList<>();
         for (BlackHoleRecipe recipe : BlackHoleRecipeRegistry.getRecipes()) {
@@ -79,12 +71,5 @@ public class AE2EnhancedJEIPlugin implements IModPlugin {
                 com.github.aeddddd.ae2enhanced.client.gui.GuiSmartPatternInterface.class,
                 new com.github.aeddddd.ae2enhanced.integration.jei.SmartPatternInterfaceGhostHandler());
 
-        // Advanced Platform Controller ghost ingredient drag support
-        registry.addGhostIngredientHandler(
-                com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController.class,
-                new com.github.aeddddd.ae2enhanced.integration.jei.PlatformControllerGhostHandler());
-        registry.addGhostIngredientHandler(
-                com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformSubmenu.class,
-                new com.github.aeddddd.ae2enhanced.integration.jei.PlatformSubmenuGhostHandler());
     }
 }
