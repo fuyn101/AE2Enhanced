@@ -2,10 +2,9 @@ package com.github.aeddddd.ae2enhanced.util.memorycard.core;
 
 import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
-import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
-import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
+import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
@@ -41,10 +40,10 @@ public class UMCSelectionService {
 
         if (te instanceof IPartHost) {
             IPartHost host = (IPartHost) te;
-            IPart part = host.getPart(AEPartLocation.fromFacing(face));
+            IPart part = host.getPart(face);
             if (part != null) {
                 String tileId = part.getClass().getName();
-                int side = AEPartLocation.fromFacing(face).ordinal();
+                int side = face.ordinal();
                 ItemUniversalMemoryCard.addSelection(stack, new ItemUniversalMemoryCard.SelectionEntry(pos, world.provider.getDimension(), tileId, side));
                 player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.select_part"));
                 return;

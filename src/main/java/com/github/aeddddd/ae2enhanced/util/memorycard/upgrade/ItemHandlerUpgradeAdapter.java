@@ -28,7 +28,7 @@ public class ItemHandlerUpgradeAdapter implements IUpgradeProvider {
     @Override
     public void setStackInSlot(int slot, ItemStack stack) {
         // IItemHandler 只读时可能不支持 setStackInSlot
-        // 但 AE2 的 AppEngInternalAEInventory 支持
+        // 但 AE2S 的 InternalInventoryItemHandler 支持
         if (handler instanceof net.minecraftforge.items.IItemHandlerModifiable) {
             ((net.minecraftforge.items.IItemHandlerModifiable) handler).setStackInSlot(slot, stack);
         }

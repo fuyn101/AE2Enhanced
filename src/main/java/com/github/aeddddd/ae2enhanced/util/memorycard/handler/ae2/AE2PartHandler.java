@@ -1,26 +1,26 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.handler.ae2;
-import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgradeAdapter;
-import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
-import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
-import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
-import ae2.helpers.IPriorityHost;
-import ae2.api.parts.PartItemStack;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.InternalInventoryUpgradeAdapter;
+
+import ae2.api.inventories.InternalInventory;
+import ae2.api.inventories.ISegmentedInventory;
 import ae2.parts.AEBasePart;
-import ae2.tile.inventory.AppEngInternalAEInventory;
 import ae2.util.SettingsFrom;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraftforge.items.IItemHandler;
 
 import java.util.List;
 
 /**
- * 处理 AE2 Part 的配置复制粘贴.
- * 不依赖反射调用 AEBasePart.downloadSettings,直接复制其基础逻辑并扩展本 mod Part 的自定义状态.
+ * 处理 AE2S Part 的配置复制粘贴.
+ * 使用 AE2S 原生的 {@link AEBasePart#exportSettings}/{@link AEBasePart#importSettings},
+ * 并额外序列化/还原升级槽.
  */
 public class AE2PartHandler implements IMemoryCardHandler {
 
@@ -32,30 +32,16 @@ public class AE2PartHandler implements IMemoryCardHandler {
     @Override
     public NBTTagCompound copy(Object target) {
         AEBasePart part = (AEBasePart) target;
-        NBTTagCompound output = new NBTTagCompound();
-
-        // 1. 基础配置：IConfigManager
-        if (part.getConfigManager() != null) {
-            part.getConfigManager().writeToNBT(output);
+        NBTTagCompound output = part.exportSettings(SettingsFrom.MEMORY_CARD);
+        if (output == null) {
+            output = new NBTTagCompound();
         }
 
-        // 2. 基础配置：IPriorityHost
-        if (part instanceof IPriorityHost) {
-            output.setInteger("priority", ((IPriorityHost) part).getPriority());
-        }
-
-        // 3. 基础配置：config inventory
-        IItemHandler configInv = part.getInventoryByName("config");
-        if (configInv instanceof AppEngInternalAEInventory) {
-            ((AppEngInternalAEInventory) configInv).writeToNBT(output, "config");
-        }
-
-        // 5. 额外复制升级槽
         try {
-            IItemHandler upgrades = part.getInventoryByName("upgrades");
-            if (upgrades != null && upgrades.getSlots() > 0) {
+            InternalInventory upgrades = part.getSubInventory(ISegmentedInventory.UPGRADES);
+            if (upgrades != null && upgrades.size() > 0) {
                 NBTTagList upgradeList = MemoryCardUpgradeHelper.serializeUpgrades(
-                        new ItemHandlerUpgradeAdapter(upgrades));
+                        new InternalInventoryUpgradeAdapter(upgrades));
                 if (!upgradeList.isEmpty()) {
                     output.setTag("ae2e:upgrades", upgradeList);
                 }
@@ -74,11 +60,11 @@ public class AE2PartHandler implements IMemoryCardHandler {
         // 1. 先处理升级
         if (data.hasKey("ae2e:upgrades")) {
             NBTTagList upgradeList = data.getTagList("ae2e:upgrades", 10);
-            IItemHandler upgrades = part.getInventoryByName("upgrades");
+            InternalInventory upgrades = part.getSubInventory(ISegmentedInventory.UPGRADES);
             if (upgrades != null) {
                 List<ItemStack> needed = MemoryCardUpgradeHelper.deserializeUpgrades(upgradeList);
                 PasteResult result = MemoryCardUpgradeHelper.applyUpgrades(
-                        new ItemHandlerUpgradeAdapter(upgrades), needed, player);
+                        new InternalInventoryUpgradeAdapter(upgrades), needed, player);
                 if (result != PasteResult.SUCCESS) return result;
             }
         }
@@ -86,7 +72,7 @@ public class AE2PartHandler implements IMemoryCardHandler {
         // 2. 用不含升级的 NBT 应用配置
         NBTTagCompound settings = data.copy();
         settings.removeTag("ae2e:upgrades");
-        part.uploadSettings(SettingsFrom.MEMORY_CARD, settings, player);
+        part.importSettings(SettingsFrom.MEMORY_CARD, settings, player);
 
         return PasteResult.SUCCESS;
     }
@@ -94,7 +80,7 @@ public class AE2PartHandler implements IMemoryCardHandler {
     @Override
     public String getDisplayName(Object target) {
         if (target instanceof AEBasePart) {
-            return ((AEBasePart) target).getItemStack(PartItemStack.NETWORK).getDisplayName();
+            return ((AEBasePart) target).getPartItem().asItemStack().getDisplayName();
         }
         return target.getClass().getSimpleName();
     }

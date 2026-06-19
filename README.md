@@ -5,6 +5,8 @@ AE2Enhanced is a late-game addon for **AE2 Unofficial Extended Life (AE2-UEL)** 
 *Current version: 1.5.2*
 > New features and utility items are still under active development. A Release will be published once development is complete.
 
+A NEW branch for Applied-Energistics-2-Supergiant is developing!!!
+
 [中文版本 (Chinese)](/README_zh.md)
 
 ## Core Items

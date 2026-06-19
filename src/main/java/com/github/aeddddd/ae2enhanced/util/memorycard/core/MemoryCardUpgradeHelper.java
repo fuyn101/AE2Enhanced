@@ -1,26 +1,29 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.core;
-import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgradeAdapter;
-import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
-import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
 
-import ae2.api.AEApi;
-import ae2.api.config.Actionable;
-import ae2.api.networking.IGridNode;
-import ae2.api.networking.crafting.ICraftingCallback;
-import ae2.api.networking.crafting.ICraftingService;
-import ae2.api.networking.crafting.ICraftingJob;
-import ae2.api.networking.crafting.ICraftingLink;
-import ae2.api.networking.crafting.ICraftingRequester;
-import ae2.api.storage.MEStorage;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.stacks.AEItemKey;
-import ae2.me.GridAccessException;
-import ae2.me.helpers.PlayerSource;
-import ae2.api.stacks.AEItemKey;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
+import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgradeAdapter;
 import com.google.common.collect.ImmutableSet;
+
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.CalculationStrategy;
+import ae2.api.networking.crafting.ICraftingLink;
+import ae2.api.networking.crafting.ICraftingPlan;
+import ae2.api.networking.crafting.ICraftingRequester;
+import ae2.api.networking.crafting.ICraftingService;
+import ae2.api.networking.crafting.ICraftingSimulationRequester;
+import ae2.api.networking.crafting.ICraftingSubmitResult;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
+import ae2.api.storage.MEStorage;
+import ae2.me.helpers.PlayerSource;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -157,87 +160,92 @@ public class MemoryCardUpgradeHelper {
         if (!(te instanceof TileWirelessChannelTransmitter)) return NetworkPullResult.FAILED;
         TileWirelessChannelTransmitter transmitter = (TileWirelessChannelTransmitter) te;
 
-        try {
-            ae2.api.networking.IGrid grid = transmitter.getProxy().getGrid();
-            ae2.api.networking.storage.IStorageService storageGrid = grid.getCache(ae2.api.networking.storage.IStorageService.class);
-            if (storageGrid == null) return NetworkPullResult.FAILED;
-            MEStorage<AEItemKey> inv = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-            PlayerSource source = new PlayerSource(player, null);
-            ICraftingService craftingGrid = grid.getCache(ICraftingService.class);
+        if (!transmitter.getMainNode().isActive()) return NetworkPullResult.FAILED;
 
-            List<ItemStack> stillMissing = new ArrayList<>();
-            List<ItemStack> craftable = new ArrayList<>();
-            List<ItemStack> directExtract = new ArrayList<>();
+        IGrid grid = transmitter.getMainNode().getGrid();
+        if (grid == null) return NetworkPullResult.FAILED;
 
-            for (ItemStack deficit : missing) {
-                AEItemKey want = AEItemKey.fromItemStack(deficit);
-                AEItemKey sim = inv.extractItems(want, Actionable.SIMULATE, source);
-                if (sim != null && sim.getStackSize() >= deficit.getCount()) {
-                    directExtract.add(deficit.copy());
-                    continue;
-                }
+        IStorageService storageService = grid.getService(IStorageService.class);
+        if (storageService == null) return NetworkPullResult.FAILED;
+        MEStorage inv = storageService.getInventory();
+        if (inv == null) return NetworkPullResult.FAILED;
 
-                long available = sim != null ? sim.getStackSize() : 0;
-                if (available > 0) {
-                    ItemStack partial = deficit.copy();
-                    partial.setCount((int) available);
-                    directExtract.add(partial);
-                }
-                int needCount = deficit.getCount() - (int) available;
-                if (needCount > 0) {
-                    ItemStack need = deficit.copy();
-                    need.setCount(needCount);
+        PlayerSource source = new PlayerSource(player, transmitter);
+        ICraftingService craftingGrid = grid.getService(ICraftingService.class);
 
-                    if (craftingGrid != null && craftingGrid.canEmitFor(AEItemKey.fromItemStack(need))) {
-                        craftable.add(need);
-                    } else {
-                        stillMissing.add(need);
-                    }
-                }
+        List<ItemStack> stillMissing = new ArrayList<>();
+        List<ItemStack> craftable = new ArrayList<>();
+        List<ItemStack> directExtract = new ArrayList<>();
+
+        for (ItemStack deficit : missing) {
+            AEItemKey want = AEItemKey.of(deficit);
+            if (want == null) {
+                stillMissing.add(deficit);
+                continue;
             }
 
-            if (!stillMissing.isEmpty()) {
-                return NetworkPullResult.FAILED;
+            long available = inv.extract(want, deficit.getCount(), Actionable.SIMULATE, source);
+            if (available >= deficit.getCount()) {
+                directExtract.add(deficit.copy());
+                continue;
             }
 
-            boolean craftingRequested = false;
-            if (!craftable.isEmpty() && craftingGrid != null) {
-                craftingRequested = requestCrafting(player, world, grid, source, craftingGrid, craftable, transmitter);
+            if (available > 0) {
+                ItemStack partial = deficit.copy();
+                partial.setCount((int) available);
+                directExtract.add(partial);
             }
+            int needCount = deficit.getCount() - (int) available;
+            if (needCount > 0) {
+                ItemStack need = deficit.copy();
+                need.setCount(needCount);
 
-            for (ItemStack toExtract : directExtract) {
-                AEItemKey want = AEItemKey.fromItemStack(toExtract);
-                AEItemKey extracted = inv.extractItems(want, Actionable.MODULATE, source);
-                if (extracted != null && extracted.getStackSize() > 0) {
-                    ItemStack stack = extracted.createItemStack();
-                    if (!player.addItemStackToInventory(stack)) {
-                        player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
-                    }
+                if (craftingGrid != null && craftingGrid.canEmitFor(AEItemKey.of(need))) {
+                    craftable.add(need);
+                } else {
+                    stillMissing.add(need);
                 }
             }
+        }
 
-            if (craftingRequested) {
-                player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.crafting_requested"));
-                return NetworkPullResult.CRAFTING_REQUESTED;
-            }
-
-            return NetworkPullResult.PULLED;
-        } catch (GridAccessException e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] UMC bound transmitter grid not accessible at {}", pos);
+        if (!stillMissing.isEmpty()) {
             return NetworkPullResult.FAILED;
         }
+
+        boolean craftingRequested = false;
+        if (!craftable.isEmpty() && craftingGrid != null) {
+            craftingRequested = requestCrafting(player, world, grid, source, craftingGrid, craftable, transmitter);
+        }
+
+        for (ItemStack toExtract : directExtract) {
+            AEItemKey want = AEItemKey.of(toExtract);
+            if (want == null) continue;
+            long extracted = inv.extract(want, toExtract.getCount(), Actionable.MODULATE, source);
+            if (extracted > 0) {
+                ItemStack stack = want.toStack((int) extracted);
+                if (!player.addItemStackToInventory(stack)) {
+                    player.world.spawnEntity(new EntityItem(player.world, player.posX, player.posY, player.posZ, stack));
+                }
+            }
+        }
+
+        if (craftingRequested) {
+            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.crafting_requested"));
+            return NetworkPullResult.CRAFTING_REQUESTED;
+        }
+
+        return NetworkPullResult.PULLED;
     }
 
-    private static boolean requestCrafting(EntityPlayer player, World world, ae2.api.networking.IGrid grid,
-                                           PlayerSource source, ICraftingService craftingGrid,
+    private static boolean requestCrafting(EntityPlayer player, World world, IGrid grid,
+                                           IActionSource source, ICraftingService craftingGrid,
                                            List<ItemStack> toCraft, TileWirelessChannelTransmitter transmitter) {
         boolean anyRequested = false;
 
         ICraftingRequester requester = new ICraftingRequester() {
             @Override
             public IGridNode getActionableNode() {
-                return transmitter.getProxy().getNode();
+                return transmitter.getMainNode().getNode();
             }
 
             @Override
@@ -246,8 +254,8 @@ public class MemoryCardUpgradeHelper {
             }
 
             @Override
-            public AEItemKey injectCraftedItems(ICraftingLink link, AEItemKey items, Actionable mode) {
-                return items;
+            public long insertCraftedItems(ICraftingLink link, AEKey items, long amount, Actionable mode) {
+                return amount;
             }
 
             @Override
@@ -255,24 +263,29 @@ public class MemoryCardUpgradeHelper {
             }
         };
 
+        ICraftingSimulationRequester simulationRequester = new ICraftingSimulationRequester() {
+            @Override
+            public IActionSource getActionSource() {
+                return source;
+            }
+
+            @Override
+            public IGridNode getGridNode() {
+                return transmitter.getMainNode().getNode();
+            }
+        };
+
         for (ItemStack stack : toCraft) {
             try {
-                AEItemKey want = AEItemKey.fromItemStack(stack);
-                Future<ICraftingJob> future = craftingGrid.beginCraftingJob(world, grid, source, want, new ICraftingCallback() {
-                    @Override
-                    public void calculationComplete(ICraftingJob job) {
-                        try {
-                            craftingGrid.submitJob(job, requester, null, false, source);
-                        } catch (Exception e) {
-                            AE2Enhanced.LOGGER.debug("[AE2E] Failed to submit crafting job", e);
-                        }
-                    }
-                });
+                AEItemKey want = AEItemKey.of(stack);
+                if (want == null) continue;
+                Future<ICraftingPlan> future = craftingGrid.beginCraftingCalculation(
+                        world, simulationRequester, want, stack.getCount(), CalculationStrategy.CRAFT_LESS);
 
-                ICraftingJob job = future.get(200, TimeUnit.MILLISECONDS);
-                if (job != null) {
-                    ICraftingLink link = craftingGrid.submitJob(job, requester, null, false, source);
-                    if (link != null) {
+                ICraftingPlan plan = future.get(200, TimeUnit.MILLISECONDS);
+                if (plan != null) {
+                    ICraftingSubmitResult result = craftingGrid.submitJob(plan, requester, null, false, source);
+                    if (result != null && result.successful()) {
                         anyRequested = true;
                     }
                 }

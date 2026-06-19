@@ -1,9 +1,9 @@
 package com.github.aeddddd.ae2enhanced.util.inv;
 
+import ae2.api.inventories.InternalInventory;
 import ae2.util.inv.filter.IAEItemFilter;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
 
 /**
  * 包装任意 {@link IAEItemFilter}，使其额外允许 {@link ItemChannelReceiverCard} 插入。
@@ -17,14 +17,14 @@ public class ChannelReceiverCardFilterWrapper implements IAEItemFilter {
     }
 
     @Override
-    public boolean allowExtract(IItemHandler inv, int slot, int amount) {
+    public boolean allowExtract(InternalInventory inv, int slot, int amount) {
         return original == null || original.allowExtract(inv, slot, amount);
     }
 
     @Override
-    public boolean allowInsert(IItemHandler inv, int slot, ItemStack stack) {
+    public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
         if (stack != null && !stack.isEmpty() && stack.getItem() instanceof ItemChannelReceiverCard) {
-            for (int i = 0; i < inv.getSlots(); i++) {
+            for (int i = 0; i < inv.size(); i++) {
                 if (i == slot) continue;
                 ItemStack existing = inv.getStackInSlot(i);
                 if (!existing.isEmpty() && existing.getItem() instanceof ItemChannelReceiverCard) {

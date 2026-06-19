@@ -1,9 +1,11 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.core;
+
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 
 import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
-import ae2.api.util.AEPartLocation;
+import ae2.parts.AEBasePart;
+import ae2.tile.AEBaseTile;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -39,8 +41,8 @@ public class UMCCopyService {
         }
 
         String handlerId;
-        if (target instanceof ae2.parts.AEBasePart) handlerId = "ae2_part";
-        else if (target instanceof ae2.tile.AEBaseTile) handlerId = "ae2_tile";
+        if (target instanceof AEBasePart) handlerId = "ae2_part";
+        else if (target instanceof AEBaseTile) handlerId = "ae2_tile";
         else handlerId = "ae2e_custom";
 
         ItemUniversalMemoryCard.setConfig(stack, handlerId, handler.getDisplayName(target), data);
@@ -51,7 +53,7 @@ public class UMCCopyService {
         net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
         if (te instanceof IPartHost) {
             IPartHost host = (IPartHost) te;
-            IPart part = host.getPart(AEPartLocation.fromFacing(face));
+            IPart part = host.getPart(face);
             if (part != null) return part;
         }
         if (te != null) return te;

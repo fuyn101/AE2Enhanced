@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.core;
-import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
+
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
+import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 
 import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
-import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -107,7 +107,7 @@ public class UMCPasteService {
         net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
         if (te instanceof IPartHost) {
             IPartHost host = (IPartHost) te;
-            IPart part = host.getPart(AEPartLocation.fromFacing(face));
+            IPart part = host.getPart(face);
             if (part != null) return part;
         }
         if (te != null) return te;
@@ -120,7 +120,7 @@ public class UMCPasteService {
         net.minecraft.tileentity.TileEntity te = world.getTileEntity(entry.pos);
         if (te == null) return null;
         if (entry.side >= 0 && te instanceof IPartHost) {
-            IPart part = ((IPartHost) te).getPart(AEPartLocation.fromOrdinal(entry.side));
+            IPart part = ((IPartHost) te).getPart(EnumFacing.values()[entry.side]);
             if (part != null) return part;
         }
         return te;
