@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.util.Platform;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;

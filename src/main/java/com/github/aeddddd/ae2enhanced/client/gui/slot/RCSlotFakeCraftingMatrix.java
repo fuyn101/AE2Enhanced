@@ -1,27 +1,28 @@
 package com.github.aeddddd.ae2enhanced.client.gui.slot;
 
-import ae2.container.slot.SlotFakeCraftingMatrix;
-import net.minecraftforge.items.IItemHandler;
+import ae2.container.AEBaseContainer;
+import ae2.api.inventories.InternalInventory;
+import ae2.container.slot.CraftingMatrixSlot;
 
 /**
  * 支持 visible 切换的假合成矩阵槽位(81槽位编码终端用)
  */
-public class RCSlotFakeCraftingMatrix extends SlotFakeCraftingMatrix {
+public class RCSlotFakeCraftingMatrix extends CraftingMatrixSlot {
 
     public boolean visible = true;
     private int baseX;
     private final int colOffset;
     private final int defY;
 
-    public RCSlotFakeCraftingMatrix(IItemHandler inv, int idx, int x, int y, int baseX) {
-        super(inv, idx, x, y);
+    public RCSlotFakeCraftingMatrix(AEBaseContainer container, InternalInventory inv, int idx, int x, int y, int baseX) {
+        super(container, inv, idx, x, y);
         this.baseX = x;
         this.colOffset = x - baseX;
         this.defY = y;
     }
 
     @Override
-    public boolean shouldDisplay() {
+    public boolean isSlotEnabled() {
         return this.visible;
     }
 

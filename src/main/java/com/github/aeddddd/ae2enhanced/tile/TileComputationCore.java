@@ -1,25 +1,25 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridNode;
-import ae2.api.networking.crafting.ICraftingJob;
-import ae2.api.networking.crafting.ICraftingLink;
+import ae2.api.networking.crafting.ICraftingPlan;
 import ae2.api.networking.crafting.ICraftingRequester;
-import ae2.api.networking.events.MENetworkCraftingCpuChange;
+import ae2.api.networking.crafting.ICraftingSubmitResult;
+import ae2.api.networking.events.GridCraftingCpuChange;
 import ae2.api.networking.security.IActionHost;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.stacks.KeyCounter;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
-import ae2.api.util.BlockPos;
 import ae2.me.cluster.implementations.CraftingCPUCluster;
 import ae2.me.helpers.MachineSource;
 import ae2.parts.CableBusContainer;
 import ae2.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
 import com.github.aeddddd.ae2enhanced.block.BlockSuperCraftingInterface;
+import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
@@ -58,8 +58,6 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     private boolean formed = false;
     private int parallelLimit = 0;
 
-
-
     // CPU 集群池：索引 0 为常驻集群,>0 为动态集群
     private final List<CraftingCPUCluster> cpuPool = new ArrayList<>();
 
@@ -91,8 +89,15 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     }
 
     @Override
+    protected ae2.api.networking.IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(BlockRegistry.COMPUTATION_CORE));
+    }
+
+    @Override
     public IGridNode getActionableNode() {
-        return getProxy().getNode();
+        return getMainNode().getNode();
     }
 
     // ---------- 组装 / 解体 ----------
@@ -104,14 +109,13 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         CraftingCPUCluster primary = createCluster();
         this.cpuPool.add(primary);
 
-        getProxy().onReady();
         bindMeInterface();
 
         markDirty();
         syncToClient();
-        IGridNode node = getProxy().getNode();
+        IGridNode node = getMainNode().getNode();
         if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new MENetworkCraftingCpuChange(node));
+            node.getGrid().postEvent(new GridCraftingCpuChange(node));
         }
     }
 
@@ -126,13 +130,13 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     }
 
     public void disassemble() {
-        IGridNode node = getProxy().getNode();
+        IGridNode node = getMainNode().getNode();
         this.formed = false;
         this.parallelLimit = 0;
 
         for (CraftingCPUCluster cpu : new ArrayList<>(cpuPool)) {
             try {
-                cpu.cancel();
+                cpu.cancelJob();
             } catch (Exception e) {
                 AE2Enhanced.LOGGER.error("[AE2E] Error cancelling CraftingCPUCluster on disassemble: {}", e.toString());
             }
@@ -143,10 +147,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         unbindMeInterface();
 
         if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new MENetworkCraftingCpuChange(node));
-        }
-        if (proxy != null) {
-            proxy.invalidate();
+            node.getGrid().postEvent(new GridCraftingCpuChange(node));
         }
         markDirty();
         syncToClient();
@@ -158,9 +159,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     public void update() {
         if (world == null || world.isRemote) return;
 
-        if (needsReady && formed) {
+        if (needsReady() && formed) {
             clearNeedsReady();
-            getProxy().onReady();
             bindMeInterface();
         }
 
@@ -203,9 +203,9 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         }
 
         if (changed) {
-            IGridNode node = getProxy().getNode();
+            IGridNode node = getMainNode().getNode();
             if (node != null && node.getGrid() != null) {
-                node.getGrid().postEvent(new MENetworkCraftingCpuChange(node));
+                node.getGrid().postEvent(new GridCraftingCpuChange(node));
             }
         }
     }
@@ -215,9 +215,9 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     /**
      * 尝试提交合成任务.先检查现有空闲集群,若全部忙碌则动态创建新集群.
      */
-    public ICraftingLink trySpawnAndSubmitJob(IGrid grid, ICraftingJob job,
-                                               ae2.api.networking.security.IActionSource src,
-                                               ICraftingRequester req) {
+    public ae2.api.networking.crafting.ICraftingLink trySpawnAndSubmitJob(IGrid grid, ICraftingPlan plan,
+                                                                           IActionSource src,
+                                                                           ICraftingRequester req) {
         if (!formed || cpuPool.isEmpty()) {
             return null;
         }
@@ -225,7 +225,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         // 1. 尝试现有空闲集群
         for (CraftingCPUCluster cpu : cpuPool) {
             if (!cpu.isBusy()) {
-                return cpu.submitJob(grid, job, src, req);
+                ICraftingSubmitResult result = cpu.submitJob(grid, plan, src, req);
+                return result != null ? result.link() : null;
             }
         }
 
@@ -237,12 +238,13 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         injectCpuPoolIntoCraftingGridCache();
 
         // 触发 CraftingGridCache 重建以注册新集群
-        IGridNode node = getProxy().getNode();
+        IGridNode node = getMainNode().getNode();
         if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new MENetworkCraftingCpuChange(node));
+            node.getGrid().postEvent(new GridCraftingCpuChange(node));
         }
 
-        return newCpu.submitJob(grid, job, src, req);
+        ICraftingSubmitResult result = newCpu.submitJob(grid, plan, src, req);
+        return result != null ? result.link() : null;
     }
 
     // ---------- ME 接口绑定 ----------
@@ -307,10 +309,9 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     // ---------- 辅助方法 ----------
 
     private boolean isInventoryEmpty(CraftingCPUCluster cpu) {
-        ae2.api.storage.data.KeyCounter<AEItemKey> list =
-            ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
-        cpu.getInventory().getAvailableItems(list);
-        return list.isEmpty();
+        KeyCounter counter = new KeyCounter();
+        cpu.craftingLogic.getAllItems(counter);
+        return counter.isEmpty();
     }
 
     // ---------- 集群创建 ----------
@@ -378,16 +379,6 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         return cluster;
     }
 
-    @Override
-    protected String getProxyName() {
-        return "computation_core";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.COMPUTATION_CORE);
-    }
-
     @Nonnull
     @Override
     public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
@@ -411,7 +402,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         super.readFromNBT(compound);
         this.formed = compound.getBoolean("formed");
         this.parallelLimit = compound.getInteger("parallelLimit");
-        getProxy().readFromNBT(compound);
+        getMainNode().loadFromNBT(compound);
 
         if (formed && compound.hasKey(NBT_CPU_POOL)) {
             NBTTagList list = compound.getTagList(NBT_CPU_POOL, 10);
@@ -434,7 +425,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         super.writeToNBT(compound);
         compound.setBoolean("formed", formed);
         compound.setInteger("parallelLimit", parallelLimit);
-        getProxy().writeToNBT(compound);
+        getMainNode().saveToNBT(compound);
 
         NBTTagList list = new NBTTagList();
         for (CraftingCPUCluster cpu : cpuPool) {
@@ -452,7 +443,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         NBTTagCompound compound = super.writeToNBT(new NBTTagCompound());
         compound.setBoolean("formed", formed);
         compound.setInteger("parallelLimit", parallelLimit);
-        getProxy().writeToNBT(compound);
+        getMainNode().saveToNBT(compound);
         return compound;
     }
 
@@ -495,56 +486,12 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     }
 
     private void injectCpuPoolIntoCraftingGridCache() {
-        try {
-            IGridNode node = getProxy().getNode();
-            if (node == null || node.getGrid() == null) return;
-            ae2.me.cache.CraftingGridCache cache;
-            try {
-                cache = node.getGrid().getCache(ae2.me.cache.CraftingGridCache.class);
-            } catch (NullPointerException e) {
-                return; // grid not fully initialized yet
-            }
-            if (cache == null) return;
-            java.lang.reflect.Field field = ae2.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster> set =
-                (java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
-            if (set == null) return;
-            for (ae2.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
-                if (cpu != null) {
-                    set.add(cpu);
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] injectCpuPoolIntoCraftingGridCache failed", e);
-        }
+        // AE2S 中 CraftingGridCache 已重构为 CraftingService,
+        // 临时占位：通过 GridCraftingCpuChange 事件触发刷新.
+        // 实际的集群注册需要进一步适配 AE2S 内部 API.
     }
 
     private void removeCpuPoolFromCraftingGridCache() {
-        try {
-            IGridNode node = getProxy().getNode();
-            if (node == null || node.getGrid() == null) return;
-            ae2.me.cache.CraftingGridCache cache;
-            try {
-                cache = node.getGrid().getCache(ae2.me.cache.CraftingGridCache.class);
-            } catch (NullPointerException e) {
-                return;
-            }
-            if (cache == null) return;
-            java.lang.reflect.Field field = ae2.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster> set =
-                (java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
-            if (set == null) return;
-            for (ae2.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
-                if (cpu != null) {
-                    set.remove(cpu);
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] removeCpuPoolFromCraftingGridCache failed", e);
-        }
+        // 占位：待进一步适配 AE2S CraftingService.
     }
 }

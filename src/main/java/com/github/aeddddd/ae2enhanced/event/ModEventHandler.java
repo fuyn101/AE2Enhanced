@@ -4,7 +4,7 @@ import ae2.api.AEApi;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.storage.MEStorage;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;

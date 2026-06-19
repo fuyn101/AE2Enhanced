@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.container;
 
 import ae2.container.slot.FakeSlot;
-import ae2.tile.inventory.AppEngInternalAEInventory;
+import ae2.util.inv.AppEngInternalInventory;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
 import net.minecraft.entity.player.EntityPlayer;
@@ -41,7 +41,7 @@ public class ContainerEMCInterface extends Container {
     public ContainerEMCInterface(InventoryPlayer playerInventory, TileEMCInterface tile) {
         this.tile = tile;
 
-        AppEngInternalAEInventory config = tile.getConfig();
+        AppEngInternalInventory config = tile.getConfig();
         // 创建所有过滤槽，初始只显示第 0 页
         for (int i = 0; i < TileEMCInterface.WHITELIST_SIZE; i++) {
             this.addSlotToContainer(new SlotFakeEMCOnly(config, i, -1000, -1000));
@@ -173,7 +173,7 @@ public class ContainerEMCInterface extends Container {
      * 仅接受存在 EMC 值的假物品槽.
      */
     private static class SlotFakeEMCOnly extends FakeSlot {
-        SlotFakeEMCOnly(AppEngInternalAEInventory inv, int idx, int x, int y) {
+        SlotFakeEMCOnly(AppEngInternalInventory inv, int idx, int x, int y) {
             super(inv, idx, x, y);
         }
 

@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
-import ae2.api.storage.data.AEItemKey;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;

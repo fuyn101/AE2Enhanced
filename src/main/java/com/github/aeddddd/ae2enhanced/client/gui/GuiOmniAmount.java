@@ -7,8 +7,6 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
-import org.lwjgl.input.Keyboard;
-
 import java.io.IOException;
 
 /**
@@ -75,7 +73,6 @@ public class GuiOmniAmount extends GuiScreen {
         this.amountField.setFocused(true);
         this.amountField.setText(String.valueOf(this.initialAmount));
 
-        Keyboard.enableRepeatEvents(true);
     }
 
     @Override
@@ -126,11 +123,11 @@ public class GuiOmniAmount extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (keyCode == Keyboard.KEY_ESCAPE) {
+        if (keyCode == 1) { // ESC
             this.mc.displayGuiScreen(this.parent);
             return;
         }
-        if (keyCode == Keyboard.KEY_RETURN) {
+        if (keyCode == 28) { // RETURN
             this.confirm();
             return;
         }
@@ -142,7 +139,6 @@ public class GuiOmniAmount extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
-        Keyboard.enableRepeatEvents(false);
     }
 
     @Override

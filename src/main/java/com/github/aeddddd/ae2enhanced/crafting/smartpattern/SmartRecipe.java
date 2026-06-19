@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import ae2.api.storage.data.AEItemKey;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 

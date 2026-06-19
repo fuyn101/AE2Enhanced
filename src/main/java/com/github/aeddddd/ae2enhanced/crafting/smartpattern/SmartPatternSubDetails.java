@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
 import ae2.api.networking.crafting.ICraftingPatternDetails;
-import ae2.api.storage.data.AEItemKey;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;

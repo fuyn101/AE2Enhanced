@@ -3,7 +3,7 @@ package com.github.aeddddd.ae2enhanced.util;
 import ae2.api.config.Actionable;
 import ae2.api.networking.energy.IEnergyService;
 import ae2.api.storage.MEStorage;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.networking.security.IActionSource;
 import ae2.util.InventoryAdaptor;
 import ae2.util.Platform;

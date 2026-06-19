@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
+import ae2.api.stacks.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
-import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
@@ -22,7 +22,7 @@ import java.util.List;
  * <p>R3 架构核心包。客户端不再维护完整列表，而是按需请求当前可见页的数据。
  * 服务端执行排序/搜索/过滤后，只返回请求范围内的物品。
  *
- * <p>新增：当 HEI/JEI 可用时，客户端会把 HEI 的搜索结果以 {@link ItemDescriptor} 列表形式发给服务端，
+ * <p>新增：当 HEI/JEI 可用时，客户端会把 HEI 的搜索结果以 {@link AEItemKey} 列表形式发给服务端，
  * 从而支持 JECH/HECH 拼音搜索、tooltip 搜索等 HEI 原生语义。
  */
 public class PacketOmniPageRequest implements IMessage {
@@ -34,7 +34,7 @@ public class PacketOmniPageRequest implements IMessage {
     private byte viewMode;        // 0=STORED, 1=ALL, 2=CRAFTABLE
     private int offset;           // 起始位置（0-based）
     private int limit;            // 请求数量（通常 45 或 135）
-    private List<ItemDescriptor> clientFilter = null; // 可选：HEI 搜索结果描述符
+    private List<AEItemKey> clientFilter = null; // 可选：HEI 搜索结果键
 
     public PacketOmniPageRequest() {
     }
@@ -46,7 +46,7 @@ public class PacketOmniPageRequest implements IMessage {
 
     public PacketOmniPageRequest(String searchString, byte searchMode, byte sortBy,
                                   byte sortDir, byte viewMode, int offset, int limit,
-                                  List<ItemDescriptor> clientFilter) {
+                                  List<AEItemKey> clientFilter) {
         this.searchString = searchString != null ? searchString : "";
         this.searchMode = searchMode;
         this.sortBy = sortBy;
@@ -71,9 +71,9 @@ public class PacketOmniPageRequest implements IMessage {
             this.clientFilter = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 NBTTagCompound tag = ByteBufUtils.readTag(buf);
-                ItemDescriptor desc = tag != null ? ItemDescriptor.fromNBT(tag) : null;
-                if (desc != null) {
-                    this.clientFilter.add(desc);
+                AEItemKey key = tag != null ? AEItemKey.fromTag(tag) : null;
+                if (key != null) {
+                    this.clientFilter.add(key);
                 }
             }
         }
@@ -92,8 +92,8 @@ public class PacketOmniPageRequest implements IMessage {
         buf.writeBoolean(hasFilter);
         if (hasFilter) {
             buf.writeInt(this.clientFilter.size());
-            for (ItemDescriptor desc : this.clientFilter) {
-                ByteBufUtils.writeTag(buf, desc.toNBT());
+            for (AEItemKey key : this.clientFilter) {
+                ByteBufUtils.writeTag(buf, key.toTag());
             }
         }
     }
@@ -105,7 +105,7 @@ public class PacketOmniPageRequest implements IMessage {
     public byte getViewMode() { return viewMode; }
     public int getOffset() { return offset; }
     public int getLimit() { return limit; }
-    public List<ItemDescriptor> getClientFilter() { return clientFilter; }
+    public List<AEItemKey> getClientFilter() { return clientFilter; }
 
     public static class Handler implements IMessageHandler<PacketOmniPageRequest, IMessage> {
         @Override

@@ -10,8 +10,8 @@ import ae2.api.storage.MEStorage;
 import ae2.api.storage.IMEMonitorHandlerReceiver;
 import ae2.api.storage.AEKeyType;
 import ae2.me.storage.ITickingMonitor;
-import ae2.api.storage.data.AEItemKey;
-import ae2.api.storage.data.KeyCounter;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.KeyCounter;
 
 import java.util.ArrayList;
 import java.util.Collections;

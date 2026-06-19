@@ -8,7 +8,7 @@ import ae2.api.storage.channels.IItemStorageChannel;
 import ae2.api.implementations.ICraftingPatternItem;
 import ae2.api.networking.crafting.ICraftingPatternDetails;
 import ae2.api.networking.storage.IStorageService;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.container.guisync.GuiSync;
 import ae2.container.implementations.ContainerMEStorage;
 import ae2.container.interfaces.IInventorySlotAware;

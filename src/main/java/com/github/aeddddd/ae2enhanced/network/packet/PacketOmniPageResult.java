@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import ae2.api.storage.data.AEItemKey;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import io.netty.buffer.ByteBuf;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

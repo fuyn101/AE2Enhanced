@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import ae2.api.storage.data.AEItemKey;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm;
 import io.netty.buffer.ByteBuf;

@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.platform.key;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;

@@ -1,11 +1,11 @@
 package com.github.aeddddd.ae2enhanced.client.gui.jei;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.container.slot.SlotFake;
 import ae2.core.sync.network.NetworkHandler;
 import ae2.core.sync.packets.PacketInventoryAction;
 import ae2.helpers.InventoryAction;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import mezz.jei.api.gui.IGhostIngredientHandler;

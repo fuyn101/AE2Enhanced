@@ -8,7 +8,7 @@ import ae2.api.config.SortOrder;
 import ae2.api.config.TerminalStyle;
 import ae2.api.config.ViewItems;
 import ae2.api.storage.ITerminalHost;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.IConfigManager;
 import ae2.client.gui.implementations.GuiMEStorage;
 import ae2.client.gui.widgets.GuiImgButton;

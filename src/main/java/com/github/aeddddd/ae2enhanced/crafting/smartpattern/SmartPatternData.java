@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
@@ -217,31 +217,19 @@ public class SmartPatternData {
      * 在所有配方的输入输出中替换物品类型(保持数量不变).
      * 如果 to 为 null,则清除所有匹配的输入输出.
      */
-    public void replaceInAllRecipes(@Nonnull ae2.api.storage.data.AEItemKey from,
-                                    @Nullable ae2.api.storage.data.AEItemKey to) {
+    public void replaceInAllRecipes(@Nonnull AEItemKey from,
+                                    @Nullable AEItemKey to) {
         for (SmartRecipe recipe : recipes) {
-            ae2.api.storage.data.AEItemKey[] inputs = recipe.getInputs();
+            AEItemKey[] inputs = recipe.getInputs();
             for (int i = 0; i < inputs.length; i++) {
                 if (inputs[i] != null && inputs[i].equals(from)) {
-                    if (to != null) {
-                        ae2.api.storage.data.AEItemKey copy = to.copy();
-                        copy.setStackSize(inputs[i].getStackSize());
-                        recipe.setInput(i, copy);
-                    } else {
-                        recipe.setInput(i, null);
-                    }
+                    recipe.setInput(i, to);
                 }
             }
-            ae2.api.storage.data.AEItemKey[] outputs = recipe.getOutputs();
+            AEItemKey[] outputs = recipe.getOutputs();
             for (int i = 0; i < outputs.length; i++) {
                 if (outputs[i] != null && outputs[i].equals(from)) {
-                    if (to != null) {
-                        ae2.api.storage.data.AEItemKey copy = to.copy();
-                        copy.setStackSize(outputs[i].getStackSize());
-                        recipe.setOutput(i, copy);
-                    } else {
-                        recipe.setOutput(i, null);
-                    }
+                    recipe.setOutput(i, to);
                 }
             }
         }

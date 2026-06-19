@@ -19,8 +19,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
+import com.github.aeddddd.ae2enhanced.client.LwjglCompat;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -355,7 +354,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
         if (flashTicks > 0) flashTicks--;
         if (flashTicks <= 0) flashSlot = -1;
 
-        int wheel = Mouse.getDWheel();
+        int wheel = LwjglCompat.getMouseDWheel();
         if (wheel != 0) {
             int relX = mouseX - this.guiLeft;
             int relY = mouseY - this.guiTop;
@@ -606,7 +605,7 @@ public class GuiSmartPatternInterface extends GuiContainer {
             int clickedSlot = getRecipeSlotAt(relX, relY);
             if (clickedSlot >= 0) {
                 int sortedIndex = tile.getScrollOffset() * 45 + clickedSlot;
-                boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+                boolean shift = LwjglCompat.isKeyDown(LwjglCompat.KEY_LSHIFT) || LwjglCompat.isKeyDown(LwjglCompat.KEY_RSHIFT);
                 if (shift) {
                     if (tile.isRecipeLocked(sortedIndex)) {
                         tile.unlockRecipe();

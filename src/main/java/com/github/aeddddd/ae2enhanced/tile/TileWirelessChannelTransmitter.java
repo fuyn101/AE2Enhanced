@@ -1,13 +1,12 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGridNode;
-import ae2.api.networking.events.MENetworkChannelsChanged;
-import ae2.api.networking.events.MENetworkEventSubscribe;
-import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
-import ae2.me.GridAccessException;
-import ae2.me.helpers.AENetworkProxy;
+import ae2.api.networking.GridHelper;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -30,7 +29,7 @@ import java.util.EnumSet;
 /**
  * F1a：无线频道发生器的 TileEntity.
  *
- * <p>具有 AE 网络代理、2 槽物品栏(输入/输出频道卡)、
+ * <p>具有 AE 网络节点、2 槽物品栏(输入/输出频道卡)、
  * 周期性绑定处理与客户端状态同步.</p>
  */
 public class TileWirelessChannelTransmitter extends TileAENetworkBase implements ITickable {
@@ -64,29 +63,33 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     public TileWirelessChannelTransmitter() {
     }
 
+    @Override
+    protected IManagedGridNode createMainNode() {
+        return GridHelper.createManagedNode(this, listener())
+                .setFlags(GridFlags.DENSE_CAPACITY, GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower)
+                .setExposedOnSides(getExposedSides())
+                .setVisualRepresentation(AEItemKey.of(new ItemStack(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER)));
+    }
+
+    private java.util.Set<EnumFacing> getExposedSides() {
+        return EnumSet.of(this.forward.getOpposite());
+    }
+
+    private void updateExposedSides() {
+        getMainNode().setExposedOnSides(getExposedSides());
+    }
+
     // ---------- 朝向与代理 ----------
 
     public void setForward(EnumFacing facing) {
         this.forward = facing != null ? facing : EnumFacing.NORTH;
-        AENetworkProxy proxy = getProxy();
-        if (proxy != null) {
-            proxy.setValidSides(EnumSet.of(this.forward.getOpposite()));
-        }
+        updateExposedSides();
         markDirty();
     }
 
     public EnumFacing getForward() {
         return this.forward;
-    }
-
-    @Override
-    protected String getProxyName() {
-        return "wireless_channel_transmitter";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
     }
 
     @Override
@@ -116,11 +119,11 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
         // INTERNAL 用于远程查询(如频道接收卡查找发射器节点)
         if (dir == AEPartLocation.INTERNAL) {
-            return getProxy().getNode();
+            return getMainNode().getNode();
         }
         // 仅背面暴露节点(用于线缆连接)
         if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
-            return getProxy().getNode();
+            return getMainNode().getNode();
         }
         return null;
     }
@@ -128,23 +131,8 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     // ---------- 初始化 ----------
 
     @Override
-    public void validate() {
-        super.validate();
-    }
-
-    @Override
     public void update() {
         if (world == null || world.isRemote) return;
-
-        if (needsReady()) {
-            clearNeedsReady();
-            getProxy().setFlags(
-                ae2.api.networking.GridFlags.DENSE_CAPACITY,
-                ae2.api.networking.GridFlags.REQUIRE_CHANNEL
-            );
-            getProxy().setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower);
-            getProxy().onReady();
-        }
 
         processBinding();
         syncClientState();
@@ -165,46 +153,20 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
         }
     }
 
-    // ---------- AE 网络事件 ----------
-
-    @MENetworkEventSubscribe
-    public void chanRender(MENetworkChannelsChanged c) {
-        if (world != null && !world.isRemote) {
-            IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
-    @MENetworkEventSubscribe
-    public void powerRender(MENetworkPowerStatusChange c) {
-        if (world != null && !world.isRemote) {
-            IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
     // ---------- 状态访问 ----------
 
     public boolean isPowered() {
         if (world != null && world.isRemote) {
             return (this.clientFlags & 1) == 1;
         }
-        try {
-            return getProxy().getEnergy().isNetworkPowered();
-        } catch (GridAccessException e) {
-            return false;
-        }
+        return getMainNode().isPowered();
     }
 
     public boolean isActive() {
         if (world != null && world.isRemote) {
             return isPowered() && (this.clientFlags & 2) == 2;
         }
-        try {
-            return getProxy().isActive();
-        } catch (Exception e) {
-            return false;
-        }
+        return getMainNode().isActive();
     }
 
     // ---------- 物品栏 ----------
@@ -254,6 +216,7 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
         this.forward = EnumFacing.byIndex(compound.getInteger("forward"));
         this.inventory.deserializeNBT(compound.getCompoundTag("inv"));
         this.clientFlags = compound.getInteger("clientFlags");
+        updateExposedSides();
     }
 
     @Override

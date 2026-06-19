@@ -4,7 +4,7 @@ import ae2.api.AEApi;
 import ae2.api.config.Actionable;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.core.AEConfig;
 import ae2.core.features.AEFeature;
 import ae2.hooks.TickHandler;
@@ -41,7 +41,7 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.common.config.Config;
-import ae2.util.item.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 
 import javax.annotation.Nonnull;
 import java.io.File;

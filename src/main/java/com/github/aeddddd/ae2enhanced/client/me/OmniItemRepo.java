@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.client.gui.widgets.IScrollSource;
 import ae2.client.gui.widgets.ISortSource;
 import ae2.client.me.Repo;

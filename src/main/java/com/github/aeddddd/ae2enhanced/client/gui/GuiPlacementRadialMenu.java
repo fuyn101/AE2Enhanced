@@ -11,7 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RayTraceResult;
-import org.lwjgl.input.Keyboard;
+import com.github.aeddddd.ae2enhanced.client.LwjglCompat;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -158,7 +158,7 @@ public class GuiPlacementRadialMenu extends GuiScreen {
     @Override
     public void updateScreen() {
         super.updateScreen();
-        if (!Keyboard.isKeyDown(keyCode)) {
+        if (!LwjglCompat.isKeyDown(keyCode)) {
             confirmSelection();
             mc.player.closeScreen();
         }

@@ -2,7 +2,7 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 
 import ae2.api.AEApi;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.util.InventoryAdaptor;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;

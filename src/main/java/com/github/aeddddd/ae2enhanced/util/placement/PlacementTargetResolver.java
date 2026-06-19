@@ -5,7 +5,7 @@ import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
 import ae2.api.parts.PartItemStack;
 import ae2.api.storage.MEStorage;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AEColor;
 import ae2.api.util.AEPartLocation;
 import ae2.items.parts.ItemPart;

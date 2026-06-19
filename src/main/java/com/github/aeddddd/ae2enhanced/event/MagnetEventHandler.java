@@ -4,7 +4,7 @@ import ae2.api.AEApi;
 import ae2.api.networking.IGridNode;
 import ae2.api.networking.storage.IStorageService;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.helpers.WirelessTerminalGuiHost;
 import ae2.util.InventoryAdaptor;
 import ae2.util.Platform;

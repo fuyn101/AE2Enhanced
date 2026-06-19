@@ -3,8 +3,8 @@ package com.github.aeddddd.ae2enhanced.integration.drawer;
 import ae2.api.config.AccessRestriction;
 import ae2.api.config.Actionable;
 import ae2.api.networking.security.IActionSource;
-import ae2.api.storage.data.AEItemKey;
-import ae2.api.storage.data.KeyCounter;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.KeyCounter;
 
 /**
  * 抽屉模组 Hash 索引适配器统一接口.

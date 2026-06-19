@@ -7,7 +7,7 @@ import ae2.api.parts.IPartHost;
 import ae2.api.parts.IPartItem;
 import ae2.api.storage.MEStorage;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AEColor;
 import ae2.api.util.AEPartLocation;
 import ae2.facade.FacadePart;

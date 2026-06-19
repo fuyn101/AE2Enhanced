@@ -4,7 +4,7 @@ import ae2.api.AEApi;
 import ae2.api.config.Actionable;
 import ae2.api.networking.IGrid;
 import ae2.api.storage.MEStorage;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AEColor;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

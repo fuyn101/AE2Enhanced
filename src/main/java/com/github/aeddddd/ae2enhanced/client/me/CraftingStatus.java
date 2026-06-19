@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 
 /**
  * 表示一个正在 Crafting CPU 中合成的物品及其进度.

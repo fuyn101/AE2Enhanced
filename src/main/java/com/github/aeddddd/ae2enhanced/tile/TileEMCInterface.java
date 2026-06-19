@@ -1,29 +1,28 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridNode;
-import ae2.api.storage.ICellContainer;
-import ae2.api.storage.ICellInventory;
-import ae2.api.storage.IMEInventoryHandler;
-import ae2.api.storage.AEKeyType;
-import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.storage.IStorageProvider;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
-import ae2.me.GridAccessException;
-import ae2.tile.inventory.AppEngInternalAEInventory;
-import ae2.util.inv.IAEAppEngInventory;
-import ae2.util.inv.InvOperation;
+import ae2.api.util.DimensionalBlockPos;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEEventHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.integration.projecte.EMCInventoryHandler;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
-import com.github.aeddddd.ae2enhanced.storage.EMCInventoryHandler;
+import ae2.util.inv.AppEngInternalInventory;
+import ae2.util.inv.InternalInventoryHost;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.common.util.Constants;
@@ -32,17 +31,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 
 /**
  * EMC 接口 TileEntity.
  *
  * <p>将绑定玩家的 ProjectE EMC 余额作为 AE 网络物品源.单向输出,不接收物品.</p>
  */
-public class TileEMCInterface extends TileAENetworkBase implements ICellContainer, ITickable, IAEAppEngInventory {
+public class TileEMCInterface extends TileAENetworkBase implements ITickable, InternalInventoryHost, IActionHost {
 
     public static final int WHITELIST_PAGES = 20;
     public static final int WHITELIST_SLOTS_PER_PAGE = 102; // 17×6，与 3.png 顶部网格一致
@@ -50,9 +47,9 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     private static final int WARNING_INTERVAL = 1200; // 60 秒警告冷却
 
     private final EMCInventoryHandler handler = new EMCInventoryHandler(this);
-    private final AppEngInternalAEInventory config;
+    private final AppEngInternalInventory config;
     private final ItemStack[] whitelist = new ItemStack[WHITELIST_SIZE];
-    private final Set<ItemDescriptor> whitelistSet = new HashSet<>();
+    private final Set<AEItemKey> whitelistSet = new HashSet<>();
 
     @Nullable
     private UUID ownerUUID;
@@ -71,26 +68,35 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     private long lastWarningTick = -WARNING_INTERVAL;
 
     public TileEMCInterface() {
-        this.config = new AppEngInternalAEInventory(this, WHITELIST_SIZE);
+        this.config = new AppEngInternalInventory(this, WHITELIST_SIZE);
         for (int i = 0; i < WHITELIST_SIZE; i++) {
             whitelist[i] = ItemStack.EMPTY;
         }
     }
 
     @Override
-    protected String getProxyName() {
-        return "emc_interface";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.EMC_INTERFACE);
+    protected IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(AE2EnhancedConfig.emcInterface.idlePower)
+                .setVisualRepresentation(AEItemKey.of(BlockRegistry.EMC_INTERFACE))
+                .addService(IStorageProvider.class, handler);
     }
 
     @Nonnull
     @Override
     public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
         return AECableType.SMART;
+    }
+
+    @Override
+    public DimensionalBlockPos getLocation() {
+        return new DimensionalBlockPos(this);
+    }
+
+    @Override
+    public IGridNode getActionableNode() {
+        return getMainNode().getNode();
     }
 
     @Override
@@ -127,7 +133,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         }
         handler.invalidateAvailableCache();
         markDirty();
-        notifyCellArrayUpdate();
+        notifyStorageUpdate();
     }
 
     @Nullable
@@ -138,8 +144,12 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
 
     // ---- 白名单 ----
 
-    public AppEngInternalAEInventory getConfig() {
+    public AppEngInternalInventory getConfig() {
         return config;
+    }
+
+    public Set<AEItemKey> getWhitelistKeys() {
+        return Collections.unmodifiableSet(new HashSet<>(whitelistSet));
     }
 
     public ItemStack getWhitelistSlot(int index) {
@@ -149,11 +159,11 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     public void setWhitelistSlot(int index, @Nonnull ItemStack stack) {
         whitelist[index] = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
         whitelist[index].setCount(1);
-        config.setStackInSlot(index, whitelist[index]);
+        config.setItemDirect(index, whitelist[index]);
         rebuildWhitelistSet();
         handler.invalidateAvailableCache();
         markDirty();
-        notifyCellArrayUpdate();
+        notifyStorageUpdate();
     }
 
     public ItemStack[] getWhitelist() {
@@ -162,7 +172,8 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
 
     public boolean isWhitelisted(@Nonnull ItemStack stack) {
         if (whitelistSet.isEmpty()) return false; // 空白名单 = 不暴露任何物品
-        return whitelistSet.contains(new ItemDescriptor(stack));
+        AEItemKey key = AEItemKey.of(stack);
+        return key != null && whitelistSet.contains(key);
     }
 
     public boolean isWhitelistActive() {
@@ -173,39 +184,10 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         whitelistSet.clear();
         for (ItemStack stack : whitelist) {
             if (!stack.isEmpty()) {
-                whitelistSet.add(new ItemDescriptor(stack));
+                AEItemKey key = AEItemKey.of(stack);
+                if (key != null) whitelistSet.add(key);
             }
         }
-    }
-
-    // ---- ICellContainer ----
-
-    @Override
-    public IGridNode getActionableNode() {
-        return getProxy().getNode();
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<IMEInventoryHandler> getCellArray(AEKeyType<?> channel) {
-        if (!isBound()) return Collections.emptyList();
-        if (channel instanceof IItemStorageChannel) {
-            return Collections.singletonList((IMEInventoryHandler) handler);
-        }
-        return Collections.emptyList();
-    }
-
-    @Override
-    public int getPriority() {
-        return 0;
-    }
-
-    @Override
-    public void blinkCell(int slot) {
-    }
-
-    @Override
-    public void saveChanges(ICellInventory<?> inv) {
     }
 
     // ---- 生命周期 ----
@@ -233,12 +215,6 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     @Override
     public void update() {
         if (world == null || world.isRemote) return;
-
-        if (needsReady()) {
-            clearNeedsReady();
-            getProxy().setIdlePowerUsage(AE2EnhancedConfig.emcInterface.idlePower);
-            getProxy().onReady();
-        }
 
         tickCounter++;
         if (tickCounter % 40 == 0) {
@@ -269,7 +245,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         }
         rebuildWhitelistSet();
         for (int i = 0; i < WHITELIST_SIZE; i++) {
-            config.setStackInSlot(i, whitelist[i]);
+            config.setItemDirect(i, whitelist[i]);
         }
         handler.invalidateAvailableCache();
     }
@@ -323,15 +299,8 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
 
     // ---- 内部辅助 ----
 
-    private void notifyCellArrayUpdate() {
-        try {
-            IGrid grid = getProxy().getGrid();
-            if (grid != null) {
-                grid.postEvent(new ae2.api.networking.events.MENetworkCellArrayUpdate());
-            }
-        } catch (GridAccessException e) {
-            // grid 尚未就绪
-        }
+    private void notifyStorageUpdate() {
+        IStorageProvider.requestUpdate(getMainNode());
     }
 
     private void registerProjectEEvents() {
@@ -360,29 +329,25 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         if (!isBound()) return;
         long now = world.getTotalWorldTime();
         if (now - lastWarningTick < WARNING_INTERVAL) return;
-        try {
-            IGrid grid = getProxy().getGrid();
-            if (grid == null) return;
-            Set<TileEMCInterface> duplicates = new HashSet<>();
-            for (IGridNode node : grid.getNodes()) {
-                Object host = node.getMachine();
-                if (host instanceof TileEMCInterface && host != this) {
-                    TileEMCInterface other = (TileEMCInterface) host;
-                    if (other.isBound() && ownerUUID.equals(other.ownerUUID)) {
-                        duplicates.add(other);
-                    }
+        IGrid grid = getMainNode().getGrid();
+        if (grid == null) return;
+        Set<TileEMCInterface> duplicates = new HashSet<>();
+        for (IGridNode node : grid.getNodes()) {
+            Object host = node.getOwner();
+            if (host instanceof TileEMCInterface && host != this) {
+                TileEMCInterface other = (TileEMCInterface) host;
+                if (other.isBound() && ownerUUID.equals(other.ownerUUID)) {
+                    duplicates.add(other);
                 }
             }
-            if (!duplicates.isEmpty()) {
-                lastWarningTick = now;
-                for (EntityPlayer player : world.playerEntities) {
-                    if (player.getUniqueID().equals(ownerUUID)) {
-                        player.sendMessage(new TextComponentTranslation("chat.ae2enhanced.emc_interface.duplicate", ownerName));
-                    }
+        }
+        if (!duplicates.isEmpty()) {
+            lastWarningTick = now;
+            for (EntityPlayer player : world.playerEntities) {
+                if (player.getUniqueID().equals(ownerUUID)) {
+                    player.sendMessage(new TextComponentTranslation("chat.ae2enhanced.emc_interface.duplicate", ownerName));
                 }
             }
-        } catch (GridAccessException e) {
-            // ignore
         }
     }
 
@@ -395,23 +360,29 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         markDirty();
     }
 
-    // ---- IAEAppEngInventory ----
+    // ---- InternalInventoryHost ----
 
     @Override
-    public void saveChanges() {
+    public void saveChangedInventory(AppEngInternalInventory inv) {
         markDirty();
     }
 
     @Override
-    public void onChangeInventory(net.minecraftforge.items.IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         if (inv == config && slot >= 0 && slot < WHITELIST_SIZE) {
+            ItemStack added = config.getStackInSlot(slot);
             whitelist[slot] = added.isEmpty() ? ItemStack.EMPTY : added.copy();
             whitelist[slot].setCount(1);
+            config.setItemDirect(slot, whitelist[slot]);
             rebuildWhitelistSet();
             handler.invalidateAvailableCache();
             markDirty();
-            notifyCellArrayUpdate();
+            notifyStorageUpdate();
         }
     }
 
+    @Override
+    public boolean isClientSide() {
+        return world != null && world.isRemote;
+    }
 }

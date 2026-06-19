@@ -6,7 +6,7 @@ import ae2.api.networking.IGridNode;
 import ae2.api.networking.storage.IStorageService;
 import ae2.api.storage.MEStorage;
 import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
