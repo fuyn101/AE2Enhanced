@@ -4,13 +4,10 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
-import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
-import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -85,10 +82,6 @@ public class StructurePlacementPreview {
                 if (!(state.getBlock() instanceof BlockAssemblyController)) continue;
                 EnumFacing facing = state.getValue(BlockAssemblyController.FACING);
                 collectAssemblyGhosts(world, pos, facing, ghosts, dispatcher);
-            } else if (te instanceof TileHyperdimensionalController) {
-                if (!(state.getBlock() instanceof BlockHyperdimensionalController)) continue;
-                EnumFacing facing = state.getValue(BlockHyperdimensionalController.FACING);
-                collectHyperdimensionalGhosts(world, pos, facing, ghosts, dispatcher);
             } else if (te instanceof TileComputationCore) {
                 if (!(state.getBlock() instanceof BlockComputationCore)) continue;
                 EnumFacing facing = state.getValue(BlockComputationCore.FACING).getOpposite();
@@ -161,7 +154,6 @@ public class StructurePlacementPreview {
         for (TileEntity te : snapshot) {
             if (te.isInvalid()) continue;
             if (!(te instanceof TileAssemblyController)
-                && !(te instanceof TileHyperdimensionalController)
                 && !(te instanceof TileComputationCore)) {
                 continue;
             }
@@ -182,14 +174,6 @@ public class StructurePlacementPreview {
         collectGhostSet(world, origin, facing, AssemblyStructure.PART2_SET, BlockRegistry.ASSEMBLY_CASING, out, dispatcher);
         collectGhostSet(world, origin, facing, AssemblyStructure.PART3_SET, BlockRegistry.ASSEMBLY_INNER_WALL, out, dispatcher);
         collectGhostSet(world, origin, facing, AssemblyStructure.PART4_SET, BlockRegistry.ASSEMBLY_STABILIZER, out, dispatcher);
-    }
-
-    private static void collectHyperdimensionalGhosts(net.minecraft.world.World world, BlockPos controllerPos, EnumFacing facing,
-                                                       List<GhostBlock> out, BlockRendererDispatcher dispatcher) {
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CONTROLLER_SET, BlockRegistry.HYPERDIMENSIONAL_CONTROLLER, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.ME_INTERFACE_SET, BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CORE_SET, BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE, out, dispatcher);
-        collectGhostSet(world, controllerPos, facing, HyperdimensionalStructure.CASING_SET, BlockRegistry.HYPERDIMENSIONAL_CASING, out, dispatcher);
     }
 
     private static void collectSupercausalGhosts(net.minecraft.world.World world, BlockPos controllerPos, EnumFacing facing,

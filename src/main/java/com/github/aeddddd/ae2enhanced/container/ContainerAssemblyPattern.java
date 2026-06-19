@@ -7,7 +7,7 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.CapabilityItemHandler;
-import ae2.api.implementations.ICraftingPatternItem;
+import ae2.api.crafting.PatternDetailsHelper;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -48,7 +48,7 @@ public class ContainerAssemblyPattern extends Container {
                 PATTERN_X + col * 18, PATTERN_Y + row * 18) {
                 @Override
                 public boolean isItemValid(ItemStack stack) {
-                    return !stack.isEmpty() && stack.getItem() instanceof ICraftingPatternItem;
+                    return !stack.isEmpty() && PatternDetailsHelper.isEncodedPattern(stack);
                 }
             });
         }
@@ -93,7 +93,7 @@ public class ContainerAssemblyPattern extends Container {
                 }
             } else {
                 // 从玩家背包移到样板槽：显式过滤,只允许样板物品
-                if (!itemstack1.isEmpty() && itemstack1.getItem() instanceof ICraftingPatternItem) {
+                if (!itemstack1.isEmpty() && PatternDetailsHelper.isEncodedPattern(itemstack1)) {
                     if (!this.mergeItemStack(itemstack1, 0, patternEnd, false)) {
                         return ItemStack.EMPTY;
                     }

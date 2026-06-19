@@ -4,7 +4,6 @@ import ae2.api.AECapabilities;
 import ae2.api.networking.IGridNode;
 import ae2.api.networking.IInWorldGridNodeHost;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -18,7 +17,7 @@ import javax.annotation.Nullable;
  * 委托控制器节点的网络接口 TileEntity 基类.
  *
  * ME 接口方块本身不创建独立 AE 节点，而是将网络接入委托给对应的控制器。
- * 在 AE2S 下通过 {@link IInWorldGridNodeHost} 暴露控制器的 {@link IManagedGridNode#getNode()}。
+ * 在 AE2S 下通过 {@link IInWorldGridNodeHost} 暴露控制器的 {@link ae2.api.networking.IManagedGridNode#getNode()}。
  *
  * @param <C> 控制器类型，必须继承 {@link TileAENetworkBase}
  */
@@ -53,7 +52,7 @@ public abstract class TileDelegatedProxyBase<C extends TileAENetworkBase> extend
 
     @Nullable
     @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
+    public IGridNode getGridNode(@Nonnull EnumFacing dir) {
         C controller = getController();
         if (controller != null && isControllerFormed(controller)) {
             return controller.getMainNode().getNode();
@@ -63,7 +62,7 @@ public abstract class TileDelegatedProxyBase<C extends TileAENetworkBase> extend
 
     @Nonnull
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
         C controller = getController();
         return (controller != null && isControllerFormed(controller)) ? AECableType.SMART : AECableType.NONE;
     }

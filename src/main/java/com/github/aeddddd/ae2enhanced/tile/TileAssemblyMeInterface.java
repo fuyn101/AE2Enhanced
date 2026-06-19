@@ -1,13 +1,14 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import ae2.api.networking.crafting.ICraftingPatternDetails;
+import ae2.api.crafting.IPatternDetails;
 import ae2.api.networking.crafting.ICraftingProvider;
-import ae2.api.networking.crafting.ICraftingProviderHelper;
+import ae2.api.stacks.KeyCounter;
 import net.minecraft.inventory.InventoryCrafting;
 
+import java.util.Collections;
+import java.util.List;
+
 public class TileAssemblyMeInterface extends TileDelegatedProxyBase<TileAssemblyController> implements ICraftingProvider {
-
-
 
     @Override
     protected Class<TileAssemblyController> getControllerClass() {
@@ -19,12 +20,21 @@ public class TileAssemblyMeInterface extends TileDelegatedProxyBase<TileAssembly
         return controller.isFormed();
     }
 
-    // ICraftingMedium
+    // ICraftingProvider
     @Override
-    public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
+    public List<? extends IPatternDetails> getAvailablePatterns() {
+        TileAssemblyController controller = getController();
+        if (controller != null && controller.isMeInterfaceActive(pos)) {
+            return controller.getAvailablePatterns();
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputs, int multiplier) {
         TileAssemblyController controller = getController();
         if (controller != null) {
-            return controller.pushPattern(patternDetails, table);
+            return controller.pushPattern(patternDetails, inputs, multiplier);
         }
         return false;
     }
@@ -38,14 +48,21 @@ public class TileAssemblyMeInterface extends TileDelegatedProxyBase<TileAssembly
         return false;
     }
 
-    // ICraftingProvider
     @Override
-    public void provideCrafting(ICraftingProviderHelper craftingTracker) {
+    public boolean canMergePatternPush(IPatternDetails patternDetails) {
         TileAssemblyController controller = getController();
-        if (controller != null && controller.isMeInterfaceActive(pos)) {
-            controller.provideCrafting(craftingTracker);
+        if (controller != null) {
+            return controller.canMergePatternPush(patternDetails);
         }
+        return true;
     }
 
-
+    @Override
+    public int getMaxPatternPushMultiplier(IPatternDetails patternDetails, int multiplier) {
+        TileAssemblyController controller = getController();
+        if (controller != null) {
+            return controller.getMaxPatternPushMultiplier(patternDetails, multiplier);
+        }
+        return multiplier;
+    }
 }

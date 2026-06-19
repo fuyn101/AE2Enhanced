@@ -1,8 +1,10 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import ae2.api.networking.IGridNode;
-import ae2.api.util.AEPartLocation;
+import ae2.api.networking.IInWorldGridNodeHost;
+import ae2.api.util.AECableType;
 import ae2.tile.grid.AENetworkedTile;
+import net.minecraft.util.EnumFacing;
 
 import javax.annotation.Nonnull;
 
@@ -14,7 +16,7 @@ import javax.annotation.Nonnull;
  * 如需在节点失效/区块卸载时执行额外清理，可覆盖 {@link #onProxyInvalidate()} /
  * {@link #onProxyChunkUnload()}（命名保留以兼容旧代码语义）。
  */
-public abstract class TileAENetworkBase extends AENetworkedTile {
+public abstract class TileAENetworkBase extends AENetworkedTile implements IInWorldGridNodeHost {
 
     protected boolean needsReady = false;
 
@@ -31,7 +33,7 @@ public abstract class TileAENetworkBase extends AENetworkedTile {
     }
 
     @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
+    public IGridNode getGridNode(@Nonnull EnumFacing dir) {
         return getMainNode().getNode();
     }
 
@@ -42,8 +44,8 @@ public abstract class TileAENetworkBase extends AENetworkedTile {
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
         onProxyChunkUnload();
     }
 

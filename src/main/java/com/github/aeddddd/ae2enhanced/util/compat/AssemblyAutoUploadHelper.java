@@ -109,11 +109,11 @@ public class AssemblyAutoUploadHelper {
 
     private static IGrid getControllerGrid(TileAssemblyController controller) {
         try {
-            ae2.me.helpers.AENetworkProxy proxy = controller.getProxy();
-            if (proxy == null) return null;
-            IGridNode node = proxy.getNode();
+            ae2.api.networking.IManagedGridNode main = controller.getMainNode();
+            if (main == null) return null;
+            IGridNode node = main.getNode();
             if (node == null) return null;
-            return node.getGrid();
+            return node.grid();
         } catch (Exception e) {
             return null;
         }

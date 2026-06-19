@@ -2,11 +2,9 @@ package com.github.aeddddd.ae2enhanced.network.packet;
 
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
-import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
@@ -60,16 +58,6 @@ public class PacketRequestAssembly implements IMessage {
                         success = true;
                     } else {
                         success = AssemblyStructure.tryConsumeAndPlace(world, pos, player);
-                    }
-                } else if (world.getBlockState(pos).getBlock() == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER
-                        && te instanceof TileHyperdimensionalController) {
-                    TileHyperdimensionalController tile = (TileHyperdimensionalController) te;
-                    if (tile.isFormed()) return;
-                    if (player.isCreative()) {
-                        HyperdimensionalStructure.placeMissingBlocks(world, pos, player);
-                        success = true;
-                    } else {
-                        success = HyperdimensionalStructure.tryConsumeAndPlace(world, pos, player);
                     }
                 } else if (world.getBlockState(pos).getBlock() == BlockRegistry.COMPUTATION_CORE
                         && te instanceof TileComputationCore) {

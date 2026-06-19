@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.integration.terminal;
 
-import ae2.tile.inventory.AppEngInternalInventory;
-import ae2.util.helpers.ItemHandlerUtil;
+import ae2.util.inv.AppEngInternalInventory;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;
@@ -9,6 +8,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import javax.annotation.Nonnull;
 
@@ -34,7 +34,7 @@ public class AssemblyInterfaceTracker {
     public AssemblyInterfaceTracker(TileAssemblyController controller) {
         this.which = nextId++;
         this.server = new AssemblyPatternInventoryWrapper(controller);
-        this.client = new AppEngInternalInventory(null, this.server.getSlots());
+        this.client = new AppEngInternalInventory(this.server.getSlots()).toItemHandler();
         this.pos = controller.getPos();
         this.dim = controller.getWorld().provider.getDimension();
         this.unlocalizedName = controller.getBlockType().getTranslationKey();
@@ -92,7 +92,7 @@ public class AssemblyInterfaceTracker {
         for (int x = 0; x < length; x++) {
             NBTTagCompound itemNBT = new NBTTagCompound();
             ItemStack is = server.getStackInSlot(x + offset);
-            ItemHandlerUtil.setStackInSlot(client, x + offset, is.isEmpty() ? ItemStack.EMPTY : is.copy());
+            ((IItemHandlerModifiable) client).setStackInSlot(x + offset, is.isEmpty() ? ItemStack.EMPTY : is.copy());
             if (!is.isEmpty()) {
                 is.writeToNBT(itemNBT);
             }

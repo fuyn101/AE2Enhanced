@@ -4,10 +4,8 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockAssemblyController;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
-import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.tileentity.TileEntity;
@@ -50,8 +48,6 @@ public class StructureEventHandler {
         Block brokenBlock = world.getBlockState(pos).getBlock();
         if (brokenBlock == BlockRegistry.ASSEMBLY_CONTROLLER) {
             AssemblyStructure.disassemble(world, pos);
-        } else if (brokenBlock == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER) {
-            HyperdimensionalStructure.disassemble(world, pos);
         } else if (brokenBlock == BlockRegistry.COMPUTATION_CORE) {
             SupercausalStructure.disassemble(world, pos);
         }
@@ -129,13 +125,6 @@ public class StructureEventHandler {
                 if (!world.isBlockLoaded(origin.add(rel))) return false;
             }
             return true;
-        } else if (block instanceof BlockHyperdimensionalController) {
-            EnumFacing facing = state.getValue(BlockHyperdimensionalController.FACING);
-            for (BlockPos rel : HyperdimensionalStructure.ALL_SET) {
-                BlockPos actual = controllerPos.add(HyperdimensionalStructure.rotate(rel, facing));
-                if (!world.isBlockLoaded(actual)) return false;
-            }
-            return true;
         } else if (block instanceof BlockComputationCore) {
             EnumFacing facing = state.getValue(BlockComputationCore.FACING).getOpposite();
             for (BlockPos rel : SupercausalStructure.ALL_STRUCTURE_SET) {
@@ -160,13 +149,6 @@ public class StructureEventHandler {
                     BlockPos origin = AssemblyStructure.getOriginFromController(controllerPos, facing);
                     BlockPos rel = changedPos.subtract(origin);
                     if (AssemblyStructure.ALL_SET.contains(rel)) {
-                        scheduleCheck(world.provider.getDimension(), controllerPos);
-                    }
-                } else if (block instanceof BlockHyperdimensionalController) {
-                    facing = state.getValue(BlockHyperdimensionalController.FACING);
-                    BlockPos rel = changedPos.subtract(controllerPos);
-                    BlockPos rotatedRel = HyperdimensionalStructure.rotate(rel, facing.getOpposite());
-                    if (HyperdimensionalStructure.ALL_SET.contains(rotatedRel)) {
                         scheduleCheck(world.provider.getDimension(), controllerPos);
                     }
                 }
@@ -211,17 +193,6 @@ public class StructureEventHandler {
                     AssemblyStructure.assemble(world, controllerPos);
                 } else if (!valid && tile.isFormed()) {
                     AssemblyStructure.disassemble(world, controllerPos);
-                }
-            }
-        } else if (controllerBlock == BlockRegistry.HYPERDIMENSIONAL_CONTROLLER) {
-            boolean valid = HyperdimensionalStructure.validate(world, controllerPos);
-            TileEntity te = world.getTileEntity(controllerPos);
-            if (te instanceof TileHyperdimensionalController) {
-                TileHyperdimensionalController tile = (TileHyperdimensionalController) te;
-                if (valid && !tile.isFormed()) {
-                    HyperdimensionalStructure.assemble(world, controllerPos);
-                } else if (!valid && tile.isFormed()) {
-                    HyperdimensionalStructure.disassemble(world, controllerPos);
                 }
             }
         } else if (controllerBlock == BlockRegistry.COMPUTATION_CORE) {

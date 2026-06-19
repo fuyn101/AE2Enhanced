@@ -92,7 +92,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     protected ae2.api.networking.IManagedGridNode createMainNode() {
         return super.createMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
-                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(BlockRegistry.COMPUTATION_CORE));
+                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(new ItemStack(BlockRegistry.COMPUTATION_CORE)));
     }
 
     @Override
@@ -114,8 +114,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         markDirty();
         syncToClient();
         IGridNode node = getMainNode().getNode();
-        if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new GridCraftingCpuChange(node));
+        if (node != null && node.grid() != null) {
+            node.grid().postEvent(new GridCraftingCpuChange(node));
         }
     }
 
@@ -146,8 +146,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
         unbindMeInterface();
 
-        if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new GridCraftingCpuChange(node));
+        if (node != null && node.grid() != null) {
+            node.grid().postEvent(new GridCraftingCpuChange(node));
         }
         markDirty();
         syncToClient();
@@ -204,8 +204,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
         if (changed) {
             IGridNode node = getMainNode().getNode();
-            if (node != null && node.getGrid() != null) {
-                node.getGrid().postEvent(new GridCraftingCpuChange(node));
+            if (node != null && node.grid() != null) {
+                node.grid().postEvent(new GridCraftingCpuChange(node));
             }
         }
     }
@@ -239,8 +239,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
         // 触发 CraftingGridCache 重建以注册新集群
         IGridNode node = getMainNode().getNode();
-        if (node != null && node.getGrid() != null) {
-            node.getGrid().postEvent(new GridCraftingCpuChange(node));
+        if (node != null && node.grid() != null) {
+            node.grid().postEvent(new GridCraftingCpuChange(node));
         }
 
         ICraftingSubmitResult result = newCpu.submitJob(grid, plan, src, req);
@@ -381,11 +381,10 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
     @Nonnull
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+    public AECableType getCableConnectionType(@Nonnull net.minecraft.util.EnumFacing dir) {
         return AECableType.NONE;
     }
 
-    @Override
     public void securityBreak() {
     }
 
