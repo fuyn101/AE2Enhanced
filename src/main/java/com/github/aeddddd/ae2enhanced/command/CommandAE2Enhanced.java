@@ -17,8 +17,6 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidCompat;
 import net.minecraft.command.CommandBase;
@@ -405,96 +403,10 @@ public class CommandAE2Enhanced extends CommandBase {
     private static final List<Item> GEAR_CACHE = new ArrayList<>();
 
     private void executeTestHd(MinecraftServer server, ICommandSender sender, String[] args) {
-        if (args.length < 3) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e testhd <uuid> <count>"));
-            return;
-        }
-        UUID uuid;
-        try {
-            uuid = UUID.fromString(args[1]);
-        } catch (IllegalArgumentException e) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Invalid UUID: " + args[1]));
-            return;
-        }
-        int count;
-        try {
-            count = Integer.parseInt(args[2]);
-            if (count <= 0 || count > 100_000) {
-                sender.sendMessage(new TextComponentString(TextFormatting.RED + "Count must be between 1 and 100000."));
-                return;
-            }
-        } catch (NumberFormatException e) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Invalid count: " + args[2]));
-            return;
-        }
-
-        // Locate controller by UUID
-        TileHyperdimensionalController targetController = null;
-        for (WorldServer world : server.worlds) {
-            if (world == null) continue;
-            for (net.minecraft.tileentity.TileEntity te : world.loadedTileEntityList) {
-                if (te instanceof TileHyperdimensionalController) {
-                    TileHyperdimensionalController controller = (TileHyperdimensionalController) te;
-                    if (controller.isFormed() && uuid.equals(controller.getNexusId())) {
-                        targetController = controller;
-                        break;
-                    }
-                }
-            }
-            if (targetController != null) break;
-        }
-
-        if (targetController == null) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] No formed hyperdimensional controller found with UUID " + uuid + "."));
-            return;
-        }
-
-        ItemStorageAdapter adapter = targetController.getItemAdapter();
-        if (adapter == null) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Controller found but item adapter is not initialized."));
-            return;
-        }
-
-        // Cache gear items on first run
-        synchronized (GEAR_CACHE) {
-            if (GEAR_CACHE.isEmpty()) {
-                for (Item item : Item.REGISTRY) {
-                    if (item instanceof ItemSword || item instanceof ItemTool
-                            || item instanceof ItemArmor || item instanceof ItemBow) {
-                        GEAR_CACHE.add(item);
-                    }
-                }
-            }
-        }
-        if (GEAR_CACHE.isEmpty()) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] No gear items found in registry."));
-            return;
-        }
-
-        IActionSource actionSource;
-        if (sender instanceof EntityPlayerMP) {
-            actionSource = new PlayerSource((EntityPlayerMP) sender, null);
-        } else {
-            actionSource = new MachineSource(targetController);
-        }
-
-        Random random = new Random();
-        for (int i = 0; i < count; i++) {
-            ItemStack stack = generateRandomGear(random);
-            if (stack.isEmpty()) continue;
-
-            AEItemKey aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
-            if (aeStack == null) continue;
-
-            long amountLong = Math.abs(random.nextLong());
-            if (amountLong <= 0) amountLong = 1;
-            AEItemKey toInject = aeStack.copy();
-            toInject.setStackSize(amountLong);
-            adapter.injectItems(toInject, Actionable.MODULATE, actionSource);
-        }
-
-        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Injected " + count + " random enchanted gear type(s) into controller " + uuid + "."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Hyperdimensional Controller has been removed in the AE2S migration; testhd is disabled."));
+        return;
     }
+
 
     private static ItemStack generateRandomGear(Random random) {
         Item item = GEAR_CACHE.get(random.nextInt(GEAR_CACHE.size()));

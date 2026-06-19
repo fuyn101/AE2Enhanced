@@ -45,7 +45,7 @@ public class SubNetLink {
     public static SubNetLink readFromNBT(NBTTagCompound tag) {
         BlockPos pos = BlockPos.fromLong(tag.getLong("pos"));
         int dim = tag.getInteger("dim");
-        EnumFacing side = tag.hasKey("side") ? EnumFacing.getFront(tag.getByte("side")) : null;
+        EnumFacing side = tag.hasKey("side") ? EnumFacing.byIndex(tag.getByte("side")) : null;
         String name = tag.hasKey("name") ? tag.getString("name") : null;
         return new SubNetLink(pos, dim, side, name);
     }

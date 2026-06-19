@@ -23,17 +23,26 @@ public final class StackSnapshot {
     }
 
     /**
-     * 将一组 GenericStack(允许含 null)写入 NBTTagList.
+     * 将一组 GenericStack 写入 NBTTagList(null 元素会被过滤).
      */
-    public static NBTTagList write(List<@Nullable GenericStack> stacks) {
-        return GenericStack.writeList(stacks);
+    public static NBTTagList write(List<GenericStack> stacks) {
+        if (stacks == null || stacks.isEmpty()) {
+            return new NBTTagList();
+        }
+        List<GenericStack> filtered = new ArrayList<>(stacks.size());
+        for (GenericStack stack : stacks) {
+            if (stack != null) {
+                filtered.add(stack);
+            }
+        }
+        return GenericStack.writeList(filtered);
     }
 
     /**
-     * 从 NBTTagList 读取一组 GenericStack(可能含 null).
+     * 从 NBTTagList 读取一组 GenericStack.
      */
-    public static List<@Nullable GenericStack> read(NBTTagList tag) {
-        if (tag == null || tag.hasNoTags()) {
+    public static List<GenericStack> read(NBTTagList tag) {
+        if (tag == null || tag.tagCount() == 0) {
             return Collections.emptyList();
         }
         return GenericStack.readList(tag);
@@ -44,7 +53,7 @@ public final class StackSnapshot {
      */
     @Nullable
     public static GenericStack readSingle(NBTTagCompound tag) {
-        if (tag == null || tag.hasNoTags()) {
+        if (tag == null || tag.getSize() == 0) {
             return null;
         }
         return GenericStack.readTag(tag);

@@ -128,16 +128,16 @@ public class HyperdimensionalStorageNode implements IStorageProvider {
         @Nullable
         private MEStorage getRemoteInventory(@Nullable IActionSource source) {
             IGridNode remoteNode = resolveRemoteNode();
-            if (remoteNode == null || remoteNode.getGrid() == null) {
+            if (remoteNode == null || remoteNode.grid() == null) {
                 return null;
             }
-            IGrid remoteGrid = remoteNode.getGrid();
+            IGrid remoteGrid = remoteNode.grid();
 
             // 防止同网格循环引用(本地与远程实际是同一个网格时拒绝操作)
             if (source != null) {
                 IGrid sourceGrid = source.machine()
                         .map(IActionHost::getActionableNode)
-                        .map(IGridNode::getGrid)
+                        .map(IGridNode::grid)
                         .orElse(null);
                 if (sourceGrid == remoteGrid) {
                     return null;

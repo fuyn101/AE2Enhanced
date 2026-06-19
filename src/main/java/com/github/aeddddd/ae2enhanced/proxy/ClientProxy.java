@@ -12,12 +12,10 @@ import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.SelectionBoxRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.ChunkPowerHighlightRenderer;
-import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 
@@ -74,7 +72,6 @@ public class ClientProxy extends CommonProxy {
 
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
-        ClientRegistry.bindTileEntitySpecialRenderer(TileHyperdimensionalController.class, new RenderHyperdimensionalController());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
         // E2a：注册 EssentiaDrop 的内置物品渲染器(流体/气体使用标准模型系统)
         if (ItemRegistry.ESSENTIA_DROP != null) {
@@ -158,11 +155,6 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.ASSEMBLY_INNER_WALL);
         registerBlockItemModel(BlockRegistry.ASSEMBLY_STABILIZER);
         registerBlockItemModel(BlockRegistry.MICRO_SINGULARITY);
-
-        registerBlockItemModel(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER);
-        registerBlockItemModel(BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE);
-        registerBlockItemModel(BlockRegistry.HYPERDIMENSIONAL_CASING);
-        registerBlockItemModel(BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE);
 
         // 第三阶段：超因果计算核心
         registerBlockItemModel(BlockRegistry.COMPUTATION_CORE);

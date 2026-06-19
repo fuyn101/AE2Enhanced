@@ -4,7 +4,6 @@ import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
 import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
-import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import net.minecraft.entity.player.EntityPlayer;
@@ -67,47 +66,13 @@ public class UMCSelectionService {
     }
 
     public static void handleBindSource(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {
-        World world = player.world;
-        net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof TileCentralMEInterface)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
-            return;
-        }
-
-        List<ItemUniversalMemoryCard.SelectionEntry> selections = ItemUniversalMemoryCard.getSelections(stack);
-        if (selections.isEmpty()) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.no_selections"));
-            return;
-        }
-
-        TileCentralMEInterface source = (TileCentralMEInterface) te;
-        int bound = 0;
-        for (ItemUniversalMemoryCard.SelectionEntry entry : selections) {
-            if (entry.dim != world.provider.getDimension()) continue;
-            if (!world.isBlockLoaded(entry.pos)) continue;
-            net.minecraft.tileentity.TileEntity targetTe = world.getTileEntity(entry.pos);
-            if (targetTe == null) continue;
-
-            String blockId = world.getBlockState(entry.pos).getBlock().getRegistryName().toString();
-            source.addBinding(new com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding(entry.pos, entry.dim, blockId));
-            bound++;
-        }
-
-        ItemUniversalMemoryCard.clearSelections(stack);
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_success", bound));
+        // 旧版 Central ME Interface 已删除,此功能在新 central/ 包重构后待实现
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
     }
 
     public static void handleClearBindings(EntityPlayer player, BlockPos pos) {
-        World world = player.world;
-        net.minecraft.tileentity.TileEntity te = world.getTileEntity(pos);
-        if (!(te instanceof TileCentralMEInterface)) {
-            player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
-            return;
-        }
-        TileCentralMEInterface source = (TileCentralMEInterface) te;
-        int count = source.getInterfaceDuality().getBindings().size();
-        source.clearBindings();
-        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.clear_bindings", count));
+        // 旧版 Central ME Interface 已删除,此功能在新 central/ 包重构后待实现
+        player.sendMessage(new TextComponentTranslation("gui.ae2enhanced.umc.msg.bind_invalid_source"));
     }
 
     public static void handleBindRecycler(EntityPlayer player, ItemStack stack, BlockPos pos, EnumFacing face) {

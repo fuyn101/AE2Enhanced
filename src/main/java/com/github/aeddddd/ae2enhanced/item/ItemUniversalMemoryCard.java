@@ -239,7 +239,6 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isCtrl = net.minecraft.client.Minecraft.getMinecraft().gameSettings.keyBindSprint.isKeyDown();
 
                     net.minecraft.tileentity.TileEntity te = event.getWorld().getTileEntity(event.getPos());
-                    boolean isCentralInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
                     boolean isSmartPatternInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
                     boolean isRecycler = te instanceof com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 
@@ -259,10 +258,6 @@ public class ItemUniversalMemoryCard extends Item {
                         type = PacketUMCAction.ActionType.CLEAR_RECYCLER_BINDINGS;
                     } else if (isRecycler && !isSneaking && !isCtrl) {
                         type = PacketUMCAction.ActionType.BIND_RECYCLER;
-                    } else if (isCentralInterface && isAlt && !isSneaking && !isCtrl) {
-                        type = PacketUMCAction.ActionType.CLEAR_BINDINGS;
-                    } else if (isCentralInterface && !isSneaking && !isCtrl) {
-                        type = PacketUMCAction.ActionType.BIND_SOURCE;
                     } else if (isCtrl) {
                         type = PacketUMCAction.ActionType.SELECT;
                     } else if (isSneaking) {
@@ -473,12 +468,6 @@ public class ItemUniversalMemoryCard extends Item {
             net.minecraft.util.math.RayTraceResult ray = mc.objectMouseOver;
             if (ray != null && ray.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK) {
                 net.minecraft.tileentity.TileEntity te = world.getTileEntity(ray.getBlockPos());
-                if (te instanceof com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface) {
-                    com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface source = (com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface) te;
-                    int boundCount = source.getInterfaceDuality().getBindings().size();
-                    tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.separator"));
-                    tooltip.add(I18n.format("item.ae2enhanced.universal_memory_card.tooltip.central_bindings", boundCount));
-                }
             }
         }
     }
