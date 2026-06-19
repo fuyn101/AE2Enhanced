@@ -1,9 +1,9 @@
 package com.github.aeddddd.ae2enhanced.container.platform;
 
-import appeng.container.AEBaseContainer;
-import appeng.container.slot.SlotFake;
-import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.Platform;
+import ae2.container.AEBaseContainer;
+import ae2.container.slot.SlotFake;
+import ae2.tile.inventory.AppEngInternalInventory;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
 import com.github.aeddddd.ae2enhanced.platform.subnet.Subnet;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController;

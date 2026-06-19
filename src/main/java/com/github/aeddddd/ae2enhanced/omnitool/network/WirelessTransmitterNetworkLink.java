@@ -1,13 +1,13 @@
 package com.github.aeddddd.ae2enhanced.omnitool.network;
 
-import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEPartLocation;
+import ae2.api.AEApi;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -94,10 +94,10 @@ public class WirelessTransmitterNetworkLink implements IOmniToolNetworkLink {
      * 获取链接网络的物品存储监控器，供 DROP_AE 使用。
      */
     @Nullable
-    public static IMEMonitor<IAEItemStack> getItemMonitor(ItemStack stack, World world) {
+    public static MEStorage<AEItemKey> getItemMonitor(ItemStack stack, World world) {
         IGrid grid = INSTANCE.getLinkedGrid(stack, world, null);
         if (grid == null) return null;
-        IStorageGrid storage = grid.getCache(IStorageGrid.class);
+        IStorageService storage = grid.getCache(IStorageService.class);
         if (storage == null) return null;
         return storage.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
     }

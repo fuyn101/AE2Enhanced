@@ -1,27 +1,27 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.FuzzyMode;
-import appeng.api.config.RedstoneMode;
-import appeng.api.config.Settings;
-import appeng.api.config.Upgrades;
-import appeng.api.config.YesNo;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.events.MENetworkChannelsChanged;
-import appeng.api.networking.events.MENetworkEventSubscribe;
-import appeng.api.networking.events.MENetworkPowerStatusChange;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.api.util.DimensionalCoord;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.me.helpers.MachineSource;
-import appeng.tile.inventory.AppEngInternalAEInventory;
-import appeng.util.Platform;
-import appeng.util.inv.IAEAppEngInventory;
-import appeng.util.inv.InvOperation;
+import ae2.api.config.Actionable;
+import ae2.api.config.FuzzyMode;
+import ae2.api.config.RedstoneMode;
+import ae2.api.config.Settings;
+import ae2.api.config.Upgrades;
+import ae2.api.config.YesNo;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.events.MENetworkChannelsChanged;
+import ae2.api.networking.events.MENetworkEventSubscribe;
+import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.api.util.DimensionalBlockPos;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.AENetworkProxy;
+import ae2.me.helpers.MachineSource;
+import ae2.tile.inventory.AppEngInternalAEInventory;
+import ae2.util.Platform;
+import ae2.util.inv.IAEAppEngInventory;
+import ae2.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.collector.CollectorRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -38,7 +38,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
-import appeng.parts.automation.StackUpgradeInventory;
+import ae2.parts.automation.StackUpgradeInventory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -55,8 +55,8 @@ import java.util.List;
  * 物品暂存到内部缓冲区,每 tick 继续注入.只有在缓冲区也放不下时才生成实体.</p>
  */
 public class TileAdvancedMECollector extends TileAENetworkBase
-        implements ITickable, IAEAppEngInventory, appeng.api.implementations.IUpgradeableHost,
-        appeng.api.networking.security.IActionHost, appeng.util.IConfigManagerHost {
+        implements ITickable, IAEAppEngInventory, ae2.api.implementations.IUpgradeableHost,
+        ae2.api.networking.security.IActionHost, ae2.util.IConfigManagerHost {
 
     public static final int CONFIG_SIZE = 63;
     public static final int UPGRADE_SLOTS = 5;
@@ -132,8 +132,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
+    public DimensionalBlockPos getLocation() {
+        return new DimensionalBlockPos(this);
     }
 
     // ---- 生命周期 ----
@@ -164,7 +164,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
         if (needsReady()) {
             clearNeedsReady();
-            getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
             getProxy().setIdlePowerUsage(AE2EnhancedConfig.collector.idlePower);
             getProxy().onReady();
         }
@@ -352,12 +352,12 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return this;
     }
 
-    private appeng.util.ConfigManager configManager;
+    private ae2.util.ConfigManager configManager;
 
     @Override
-    public appeng.api.util.IConfigManager getConfigManager() {
+    public ae2.api.util.IConfigManager getConfigManager() {
         if (this.configManager == null) {
-            this.configManager = new appeng.util.ConfigManager(this);
+            this.configManager = new ae2.util.ConfigManager(this);
             this.configManager.registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
             this.configManager.registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
             this.configManager.registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
@@ -366,12 +366,12 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public void updateSetting(appeng.api.util.IConfigManager manager, Enum settingName, Enum newValue) {
+    public void updateSetting(ae2.api.util.IConfigManager manager, Enum settingName, Enum newValue) {
         this.markDirty();
     }
 
     @Override
-    public appeng.api.networking.IGridNode getActionableNode() {
+    public ae2.api.networking.IGridNode getActionableNode() {
         return getProxy().getNode();
     }
 
@@ -473,11 +473,11 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
     private ItemStack injectToNetwork(ItemStack stack, Actionable mode) {
         try {
-            IItemStorageChannel channel = appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            IAEItemStack toInsert = channel.createStack(stack);
+            IItemStorageChannel channel = ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            AEItemKey toInsert = channel.createStack(stack);
             if (toInsert == null) return stack;
 
-            IAEItemStack remaining = Platform.poweredInsert(
+            AEItemKey remaining = Platform.poweredInsert(
                     getProxy().getEnergy(),
                     getProxy().getStorage().getInventory(channel),
                     toInsert,
@@ -510,7 +510,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         int activeSlots = getAvailableFilterSlots();
         boolean hasAnyFilter = false;
         for (int i = 0; i < activeSlots; i++) {
-            IAEItemStack filter = this.config.getAEStackInSlot(i);
+            AEItemKey filter = this.config.getAEStackInSlot(i);
             if (filter == null) continue;
             hasAnyFilter = true;
             if (isFilterMatch(filter, stack)) {
@@ -520,7 +520,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return !hasAnyFilter;
     }
 
-    private boolean isFilterMatch(IAEItemStack filter, ItemStack stack) {
+    private boolean isFilterMatch(AEItemKey filter, ItemStack stack) {
         if (filter == null) return false;
         ItemStack filterStack = filter.createItemStack();
         if (filterStack.isEmpty()) return false;

@@ -14,24 +14,12 @@ public final class ItemRegistry {
     public static ItemConformalCharge CONFORMAL_CHARGE;
     public static ItemDifferentialFormStabilizer DIFFERENTIAL_FORM_STABILIZER;
     public static ItemStableSpacetimeManifold STABLE_SPACETIME_MANIFOLD;
-    public static Item ESSENTIA_DROP;
-    public static ItemFluidDrop FLUID_DROP;
-    public static Item GAS_DROP;
     public static ItemChannelReceiverCard CHANNEL_RECEIVER_CARD;
     public static ItemUniversalMemoryCard UNIVERSAL_MEMORY_CARD;
     public static ItemOmniWirelessTerminal OMNI_WIRELESS_TERMINAL;
     public static ItemOmniUpgradeCard OMNI_UPGRADE_CARD;
     public static ItemSmartBlankPattern SMART_BLANK_PATTERN;
     public static ItemSmartPattern SMART_PATTERN;
-
-    // 先进中枢平台 — RF 假物品
-    public static ItemEnergyDrop ENERGY_DROP;
-
-    // Botania Mana 假物品(条件加载)
-    public static Item MANA_DROP;
-
-    // Astral Sorcery Starlight 假物品(条件加载)
-    public static Item STARLIGHT_DROP;
 
     // 先进中枢平台 — 平台开发许可
     public static ItemPlatformDevelopmentLicense PLATFORM_DEVELOPMENT_LICENSE;

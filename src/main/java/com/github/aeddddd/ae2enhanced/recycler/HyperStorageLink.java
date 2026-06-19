@@ -1,12 +1,12 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.AENetworkProxy;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.AENetworkProxy;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
 import net.minecraft.tileentity.TileEntity;

@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import net.minecraft.item.ItemStack;
 
 import javax.annotation.Nonnull;
@@ -29,7 +29,7 @@ public interface TargetAdapter {
      * @return 实际提取的物品堆叠
      */
     @Nullable
-    ItemStack extract(@Nonnull IAEItemStack requested, boolean simulate);
+    ItemStack extract(@Nonnull AEItemKey requested, boolean simulate);
 
     /**
      * 释放资源引用.

@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import appeng.api.AEApi;
-import appeng.api.config.Settings;
-import appeng.api.config.SortDir;
-import appeng.api.config.SortOrder;
-import appeng.api.config.ViewItems;
-import appeng.api.features.IWirelessTermHandler;
-import appeng.core.localization.PlayerMessages;
-import appeng.util.ConfigManager;
-import appeng.api.util.IConfigManager;
-import appeng.core.AEConfig;
-import appeng.items.tools.powered.powersink.AEBasePoweredItem;
-import appeng.util.Platform;
+import ae2.api.AEApi;
+import ae2.api.config.Settings;
+import ae2.api.config.SortDir;
+import ae2.api.config.SortOrder;
+import ae2.api.config.ViewItems;
+import ae2.api.features.IWirelessTermHandler;
+import ae2.core.localization.PlayerMessages;
+import ae2.util.ConfigManager;
+import ae2.api.util.IConfigManager;
+import ae2.core.AEConfig;
+import ae2.items.tools.powered.powersink.AEBasePoweredItem;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.gui.GuiHandler;
 import net.minecraft.entity.EntityLivingBase;
@@ -63,7 +63,7 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
 
     @Override
     public boolean usePower(EntityPlayer player, double amt, ItemStack is) {
-        return this.extractAEPower(is, amt, appeng.api.config.Actionable.MODULATE) >= amt - 0.5;
+        return this.extractAEPower(is, amt, ae2.api.config.Actionable.MODULATE) >= amt - 0.5;
     }
 
     @Override
@@ -105,7 +105,7 @@ public class ItemOmniWirelessTerminal extends AEBasePoweredItem implements IWire
     public IGuiHandler getGuiHandler(ItemStack is) {
         // 返回 AE2 无线终端的 GuiBridge,避免 GuiCraftAmount.initGui() 中的 ClassCastException.
         // Omni Terminal 没有自己的 GuiBridge enum 值,使用 GUI_WIRELESS_TERM 作为回退.
-        return appeng.core.sync.GuiBridge.GUI_WIRELESS_TERM;
+        return ae2.core.sync.GuiBridge.GUI_WIRELESS_TERM;
     }
 
     @Override

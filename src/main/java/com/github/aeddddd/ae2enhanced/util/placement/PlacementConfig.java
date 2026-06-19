@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import appeng.api.util.AEColor;
+import ae2.api.util.AEColor;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;

@@ -4,11 +4,11 @@ import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
-import appeng.helpers.IPriorityHost;
-import appeng.api.parts.PartItemStack;
-import appeng.parts.AEBasePart;
-import appeng.tile.inventory.AppEngInternalAEInventory;
-import appeng.util.SettingsFrom;
+import ae2.helpers.IPriorityHost;
+import ae2.api.parts.PartItemStack;
+import ae2.parts.AEBasePart;
+import ae2.tile.inventory.AppEngInternalAEInventory;
+import ae2.util.SettingsFrom;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

@@ -80,14 +80,14 @@ public class AE2Enhanced {
         checkMixinEnvironment();
 
         // 注册 RF 能量存储通道
-        appeng.api.AEApi.instance().storage().registerStorageChannel(
+        ae2.api.AEApi.instance().storage().registerStorageChannel(
                 IEnergyStorageChannel.class,
                 new EnergyStorageChannel()
         );
 
         // 注册 Botania Mana 存储通道
         if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
-            appeng.api.AEApi.instance().storage().registerStorageChannel(
+            ae2.api.AEApi.instance().storage().registerStorageChannel(
                     IManaStorageChannel.class,
                     new ManaStorageChannel()
             );
@@ -95,7 +95,7 @@ public class AE2Enhanced {
 
         // 注册 Astral Sorcery Starlight 存储通道
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
-            appeng.api.AEApi.instance().storage().registerStorageChannel(
+            ae2.api.AEApi.instance().storage().registerStorageChannel(
                     IStarlightStorageChannel.class,
                     new StarlightStorageChannel()
             );

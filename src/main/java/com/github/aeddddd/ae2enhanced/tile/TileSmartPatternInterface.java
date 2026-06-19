@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
-import appeng.util.Platform;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternData;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternStorageFile;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartRecipe;
@@ -463,9 +463,9 @@ public class TileSmartPatternInterface extends TileEntity {
      */
     public void replaceInAllRecipes(@Nonnull ItemStack from, @Nonnull ItemStack to) {
         if (patternData == null || from.isEmpty()) return;
-        IAEItemStack fromAE = AEItemStack.fromItemStack(from);
+        AEItemKey fromAE = AEItemKey.fromItemStack(from);
         if (fromAE == null) return;
-        IAEItemStack toAE = to.isEmpty() ? null : AEItemStack.fromItemStack(to);
+        AEItemKey toAE = to.isEmpty() ? null : AEItemKey.fromItemStack(to);
         patternData.replaceInAllRecipes(fromAE, toAE);
         if (lockedRecipeIndex >= 0) {
             updateMiniGuiFromRecipe();
@@ -498,8 +498,8 @@ public class TileSmartPatternInterface extends TileEntity {
             return;
         }
         SmartRecipe recipe = patternData.getRecipes().get(original);
-        IAEItemStack[] inputs = recipe.getInputs();
-        IAEItemStack[] outputs = recipe.getOutputs();
+        AEItemKey[] inputs = recipe.getInputs();
+        AEItemKey[] outputs = recipe.getOutputs();
 
         isUpdatingMiniGui = true;
         try {
@@ -527,7 +527,7 @@ public class TileSmartPatternInterface extends TileEntity {
         if (original < 0) return;
         SmartRecipe recipe = patternData.getRecipes().get(original);
         ItemStack stack = miniGuiInventory.getStackInSlot(slot);
-        IAEItemStack aeStack = stack.isEmpty() ? null : AEItemStack.fromItemStack(stack);
+        AEItemKey aeStack = stack.isEmpty() ? null : AEItemKey.fromItemStack(stack);
         if (slot < 81) {
             recipe.setInput(slot, aeStack);
         } else {
@@ -570,7 +570,7 @@ public class TileSmartPatternInterface extends TileEntity {
             if (sortedIndex < recipeCount) {
                 SmartRecipe recipe = patternData.getRecipe(sortedIndex);
                 if (recipe != null) {
-                    IAEItemStack primary = recipe.getPrimaryOutput();
+                    AEItemKey primary = recipe.getPrimaryOutput();
                     recipeDisplayInventory.setStackInSlot(i, primary != null ? primary.createItemStack() : ItemStack.EMPTY);
                 } else {
                     recipeDisplayInventory.setStackInSlot(i, ItemStack.EMPTY);

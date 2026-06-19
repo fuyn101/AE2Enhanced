@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.gui.util;
 
-import appeng.container.slot.AppEngSlot;
+import ae2.container.slot.AppEngSlot;
 import net.minecraft.inventory.Slot;
 
 import java.util.IdentityHashMap;

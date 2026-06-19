@@ -9,29 +9,15 @@ import java.util.List;
 
 /**
  * Late Mixin 加载器.
- * 从 AssemblyMixinPlugin 中拆分出来,避免 IFMLLoadingPlugin(coremod)在过早阶段
- * 触发 JEI 内部类的加载,导致 CleanroomMC ActualClassLoader 标记 invalid.
- *
- * ae2fc 采用相同的架构：LateMixinLoader 仅实现 ILateMixinLoader,不作为 coremod.
+ * 仅保留第三方 mod 的 Mixin 配置；AE2/自定义 type 相关配置已移除.
  */
 public class LateMixinLoader implements ILateMixinLoader {
 
     @Override
     public List<String> getMixinConfigs() {
         List<String> configs = new ArrayList<>(Arrays.asList(
-                "mixins.ae2enhanced.late.json",
-                "mixins.ae2enhanced.late.thaumic.json",
-                "mixins.ae2enhanced.late.gas.json"
+                "mixins.ae2enhanced.late.json"
         ));
-        if (Loader.isModLoaded("functionalstoragelegacy")) {
-            configs.add("mixins.ae2enhanced.late.fsl.json");
-        }
-        if (Loader.isModLoaded("storagedrawers")) {
-            configs.add("mixins.ae2enhanced.late.sd.json");
-        }
-        if (Loader.isModLoaded("cells")) {
-            configs.add("mixins.ae2enhanced.late.cells.json");
-        }
         if (Loader.isModLoaded("thermalexpansion")) {
             configs.add("mixins.ae2enhanced.late.thermal.json");
         }

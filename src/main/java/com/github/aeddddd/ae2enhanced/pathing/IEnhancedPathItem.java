@@ -2,10 +2,10 @@ package com.github.aeddddd.ae2enhanced.pathing;
 
 import javax.annotation.Nullable;
 
-import appeng.me.GridNode;
+import ae2.me.GridNode;
 
 /**
- * 扩展 {@link appeng.me.pathfinding.IPathItem}，为 PR #8285 的快速频道路径算法提供额外状态和方法。
+ * 扩展 {@link ae2.me.pathfinding.IPathItem}，为 PR #8285 的快速频道路径算法提供额外状态和方法。
  *
  * <p>由 {@link com.github.aeddddd.ae2enhanced.mixin.late.ae2.MixinGridNode} 与
  * {@link com.github.aeddddd.ae2enhanced.mixin.late.ae2.MixinGridConnection} 实现。</p>

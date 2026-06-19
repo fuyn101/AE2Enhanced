@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.util.AEColor;
+import ae2.api.util.AEColor;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.omnitool.module.MiningModule;
 import com.github.aeddddd.ae2enhanced.omnitool.module.TravelModule;

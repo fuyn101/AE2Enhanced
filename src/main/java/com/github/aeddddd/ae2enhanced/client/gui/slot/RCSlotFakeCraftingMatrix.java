@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.gui.slot;
 
-import appeng.container.slot.SlotFakeCraftingMatrix;
+import ae2.container.slot.SlotFakeCraftingMatrix;
 import net.minecraftforge.items.IItemHandler;
 
 /**

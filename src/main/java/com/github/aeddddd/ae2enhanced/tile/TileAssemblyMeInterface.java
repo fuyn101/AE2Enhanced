@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.networking.crafting.ICraftingProvider;
-import appeng.api.networking.crafting.ICraftingProviderHelper;
+import ae2.api.networking.crafting.ICraftingPatternDetails;
+import ae2.api.networking.crafting.ICraftingProvider;
+import ae2.api.networking.crafting.ICraftingProviderHelper;
 import net.minecraft.inventory.InventoryCrafting;
 
 public class TileAssemblyMeInterface extends TileDelegatedProxyBase<TileAssemblyController> implements ICraftingProvider {

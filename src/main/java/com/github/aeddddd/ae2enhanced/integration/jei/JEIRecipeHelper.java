@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.jei;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.JEISearchKeyHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -197,10 +197,10 @@ public class JEIRecipeHelper {
             List<List<ItemStack>> outputLists = ingredients.getOutputs(VanillaTypes.ITEM);
 
             // 收集所有输入(物品 + 流体)
-            List<IAEItemStack> inputList = new ArrayList<>();
+            List<AEItemKey> inputList = new ArrayList<>();
             for (List<ItemStack> slotInputs : inputLists) {
                 if (!slotInputs.isEmpty()) {
-                    inputList.add(AEItemStack.fromItemStack(slotInputs.get(0)));
+                    inputList.add(AEItemKey.fromItemStack(slotInputs.get(0)));
                 }
             }
             // ae2fc 流体输入
@@ -208,7 +208,7 @@ public class JEIRecipeHelper {
                 List<List<FluidStack>> fluidInputs = ingredients.getInputs(VanillaTypes.FLUID);
                 for (List<FluidStack> slotFluids : fluidInputs) {
                     if (!slotFluids.isEmpty()) {
-                        IAEItemStack fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
+                        AEItemKey fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
                         if (fluidDrop != null) {
                             inputList.add(fluidDrop);
                         }
@@ -217,10 +217,10 @@ public class JEIRecipeHelper {
             }
 
             // 收集所有输出(物品 + 流体),支持多输出
-            List<IAEItemStack> outputList = new ArrayList<>();
+            List<AEItemKey> outputList = new ArrayList<>();
             for (List<ItemStack> slotOutputs : outputLists) {
                 if (!slotOutputs.isEmpty()) {
-                    outputList.add(AEItemStack.fromItemStack(slotOutputs.get(0)));
+                    outputList.add(AEItemKey.fromItemStack(slotOutputs.get(0)));
                 }
             }
             // ae2fc 流体输出
@@ -228,7 +228,7 @@ public class JEIRecipeHelper {
                 List<List<FluidStack>> fluidOutputs = ingredients.getOutputs(VanillaTypes.FLUID);
                 for (List<FluidStack> slotFluids : fluidOutputs) {
                     if (!slotFluids.isEmpty()) {
-                        IAEItemStack fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
+                        AEItemKey fluidDrop = Ae2fcFluidHelper.packFluid2AEDrops(slotFluids.get(0));
                         if (fluidDrop != null) {
                             outputList.add(fluidDrop);
                         }
@@ -236,8 +236,8 @@ public class JEIRecipeHelper {
                 }
             }
 
-            IAEItemStack[] inputs = inputList.toArray(new IAEItemStack[0]);
-            IAEItemStack[] outputs = outputList.toArray(new IAEItemStack[0]);
+            AEItemKey[] inputs = inputList.toArray(new AEItemKey[0]);
+            AEItemKey[] outputs = outputList.toArray(new AEItemKey[0]);
 
             // 智能样板统一作为 processing 配方处理，不区分 crafting/processing
             return new SmartRecipe(inputs, outputs, false);

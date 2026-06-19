@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -133,7 +133,7 @@ public class TechRebornMachineAdapter implements TargetAdapter {
 
     @Override
     @Nullable
-    public ItemStack extract(@Nonnull IAEItemStack requested, boolean simulate) {
+    public ItemStack extract(@Nonnull AEItemKey requested, boolean simulate) {
         if (tile == null || tile.isInvalid() || requested == null) return null;
 
         ItemStack wanted = requested.createItemStack();

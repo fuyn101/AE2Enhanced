@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import appeng.api.AEApi;
-import appeng.api.features.ILocatable;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.core.localization.PlayerMessages;
+import ae2.api.AEApi;
+import ae2.api.features.ILocatable;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.AEKeyType;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.core.localization.PlayerMessages;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -100,11 +100,11 @@ public final class SecurityTerminalBindingHelper {
      * 获取网络的物品存储监控器。
      */
     @Nullable
-    public static IMEMonitor<IAEItemStack> getItemMonitor(IGrid grid) {
+    public static MEStorage<AEItemKey> getItemMonitor(IGrid grid) {
         if (grid == null) return null;
-        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+        IStorageService storageGrid = grid.getCache(IStorageService.class);
         if (storageGrid == null) return null;
-        IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        AEKeyType<AEItemKey> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
         return storageGrid.getInventory(channel);
     }
 

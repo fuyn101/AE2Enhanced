@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.me.CraftingStatus;
 import io.netty.buffer.ByteBuf;
@@ -34,7 +34,7 @@ public class PacketOmniCraftingUpdate implements IMessage {
         this.activeCrafting = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             try {
-                IAEItemStack stack = AEItemStack.fromPacket(buf);
+                AEItemKey stack = AEItemKey.fromPacket(buf);
                 long remaining = buf.readLong();
                 long start = buf.readLong();
                 if (stack != null) {

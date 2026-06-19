@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.util.memorycard.core;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
+import ae2.api.parts.IPart;
+import ae2.api.parts.IPartHost;
+import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;

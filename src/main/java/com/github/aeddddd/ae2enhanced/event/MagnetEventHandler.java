@@ -1,13 +1,13 @@
 package com.github.aeddddd.ae2enhanced.event;
 
-import appeng.api.AEApi;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.helpers.WirelessTerminalGuiObject;
-import appeng.util.InventoryAdaptor;
-import appeng.util.Platform;
+import ae2.api.AEApi;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.helpers.WirelessTerminalGuiHost;
+import ae2.util.InventoryAdaptor;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
@@ -72,8 +72,8 @@ public class MagnetEventHandler {
         }
 
         // 模式 2 (网络) 需要检查无线链接和能量
-        WirelessTerminalGuiObject host = null;
-        IStorageGrid storageGrid = null;
+        WirelessTerminalGuiHost host = null;
+        IStorageService storageGrid = null;
         if (magnetMode == 2) {
             String key = ((ItemOmniWirelessTerminal) terminal.getItem()).getEncryptionKey(terminal);
             if (key == null || key.isEmpty()) {
@@ -82,12 +82,12 @@ public class MagnetEventHandler {
             if (!((ItemOmniWirelessTerminal) terminal.getItem()).hasPower(player, 0.5, terminal)) {
                 return;
             }
-            appeng.api.features.IWirelessTermHandler handler =
+            ae2.api.features.IWirelessTermHandler handler =
                     AEApi.instance().registries().wireless().getWirelessTerminalHandler(terminal);
             if (handler == null) {
                 return;
             }
-            host = new WirelessTerminalGuiObject(
+            host = new WirelessTerminalGuiHost(
                     handler, terminal, player, world,
                     (int) player.posX, (int) player.posY, (int) player.posZ
             );
@@ -95,7 +95,7 @@ public class MagnetEventHandler {
             if (node == null || node.getGrid() == null) {
                 return;
             }
-            storageGrid = node.getGrid().getCache(IStorageGrid.class);
+            storageGrid = node.getGrid().getCache(IStorageService.class);
             if (storageGrid == null) {
                 return;
             }
@@ -124,14 +124,14 @@ public class MagnetEventHandler {
                 leftover = adp.addItems(stack);
             } else if (magnetMode == 2 && host != null && storageGrid != null) {
                 // 直接移入 AE 网络
-                IAEItemStack toInsert = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+                AEItemKey toInsert = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
                         .createStack(stack);
                 if (toInsert != null) {
-                    IAEItemStack remain = Platform.poweredInsert(
+                    AEItemKey remain = Platform.poweredInsert(
                             host,
                             storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)),
                             toInsert,
-                            new appeng.me.helpers.MachineSource(host)
+                            new ae2.me.helpers.MachineSource(host)
                     );
                     if (remain != null && remain.getStackSize() > 0) {
                         leftover = remain.createItemStack();

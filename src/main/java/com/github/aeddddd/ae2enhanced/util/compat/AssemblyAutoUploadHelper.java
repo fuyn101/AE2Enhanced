@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.util.compat;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.entity.player.EntityPlayer;
@@ -109,7 +109,7 @@ public class AssemblyAutoUploadHelper {
 
     private static IGrid getControllerGrid(TileAssemblyController controller) {
         try {
-            appeng.me.helpers.AENetworkProxy proxy = controller.getProxy();
+            ae2.me.helpers.AENetworkProxy proxy = controller.getProxy();
             if (proxy == null) return null;
             IGridNode node = proxy.getNode();
             if (node == null) return null;

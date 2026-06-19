@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.terminal;
 
-import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.helpers.ItemHandlerUtil;
+import ae2.tile.inventory.AppEngInternalInventory;
+import ae2.util.helpers.ItemHandlerUtil;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;

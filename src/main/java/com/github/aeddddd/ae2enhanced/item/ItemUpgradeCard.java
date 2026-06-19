@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import appeng.api.config.Upgrades;
-import appeng.api.implementations.items.IUpgradeModule;
+import ae2.api.config.Upgrades;
+import ae2.api.implementations.items.IUpgradeModule;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;

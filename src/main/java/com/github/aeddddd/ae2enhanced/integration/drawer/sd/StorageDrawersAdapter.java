@@ -1,12 +1,12 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer.sd;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
-import appeng.util.item.AEItemStack;
+import ae2.api.config.AccessRestriction;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.storage.data.KeyCounter;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.integration.drawer.IDrawerIndexAdapter;
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 import com.jaquadro.minecraft.storagedrawers.api.storage.IDrawer;
@@ -86,7 +86,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
+    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) {
             return null;
         }
@@ -99,13 +99,13 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         if (remaining.isEmpty()) {
             return null;
         }
-        IAEItemStack result = input.copy();
+        AEItemKey result = input.copy();
         result.setStackSize(remaining.getCount());
         return result;
     }
 
     @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
+    public AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) {
             return null;
         }
@@ -114,7 +114,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         if (extracted.isEmpty()) {
             return null;
         }
-        IAEItemStack result = AEItemStack.fromItemStack(extracted);
+        AEItemKey result = AEItemKey.fromItemStack(extracted);
         if (result != null) {
             result.setStackSize(extracted.getCount());
         }
@@ -125,7 +125,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
      * 比较两个 ItemStack 是否属于同一物品类型,忽略 count.
      *
      * <p>与 Minecraft 原版的 {@link ItemStack#areItemStacksEqual} 不同,
-     * 本方法在比较时会忽略 stackSize,专门用于把 count 聚合到同一 IAEItemStack.</p>
+     * 本方法在比较时会忽略 stackSize,专门用于把 count 聚合到同一 AEItemKey.</p>
      */
     private static boolean itemStackEqualsIgnoreCount(ItemStack a, ItemStack b) {
         if (a == b) {
@@ -157,7 +157,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
 
     @Override
     @SuppressWarnings("unchecked")
-    public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
+    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
         if (this.lookup != null && this.entrySetMethod != null && SLOT_RECORD_CLASS != null
                 && SLOT_RECORD_GROUP_FIELD != null && SLOT_RECORD_SLOT_FIELD != null) {
             try {
@@ -165,7 +165,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                         (Set<Map.Entry<Item, Map<Integer, Collection<?>>>>) this.entrySetMethod.invoke(this.lookup);
                 for (Map.Entry<Item, Map<Integer, Collection<?>>> itemEntry : entries) {
                     for (Map.Entry<Integer, Collection<?>> metaEntry : itemEntry.getValue().entrySet()) {
-                        // 同一 Item+meta 的抽屉可能因 NBT 不同而属于不同 IAEItemStack,
+                        // 同一 Item+meta 的抽屉可能因 NBT 不同而属于不同 AEItemKey,
                         // 必须按完整 ItemStack(Item+meta+NBT) 细分,避免把不同 NBT 的物品合并成一份.
                         List<PrototypeCount> groups = new ArrayList<>();
                         for (Object recordObj : metaEntry.getValue()) {
@@ -203,7 +203,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                                 prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
                             }
                             if (group.count > 0) {
-                                IAEItemStack aeStack = this.channel.createStack(prototype);
+                                AEItemKey aeStack = this.channel.createStack(prototype);
                                 if (aeStack != null) {
                                     aeStack.setStackSize(group.count);
                                     out.add(aeStack);
@@ -222,7 +222,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         NonNullList<IItemRepository.ItemRecord> records = this.repository.getAllItems();
         for (IItemRepository.ItemRecord record : records) {
             if (record == null || record.itemPrototype == null) continue;
-            IAEItemStack aeStack = this.channel.createStack(record.itemPrototype);
+            AEItemKey aeStack = this.channel.createStack(record.itemPrototype);
             if (aeStack != null) {
                 aeStack.setStackSize(record.count);
                 out.add(aeStack);
@@ -237,12 +237,12 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public boolean isPrioritized(IAEItemStack input) {
+    public boolean isPrioritized(AEItemKey input) {
         return false;
     }
 
     @Override
-    public boolean canAccept(IAEItemStack input) {
+    public boolean canAccept(AEItemKey input) {
         if (input == null) {
             return false;
         }

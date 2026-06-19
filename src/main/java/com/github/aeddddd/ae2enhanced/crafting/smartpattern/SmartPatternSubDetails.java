@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.networking.crafting.ICraftingPatternDetails;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
@@ -16,7 +16,7 @@ import java.util.*;
  *
  * <p>关键设计点：</p>
  * <ul>
- *   <li>{@link #getPattern()} 返回 parent 智能样板 ItemStack(用于 DualityInterface 的 identity 验证)</li>
+ *   <li>{@link #getPattern()} 返回 parent 智能样板 ItemStack(用于 InterfaceLogic 的 identity 验证)</li>
  *   <li>{@link #equals(Object)} / {@link #hashCode()} 基于配方内容,确保 Set 中不重复</li>
  *   <li>processing 配方：{@link #isCraftable()} = false, {@link #canSubstitute()} = false</li>
  * </ul>
@@ -25,9 +25,9 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
 
     private final ItemStack parentPattern;
     private final SmartRecipe recipe;
-    private final IAEItemStack[] condensedInputs;
-    private final IAEItemStack[] condensedOutputs;
-    private final IAEItemStack pattern; // 用于 equals/hashCode
+    private final AEItemKey[] condensedInputs;
+    private final AEItemKey[] condensedOutputs;
+    private final AEItemKey pattern; // 用于 equals/hashCode
     private int priority = 0;
 
     public SmartPatternSubDetails(@Nonnull ItemStack parentPattern, @Nonnull SmartRecipe recipe) {
@@ -35,7 +35,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
         this.recipe = recipe;
         this.condensedInputs = condenseStacks(recipe.getInputs());
         this.condensedOutputs = condenseStacks(recipe.getOutputs());
-        this.pattern = AEItemStack.fromItemStack(parentPattern);
+        this.pattern = AEItemKey.fromItemStack(parentPattern);
     }
 
     @Override
@@ -51,15 +51,15 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
             return false;
         }
         // 对于 crafting 配方,检查 slotIndex 位置的输入是否匹配
-        IAEItemStack[] inputs = recipe.getInputs();
+        AEItemKey[] inputs = recipe.getInputs();
         if (slotIndex < 0 || slotIndex >= inputs.length) {
             return false;
         }
-        IAEItemStack expected = inputs[slotIndex];
+        AEItemKey expected = inputs[slotIndex];
         if (expected == null || item.isEmpty()) {
             return expected == null && item.isEmpty();
         }
-        return expected.equals(AEItemStack.fromItemStack(item));
+        return expected.equals(AEItemKey.fromItemStack(item));
     }
 
     @Override
@@ -70,25 +70,25 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
 
     @Override
     @Nonnull
-    public IAEItemStack[] getInputs() {
+    public AEItemKey[] getInputs() {
         return recipe.getInputs();
     }
 
     @Override
     @Nonnull
-    public IAEItemStack[] getCondensedInputs() {
+    public AEItemKey[] getCondensedInputs() {
         return condensedInputs;
     }
 
     @Override
     @Nonnull
-    public IAEItemStack[] getCondensedOutputs() {
+    public AEItemKey[] getCondensedOutputs() {
         return condensedOutputs;
     }
 
     @Override
     @Nonnull
-    public IAEItemStack[] getOutputs() {
+    public AEItemKey[] getOutputs() {
         return recipe.getOutputs();
     }
 
@@ -99,7 +99,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
 
     @Override
     @Nonnull
-    public List<IAEItemStack> getSubstituteInputs(int slot) {
+    public List<AEItemKey> getSubstituteInputs(int slot) {
         return Collections.emptyList();
     }
 
@@ -111,7 +111,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
             return ItemStack.EMPTY;
         }
         // crafting 配方：返回主要输出(AE2 内部通常只在 crafting grid 验证后调用)
-        IAEItemStack primary = recipe.getPrimaryOutput();
+        AEItemKey primary = recipe.getPrimaryOutput();
         return primary != null ? primary.createItemStack() : ItemStack.EMPTY;
     }
 
@@ -131,17 +131,17 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
     }
 
     /**
-     * 压缩 IAEItemStack 数组：合并相同的物品,累加数量.
+     * 压缩 AEItemKey 数组：合并相同的物品,累加数量.
      */
     @Nonnull
-    private static IAEItemStack[] condenseStacks(@Nonnull IAEItemStack[] stacks) {
-        Map<IAEItemStack, IAEItemStack> map = new LinkedHashMap<>();
-        for (IAEItemStack stack : stacks) {
+    private static AEItemKey[] condenseStacks(@Nonnull AEItemKey[] stacks) {
+        Map<AEItemKey, AEItemKey> map = new LinkedHashMap<>();
+        for (AEItemKey stack : stacks) {
             if (stack == null || stack.getStackSize() <= 0) {
                 continue;
             }
-            IAEItemStack existing = null;
-            for (IAEItemStack key : map.keySet()) {
+            AEItemKey existing = null;
+            for (AEItemKey key : map.keySet()) {
                 if (key.equals(stack)) {
                     existing = map.get(key);
                     break;
@@ -153,7 +153,7 @@ public class SmartPatternSubDetails implements ICraftingPatternDetails {
                 map.put(stack.copy(), stack.copy());
             }
         }
-        return map.values().toArray(new IAEItemStack[0]);
+        return map.values().toArray(new AEItemKey[0]);
     }
 
     @Override

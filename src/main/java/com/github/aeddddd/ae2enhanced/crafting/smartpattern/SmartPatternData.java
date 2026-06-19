@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
@@ -93,10 +93,10 @@ public class SmartPatternData {
     public void detectConflicts() {
         conflictMask.clear();
         for (int i = 0; i < recipes.size(); i++) {
-            IAEItemStack primaryA = recipes.get(i).getPrimaryOutput();
+            AEItemKey primaryA = recipes.get(i).getPrimaryOutput();
             if (primaryA == null) continue;
             for (int j = i + 1; j < recipes.size(); j++) {
-                IAEItemStack primaryB = recipes.get(j).getPrimaryOutput();
+                AEItemKey primaryB = recipes.get(j).getPrimaryOutput();
                 if (primaryB != null && primaryA.equals(primaryB)) {
                     conflictMask.set(i);
                     conflictMask.set(j);
@@ -217,14 +217,14 @@ public class SmartPatternData {
      * 在所有配方的输入输出中替换物品类型(保持数量不变).
      * 如果 to 为 null,则清除所有匹配的输入输出.
      */
-    public void replaceInAllRecipes(@Nonnull appeng.api.storage.data.IAEItemStack from,
-                                    @Nullable appeng.api.storage.data.IAEItemStack to) {
+    public void replaceInAllRecipes(@Nonnull ae2.api.storage.data.AEItemKey from,
+                                    @Nullable ae2.api.storage.data.AEItemKey to) {
         for (SmartRecipe recipe : recipes) {
-            appeng.api.storage.data.IAEItemStack[] inputs = recipe.getInputs();
+            ae2.api.storage.data.AEItemKey[] inputs = recipe.getInputs();
             for (int i = 0; i < inputs.length; i++) {
                 if (inputs[i] != null && inputs[i].equals(from)) {
                     if (to != null) {
-                        appeng.api.storage.data.IAEItemStack copy = to.copy();
+                        ae2.api.storage.data.AEItemKey copy = to.copy();
                         copy.setStackSize(inputs[i].getStackSize());
                         recipe.setInput(i, copy);
                     } else {
@@ -232,11 +232,11 @@ public class SmartPatternData {
                     }
                 }
             }
-            appeng.api.storage.data.IAEItemStack[] outputs = recipe.getOutputs();
+            ae2.api.storage.data.AEItemKey[] outputs = recipe.getOutputs();
             for (int i = 0; i < outputs.length; i++) {
                 if (outputs[i] != null && outputs[i].equals(from)) {
                     if (to != null) {
-                        appeng.api.storage.data.IAEItemStack copy = to.copy();
+                        ae2.api.storage.data.AEItemKey copy = to.copy();
                         copy.setStackSize(outputs[i].getStackSize());
                         recipe.setOutput(i, copy);
                     } else {

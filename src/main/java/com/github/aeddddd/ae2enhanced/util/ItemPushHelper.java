@@ -1,12 +1,12 @@
 package com.github.aeddddd.ae2enhanced.util;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.energy.IEnergyGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.networking.security.IActionSource;
-import appeng.util.InventoryAdaptor;
-import appeng.util.Platform;
+import ae2.api.config.Actionable;
+import ae2.api.networking.energy.IEnergyService;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.networking.security.IActionSource;
+import ae2.util.InventoryAdaptor;
+import ae2.util.Platform;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -28,8 +28,8 @@ public final class ItemPushHelper {
      * @param source  动作来源
      * @return 实际推送的数量
      */
-    public static long pushItemIntoTarget(InventoryAdaptor adaptor, IEnergyGrid energy,
-                                          IMEMonitor<IAEItemStack> inv, IAEItemStack org,
+    public static long pushItemIntoTarget(InventoryAdaptor adaptor, IEnergyService energy,
+                                          MEStorage<AEItemKey> inv, AEItemKey org,
                                           long maxSend, IActionSource source) {
         ItemStack inputStack = org.getCachedItemStack(org.getStackSize());
         ItemStack remaining = adaptor.simulateAdd(inputStack);
@@ -42,9 +42,9 @@ public final class ItemPushHelper {
         long canFit = Math.min(maxSend, org.getStackSize() - (long) remaining.getCount());
         if (canFit <= 0) return 0;
 
-        IAEItemStack ais = org.copy();
+        AEItemKey ais = org.copy();
         ais.setStackSize(canFit);
-        IAEItemStack itemsToAdd = Platform.poweredExtraction(energy, inv, ais, source);
+        AEItemKey itemsToAdd = Platform.poweredExtraction(energy, inv, ais, source);
         if (itemsToAdd != null) {
             inputStack.setCount((int) Math.min(Integer.MAX_VALUE, itemsToAdd.getStackSize()));
             ItemStack failed = adaptor.addItems(inputStack);

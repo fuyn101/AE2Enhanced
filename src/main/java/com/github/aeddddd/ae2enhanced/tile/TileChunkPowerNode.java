@@ -1,18 +1,18 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.events.MENetworkChannelsChanged;
-import appeng.api.networking.events.MENetworkEventSubscribe;
-import appeng.api.networking.events.MENetworkPowerStatusChange;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.MachineSource;
-import appeng.util.Platform;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.events.MENetworkChannelsChanged;
+import ae2.api.networking.events.MENetworkEventSubscribe;
+import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.storage.MEStorage;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.MachineSource;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
 import com.github.aeddddd.ae2enhanced.platform.energy.EnergyAdapterRegistry;
@@ -152,7 +152,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
         if (needsReady()) {
             clearNeedsReady();
-            getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
             getProxy().setIdlePowerUsage(32);
             getProxy().onReady();
         }
@@ -173,15 +173,15 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
         if (cachedTargets.isEmpty()) return;
 
-        appeng.api.networking.storage.IStorageGrid storageGrid;
+        ae2.api.networking.storage.IStorageService storageGrid;
         try {
-            storageGrid = getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            storageGrid = getProxy().getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
             if (storageGrid == null) return;
         } catch (GridAccessException e) {
             return;
         }
 
-        IMEMonitor<IAEEnergyStack> energyMonitor = storageGrid.getInventory(
+        MEStorage<IAEEnergyStack> energyMonitor = storageGrid.getInventory(
                 AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class));
         MachineSource source = getMachineSource();
 

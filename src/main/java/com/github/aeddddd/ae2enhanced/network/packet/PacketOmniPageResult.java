@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import io.netty.buffer.ByteBuf;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -22,10 +22,10 @@ public class PacketOmniPageResult implements IMessage {
 
     public static class Entry {
         public int id;              // per-session ID（用于压缩）
-        public IAEItemStack stack;  // 物品模板（stackSize 可能为 0）
+        public AEItemKey stack;  // 物品模板（stackSize 可能为 0）
         public long count;          // 实际数量
 
-        public Entry(int id, IAEItemStack stack, long count) {
+        public Entry(int id, AEItemKey stack, long count) {
             this.id = id;
             this.stack = stack;
             this.count = count;
@@ -54,9 +54,9 @@ public class PacketOmniPageResult implements IMessage {
             this.entries = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int id = ByteBufUtils.readVarInt(buf, 4);
-                IAEItemStack stack = null;
+                AEItemKey stack = null;
                 try {
-                    stack = AEItemStack.fromPacket(buf);
+                    stack = AEItemKey.fromPacket(buf);
                 } catch (Exception ex) {
                     com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error("[AE2E] Failed to read stack from OmniPageResult", ex);
                 }

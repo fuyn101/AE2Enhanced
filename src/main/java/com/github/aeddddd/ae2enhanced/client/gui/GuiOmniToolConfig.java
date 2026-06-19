@@ -657,8 +657,8 @@ public class GuiOmniToolConfig extends GuiContainer {
 
         PlacementConfig placementConfig = new PlacementConfig(toolStack);
         int colorIdx = values[PID_CABLE_COLOR];
-        if (colorIdx >= 0 && colorIdx < appeng.api.util.AEColor.values().length) {
-            placementConfig.setCableColor(appeng.api.util.AEColor.values()[colorIdx]);
+        if (colorIdx >= 0 && colorIdx < ae2.api.util.AEColor.values().length) {
+            placementConfig.setCableColor(ae2.api.util.AEColor.values()[colorIdx]);
         }
         placementConfig.setReachDistance(values[PID_REACH_DISTANCE]);
         placementConfig.setPlacementRestriction(PlacementRestriction.fromOrdinal(values[PID_PLACEMENT_RESTRICTION]));

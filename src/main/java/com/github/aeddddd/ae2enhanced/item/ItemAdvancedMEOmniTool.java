@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import appeng.api.features.INetworkEncodable;
-import appeng.api.networking.IGrid;
+import ae2.api.features.INetworkEncodable;
+import ae2.api.networking.IGrid;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.omnitool.ConformalChargeHandler;
 import com.github.aeddddd.ae2enhanced.omnitool.OmniToolEnchantments;

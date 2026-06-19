@@ -101,14 +101,14 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_OMNI_TERMINAL) {
             ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                ae2.api.features.IWirelessTermHandler handler = ae2.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
                 if (handler == null) {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, y, 0);
+                ae2.helpers.WirelessTerminalGuiHost host = new ae2.helpers.WirelessTerminalGuiHost(handler, held, player, world, x, y, 0);
                 if (host.getActionableNode() == null) {
-                    player.sendMessage(appeng.core.localization.PlayerMessages.OutOfRange.get());
+                    player.sendMessage(ae2.core.localization.PlayerMessages.OutOfRange.get());
                     return null;
                 }
                 return new ContainerOmniTerm(player.inventory, host);
@@ -216,12 +216,12 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_OMNI_TERMINAL) {
             ItemStack held = findOmniTerminalStack(player, x, y);
             if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-                appeng.api.features.IWirelessTermHandler handler = appeng.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
+                ae2.api.features.IWirelessTermHandler handler = ae2.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
                 if (handler == null) {
                     AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
                     return null;
                 }
-                appeng.helpers.WirelessTerminalGuiObject host = new appeng.helpers.WirelessTerminalGuiObject(handler, held, player, world, x, y, 0);
+                ae2.helpers.WirelessTerminalGuiHost host = new ae2.helpers.WirelessTerminalGuiHost(handler, held, player, world, x, y, 0);
                 return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
             }
             return null;

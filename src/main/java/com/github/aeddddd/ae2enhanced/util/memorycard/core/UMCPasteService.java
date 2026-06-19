@@ -2,9 +2,9 @@ package com.github.aeddddd.ae2enhanced.util.memorycard.core;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
+import ae2.api.parts.IPart;
+import ae2.api.parts.IPartHost;
+import ae2.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

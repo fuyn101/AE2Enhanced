@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.event;
 
-import appeng.api.AEApi;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.AEApi;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
@@ -168,7 +168,7 @@ public final class ModEventHandler {
                 }
             }
         } else if (dropMode == ItemAdvancedMEOmniTool.DROP_AE) {
-            IMEMonitor<IAEItemStack> monitor = WirelessTransmitterNetworkLink.getItemMonitor(mainHand, player.world);
+            MEStorage<AEItemKey> monitor = WirelessTransmitterNetworkLink.getItemMonitor(mainHand, player.world);
             if (monitor == null) {
                 // 未绑定 AE 或发射器不可用，回退到正常掉落
                 for (ItemStack drop : drops) {
@@ -184,7 +184,7 @@ public final class ModEventHandler {
                     return Optional.of(player);
                 }
                 @Override
-                public Optional<appeng.api.networking.security.IActionHost> machine() {
+                public Optional<ae2.api.networking.security.IActionHost> machine() {
                     return Optional.empty();
                 }
                 @Override
@@ -194,9 +194,9 @@ public final class ModEventHandler {
             };
 
             for (ItemStack drop : drops) {
-                IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(drop);
+                AEItemKey aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(drop);
                 if (aeStack != null) {
-                    IAEItemStack leftover = monitor.injectItems(aeStack, appeng.api.config.Actionable.MODULATE, source);
+                    AEItemKey leftover = monitor.injectItems(aeStack, ae2.api.config.Actionable.MODULATE, source);
                     if (leftover != null && leftover.getStackSize() > 0) {
                         ItemStack overflow = leftover.createItemStack();
                         EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, overflow);

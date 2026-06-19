@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IBaseMonitor;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.IMEMonitorHandlerReceiver;
-import appeng.api.storage.IStorageChannel;
-import appeng.me.storage.ITickingMonitor;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
+import ae2.api.config.AccessRestriction;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IBaseMonitor;
+import ae2.api.networking.ticking.TickRateModulation;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.IMEMonitorHandlerReceiver;
+import ae2.api.storage.AEKeyType;
+import ae2.me.storage.ITickingMonitor;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.storage.data.KeyCounter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,20 +22,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 抽屉模组监视器包装器.
  *
- * <p>将 {@link IDrawerIndexAdapter} 包装为 AE2 的 {@link IMEMonitor} + {@link ITickingMonitor},
+ * <p>将 {@link IDrawerIndexAdapter} 包装为 AE2 的 {@link MEStorage} + {@link ITickingMonitor},
  * 统一处理 onTick() 差异检测、listener 通知、以及主动操作后的增量更新.</p>
  *
  * <p>本类是无条件加载的公共类,不引用任何第三方抽屉模组类,常量池安全.</p>
  */
-public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingMonitor {
+public class DrawerMonitorWrapper implements MEStorage<AEItemKey>, ITickingMonitor {
 
     private final IDrawerIndexAdapter adapter;
-    private final IStorageChannel<IAEItemStack> channel;
-    private final Map<IMEMonitorHandlerReceiver<IAEItemStack>, Object> listeners = new ConcurrentHashMap<>();
+    private final AEKeyType<AEItemKey> channel;
+    private final Map<IMEMonitorHandlerReceiver<AEItemKey>, Object> listeners = new ConcurrentHashMap<>();
     private IActionSource mySource;
-    private IItemList<IAEItemStack> currentlyCached;
+    private KeyCounter<AEItemKey> currentlyCached;
 
-    public DrawerMonitorWrapper(IDrawerIndexAdapter adapter, IStorageChannel<IAEItemStack> channel) {
+    public DrawerMonitorWrapper(IDrawerIndexAdapter adapter, AEKeyType<AEItemKey> channel) {
         this.adapter = adapter;
         this.channel = channel;
         this.currentlyCached = channel.createList();
@@ -45,18 +45,18 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
     // ---- IBaseMonitor ----
 
     @Override
-    public void addListener(IMEMonitorHandlerReceiver<IAEItemStack> l, Object verificationToken) {
+    public void addListener(IMEMonitorHandlerReceiver<AEItemKey> l, Object verificationToken) {
         this.listeners.put(l, verificationToken);
     }
 
     @Override
-    public void removeListener(IMEMonitorHandlerReceiver<IAEItemStack> l) {
+    public void removeListener(IMEMonitorHandlerReceiver<AEItemKey> l) {
         this.listeners.remove(l);
     }
 
-    private void postDifference(Iterable<IAEItemStack> changes) {
-        for (Map.Entry<IMEMonitorHandlerReceiver<IAEItemStack>, Object> entry : this.listeners.entrySet()) {
-            IMEMonitorHandlerReceiver<IAEItemStack> receiver = entry.getKey();
+    private void postDifference(Iterable<AEItemKey> changes) {
+        for (Map.Entry<IMEMonitorHandlerReceiver<AEItemKey>, Object> entry : this.listeners.entrySet()) {
+            IMEMonitorHandlerReceiver<AEItemKey> receiver = entry.getKey();
             if (receiver.isValid(entry.getValue())) {
                 receiver.postChange(this, changes, this.mySource);
             }
@@ -67,18 +67,18 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
 
     @Override
     public TickRateModulation onTick() {
-        IItemList<IAEItemStack> currentList = this.channel.createList();
+        KeyCounter<AEItemKey> currentList = this.channel.createList();
         this.adapter.getAvailableItems(currentList);
 
-        for (IAEItemStack cached : this.currentlyCached) {
+        for (AEItemKey cached : this.currentlyCached) {
             cached.setStackSize(-cached.getStackSize());
         }
-        for (IAEItemStack current : currentList) {
+        for (AEItemKey current : currentList) {
             this.currentlyCached.add(current);
         }
 
-        List<IAEItemStack> changes = new ArrayList<>();
-        for (IAEItemStack entry : this.currentlyCached) {
+        List<AEItemKey> changes = new ArrayList<>();
+        for (AEItemKey entry : this.currentlyCached) {
             if (entry.getStackSize() != 0) {
                 changes.add(entry);
             }
@@ -97,19 +97,19 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
         this.mySource = source;
     }
 
-    // ---- IMEInventoryHandler (via IMEMonitor) ----
+    // ---- IMEInventoryHandler (via MEStorage) ----
 
     @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
-        IAEItemStack result = this.adapter.injectItems(input, type, src);
+    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
+        AEItemKey result = this.adapter.injectItems(input, type, src);
         if (type == Actionable.MODULATE && result != null && result.getStackSize() < input.getStackSize()) {
             long injected = input.getStackSize() - result.getStackSize();
-            IAEItemStack diff = input.copy();
+            AEItemKey diff = input.copy();
             diff.setStackSize(injected);
             this.currentlyCached.add(diff);
             this.postDifference(Collections.singletonList(diff));
         } else if (type == Actionable.MODULATE && result == null) {
-            IAEItemStack diff = input.copy();
+            AEItemKey diff = input.copy();
             this.currentlyCached.add(diff);
             this.postDifference(Collections.singletonList(diff));
         }
@@ -117,10 +117,10 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
     }
 
     @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
-        IAEItemStack result = this.adapter.extractItems(request, mode, src);
+    public AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src) {
+        AEItemKey result = this.adapter.extractItems(request, mode, src);
         if (mode == Actionable.MODULATE && result != null) {
-            IAEItemStack diff = result.copy();
+            AEItemKey diff = result.copy();
             diff.setStackSize(-result.getStackSize());
             this.currentlyCached.add(diff);
             this.postDifference(Collections.singletonList(diff));
@@ -129,12 +129,12 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
     }
 
     @Override
-    public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
+    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
         return this.adapter.getAvailableItems(out);
     }
 
     @Override
-    public IStorageChannel<IAEItemStack> getChannel() {
+    public AEKeyType<AEItemKey> getChannel() {
         return this.channel;
     }
 
@@ -144,12 +144,12 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
     }
 
     @Override
-    public boolean isPrioritized(IAEItemStack input) {
+    public boolean isPrioritized(AEItemKey input) {
         return this.adapter.isPrioritized(input);
     }
 
     @Override
-    public boolean canAccept(IAEItemStack input) {
+    public boolean canAccept(AEItemKey input) {
         return this.adapter.canAccept(input);
     }
 
@@ -169,8 +169,8 @@ public class DrawerMonitorWrapper implements IMEMonitor<IAEItemStack>, ITickingM
     }
 
     @Override
-    public IItemList<IAEItemStack> getStorageList() {
-        IItemList<IAEItemStack> list = this.channel.createList();
+    public KeyCounter<AEItemKey> getStorageList() {
+        KeyCounter<AEItemKey> list = this.channel.createList();
         return this.adapter.getAvailableItems(list);
     }
 }

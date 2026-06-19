@@ -1,20 +1,20 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.IMEMonitorHandlerReceiver;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.MachineSource;
-import appeng.util.item.AEItemStack;
+import ae2.api.config.AccessRestriction;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.IMEMonitorHandlerReceiver;
+import ae2.api.storage.AEKeyType;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.storage.data.KeyCounter;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.MachineSource;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
@@ -38,7 +38,7 @@ import java.util.Map;
  *
  * <p>对 AE2 网络表现为一个存储源,实际回收操作直接写入超维度仓储中枢.</p>
  */
-public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>, IMEMonitor<IAEItemStack> {
+public class RecyclerNetworkHandler implements IMEInventoryHandler<AEItemKey>, MEStorage<AEItemKey> {
 
     private final TileMENetworkRecycler tile;
     private final RecyclerIndex index = new RecyclerIndex();
@@ -68,7 +68,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         index.clear();
     }
 
-    public appeng.api.networking.security.IActionSource getActionSource() {
+    public ae2.api.networking.security.IActionSource getActionSource() {
         return actionSource;
     }
 
@@ -83,7 +83,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
             return ItemStack.EMPTY;
         }
 
-        IAEItemStack toInject = AEItemStack.fromItemStack(output);
+        AEItemKey toInject = AEItemKey.fromItemStack(output);
         if (toInject == null) {
             return output;
         }
@@ -94,8 +94,8 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
             syncHyperStorageAdapter(hyperAdapter);
         }
 
-        IAEItemStack remainder;
-        List<IAEItemStack> changes = new ArrayList<>();
+        AEItemKey remainder;
+        List<AEItemKey> changes = new ArrayList<>();
 
         if (hyperAdapter != null) {
             // 注入超维度仓储
@@ -103,24 +103,24 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
 
             long injectedCount = output.getCount() - (remainder != null ? remainder.getStackSize() : 0);
             if (injectedCount > 0) {
-                IAEItemStack change = toInject.copy();
+                AEItemKey change = toInject.copy();
                 change.setStackSize(injectedCount);
                 changes.add(change);
             }
         } else if (!AE2EnhancedConfig.recycler.requireHyperStorageForRedirect) {
             // 无超维度中枢但配置允许时，回退到普通网络注入
             try {
-                IStorageGrid storageGrid = tile.getProxy().getGrid().getCache(IStorageGrid.class);
+                IStorageService storageGrid = tile.getProxy().getGrid().getCache(IStorageService.class);
                 if (storageGrid == null) {
                     return output;
                 }
-                IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
-                        appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+                MEStorage<AEItemKey> inv = storageGrid.getInventory(
+                        ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
                 remainder = inv.injectItems(toInject.copy(), Actionable.MODULATE, actionSource);
 
                 long injectedCount = output.getCount() - (remainder != null ? remainder.getStackSize() : 0);
                 if (injectedCount > 0) {
-                    IAEItemStack change = toInject.copy();
+                    AEItemKey change = toInject.copy();
                     change.setStackSize(injectedCount);
                     changes.add(change);
                 }
@@ -157,14 +157,14 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     /**
      * 向网络发送物品存储变化通知。
      */
-    private void postItemAlterations(List<IAEItemStack> changes) {
+    private void postItemAlterations(List<AEItemKey> changes) {
         try {
             IGrid grid = tile.getProxy().getGrid();
             if (grid == null) return;
-            IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+            IStorageService storageGrid = grid.getCache(IStorageService.class);
             if (storageGrid == null) return;
             storageGrid.postAlterationOfStoredItems(
-                    appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
+                    ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
                     changes, actionSource);
         } catch (GridAccessException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Recycler failed to post machine output alterations", e);
@@ -257,7 +257,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
             for (ItemStack stack : current) {
                 if (stack.isEmpty()) continue;
                 // 无过滤：直接提取全部
-                ItemStack extracted = adapter.extract(AEItemStack.fromItemStack(stack), false);
+                ItemStack extracted = adapter.extract(AEItemKey.fromItemStack(stack), false);
                 if (extracted != null && !extracted.isEmpty()) {
                     collector.add(extracted);
                 }
@@ -281,8 +281,8 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     private void flushCollector() {
         if (collector.isEmpty()) return;
 
-        List<IAEItemStack> changes = collector.drain();
-        lastRecycledCount = changes.stream().mapToLong(IAEItemStack::getStackSize).sum();
+        List<AEItemKey> changes = collector.drain();
+        lastRecycledCount = changes.stream().mapToLong(AEItemKey::getStackSize).sum();
 
         if (AE2EnhancedConfig.recycler.forceHyperdimensionalStorage) {
             injectToHyperStorage(changes);
@@ -291,7 +291,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         }
     }
 
-    private void injectToHyperStorage(List<IAEItemStack> changes) {
+    private void injectToHyperStorage(List<AEItemKey> changes) {
         ItemStorageAdapter adapter = hyperStorageLink.find(tile.getProxy(), tile.getWorld().getTotalWorldTime());
         if (adapter == null) {
             // 超维度中枢未找到：回退到标准网络注入
@@ -300,7 +300,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         }
         syncHyperStorageAdapter(adapter);
 
-        for (IAEItemStack stack : changes) {
+        for (AEItemKey stack : changes) {
             adapter.injectItems(stack.copy(), Actionable.MODULATE, actionSource);
         }
 
@@ -308,10 +308,10 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         try {
             IGrid grid = tile.getProxy().getGrid();
             if (grid != null) {
-                IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+                IStorageService storageGrid = grid.getCache(IStorageService.class);
                 if (storageGrid != null) {
                     storageGrid.postAlterationOfStoredItems(
-                            appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
+                            ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class),
                             changes, actionSource);
                 }
             }
@@ -320,13 +320,13 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
         }
     }
 
-    private void injectToNetwork(List<IAEItemStack> changes) {
+    private void injectToNetwork(List<AEItemKey> changes) {
         try {
-            IStorageGrid storageGrid = tile.getProxy().getGrid().getCache(IStorageGrid.class);
+            IStorageService storageGrid = tile.getProxy().getGrid().getCache(IStorageService.class);
             if (storageGrid == null) return;
-            IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
-                    appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-            for (IAEItemStack stack : changes) {
+            MEStorage<AEItemKey> inv = storageGrid.getInventory(
+                    ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+            for (AEItemKey stack : changes) {
                 inv.injectItems(stack.copy(), Actionable.MODULATE, actionSource);
             }
         } catch (GridAccessException e) {
@@ -337,12 +337,12 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     // ---- IMEInventoryHandler ----
 
     @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
+    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
         return input; // 回收节点不接受外部注入
     }
 
     @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable type, IActionSource src) {
+    public AEItemKey extractItems(AEItemKey request, Actionable type, IActionSource src) {
         // 从目标容器提取
         List<TargetManager.TargetRef> refs = new ArrayList<>(index.getTargets(new com.github.aeddddd.ae2enhanced.storage.ItemDescriptor(request.createItemStack())));
         if (refs.isEmpty()) return null;
@@ -368,7 +368,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
 
         if (collected.isEmpty()) return null;
 
-        IAEItemStack result = AEItemStack.fromItemStack(collected);
+        AEItemKey result = AEItemKey.fromItemStack(collected);
         if (result != null && type == Actionable.MODULATE) {
             // 更新缓存
             rebuildIndexForRef(null); // 简化处理：下次心跳重建
@@ -377,7 +377,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     }
 
     @Override
-    public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
+    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
         for (com.github.aeddddd.ae2enhanced.storage.ItemDescriptor desc : index.getAllTypes()) {
             long total = 0;
             for (TargetManager.TargetRef ref : index.getTargets(desc)) {
@@ -390,7 +390,7 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
                 }
             }
             if (total > 0) {
-                IAEItemStack stack = AEItemStack.fromItemStack(desc.toItemStack());
+                AEItemKey stack = AEItemKey.fromItemStack(desc.toItemStack());
                 if (stack != null) {
                     stack = stack.copy();
                     stack.setStackSize(total);
@@ -402,8 +402,8 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     }
 
     @Override
-    public IStorageChannel<IAEItemStack> getChannel() {
-        return appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+    public AEKeyType<AEItemKey> getChannel() {
+        return ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
     }
 
     @Override
@@ -412,12 +412,12 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     }
 
     @Override
-    public boolean isPrioritized(IAEItemStack input) {
+    public boolean isPrioritized(AEItemKey input) {
         return false;
     }
 
     @Override
-    public boolean canAccept(IAEItemStack input) {
+    public boolean canAccept(AEItemKey input) {
         return false; // 不接受注入
     }
 
@@ -437,18 +437,18 @@ public class RecyclerNetworkHandler implements IMEInventoryHandler<IAEItemStack>
     }
 
     @Override
-    public IItemList<IAEItemStack> getStorageList() {
+    public KeyCounter<AEItemKey> getStorageList() {
         return getAvailableItems(getChannel().createList());
     }
 
-    // ---- IMEMonitor ----
+    // ---- MEStorage ----
 
     @Override
-    public void addListener(IMEMonitorHandlerReceiver<IAEItemStack> l, Object verificationToken) {
+    public void addListener(IMEMonitorHandlerReceiver<AEItemKey> l, Object verificationToken) {
     }
 
     @Override
-    public void removeListener(IMEMonitorHandlerReceiver<IAEItemStack> l) {
+    public void removeListener(IMEMonitorHandlerReceiver<AEItemKey> l) {
     }
 
     private void rebuildIndexForRef(TargetManager.TargetRef ref) {

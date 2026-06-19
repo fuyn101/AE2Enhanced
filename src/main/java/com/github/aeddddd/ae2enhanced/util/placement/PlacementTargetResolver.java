@@ -1,15 +1,15 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import appeng.api.AEApi;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.parts.PartItemStack;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEColor;
-import appeng.api.util.AEPartLocation;
-import appeng.items.parts.ItemPart;
-import appeng.items.parts.PartType;
+import ae2.api.AEApi;
+import ae2.api.parts.IPart;
+import ae2.api.parts.IPartHost;
+import ae2.api.parts.PartItemStack;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AEColor;
+import ae2.api.util.AEPartLocation;
+import ae2.items.parts.ItemPart;
+import ae2.items.parts.PartType;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -122,8 +122,8 @@ public final class PlacementTargetResolver {
     public static boolean isPlaceable(ItemStack stack) {
         if (stack.isEmpty()) return false;
         return stack.getItem() instanceof ItemBlock
-                || stack.getItem() instanceof appeng.api.parts.IPartItem
-                || stack.getItem() instanceof appeng.facade.IFacadeItem;
+                || stack.getItem() instanceof ae2.api.parts.IPartItem
+                || stack.getItem() instanceof ae2.facade.IFacadeItem;
     }
 
     /**
@@ -161,12 +161,12 @@ public final class PlacementTargetResolver {
      * @return 找到的网络栈，无则 null
      */
     @Nullable
-    public static IAEItemStack findCableOfType(IMEMonitor<IAEItemStack> monitor, ItemStack baseCable) {
+    public static AEItemKey findCableOfType(MEStorage<AEItemKey> monitor, ItemStack baseCable) {
         if (!isCable(baseCable)) return null;
         PartType targetType = getCablePartType(baseCable);
         if (targetType == null) return null;
 
-        for (IAEItemStack stack : monitor.getStorageList()) {
+        for (AEItemKey stack : monitor.getStorageList()) {
             ItemStack netStack = stack.getDefinition();
             if (isSameCableType(baseCable, netStack)) {
                 return stack.copy();

@@ -1,11 +1,11 @@
 package com.github.aeddddd.ae2enhanced.client.gui.jei;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.container.slot.SlotFake;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketInventoryAction;
-import appeng.helpers.InventoryAction;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.container.slot.SlotFake;
+import ae2.core.sync.network.NetworkHandler;
+import ae2.core.sync.packets.PacketInventoryAction;
+import ae2.helpers.InventoryAction;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import mezz.jei.api.gui.IGhostIngredientHandler;
@@ -43,7 +43,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
 
     @Override
     public void accept(@Nonnull Object ingredient) {
-        IAEItemStack aeStack = resolveIngredient(ingredient);
+        AEItemKey aeStack = resolveIngredient(ingredient);
         if (aeStack == null) return;
 
         try {
@@ -58,7 +58,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         }
     }
 
-    public static IAEItemStack resolveIngredient(Object ingredient) {
+    public static AEItemKey resolveIngredient(Object ingredient) {
         if (ingredient instanceof ItemStack) {
             return resolveItemStack((ItemStack) ingredient);
         }
@@ -69,7 +69,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         return tryResolveGas(ingredient);
     }
 
-    private static IAEItemStack resolveItemStack(ItemStack is) {
+    private static AEItemKey resolveItemStack(ItemStack is) {
         if (is.isEmpty()) return null;
 
         // 流体容器
@@ -84,32 +84,32 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
         }
 
         // 气体物品(反射调用 FakeGases)
-        IAEItemStack gasStack = tryResolveGasFromItem(is);
+        AEItemKey gasStack = tryResolveGasFromItem(is);
         if (gasStack != null) return gasStack;
 
         // 源质容器(反射调用 FakeEssentias)
         ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(is);
         if (essentiaFake != null && !essentiaFake.isEmpty()) {
-            return AEItemStack.fromItemStack(essentiaFake);
+            return AEItemKey.fromItemStack(essentiaFake);
         }
 
         // 普通物品
-        return AEItemStack.fromItemStack(is);
+        return AEItemKey.fromItemStack(is);
     }
 
-    private static IAEItemStack tryResolveGas(Object ingredient) {
+    private static AEItemKey tryResolveGas(Object ingredient) {
         try {
             Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
-            return (IAEItemStack) fakeGasesClass.getMethod("tryPackJEIGas", Object.class).invoke(null, ingredient);
+            return (AEItemKey) fakeGasesClass.getMethod("tryPackJEIGas", Object.class).invoke(null, ingredient);
         } catch (Throwable e) {
             return null;
         }
     }
 
-    private static IAEItemStack tryResolveGasFromItem(ItemStack is) {
+    private static AEItemKey tryResolveGasFromItem(ItemStack is) {
         try {
             Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
-            return (IAEItemStack) fakeGasesClass.getMethod("tryPackJEIGasFromItem", ItemStack.class).invoke(null, is);
+            return (AEItemKey) fakeGasesClass.getMethod("tryPackJEIGasFromItem", ItemStack.class).invoke(null, is);
         } catch (Throwable e) {
             return null;
         }

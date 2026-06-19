@@ -1,20 +1,20 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.implementations.ICraftingPatternItem;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.networking.crafting.ICraftingProvider;
-import appeng.api.networking.crafting.ICraftingProviderHelper;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.me.helpers.AENetworkProxy;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.implementations.ICraftingPatternItem;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.ICraftingPatternDetails;
+import ae2.api.networking.crafting.ICraftingProvider;
+import ae2.api.networking.crafting.ICraftingProviderHelper;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.me.helpers.AENetworkProxy;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.util.ForceKillHelper;
@@ -75,7 +75,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
     private static final IActionSource MACHINE_SOURCE = new IActionSource() {
         @Override public Optional<EntityPlayer> player() { return Optional.empty(); }
-        @Override public Optional<appeng.api.networking.security.IActionHost> machine() { return Optional.empty(); }
+        @Override public Optional<ae2.api.networking.security.IActionHost> machine() { return Optional.empty(); }
         @Override public <T> Optional<T> context(Class<T> clazz) { return Optional.empty(); }
     };
 
@@ -224,7 +224,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         public IRecipe recipe;
         public java.util.BitSet catalystSlots;  // 真催化剂：remaining 与 input 完全一致(NBT 不变)
         public java.util.BitSet transformSlots; // 消耗性转换：remaining 与 input 同一物品但 NBT 不同(如耐久扣减)
-        public IAEItemStack[] slotTemplates;    // 每个槽位实际提取的物品模板(用于构造 InventoryCrafting)
+        public AEItemKey[] slotTemplates;    // 每个槽位实际提取的物品模板(用于构造 InventoryCrafting)
     }
     private final Map<ICraftingPatternDetails, PatternBatchInfo> patternBatchInfoCache = new HashMap<>();
     private final List<Integer> jobTimers = new ArrayList<>();
@@ -625,7 +625,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 AENetworkProxy proxy = getProxy();
                 IGridNode node = proxy.getNode();
                 if (node != null && node.getGrid() != null) {
-                    node.getGrid().postEvent(new appeng.api.networking.events.MENetworkCraftingPatternChange(this, node));
+                    node.getGrid().postEvent(new ae2.api.networking.events.MENetworkCraftingPatternChange(this, node));
                 }
             }
         }
@@ -685,11 +685,11 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         IGridNode node = proxy.getNode();
         if (node == null || node.getGrid() == null) return;
 
-        IStorageGrid storage = node.getGrid().getCache(IStorageGrid.class);
+        IStorageService storage = node.getGrid().getCache(IStorageService.class);
         if (storage == null) return;
 
         IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IMEMonitor<IAEItemStack> monitor = storage.getInventory(channel);
+        MEStorage<AEItemKey> monitor = storage.getInventory(channel);
 
         // 合并相同物品的 stack,避免逐个注入
         Map<ItemDescriptor, Long> merged = new LinkedHashMap<>();
@@ -707,13 +707,13 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             ItemStack proto = prototypes.get(entry.getKey());
             long count = entry.getValue();
 
-            IAEItemStack aeStack = channel.createStack(proto);
+            AEItemKey aeStack = channel.createStack(proto);
             if (aeStack == null) continue;
 
             while (count > 0) {
                 long batch = Math.min(count, Integer.MAX_VALUE);
                 aeStack.setStackSize(batch);
-                IAEItemStack remainder = monitor.injectItems(aeStack, Actionable.MODULATE, getEffectiveSource());
+                AEItemKey remainder = monitor.injectItems(aeStack, Actionable.MODULATE, getEffectiveSource());
 
                 if (remainder == null || remainder.getStackSize() == 0) {
                     count = 0;
@@ -785,16 +785,16 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         IGridNode node = proxy.getNode();
         if (node == null || node.getGrid() == null) return false;
 
-        IStorageGrid storage = node.getGrid().getCache(IStorageGrid.class);
+        IStorageService storage = node.getGrid().getCache(IStorageService.class);
         IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IMEMonitor<IAEItemStack> monitor = storage.getInventory(channel);
+        MEStorage<AEItemKey> monitor = storage.getInventory(channel);
 
-        IAEItemStack aeOutput = channel.createStack(output);
+        AEItemKey aeOutput = channel.createStack(output);
         if (aeOutput == null) return false;
 
         // 只注入 1 份(AE2 每次 pushPattern 只发配 1 份输入)
         aeOutput.setStackSize(output.getCount());
-        IAEItemStack remainder = monitor.injectItems(aeOutput, Actionable.MODULATE, getEffectiveSource());
+        AEItemKey remainder = monitor.injectItems(aeOutput, Actionable.MODULATE, getEffectiveSource());
 
         if (remainder == null || remainder.getStackSize() == 0) {
             // 全部注入成功
@@ -1019,16 +1019,16 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     public PatternBatchInfo getPatternBatchInfo(ICraftingPatternDetails details,
-                                                 appeng.crafting.MECraftingInventory meInv,
-                                                 appeng.api.networking.security.IActionSource source) {
+                                                 ae2.crafting.MECraftingInventory meInv,
+                                                 ae2.api.networking.security.IActionSource source) {
         PatternBatchInfo cached = patternBatchInfoCache.get(details);
         if (cached != null) return cached;
 
-        IAEItemStack[] inputs = details.getInputs();
+        AEItemKey[] inputs = details.getInputs();
         if (inputs == null) return null;
 
         PatternBatchInfo info = new PatternBatchInfo();
-        info.slotTemplates = new IAEItemStack[inputs.length];
+        info.slotTemplates = new AEItemKey[inputs.length];
 
         InventoryCrafting ic = new InventoryCrafting(new net.minecraft.inventory.Container() {
             @Override
@@ -1040,9 +1040,9 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
         // SIMULATE 提取 1 份原料填充 InventoryCrafting
         for (int i = 0; i < inputs.length && i < 9; i++) {
             if (inputs[i] == null) continue;
-            IAEItemStack need = inputs[i].copy();
+            AEItemKey need = inputs[i].copy();
             need.setStackSize(1);
-            IAEItemStack extracted = meInv.extractItems(need, appeng.api.config.Actionable.SIMULATE, source);
+            AEItemKey extracted = meInv.extractItems(need, ae2.api.config.Actionable.SIMULATE, source);
             if (extracted != null) {
                 info.slotTemplates[i] = extracted.copy();
                 ic.setInventorySlotContents(i, extracted.createItemStack());
@@ -1128,7 +1128,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
 
         // 使用 TileAssemblyMeInterface 作为 medium 注册样板,
         // 这样 CraftingGridCache.getMediums() 返回的是 TileAssemblyMeInterface 而不是 TileAssemblyController
-        appeng.api.networking.crafting.ICraftingMedium medium = this;
+        ae2.api.networking.crafting.ICraftingMedium medium = this;
         if (activeMeInterfacePos != null) {
             TileEntity te = world.getTileEntity(activeMeInterfacePos);
             if (te instanceof TileAssemblyMeInterface) {
@@ -1163,7 +1163,7 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
             return;
         }
 
-        IAEItemStack[] inputs = pattern.getInputs();
+        AEItemKey[] inputs = pattern.getInputs();
         InventoryCrafting ic = new InventoryCrafting(new net.minecraft.inventory.Container() {
             @Override
             public boolean canInteractWith(net.minecraft.entity.player.EntityPlayer playerIn) {

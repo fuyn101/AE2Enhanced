@@ -1,11 +1,11 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import appeng.api.parts.IPart;
-import appeng.api.util.AEPartLocation;
-import appeng.helpers.DualityInterface;
-import appeng.parts.misc.PartInterface;
-import appeng.tile.misc.TileInterface;
-import appeng.tile.networking.TileCableBus;
+import ae2.api.parts.IPart;
+import ae2.api.util.AEPartLocation;
+import ae2.helpers.InterfaceLogic;
+import ae2.parts.misc.InterfacePart;
+import ae2.tile.misc.TileInterface;
+import ae2.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
@@ -148,9 +148,9 @@ public class SmartPatternGarbageCollector {
             if (part == null) {
                 continue;
             }
-            // AE2 原版 PartInterface
-            if (part instanceof PartInterface) {
-                scanHandler(ids, ((PartInterface) part).getInterfaceDuality().getPatterns());
+            // AE2 原版 InterfacePart
+            if (part instanceof InterfacePart) {
+                scanHandler(ids, ((InterfacePart) part).getInterfaceDuality().getPatterns());
                 continue;
             }
             // ae2fc PartDualInterface / PartTrioInterface(反射)

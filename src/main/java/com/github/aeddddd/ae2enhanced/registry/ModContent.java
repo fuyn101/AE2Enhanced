@@ -9,7 +9,7 @@ import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeMana;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeStarlight;
-import appeng.api.config.Upgrades;
+import ae2.api.config.Upgrades;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 
@@ -49,7 +49,7 @@ public final class ModContent {
         }
 
         // 物质炮弹药：共形不变荷(weight 1E8 → 伤害 5,000,000)
-        appeng.api.AEApi.instance().registries().matterCannon().registerAmmo(
+        ae2.api.AEApi.instance().registries().matterCannon().registerAmmo(
                 new ItemStack(ItemRegistry.CONFORMAL_CHARGE), 100_000_000.0);
 
         // 智能样板垃圾回收器

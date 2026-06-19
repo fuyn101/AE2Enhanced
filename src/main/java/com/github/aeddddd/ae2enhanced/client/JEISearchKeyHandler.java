@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.client;
 
-import appeng.client.gui.implementations.GuiMEMonitorable;
-import appeng.client.gui.widgets.MEGuiTextField;
-import appeng.client.me.ItemRepo;
+import ae2.client.gui.implementations.GuiMEStorage;
+import ae2.client.gui.widgets.MEGuiTextField;
+import ae2.client.me.Repo;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.IIngredientListOverlay;
@@ -19,7 +19,7 @@ import java.lang.reflect.Method;
  *
  * <p>扩展设计：
  * <ul>
- *   <li>支持 GuiMEMonitorable 及其所有子类(合成终端、无线终端等)</li>
+ *   <li>支持 GuiMEStorage 及其所有子类(合成终端、无线终端等)</li>
  *   <li>同时检测 JEI 物品列表和收藏栏(Bookmark Overlay)</li>
  *   <li>键位通过 Forge KeyBinding 注册,可在 Controls 菜单修改</li>
  *   <li>默认不自动聚焦搜索栏,避免打断用户浏览物品</li>
@@ -41,7 +41,7 @@ public class JEISearchKeyHandler {
      * 执行 JEI 搜索：将 JEI 悬停物品的名称填入终端搜索栏.
      * 由 GuiOmniTerm.keyTyped() 和 MixinGuiMEMonitorableKeyHandler 调用.
      */
-    public static boolean performSearch(GuiMEMonitorable gui) {
+    public static boolean performSearch(GuiMEStorage gui) {
         return performSearch(gui, 0, 0);
     }
 
@@ -49,10 +49,10 @@ public class JEISearchKeyHandler {
      * 执行 JEI 搜索,携带鼠标 GUI 坐标以支持 fallback 检测(HEI 收藏栏等).
      * @return true 表示成功设置了搜索文本并应拦截原按键事件；false 表示未执行搜索
      */
-    public static boolean performSearch(GuiMEMonitorable gui, int mouseX, int mouseY) {
+    public static boolean performSearch(GuiMEStorage gui, int mouseX, int mouseY) {
         MEGuiTextField searchField;
         try {
-            Field searchFieldField = GuiMEMonitorable.class.getDeclaredField("searchField");
+            Field searchFieldField = GuiMEStorage.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
             searchField = (MEGuiTextField) searchFieldField.get(gui);
         } catch (Exception e) {
@@ -116,20 +116,20 @@ public class JEISearchKeyHandler {
             searchField.setText(searchText);
 
             // 更新 repo 搜索字符串(立即生效,无需等待 drawScreen)
-            Field repoField = GuiMEMonitorable.class.getDeclaredField("repo");
+            Field repoField = GuiMEStorage.class.getDeclaredField("repo");
             repoField.setAccessible(true);
-            ItemRepo repo = (ItemRepo) repoField.get(gui);
+            Repo repo = (Repo) repoField.get(gui);
             if (repo != null) {
                 repo.setSearchString(searchText);
             }
 
             // 更新 static memoryText(使关闭再打开 GUI 时保留搜索词)
-            Field memoryTextField = GuiMEMonitorable.class.getDeclaredField("memoryText");
+            Field memoryTextField = GuiMEStorage.class.getDeclaredField("memoryText");
             memoryTextField.setAccessible(true);
             memoryTextField.set(null, searchText);
 
             // 调整滚动条以匹配新的搜索结果数量
-            Method setScrollBarMethod = GuiMEMonitorable.class.getDeclaredMethod("setScrollBar");
+            Method setScrollBarMethod = GuiMEStorage.class.getDeclaredMethod("setScrollBar");
             setScrollBarMethod.setAccessible(true);
             setScrollBarMethod.invoke(gui);
 

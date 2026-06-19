@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.Platform;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.Platform;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -15,24 +15,24 @@ import java.util.List;
 /**
  * Omni Terminal 客户端物品注册表。
  *
- * <p>维护服务端分配的 int ID 与本地 {@link IAEItemStack} 副本 + 数量的映射。
+ * <p>维护服务端分配的 int ID 与本地 {@link AEItemKey} 副本 + 数量的映射。
  * 同时缓存物品的显示名称分词结果和 modId，避免终端刷新时重复计算。
  * 生命周期与 Omni Terminal GUI Session 绑定，关闭 GUI 后由 GC 回收。
  */
 public class OmniItemRegistry {
 
-    private final Int2ObjectMap<IAEItemStack> idToStack = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<AEItemKey> idToStack = new Int2ObjectOpenHashMap<>();
     private final Int2LongMap idToCount = new Int2LongOpenHashMap();
     private final Int2ObjectMap<String[]> idToNameWords = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectMap<String> idToModId = new Int2ObjectOpenHashMap<>();
-    private final Object2IntOpenHashMap<IAEItemStack> stackToId = new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<AEItemKey> stackToId = new Object2IntOpenHashMap<>();
 
     public OmniItemRegistry() {
         this.stackToId.defaultReturnValue(-1);
     }
 
-    public void register(int id, IAEItemStack stack, long count) {
-        IAEItemStack copy = stack.copy();
+    public void register(int id, AEItemKey stack, long count) {
+        AEItemKey copy = stack.copy();
         copy.setStackSize(count);
         this.idToStack.put(id, copy);
         this.idToCount.put(id, count);
@@ -47,13 +47,13 @@ public class OmniItemRegistry {
 
     public void updateCount(int id, long count) {
         this.idToCount.put(id, count);
-        IAEItemStack stack = this.idToStack.get(id);
+        AEItemKey stack = this.idToStack.get(id);
         if (stack != null) {
             stack.setStackSize(count);
         }
     }
 
-    public IAEItemStack getStack(int id) {
+    public AEItemKey getStack(int id) {
         return this.idToStack.get(id);
     }
 
@@ -69,7 +69,7 @@ public class OmniItemRegistry {
         return this.idToModId.get(id);
     }
 
-    public int getId(IAEItemStack stack) {
+    public int getId(AEItemKey stack) {
         return this.stackToId.getInt(stack);
     }
 
@@ -81,7 +81,7 @@ public class OmniItemRegistry {
         this.stackToId.clear();
     }
 
-    public Collection<IAEItemStack> getAllStacks() {
+    public Collection<AEItemKey> getAllStacks() {
         return this.idToStack.values();
     }
 

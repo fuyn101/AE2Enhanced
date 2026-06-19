@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
-import appeng.client.gui.implementations.GuiUpgradeable;
-import appeng.container.slot.SlotFake;
-import appeng.core.localization.GuiText;
+import ae2.client.gui.implementations.GuiUpgradeable;
+import ae2.container.slot.SlotFake;
+import ae2.core.localization.GuiText;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.container.ContainerAdvancedMECollector;

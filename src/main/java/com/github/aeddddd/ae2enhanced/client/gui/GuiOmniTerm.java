@@ -1,28 +1,28 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
-import appeng.api.config.ActionItems;
-import appeng.api.config.ItemSubstitution;
-import appeng.api.config.Settings;
-import appeng.api.config.SortDir;
-import appeng.api.config.SortOrder;
-import appeng.api.config.TerminalStyle;
-import appeng.api.config.ViewItems;
-import appeng.api.storage.ITerminalHost;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.IConfigManager;
-import appeng.client.gui.implementations.GuiMEMonitorable;
-import appeng.client.gui.widgets.GuiImgButton;
-import appeng.client.gui.widgets.GuiScrollbar;
-import appeng.client.gui.widgets.GuiTabButton;
-import appeng.client.gui.widgets.MEGuiTextField;
-import appeng.client.me.InternalSlotME;
-import appeng.container.interfaces.IJEIGhostIngredients;
-import appeng.container.slot.AppEngSlot;
-import appeng.client.me.SlotME;
-import appeng.client.ActionKey;
-import appeng.core.AEConfig;
-import appeng.core.AppEng;
-import appeng.core.localization.GuiText;
+import ae2.api.config.ActionItems;
+import ae2.api.config.ItemSubstitution;
+import ae2.api.config.Settings;
+import ae2.api.config.SortDir;
+import ae2.api.config.SortOrder;
+import ae2.api.config.TerminalStyle;
+import ae2.api.config.ViewItems;
+import ae2.api.storage.ITerminalHost;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.IConfigManager;
+import ae2.client.gui.implementations.GuiMEStorage;
+import ae2.client.gui.widgets.GuiImgButton;
+import ae2.client.gui.widgets.GuiScrollbar;
+import ae2.client.gui.widgets.GuiTabButton;
+import ae2.client.gui.widgets.MEGuiTextField;
+import ae2.client.me.InternalSlotME;
+import ae2.container.interfaces.IJEIGhostIngredients;
+import ae2.container.slot.AppEngSlot;
+import ae2.client.me.RepoSlot;
+import ae2.client.ActionKey;
+import ae2.core.AEConfig;
+import ae2.core.AppEng;
+import ae2.core.localization.GuiText;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.client.gui.slot.RCSlotFakeCraftingMatrix;
@@ -56,27 +56,27 @@ import java.awt.Rectangle;
 /**
  * 全能无线终端 GUI —— 物品库 + 合成栏 + 81槽位编码样板 + 右侧存储
  */
-public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredients {
+public class GuiOmniTerm extends GuiMEStorage implements IJEIGhostIngredients {
 
     // 反射字段缓存(一次性查找,终身复用)
     private static final java.lang.reflect.Field REPO_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "repo");
+            GuiReflectionCache.getField(GuiMEStorage.class, "repo");
     private static final java.lang.reflect.Field VIEW_CELL_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "viewCell");
+            GuiReflectionCache.getField(GuiMEStorage.class, "viewCell");
     private static final java.lang.reflect.Field SEARCH_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "searchField");
+            GuiReflectionCache.getField(GuiMEStorage.class, "searchField");
     private static final java.lang.reflect.Field AUTO_FOCUS_FIELD;
     private static final java.lang.reflect.Field CRAFTING_STATUS_BTN_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "craftingStatusBtn");
+            GuiReflectionCache.getField(GuiMEStorage.class, "craftingStatusBtn");
     private static final java.lang.reflect.Field ROWS_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "rows");
+            GuiReflectionCache.getField(GuiMEStorage.class, "rows");
     private static final java.lang.reflect.Field PER_ROW_FIELD =
-            GuiReflectionCache.getField(GuiMEMonitorable.class, "perRow");
+            GuiReflectionCache.getField(GuiMEStorage.class, "perRow");
 
     static {
         java.lang.reflect.Field temp;
         try {
-            temp = GuiReflectionCache.getField(GuiMEMonitorable.class, "isAutoFocus");
+            temp = GuiReflectionCache.getField(GuiMEStorage.class, "isAutoFocus");
         } catch (Exception e) {
             temp = null;
         }
@@ -136,7 +136,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             REPO_FIELD.set(this, new com.github.aeddddd.ae2enhanced.client.me.OmniItemRepo(this.getScrollBar(), this));
             this.isOmniRepo = true;
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to replace ItemRepo with OmniItemRepo", e);
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to replace Repo with OmniItemRepo", e);
         }
     }
 
@@ -173,8 +173,8 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
                 this.extraHeight,
                 s -> !this.container.isViewCellSlot(s) && s.yPos >= 86);
 
-        // 2. 移除 super 创建的 SlotME,重新创建 18 列 × omniRows 行
-        this.inventorySlots.inventorySlots.removeIf(s -> s instanceof SlotME);
+        // 2. 移除 super 创建的 RepoSlot,重新创建 18 列 × omniRows 行
+        this.inventorySlots.inventorySlots.removeIf(s -> s instanceof RepoSlot);
         this.getMeSlots().clear();
         for (int row = 0; row < this.omniRows; row++) {
             for (int col = 0; col < 18; col++) {
@@ -182,7 +182,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
             }
         }
         for (InternalSlotME me : this.getMeSlots()) {
-            this.inventorySlots.inventorySlots.add(new SlotME(me));
+            this.inventorySlots.inventorySlots.add(new RepoSlot(me));
         }
 
         // 4. 重新定位 AE2 标准按钮(使用相对于旧 guiLeft/guiTop 的偏移,保持原始布局比例)
@@ -276,7 +276,7 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
 
         // 11. 设置容器物品库更新回调
         this.container.setInventoryListener(list -> {
-            for (IAEItemStack is : list) {
+            for (AEItemKey is : list) {
                 this.repo.postUpdate(is);
             }
             this.repo.updateView();
@@ -464,9 +464,9 @@ public class GuiOmniTerm extends GuiMEMonitorable implements IJEIGhostIngredient
         // View Cell 变化检测与过滤同步
         if (this.cachedHasViewCell) {
             try {
-                appeng.container.implementations.ContainerMEMonitorable monitorable =
-                        (appeng.container.implementations.ContainerMEMonitorable)
-                                GuiReflectionCache.getObject(this, GuiMEMonitorable.class, "monitorableContainer");
+                ae2.container.implementations.ContainerMEStorage monitorable =
+                        (ae2.container.implementations.ContainerMEStorage)
+                                GuiReflectionCache.getObject(this, GuiMEStorage.class, "monitorableContainer");
                 boolean update = false;
                 for (int i = 0; i < 5; ++i) {
                     net.minecraft.item.ItemStack current = monitorable.getCellViewSlot(i).func_75211_c();

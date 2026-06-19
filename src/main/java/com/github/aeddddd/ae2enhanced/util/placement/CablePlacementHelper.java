@@ -1,11 +1,11 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEColor;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AEColor;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumActionResult;
@@ -54,7 +54,7 @@ public final class CablePlacementHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return result;
 
-        IMEMonitor<IAEItemStack> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return result;
@@ -71,7 +71,7 @@ public final class CablePlacementHelper {
         }
 
         // 网络中查找任意同类型线缆，不区分颜色
-        IAEItemStack request = PlacementTargetResolver.findCableOfType(monitor, cableStack);
+        AEItemKey request = PlacementTargetResolver.findCableOfType(monitor, cableStack);
         if (request == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                     placeStack.getDisplayName()));
@@ -79,9 +79,9 @@ public final class CablePlacementHelper {
         }
 
         // 模拟提取全部
-        IAEItemStack toExtract = request.copy();
+        AEItemKey toExtract = request.copy();
         toExtract.setStackSize(path.size());
-        IAEItemStack simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
+        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
         if (simulated == null || simulated.getStackSize() < path.size()) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
@@ -112,9 +112,9 @@ public final class CablePlacementHelper {
         }
 
         // 实际提取已放置数量
-        IAEItemStack finalExtract = request.copy();
+        AEItemKey finalExtract = request.copy();
         finalExtract.setStackSize(placed.size());
-        IAEItemStack extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
+        AEItemKey extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
         if (extracted == null || extracted.getStackSize() < placed.size()) {
             // 回滚

@@ -1,21 +1,21 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingJob;
-import appeng.api.networking.crafting.ICraftingLink;
-import appeng.api.networking.crafting.ICraftingRequester;
-import appeng.api.networking.events.MENetworkCraftingCpuChange;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.api.util.WorldCoord;
-import appeng.me.cluster.implementations.CraftingCPUCluster;
-import appeng.me.helpers.MachineSource;
-import appeng.parts.CableBusContainer;
-import appeng.tile.networking.TileCableBus;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.ICraftingJob;
+import ae2.api.networking.crafting.ICraftingLink;
+import ae2.api.networking.crafting.ICraftingRequester;
+import ae2.api.networking.events.MENetworkCraftingCpuChange;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.api.util.BlockPos;
+import ae2.me.cluster.implementations.CraftingCPUCluster;
+import ae2.me.helpers.MachineSource;
+import ae2.parts.CableBusContainer;
+import ae2.tile.networking.TileCableBus;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.block.BlockComputationCore;
@@ -216,7 +216,7 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
      * 尝试提交合成任务.先检查现有空闲集群,若全部忙碌则动态创建新集群.
      */
     public ICraftingLink trySpawnAndSubmitJob(IGrid grid, ICraftingJob job,
-                                               appeng.api.networking.security.IActionSource src,
+                                               ae2.api.networking.security.IActionSource src,
                                                ICraftingRequester req) {
         if (!formed || cpuPool.isEmpty()) {
             return null;
@@ -307,8 +307,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
     // ---------- 辅助方法 ----------
 
     private boolean isInventoryEmpty(CraftingCPUCluster cpu) {
-        appeng.api.storage.data.IItemList<IAEItemStack> list =
-            appeng.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
+        ae2.api.storage.data.KeyCounter<AEItemKey> list =
+            ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createList();
         cpu.getInventory().getAvailableItems(list);
         return list.isEmpty();
     }
@@ -320,8 +320,8 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
 
     private CraftingCPUCluster createCluster() {
         CraftingCPUCluster cluster = new CraftingCPUCluster(
-            new WorldCoord(pos.getX(), pos.getY(), pos.getZ()),
-            new WorldCoord(pos.getX(), pos.getY(), pos.getZ())
+            new BlockPos(pos.getX(), pos.getY(), pos.getZ()),
+            new BlockPos(pos.getX(), pos.getY(), pos.getZ())
         );
 
         try {
@@ -498,20 +498,20 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         try {
             IGridNode node = getProxy().getNode();
             if (node == null || node.getGrid() == null) return;
-            appeng.me.cache.CraftingGridCache cache;
+            ae2.me.cache.CraftingGridCache cache;
             try {
-                cache = node.getGrid().getCache(appeng.me.cache.CraftingGridCache.class);
+                cache = node.getGrid().getCache(ae2.me.cache.CraftingGridCache.class);
             } catch (NullPointerException e) {
                 return; // grid not fully initialized yet
             }
             if (cache == null) return;
-            java.lang.reflect.Field field = appeng.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
+            java.lang.reflect.Field field = ae2.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
-            java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster> set =
-                (java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
+            java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster> set =
+                (java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
             if (set == null) return;
-            for (appeng.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
+            for (ae2.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
                 if (cpu != null) {
                     set.add(cpu);
                 }
@@ -525,20 +525,20 @@ public class TileComputationCore extends TileAENetworkBase implements IActionHos
         try {
             IGridNode node = getProxy().getNode();
             if (node == null || node.getGrid() == null) return;
-            appeng.me.cache.CraftingGridCache cache;
+            ae2.me.cache.CraftingGridCache cache;
             try {
-                cache = node.getGrid().getCache(appeng.me.cache.CraftingGridCache.class);
+                cache = node.getGrid().getCache(ae2.me.cache.CraftingGridCache.class);
             } catch (NullPointerException e) {
                 return;
             }
             if (cache == null) return;
-            java.lang.reflect.Field field = appeng.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
+            java.lang.reflect.Field field = ae2.me.cache.CraftingGridCache.class.getDeclaredField("craftingCPUClusters");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
-            java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster> set =
-                (java.util.Set<appeng.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
+            java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster> set =
+                (java.util.Set<ae2.me.cluster.implementations.CraftingCPUCluster>) field.get(cache);
             if (set == null) return;
-            for (appeng.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
+            for (ae2.me.cluster.implementations.CraftingCPUCluster cpu : cpuPool) {
                 if (cpu != null) {
                     set.remove(cpu);
                 }

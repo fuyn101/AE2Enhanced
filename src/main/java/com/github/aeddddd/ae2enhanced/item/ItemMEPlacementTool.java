@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import appeng.api.features.INetworkEncodable;
+import ae2.api.features.INetworkEncodable;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementMode;

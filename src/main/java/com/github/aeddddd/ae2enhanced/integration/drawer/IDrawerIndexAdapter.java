@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
+import ae2.api.config.AccessRestriction;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.storage.data.KeyCounter;
 
 /**
  * 抽屉模组 Hash 索引适配器统一接口.
@@ -14,17 +14,17 @@ import appeng.api.storage.data.IItemList;
  */
 public interface IDrawerIndexAdapter {
 
-    IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src);
+    AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src);
 
-    IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src);
+    AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src);
 
-    IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out);
+    KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out);
 
     AccessRestriction getAccess();
 
-    boolean isPrioritized(IAEItemStack input);
+    boolean isPrioritized(AEItemKey input);
 
-    boolean canAccept(IAEItemStack input);
+    boolean canAccept(AEItemKey input);
 
     int getPriority();
 

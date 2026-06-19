@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm;
 import io.netty.buffer.ByteBuf;
@@ -38,13 +38,13 @@ public class PacketOmniInventoryUpdate implements IMessage {
 
     public static class Entry {
         public int id;
-        public IAEItemStack stack; // FULL_INIT / FULL_CONTINUE / ITEM_REGISTER 时非 null；DELTA_COUNT 时为 null
+        public AEItemKey stack; // FULL_INIT / FULL_CONTINUE / ITEM_REGISTER 时非 null；DELTA_COUNT 时为 null
         public long count;
 
         public Entry() {
         }
 
-        public Entry(int id, IAEItemStack stack, long count) {
+        public Entry(int id, AEItemKey stack, long count) {
             this.id = id;
             this.stack = stack;
             this.count = count;
@@ -71,10 +71,10 @@ public class PacketOmniInventoryUpdate implements IMessage {
             int id = buf.readInt();
             long c = buf.readLong();
             boolean hasStack = buf.readBoolean();
-            IAEItemStack stack = null;
+            AEItemKey stack = null;
             if (hasStack) {
                 try {
-                    stack = AEItemStack.fromPacket(buf);
+                    stack = AEItemKey.fromPacket(buf);
                 } catch (Exception e) {
                     AE2Enhanced.LOGGER.error("[AE2E] Failed to read stack from OmniInventoryUpdate", e);
                 }

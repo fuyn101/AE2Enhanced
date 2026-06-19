@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.platform.key;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -45,7 +45,7 @@ public final class ItemStackKey {
         return new ItemStackKey(stack.getItem(), stack.getMetadata(), tag != null ? tag.copy() : null);
     }
 
-    public static ItemStackKey of(@Nonnull IAEItemStack stack) {
+    public static ItemStackKey of(@Nonnull AEItemKey stack) {
         return of(stack.createItemStack());
     }
 

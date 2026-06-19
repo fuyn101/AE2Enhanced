@@ -4,9 +4,9 @@ import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.IMemoryCardHandler;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.MemoryCardUpgradeHelper;
 
-import appeng.api.implementations.tiles.ISegmentedInventory;
-import appeng.tile.AEBaseTile;
-import appeng.util.SettingsFrom;
+import ae2.api.implementations.tiles.ISegmentedInventory;
+import ae2.tile.AEBaseTile;
+import ae2.util.SettingsFrom;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

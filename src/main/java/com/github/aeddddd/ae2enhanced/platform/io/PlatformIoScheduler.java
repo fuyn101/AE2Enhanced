@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.platform.io;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.me.GridAccessException;
-import appeng.util.item.AEItemStack;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.ticking.IGridTickable;
+import ae2.api.networking.ticking.TickRateModulation;
+import ae2.api.networking.ticking.TickingRequest;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.me.GridAccessException;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.platform.key.ItemStackKey;
 import com.github.aeddddd.ae2enhanced.platform.subnet.Subnet;
 import com.github.aeddddd.ae2enhanced.platform.zone.FaceIoConfig;
@@ -141,7 +141,7 @@ public class PlatformIoScheduler implements IGridTickable {
             return;
         }
 
-        IMEMonitor<IAEItemStack> networkInv = getNetworkInventory(node);
+        MEStorage<AEItemKey> networkInv = getNetworkInventory(node);
         if (networkInv == null) {
             return;
         }
@@ -199,13 +199,13 @@ public class PlatformIoScheduler implements IGridTickable {
                         continue;
                     }
 
-                    IAEItemStack aeExtracted = AEItemStack.fromItemStack(extracted);
+                    AEItemKey aeExtracted = AEItemKey.fromItemStack(extracted);
                     if (aeExtracted == null) {
                         handler.insertItem(i, extracted, false);
                         continue;
                     }
 
-                    IAEItemStack notInserted = networkInv.injectItems(aeExtracted, Actionable.MODULATE, this.actionSource);
+                    AEItemKey notInserted = networkInv.injectItems(aeExtracted, Actionable.MODULATE, this.actionSource);
                     if (notInserted != null && notInserted.getStackSize() > 0) {
                         ItemStack returnStack = notInserted.createItemStack();
                         handler.insertItem(i, returnStack, false);
@@ -230,7 +230,7 @@ public class PlatformIoScheduler implements IGridTickable {
             return;
         }
 
-        IMEMonitor<IAEItemStack> networkInv = getNetworkInventory(node);
+        MEStorage<AEItemKey> networkInv = getNetworkInventory(node);
         if (networkInv == null) {
             return;
         }
@@ -257,13 +257,13 @@ public class PlatformIoScheduler implements IGridTickable {
                 }
 
                 ItemStack requestStack = key.toItemStack((int) Math.min(demand, Integer.MAX_VALUE));
-                IAEItemStack request = AEItemStack.fromItemStack(requestStack);
+                AEItemKey request = AEItemKey.fromItemStack(requestStack);
                 if (request == null) {
                     continue;
                 }
                 request.setStackSize(demand);
 
-                IAEItemStack extracted = networkInv.extractItems(request, Actionable.MODULATE, this.actionSource);
+                AEItemKey extracted = networkInv.extractItems(request, Actionable.MODULATE, this.actionSource);
                 if (extracted == null || extracted.getStackSize() <= 0) {
                     continue;
                 }
@@ -292,7 +292,7 @@ public class PlatformIoScheduler implements IGridTickable {
                 this.subnetZoneRotation.put(subnet, startIndex);
 
                 if (remaining > 0) {
-                    IAEItemStack leftover = extracted.copy();
+                    AEItemKey leftover = extracted.copy();
                     leftover.setStackSize(remaining);
                     networkInv.injectItems(leftover, Actionable.MODULATE, this.actionSource);
                 }
@@ -366,9 +366,9 @@ public class PlatformIoScheduler implements IGridTickable {
         }
     }
 
-    private IMEMonitor<IAEItemStack> getNetworkInventory(IGridNode node) throws GridAccessException {
-        appeng.api.networking.storage.IStorageGrid storageGrid =
-                node.getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+    private MEStorage<AEItemKey> getNetworkInventory(IGridNode node) throws GridAccessException {
+        ae2.api.networking.storage.IStorageService storageGrid =
+                node.getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
         return storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
     }
 }

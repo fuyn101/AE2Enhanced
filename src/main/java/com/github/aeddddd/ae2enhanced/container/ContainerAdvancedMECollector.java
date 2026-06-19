@@ -1,18 +1,18 @@
 package com.github.aeddddd.ae2enhanced.container;
 
-import appeng.api.config.FuzzyMode;
-import appeng.api.config.Settings;
-import appeng.api.config.Upgrades;
-import appeng.api.config.YesNo;
-import appeng.container.guisync.GuiSync;
-import appeng.container.implementations.ContainerUpgradeable;
-import appeng.container.slot.IOptionalSlotHost;
-import appeng.container.slot.OptionalSlotFakeTypeOnly;
-import appeng.container.slot.SlotFake;
-import appeng.container.slot.SlotFakeTypeOnly;
-import appeng.container.slot.SlotRestrictedInput;
-import appeng.helpers.InventoryAction;
-import appeng.util.Platform;
+import ae2.api.config.FuzzyMode;
+import ae2.api.config.Settings;
+import ae2.api.config.Upgrades;
+import ae2.api.config.YesNo;
+import ae2.container.guisync.GuiSync;
+import ae2.container.implementations.UpgradeableContainer;
+import ae2.container.slot.IOptionalSlotHost;
+import ae2.container.slot.OptionalFakeSlot;
+import ae2.container.slot.SlotFake;
+import ae2.container.slot.FakeSlot;
+import ae2.container.slot.RestrictedInputSlot;
+import ae2.helpers.InventoryAction;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketCollectorConfig;
@@ -32,7 +32,7 @@ import net.minecraftforge.items.IItemHandler;
  *
  * <p>7×9 过滤槽(容量卡解锁后 5 行),5 个升级槽.</p>
  */
-public class ContainerAdvancedMECollector extends ContainerUpgradeable implements IOptionalSlotHost {
+public class ContainerAdvancedMECollector extends UpgradeableContainer implements IOptionalSlotHost {
 
     private final TileAdvancedMECollector tile;
 
@@ -58,19 +58,19 @@ public class ContainerAdvancedMECollector extends ContainerUpgradeable implement
         for (int y = 0; y < 7; y++) {
             for (int x = 0; x < 9; x++) {
                 if (y < 2) {
-                    this.addSlotToContainer(new SlotFakeTypeOnly(config, y * 9 + x, 8 + x * 18, 29 + y * 18));
+                    this.addSlotToContainer(new FakeSlot(config, y * 9 + x, 8 + x * 18, 29 + y * 18));
                 } else {
-                    this.addSlotToContainer(new OptionalSlotFakeTypeOnly(config, this, y * 9 + x, 8, 29, x, y, y - 2));
+                    this.addSlotToContainer(new OptionalFakeSlot(config, this, y * 9 + x, 8, 29, x, y, y - 2));
                 }
             }
         }
 
         IItemHandler upgrades = this.getUpgradeable().getInventoryByName("upgrades");
-        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 0, 187, 8, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 1, 187, 26, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 2, 187, 44, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 3, 187, 62, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new SlotRestrictedInput(SlotRestrictedInput.PlacableItemType.UPGRADES, upgrades, 4, 187, 80, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 0, 187, 8, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 1, 187, 26, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 2, 187, 44, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 3, 187, 62, this.getInventoryPlayer()).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 4, 187, 80, this.getInventoryPlayer()).setNotDraggable());
     }
 
     @Override
@@ -91,7 +91,7 @@ public class ContainerAdvancedMECollector extends ContainerUpgradeable implement
 
     @Override
     public void func_75142_b() {
-        this.verifyPermissions(appeng.api.config.SecurityPermissions.BUILD, false);
+        this.verifyPermissions(ae2.api.config.SecurityPermissions.BUILD, false);
         if (Platform.isServer()) {
             this.setFuzzyMode((FuzzyMode) this.getUpgradeable().getConfigManager().getSetting(Settings.FUZZY_MODE));
             this.setCraftingMode((YesNo) this.getUpgradeable().getConfigManager().getSetting(Settings.CRAFT_ONLY));

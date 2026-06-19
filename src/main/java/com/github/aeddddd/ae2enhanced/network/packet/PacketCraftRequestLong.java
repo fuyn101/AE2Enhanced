@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingGrid;
-import appeng.api.networking.crafting.ICraftingJob;
-import appeng.api.networking.security.IActionHost;
-import appeng.container.ContainerOpenContext;
-import appeng.container.implementations.ContainerCraftAmount;
-import appeng.container.implementations.ContainerCraftConfirm;
-import appeng.container.interfaces.IInventorySlotAware;
-import appeng.core.AELog;
-import appeng.core.sync.GuiBridge;
-import appeng.util.Platform;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.ICraftingService;
+import ae2.api.networking.crafting.ICraftingJob;
+import ae2.api.networking.security.IActionHost;
+import ae2.container.ContainerOpenContext;
+import ae2.container.implementations.ContainerCraftAmount;
+import ae2.container.implementations.ContainerCraftConfirm;
+import ae2.container.interfaces.IInventorySlotAware;
+import ae2.core.AELog;
+import ae2.core.sync.GuiBridge;
+import ae2.util.Platform;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
@@ -70,7 +70,7 @@ public class PacketCraftRequestLong implements IMessage {
                     cca.getItemToCraft().setStackSize(message.amount);
                     Future<ICraftingJob> futureJob = null;
                     try {
-                        ICraftingGrid cg = g.getCache(ICraftingGrid.class);
+                        ICraftingService cg = g.getCache(ICraftingService.class);
                         futureJob = cg.beginCraftingJob(cca.getWorld(), cca.getGrid(), cca.getActionSrc(), cca.getItemToCraft(), null);
                         ContainerOpenContext context = cca.getOpenContext();
                         if (context != null) {

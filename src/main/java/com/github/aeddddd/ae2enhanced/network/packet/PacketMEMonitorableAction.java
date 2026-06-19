@@ -1,24 +1,24 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IFluidStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEFluidStack;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.container.implementations.ContainerMEMonitorable;
-import appeng.core.AELog;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketInventoryAction;
-import appeng.fluids.util.AEFluidStack;
-import appeng.helpers.InventoryAction;
-import appeng.me.helpers.PlayerSource;
-import appeng.util.Platform;
-import appeng.util.item.AEItemStack;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IFluidStorageChannel;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEFluidKey;
+import ae2.api.storage.data.AEItemKey;
+import ae2.container.implementations.ContainerMEStorage;
+import ae2.core.AELog;
+import ae2.core.sync.network.NetworkHandler;
+import ae2.core.sync.packets.PacketInventoryAction;
+import ae2.fluids.util.AEFluidKey;
+import ae2.helpers.InventoryAction;
+import ae2.me.helpers.PlayerSource;
+import ae2.util.Platform;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -36,7 +36,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
  * E2a：直接容器提取/注入网络包.
- * 客户端发送 IAEItemStack.getDefinition() 的完整 NBT,服务器端用 FakeItemRegister 解析.
+ * 客户端发送 AEItemKey.getDefinition() 的完整 NBT,服务器端用 FakeItemRegister 解析.
  *
  * 设计参考 ae2fc CpacketMEMonitorableAction.
  */
@@ -85,14 +85,14 @@ public class PacketMEMonitorableAction implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
                 Container c = player.openContainer;
-                if (!(c instanceof ContainerMEMonitorable)) {
+                if (!(c instanceof ContainerMEStorage)) {
                     return;
                 }
-                ContainerMEMonitorable cme = (ContainerMEMonitorable) c;
+                ContainerMEStorage cme = (ContainerMEStorage) c;
                 if (cme.getNetworkNode() == null || cme.getNetworkNode().getGrid() == null) {
                     return;
                 }
-                IStorageGrid grid = cme.getNetworkNode().getGrid().getCache(IStorageGrid.class);
+                IStorageService grid = cme.getNetworkNode().getGrid().getCache(IStorageService.class);
                 Object target = cme.getTarget();
                 if (!(target instanceof IActionHost)) {
                     return;
@@ -129,7 +129,7 @@ public class PacketMEMonitorableAction implements IMessage {
             return null;
         }
 
-        private static void fluidWork(PacketMEMonitorableAction message, ItemStack singleHeld, IStorageGrid grid,
+        private static void fluidWork(PacketMEMonitorableAction message, ItemStack singleHeld, IStorageService grid,
                                        IActionSource source, EntityPlayerMP player) {
             ItemStack actualHeld = player.inventory.getItemStack();
             if (!ItemStack.areItemsEqual(singleHeld, actualHeld) || !ItemStack.areItemStackTagsEqual(singleHeld, actualHeld)
@@ -148,7 +148,7 @@ public class PacketMEMonitorableAction implements IMessage {
                 targetFluid.amount = Integer.MAX_VALUE;
             }
 
-            IMEMonitor<IAEFluidStack> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+            MEStorage<AEFluidKey> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
             boolean drain = false;
             FluidStack allFluid = fh.drain(Integer.MAX_VALUE, false);
@@ -161,16 +161,16 @@ public class PacketMEMonitorableAction implements IMessage {
 
             if (drain) {
                 if (allFluid == null || allFluid.amount == 0) return;
-                AEFluidStack allAEFluid = AEFluidStack.fromFluidStack(allFluid);
+                AEFluidKey allAEFluid = AEFluidKey.fromFluidStack(allFluid);
                 if (allAEFluid == null) return;
-                IAEFluidStack notInjected = fluidStorage.injectItems(allAEFluid, Actionable.SIMULATE, source);
+                AEFluidKey notInjected = fluidStorage.injectItems(allAEFluid, Actionable.SIMULATE, source);
                 long size = allAEFluid.getStackSize() - (notInjected == null ? 0L : notInjected.getStackSize());
                 if (size <= 0) return;
                 fluidStorage.injectItems(allAEFluid.setStackSize(size), Actionable.MODULATE, source);
                 fh.drain((int) size, true);
             } else {
-                AEFluidStack targetAEFluid = AEFluidStack.fromFluidStack(targetFluid);
-                IAEFluidStack extracted = fluidStorage.extractItems(targetAEFluid, Actionable.SIMULATE, source);
+                AEFluidKey targetAEFluid = AEFluidKey.fromFluidStack(targetFluid);
+                AEFluidKey extracted = fluidStorage.extractItems(targetAEFluid, Actionable.SIMULATE, source);
                 if (extracted == null) return;
                 int filled = fh.fill(extracted.getFluidStack(), false);
                 if (filled <= 0) return;
@@ -191,19 +191,19 @@ public class PacketMEMonitorableAction implements IMessage {
         }
 
         private static void gasWorkReflect(PacketMEMonitorableAction message, ItemStack singleHeld,
-                                              IStorageGrid grid, PlayerSource source, EntityPlayerMP player) {
+                                              IStorageService grid, PlayerSource source, EntityPlayerMP player) {
             try {
                 Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableActionGasHelper");
                 java.lang.reflect.Method method = helperClass.getMethod("gasWork",
                         PacketMEMonitorableAction.class, ItemStack.class,
-                        IStorageGrid.class, PlayerSource.class, EntityPlayerMP.class);
+                        IStorageService.class, PlayerSource.class, EntityPlayerMP.class);
                 method.invoke(null, message, singleHeld, grid, source, player);
             } catch (Exception e) {
                 AELog.error(e);
             }
         }
 
-        private static void fluidOperateWork(PacketMEMonitorableAction message, IStorageGrid grid,
+        private static void fluidOperateWork(PacketMEMonitorableAction message, IStorageService grid,
                                               IActionSource source, EntityPlayerMP player) {
             if (!player.inventory.getItemStack().isEmpty()) return;
 
@@ -214,14 +214,14 @@ public class PacketMEMonitorableAction implements IMessage {
 
             boolean shift = message.getNbt() != null && message.getNbt().getBoolean("shift");
 
-            IMEMonitor<IAEItemStack> itemStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-            IMEMonitor<IAEFluidStack> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+            MEStorage<AEItemKey> itemStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+            MEStorage<AEFluidKey> fluidStorage = grid.getInventory(AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
 
-            IAEItemStack bucketReq = AEItemStack.fromItemStack(new ItemStack(Items.BUCKET));
-            IAEItemStack bucket = itemStorage.extractItems(bucketReq, Actionable.SIMULATE, source);
+            AEItemKey bucketReq = AEItemKey.fromItemStack(new ItemStack(Items.BUCKET));
+            AEItemKey bucket = itemStorage.extractItems(bucketReq, Actionable.SIMULATE, source);
             if (bucket == null) return;
 
-            IAEFluidStack aeFluid = fluidStorage.extractItems(AEFluidStack.fromFluidStack(fluid), Actionable.SIMULATE, source);
+            AEFluidKey aeFluid = fluidStorage.extractItems(AEFluidKey.fromFluidStack(fluid), Actionable.SIMULATE, source);
             if (aeFluid == null || aeFluid.getStackSize() < 1000L) return;
 
             IFluidHandlerItem fh = FluidUtil.getFluidHandler(bucket.createItemStack());
@@ -240,16 +240,16 @@ public class PacketMEMonitorableAction implements IMessage {
             }
 
             itemStorage.extractItems(bucketReq, Actionable.MODULATE, source);
-            fluidStorage.extractItems(AEFluidStack.fromFluidStack(fluid).setStackSize(1000), Actionable.MODULATE, source);
+            fluidStorage.extractItems(AEFluidKey.fromFluidStack(fluid).setStackSize(1000), Actionable.MODULATE, source);
             updateHeld(player);
         }
 
-        private static void gasOperateWorkReflect(PacketMEMonitorableAction message, IStorageGrid grid,
+        private static void gasOperateWorkReflect(PacketMEMonitorableAction message, IStorageService grid,
                                                      PlayerSource source, EntityPlayerMP player) {
             try {
                 Class<?> helperClass = Class.forName("com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableActionGasHelper");
                 java.lang.reflect.Method method = helperClass.getMethod("gasOperateWork",
-                        PacketMEMonitorableAction.class, IStorageGrid.class, PlayerSource.class, EntityPlayerMP.class);
+                        PacketMEMonitorableAction.class, IStorageService.class, PlayerSource.class, EntityPlayerMP.class);
                 method.invoke(null, message, grid, source, player);
             } catch (Exception e) {
                 AELog.error(e);
@@ -261,7 +261,7 @@ public class PacketMEMonitorableAction implements IMessage {
                 try {
                     NetworkHandler.instance().sendTo(
                             new PacketInventoryAction(InventoryAction.UPDATE_HAND, 0,
-                                    AEItemStack.fromItemStack(player.inventory.getItemStack())),
+                                    AEItemKey.fromItemStack(player.inventory.getItemStack())),
                             player);
                 } catch (Exception e) {
                     AELog.debug(e);

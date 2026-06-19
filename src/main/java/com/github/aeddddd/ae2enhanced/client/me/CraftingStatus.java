@@ -1,16 +1,16 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 
 /**
  * 表示一个正在 Crafting CPU 中合成的物品及其进度.
  */
 public class CraftingStatus {
-    public final IAEItemStack output;
+    public final AEItemKey output;
     public final long remaining;
     public final long start;
 
-    public CraftingStatus(IAEItemStack output, long remaining, long start) {
+    public CraftingStatus(AEItemKey output, long remaining, long start) {
         this.output = output;
         this.remaining = remaining;
         this.start = start;

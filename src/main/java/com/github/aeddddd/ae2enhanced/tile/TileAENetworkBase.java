@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.util.AEPartLocation;
-import appeng.api.util.DimensionalCoord;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.me.helpers.IGridProxyable;
+import ae2.api.networking.IGridNode;
+import ae2.api.util.AEPartLocation;
+import ae2.api.util.DimensionalBlockPos;
+import ae2.me.helpers.AENetworkProxy;
+import ae2.me.helpers.IGridProxyable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -66,8 +66,8 @@ public abstract class TileAENetworkBase extends TileEntity implements IGridProxy
     }
 
     @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
+    public DimensionalBlockPos getLocation() {
+        return new DimensionalBlockPos(this);
     }
 
     @Override

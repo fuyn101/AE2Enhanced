@@ -3,12 +3,11 @@ package com.github.aeddddd.ae2enhanced.registry;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.*;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
-import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
+import com.github.aeddddd.ae2enhanced.crafting.RecipeOmniToolUpgrade;
 import com.github.aeddddd.ae2enhanced.item.*;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.tile.*;
-import com.github.aeddddd.ae2enhanced.crafting.RecipeOmniToolUpgrade;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -17,7 +16,6 @@ import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.GameRegistry;
@@ -31,41 +29,19 @@ public final class GameRegistryManager {
     private GameRegistryManager() {}
 
     /**
-     * 在 preInit 阶段实例化所有 Item(必须在 FakeFluids.init() 等之前调用).
+     * 在 preInit 阶段实例化所有 Item.
      */
     public static void initItems() {
         ItemRegistry.UPGRADE_CARD = new ItemUpgradeCard();
         ItemRegistry.CONFORMAL_CHARGE = new ItemConformalCharge();
         ItemRegistry.DIFFERENTIAL_FORM_STABILIZER = new ItemDifferentialFormStabilizer();
         ItemRegistry.STABLE_SPACETIME_MANIFOLD = new ItemStableSpacetimeManifold();
-        try {
-            if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
-                ItemRegistry.ESSENTIA_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop").newInstance();
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemEssentiaDrop", e);
-        }
-        ItemRegistry.FLUID_DROP = new ItemFluidDrop();
-        try {
-            if (net.minecraftforge.fml.common.Loader.isModLoaded("mekanism") && net.minecraftforge.fml.common.Loader.isModLoaded("mekeng")) {
-                ItemRegistry.GAS_DROP = (Item) Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop").newInstance();
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to instantiate ItemGasDrop", e);
-        }
         ItemRegistry.CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
         ItemRegistry.UNIVERSAL_MEMORY_CARD = new ItemUniversalMemoryCard();
         ItemRegistry.OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
         ItemRegistry.OMNI_UPGRADE_CARD = new ItemOmniUpgradeCard();
         ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
-        ItemRegistry.ENERGY_DROP = new ItemEnergyDrop();
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
-            ItemRegistry.MANA_DROP = new com.github.aeddddd.ae2enhanced.item.ItemManaDrop();
-        }
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
-            ItemRegistry.STARLIGHT_DROP = new com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop();
-        }
         ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
         ItemRegistry.ME_PLACEMENT_TOOL = new ItemMEPlacementTool();
@@ -80,21 +56,13 @@ public final class GameRegistryManager {
             BlockRegistry.ASSEMBLY_INNER_WALL = new BlockAssemblyInnerWall(),
             BlockRegistry.ASSEMBLY_STABILIZER = new BlockAssemblyStabilizer(),
             BlockRegistry.MICRO_SINGULARITY = new BlockMicroSingularity(),
-            BlockRegistry.HYPERDIMENSIONAL_CONTROLLER = new BlockHyperdimensionalController(),
-            BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE = new BlockHyperdimensionalMeInterface(),
-            BlockRegistry.HYPERDIMENSIONAL_CASING = new BlockHyperdimensionalCasing(),
-            BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE = new BlockHyperdimensionalSingularityCore(),
             BlockRegistry.COMPUTATION_CORE = new BlockComputationCore(),
             BlockRegistry.CONSTANT_TENSOR_FIELD_CASING = new BlockConstantTensorFieldCasing(),
             BlockRegistry.CONSTANT_SPINOR_FIELD_CASING = new BlockConstantSpinorFieldCasing(),
             BlockRegistry.CAUSAL_ANCHOR_CORE = new BlockCausalAnchorCore(),
             BlockRegistry.SUPER_CRAFTING_INTERFACE = new BlockSuperCraftingInterface(),
             BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter(),
-            BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
             BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
-            BlockRegistry.RF_ACCESS_NODE = new BlockRFAccessNode(),
-            BlockRegistry.MANA_ACCESS_NODE = new BlockManaAccessNode(),
-            BlockRegistry.STARLIGHT_ACCESS_NODE = new BlockStarlightAccessNode(),
             BlockRegistry.CHUNK_POWER_NODE = new BlockChunkPowerNode(),
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
@@ -109,28 +77,12 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
         GameRegistry.registerTileEntity(TileAssemblyMeInterface.class, AE2Enhanced.MOD_ID + ":assembly_me_interface");
         GameRegistry.registerTileEntity(TileMicroSingularity.class, AE2Enhanced.MOD_ID + ":micro_singularity");
-        GameRegistry.registerTileEntity(TileHyperdimensionalController.class, AE2Enhanced.MOD_ID + ":hyperdimensional_controller");
-        GameRegistry.registerTileEntity(TileHyperdimensionalMeInterface.class, AE2Enhanced.MOD_ID + ":hyperdimensional_me_interface");
         GameRegistry.registerTileEntity(TileComputationCore.class, AE2Enhanced.MOD_ID + ":computation_core");
         GameRegistry.registerTileEntity(TileSuperCraftingInterface.class, AE2Enhanced.MOD_ID + ":super_crafting_interface");
         GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
-        GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
-        GameRegistry.registerTileEntity(TileRFAccessNode.class, AE2Enhanced.MOD_ID + ":rf_access_node");
-        GameRegistry.registerTileEntity(TileManaAccessNode.class, AE2Enhanced.MOD_ID + ":mana_access_node");
-        GameRegistry.registerTileEntity(TileStarlightAccessNode.class, AE2Enhanced.MOD_ID + ":starlight_access_node");
         GameRegistry.registerTileEntity(TileChunkPowerNode.class, AE2Enhanced.MOD_ID + ":chunk_power_node");
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
-        if (Loader.isModLoaded("botania")) {
-            BlockRegistry.CHUNK_MANA_NODE = new BlockChunkManaNode();
-            BlockRegistry.COMPRESSED_CHUNK_MANA_NODE = new BlockCompressedChunkManaNode();
-            event.getRegistry().registerAll(
-                BlockRegistry.CHUNK_MANA_NODE,
-                BlockRegistry.COMPRESSED_CHUNK_MANA_NODE
-            );
-            GameRegistry.registerTileEntity(TileChunkManaNode.class, AE2Enhanced.MOD_ID + ":chunk_mana_node");
-            GameRegistry.registerTileEntity(TileCompressedChunkManaNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_mana_node");
-        }
         GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
         GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
@@ -149,35 +101,19 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.ASSEMBLY_INNER_WALL).setRegistryName(BlockRegistry.ASSEMBLY_INNER_WALL.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ASSEMBLY_STABILIZER).setRegistryName(BlockRegistry.ASSEMBLY_STABILIZER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlockMicroSingularity(BlockRegistry.MICRO_SINGULARITY).setRegistryName(BlockRegistry.MICRO_SINGULARITY.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_CASING).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE).setRegistryName(BlockRegistry.HYPERDIMENSIONAL_SINGULARITY_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPUTATION_CORE).setRegistryName(BlockRegistry.COMPUTATION_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING).setRegistryName(BlockRegistry.CONSTANT_TENSOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING).setRegistryName(BlockRegistry.CONSTANT_SPINOR_FIELD_CASING.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CAUSAL_ANCHOR_CORE).setRegistryName(BlockRegistry.CAUSAL_ANCHOR_CORE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SUPER_CRAFTING_INTERFACE).setRegistryName(BlockRegistry.SUPER_CRAFTING_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.RF_ACCESS_NODE).setRegistryName(BlockRegistry.RF_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.MANA_ACCESS_NODE).setRegistryName(BlockRegistry.MANA_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.STARLIGHT_ACCESS_NODE).setRegistryName(BlockRegistry.STARLIGHT_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CHUNK_POWER_NODE).setRegistryName(BlockRegistry.CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_ME_COLLECTOR).setRegistryName(BlockRegistry.ADVANCED_ME_COLLECTOR.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ME_NETWORK_RECYCLER).setRegistryName(BlockRegistry.ME_NETWORK_RECYCLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB)
         );
-        if (Loader.isModLoaded("botania") && BlockRegistry.CHUNK_MANA_NODE != null) {
-            event.getRegistry().register(new ItemBlock(BlockRegistry.CHUNK_MANA_NODE)
-                    .setRegistryName(BlockRegistry.CHUNK_MANA_NODE.getRegistryName())
-                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
-            event.getRegistry().register(new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE)
-                    .setRegistryName(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE.getRegistryName())
-                    .setCreativeTab(AE2Enhanced.CREATIVE_TAB));
-        }
         if (BlockRegistry.EMC_INTERFACE != null) {
             event.getRegistry().register(new ItemBlock(BlockRegistry.EMC_INTERFACE)
                     .setRegistryName(BlockRegistry.EMC_INTERFACE.getRegistryName())
@@ -189,26 +125,12 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.CONFORMAL_CHARGE);
         event.getRegistry().register(ItemRegistry.DIFFERENTIAL_FORM_STABILIZER);
         event.getRegistry().register(ItemRegistry.STABLE_SPACETIME_MANIFOLD);
-        if (ItemRegistry.ESSENTIA_DROP != null) {
-            event.getRegistry().register(ItemRegistry.ESSENTIA_DROP);
-        }
-        event.getRegistry().register(ItemRegistry.FLUID_DROP);
-        if (ItemRegistry.GAS_DROP != null) {
-            event.getRegistry().register(ItemRegistry.GAS_DROP);
-        }
         event.getRegistry().register(ItemRegistry.CHANNEL_RECEIVER_CARD);
         event.getRegistry().register(ItemRegistry.UNIVERSAL_MEMORY_CARD);
         event.getRegistry().register(ItemRegistry.OMNI_WIRELESS_TERMINAL);
         event.getRegistry().register(ItemRegistry.OMNI_UPGRADE_CARD);
         event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
-        event.getRegistry().register(ItemRegistry.ENERGY_DROP);
-        if (ItemRegistry.MANA_DROP != null) {
-            event.getRegistry().register(ItemRegistry.MANA_DROP);
-        }
-        if (ItemRegistry.STARLIGHT_DROP != null) {
-            event.getRegistry().register(ItemRegistry.STARLIGHT_DROP);
-        }
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
         event.getRegistry().register(ItemRegistry.ME_PLACEMENT_TOOL);
@@ -217,7 +139,7 @@ public final class GameRegistryManager {
     @SubscribeEvent
     public static void registerRecipes(RegistryEvent.Register<net.minecraft.item.crafting.IRecipe> event) {
         // ME Omni Tool - Chaos Core upgrade
-        if (Loader.isModLoaded("draconicevolution") && com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.omniTool.enableChaosCoreUpgrade) {
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("draconicevolution") && AE2EnhancedConfig.omniTool.enableChaosCoreUpgrade) {
             Item chaoticCore = Item.REGISTRY.getObject(new ResourceLocation("draconicevolution", "chaotic_core"));
             if (chaoticCore != null) {
                 event.getRegistry().register(new RecipeOmniToolUpgrade(
@@ -230,7 +152,7 @@ public final class GameRegistryManager {
             }
         }
 
-        // ME Omni Tool - Enchanted Book upgrade（任意附魔书）
+        // ME Omni Tool - Enchanted Book upgrade
         event.getRegistry().register(new RecipeOmniToolUpgrade(
                 new ResourceLocation(AE2Enhanced.MOD_ID, "omni_tool_enchanted_book_upgrade"),
                 new ItemStack(ItemRegistry.ME_OMNI_TOOL),

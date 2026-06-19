@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.parts.IPartHost;
-import appeng.api.parts.IPartItem;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.util.AEColor;
-import appeng.api.util.AEPartLocation;
-import appeng.facade.FacadePart;
-import appeng.facade.IFacadeItem;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.parts.IPartHost;
+import ae2.api.parts.IPartItem;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.util.AEColor;
+import ae2.api.util.AEPartLocation;
+import ae2.facade.FacadePart;
+import ae2.facade.IFacadeItem;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemBlock;
@@ -74,7 +74,7 @@ public final class PlacementToolHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return false;
 
-        IMEMonitor<IAEItemStack> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return false;
@@ -85,7 +85,7 @@ public final class PlacementToolHelper {
             return placeSingleCable(player, world, pos, side, hand, toolStack, target, configColor(toolStack));
         }
 
-        IAEItemStack request = findMatchingStack(monitor, target);
+        AEItemKey request = findMatchingStack(monitor, target);
         if (request == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                     target.getDisplayName()));
@@ -93,9 +93,9 @@ public final class PlacementToolHelper {
         }
 
         // 模拟提取
-        IAEItemStack toExtract = request.copy();
+        AEItemKey toExtract = request.copy();
         toExtract.setStackSize(1);
-        IAEItemStack simulated = monitor.extractItems(toExtract, Actionable.SIMULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
         if (simulated == null || simulated.getStackSize() < 1) {
             // 如果目标是副手物品，尝试直接消耗副手
             if (isTargetFromOffhand(player, target)) {
@@ -131,7 +131,7 @@ public final class PlacementToolHelper {
         }
 
         if (placed) {
-            IAEItemStack extracted = monitor.extractItems(toExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+            AEItemKey extracted = monitor.extractItems(toExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
             if (extracted == null || extracted.getStackSize() < 1) {
                 rollbackSingle(world, pos, side, preSnapshot.getCurrentBlock(), targetType);
                 player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
@@ -181,13 +181,13 @@ public final class PlacementToolHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return false;
 
-        IMEMonitor<IAEItemStack> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return false;
         }
 
-        IAEItemStack request = findMatchingStack(monitor, target);
+        AEItemKey request = findMatchingStack(monitor, target);
         if (request == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                     target.getDisplayName()));
@@ -201,9 +201,9 @@ public final class PlacementToolHelper {
         }
 
         // 模拟提取
-        IAEItemStack toExtract = request.copy();
+        AEItemKey toExtract = request.copy();
         toExtract.setStackSize(positions.size());
-        IAEItemStack simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
+        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
 
         boolean useOffhand = false;
@@ -253,7 +253,7 @@ public final class PlacementToolHelper {
         if (useOffhand) {
             // 网络能拿多少拿多少
             if (simulated != null && simulated.getStackSize() > 0) {
-                IAEItemStack netExtract = request.copy();
+                AEItemKey netExtract = request.copy();
                 netExtract.setStackSize(simulated.getStackSize());
                 monitor.extractItems(netExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
                 networkConsumed = (int) simulated.getStackSize();
@@ -268,9 +268,9 @@ public final class PlacementToolHelper {
             }
             off.shrink(offhandConsumed);
         } else {
-            IAEItemStack finalExtract = request.copy();
+            AEItemKey finalExtract = request.copy();
             finalExtract.setStackSize(placedPositions.size());
-            IAEItemStack extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
+            AEItemKey extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
                     SecurityTerminalBindingHelper.createPlayerSource(player));
             if (extracted == null || extracted.getStackSize() < placedPositions.size()) {
                 rollbackBulk(world, snapshots);
@@ -349,7 +349,7 @@ public final class PlacementToolHelper {
         }
 
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
-        IMEMonitor<IAEItemStack> monitor = grid != null ? SecurityTerminalBindingHelper.getItemMonitor(grid) : null;
+        MEStorage<AEItemKey> monitor = grid != null ? SecurityTerminalBindingHelper.getItemMonitor(grid) : null;
 
         List<BlockSnapshot> snapshots = new ArrayList<>(record.snapshots);
         java.util.Collections.reverse(snapshots);
@@ -362,10 +362,10 @@ public final class PlacementToolHelper {
         }
 
         if (monitor != null) {
-            for (Map.Entry<IAEItemStack, Long> entry : record.consumed.entrySet()) {
-                IAEItemStack refund = entry.getKey().copy();
+            for (Map.Entry<AEItemKey, Long> entry : record.consumed.entrySet()) {
+                AEItemKey refund = entry.getKey().copy();
                 refund.setStackSize(entry.getValue());
-                IAEItemStack notInjected = monitor.injectItems(refund, Actionable.MODULATE,
+                AEItemKey notInjected = monitor.injectItems(refund, Actionable.MODULATE,
                         SecurityTerminalBindingHelper.createPlayerSource(player));
                 if (notInjected != null && notInjected.getStackSize() > 0) {
                     ItemStack drop = notInjected.getDefinition().copy();
@@ -522,21 +522,21 @@ public final class PlacementToolHelper {
     }
 
     @Nullable
-    public static IAEItemStack findMatchingStack(IMEMonitor<IAEItemStack> monitor, ItemStack target) {
-        IAEItemStack request = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+    public static AEItemKey findMatchingStack(MEStorage<AEItemKey> monitor, ItemStack target) {
+        AEItemKey request = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
                 .createStack(target);
         if (request == null) return null;
         request.setStackSize(1);
 
         // 优先精确匹配
-        for (IAEItemStack stack : monitor.getStorageList()) {
+        for (AEItemKey stack : monitor.getStorageList()) {
             if (stack.isSameType(target)) {
                 return stack.copy();
             }
         }
 
         // 退而忽略 NBT 匹配 item + meta
-        for (IAEItemStack stack : monitor.getStorageList()) {
+        for (AEItemKey stack : monitor.getStorageList()) {
             ItemStack netStack = stack.getDefinition().copy();
             netStack.setCount(1);
             if (netStack.getItem() == target.getItem()
@@ -580,6 +580,6 @@ public final class PlacementToolHelper {
 
     private static class UndoRecord {
         final List<BlockSnapshot> snapshots = new ArrayList<>();
-        final Map<IAEItemStack, Long> consumed = new LinkedHashMap<>();
+        final Map<AEItemKey, Long> consumed = new LinkedHashMap<>();
     }
 }

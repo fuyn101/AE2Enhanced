@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client.gui.slot;
 
-import appeng.api.implementations.items.IUpgradeModule;
-import appeng.container.slot.AppEngSlot;
+import ae2.api.implementations.items.IUpgradeModule;
+import ae2.container.slot.AppEngSlot;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.item.ItemOmniUpgradeCard;
 import net.minecraft.item.ItemStack;

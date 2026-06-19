@@ -3,20 +3,20 @@ import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.ItemHandlerUpgrade
 import com.github.aeddddd.ae2enhanced.util.memorycard.api.PasteResult;
 import com.github.aeddddd.ae2enhanced.util.memorycard.upgrade.IUpgradeProvider;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingCallback;
-import appeng.api.networking.crafting.ICraftingGrid;
-import appeng.api.networking.crafting.ICraftingJob;
-import appeng.api.networking.crafting.ICraftingLink;
-import appeng.api.networking.crafting.ICraftingRequester;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.PlayerSource;
-import appeng.util.item.AEItemStack;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.ICraftingCallback;
+import ae2.api.networking.crafting.ICraftingService;
+import ae2.api.networking.crafting.ICraftingJob;
+import ae2.api.networking.crafting.ICraftingLink;
+import ae2.api.networking.crafting.ICraftingRequester;
+import ae2.api.storage.MEStorage;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.PlayerSource;
+import ae2.util.item.AEItemKey;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileWirelessChannelTransmitter;
@@ -158,21 +158,21 @@ public class MemoryCardUpgradeHelper {
         TileWirelessChannelTransmitter transmitter = (TileWirelessChannelTransmitter) te;
 
         try {
-            appeng.api.networking.IGrid grid = transmitter.getProxy().getGrid();
-            appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
+            ae2.api.networking.IGrid grid = transmitter.getProxy().getGrid();
+            ae2.api.networking.storage.IStorageService storageGrid = grid.getCache(ae2.api.networking.storage.IStorageService.class);
             if (storageGrid == null) return NetworkPullResult.FAILED;
-            IMEMonitor<IAEItemStack> inv = storageGrid.getInventory(
+            MEStorage<AEItemKey> inv = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             PlayerSource source = new PlayerSource(player, null);
-            ICraftingGrid craftingGrid = grid.getCache(ICraftingGrid.class);
+            ICraftingService craftingGrid = grid.getCache(ICraftingService.class);
 
             List<ItemStack> stillMissing = new ArrayList<>();
             List<ItemStack> craftable = new ArrayList<>();
             List<ItemStack> directExtract = new ArrayList<>();
 
             for (ItemStack deficit : missing) {
-                AEItemStack want = AEItemStack.fromItemStack(deficit);
-                IAEItemStack sim = inv.extractItems(want, Actionable.SIMULATE, source);
+                AEItemKey want = AEItemKey.fromItemStack(deficit);
+                AEItemKey sim = inv.extractItems(want, Actionable.SIMULATE, source);
                 if (sim != null && sim.getStackSize() >= deficit.getCount()) {
                     directExtract.add(deficit.copy());
                     continue;
@@ -189,7 +189,7 @@ public class MemoryCardUpgradeHelper {
                     ItemStack need = deficit.copy();
                     need.setCount(needCount);
 
-                    if (craftingGrid != null && craftingGrid.canEmitFor(AEItemStack.fromItemStack(need))) {
+                    if (craftingGrid != null && craftingGrid.canEmitFor(AEItemKey.fromItemStack(need))) {
                         craftable.add(need);
                     } else {
                         stillMissing.add(need);
@@ -207,8 +207,8 @@ public class MemoryCardUpgradeHelper {
             }
 
             for (ItemStack toExtract : directExtract) {
-                AEItemStack want = AEItemStack.fromItemStack(toExtract);
-                IAEItemStack extracted = inv.extractItems(want, Actionable.MODULATE, source);
+                AEItemKey want = AEItemKey.fromItemStack(toExtract);
+                AEItemKey extracted = inv.extractItems(want, Actionable.MODULATE, source);
                 if (extracted != null && extracted.getStackSize() > 0) {
                     ItemStack stack = extracted.createItemStack();
                     if (!player.addItemStackToInventory(stack)) {
@@ -229,8 +229,8 @@ public class MemoryCardUpgradeHelper {
         }
     }
 
-    private static boolean requestCrafting(EntityPlayer player, World world, appeng.api.networking.IGrid grid,
-                                           PlayerSource source, ICraftingGrid craftingGrid,
+    private static boolean requestCrafting(EntityPlayer player, World world, ae2.api.networking.IGrid grid,
+                                           PlayerSource source, ICraftingService craftingGrid,
                                            List<ItemStack> toCraft, TileWirelessChannelTransmitter transmitter) {
         boolean anyRequested = false;
 
@@ -246,7 +246,7 @@ public class MemoryCardUpgradeHelper {
             }
 
             @Override
-            public IAEItemStack injectCraftedItems(ICraftingLink link, IAEItemStack items, Actionable mode) {
+            public AEItemKey injectCraftedItems(ICraftingLink link, AEItemKey items, Actionable mode) {
                 return items;
             }
 
@@ -257,7 +257,7 @@ public class MemoryCardUpgradeHelper {
 
         for (ItemStack stack : toCraft) {
             try {
-                IAEItemStack want = AEItemStack.fromItemStack(stack);
+                AEItemKey want = AEItemKey.fromItemStack(stack);
                 Future<ICraftingJob> future = craftingGrid.beginCraftingJob(world, grid, source, want, new ICraftingCallback() {
                     @Override
                     public void calculationComplete(ICraftingJob job) {

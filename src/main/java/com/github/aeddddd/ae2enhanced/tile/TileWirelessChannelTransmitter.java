@@ -1,14 +1,14 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.events.MENetworkChannelsChanged;
-import appeng.api.networking.events.MENetworkEventSubscribe;
-import appeng.api.networking.events.MENetworkPowerStatusChange;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.util.Platform;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.events.MENetworkChannelsChanged;
+import ae2.api.networking.events.MENetworkEventSubscribe;
+import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.AENetworkProxy;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
@@ -139,8 +139,8 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
         if (needsReady()) {
             clearNeedsReady();
             getProxy().setFlags(
-                appeng.api.networking.GridFlags.DENSE_CAPACITY,
-                appeng.api.networking.GridFlags.REQUIRE_CHANNEL
+                ae2.api.networking.GridFlags.DENSE_CAPACITY,
+                ae2.api.networking.GridFlags.REQUIRE_CHANNEL
             );
             getProxy().setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower);
             getProxy().onReady();

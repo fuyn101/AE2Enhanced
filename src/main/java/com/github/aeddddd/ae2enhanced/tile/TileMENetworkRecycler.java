@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.storage.ICellContainer;
-import appeng.api.storage.ICellInventory;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.networking.events.MENetworkChannelsChanged;
-import appeng.api.networking.events.MENetworkEventSubscribe;
-import appeng.api.networking.events.MENetworkPowerStatusChange;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.api.util.DimensionalCoord;
+import ae2.api.networking.IGridNode;
+import ae2.api.storage.ICellContainer;
+import ae2.api.storage.ICellInventory;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.AEKeyType;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.networking.events.MENetworkChannelsChanged;
+import ae2.api.networking.events.MENetworkEventSubscribe;
+import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.api.util.DimensionalBlockPos;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -100,8 +100,8 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     @Override
-    public DimensionalCoord getLocation() {
-        return new DimensionalCoord(this);
+    public DimensionalBlockPos getLocation() {
+        return new DimensionalBlockPos(this);
     }
 
     // ---- ICellContainer ----
@@ -113,7 +113,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<IMEInventoryHandler> getCellArray(IStorageChannel<?> channel) {
+    public List<IMEInventoryHandler> getCellArray(AEKeyType<?> channel) {
         if (channel instanceof IItemStorageChannel) {
             return Collections.singletonList(networkHandler);
         }
@@ -168,7 +168,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
         if (needsReady()) {
             clearNeedsReady();
-            getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
             getProxy().setIdlePowerUsage(AE2EnhancedConfig.recycler.idlePower);
             getProxy().onReady();
         }

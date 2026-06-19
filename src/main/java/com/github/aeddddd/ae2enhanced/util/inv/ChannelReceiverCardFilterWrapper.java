@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.util.inv;
 
-import appeng.util.inv.filter.IAEItemFilter;
+import ae2.util.inv.filter.IAEItemFilter;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;

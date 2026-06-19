@@ -1,18 +1,18 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.storage.ICellContainer;
-import appeng.api.storage.ICellInventory;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.me.GridAccessException;
-import appeng.tile.inventory.AppEngInternalAEInventory;
-import appeng.util.inv.IAEAppEngInventory;
-import appeng.util.inv.InvOperation;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.storage.ICellContainer;
+import ae2.api.storage.ICellInventory;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.AEKeyType;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.me.GridAccessException;
+import ae2.tile.inventory.AppEngInternalAEInventory;
+import ae2.util.inv.IAEAppEngInventory;
+import ae2.util.inv.InvOperation;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEEventHandler;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -187,7 +187,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<IMEInventoryHandler> getCellArray(IStorageChannel<?> channel) {
+    public List<IMEInventoryHandler> getCellArray(AEKeyType<?> channel) {
         if (!isBound()) return Collections.emptyList();
         if (channel instanceof IItemStorageChannel) {
             return Collections.singletonList((IMEInventoryHandler) handler);
@@ -327,7 +327,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
         try {
             IGrid grid = getProxy().getGrid();
             if (grid != null) {
-                grid.postEvent(new appeng.api.networking.events.MENetworkCellArrayUpdate());
+                grid.postEvent(new ae2.api.networking.events.MENetworkCellArrayUpdate());
             }
         } catch (GridAccessException e) {
             // grid 尚未就绪

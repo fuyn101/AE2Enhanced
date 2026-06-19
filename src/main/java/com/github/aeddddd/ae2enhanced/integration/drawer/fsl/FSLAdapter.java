@@ -1,11 +1,11 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer.fsl;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
+import ae2.api.config.AccessRestriction;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.api.storage.data.KeyCounter;
 import com.github.aeddddd.ae2enhanced.integration.drawer.IDrawerIndexAdapter;
 import com.xinyihl.functionalstoragelegacy.api.IBigItemHandler;
 import com.xinyihl.functionalstoragelegacy.common.inventory.controller.ControllerItemHandler;
@@ -118,7 +118,7 @@ public class FSLAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
+    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) {
             return null;
         }
@@ -165,13 +165,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         if (remaining >= input.getStackSize()) {
             return input;
         }
-        IAEItemStack result = input.copy();
+        AEItemKey result = input.copy();
         result.setStackSize(remaining);
         return result;
     }
 
     @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
+    public AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) {
             return null;
         }
@@ -201,13 +201,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         if (extracted <= 0) {
             return null;
         }
-        IAEItemStack result = request.copy();
+        AEItemKey result = request.copy();
         result.setStackSize(extracted);
         return result;
     }
 
     @Override
-    public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
+    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
         if (this.indexDirty) {
             rebuildIndex();
         }
@@ -236,7 +236,7 @@ public class FSLAdapter implements IDrawerIndexAdapter {
                         prototype.setTagCompound(key.tag.copy());
                     }
                 }
-                IAEItemStack aeStack = this.channel.createStack(prototype);
+                AEItemKey aeStack = this.channel.createStack(prototype);
                 if (aeStack != null) {
                     aeStack.setStackSize(totalCount);
                     out.add(aeStack);
@@ -252,12 +252,12 @@ public class FSLAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public boolean isPrioritized(IAEItemStack input) {
+    public boolean isPrioritized(AEItemKey input) {
         return false;
     }
 
     @Override
-    public boolean canAccept(IAEItemStack input) {
+    public boolean canAccept(AEItemKey input) {
         if (input == null) {
             return false;
         }

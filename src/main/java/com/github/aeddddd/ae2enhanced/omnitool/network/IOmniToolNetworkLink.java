@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.omnitool.network;
 
-import appeng.api.networking.IGrid;
+import ae2.api.networking.IGrid;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;

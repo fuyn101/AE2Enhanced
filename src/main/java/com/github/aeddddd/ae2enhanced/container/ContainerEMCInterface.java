@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.container;
 
-import appeng.container.slot.SlotFakeTypeOnly;
-import appeng.tile.inventory.AppEngInternalAEInventory;
+import ae2.container.slot.FakeSlot;
+import ae2.tile.inventory.AppEngInternalAEInventory;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
 import com.github.aeddddd.ae2enhanced.tile.TileEMCInterface;
 import net.minecraft.entity.player.EntityPlayer;
@@ -172,7 +172,7 @@ public class ContainerEMCInterface extends Container {
     /**
      * 仅接受存在 EMC 值的假物品槽.
      */
-    private static class SlotFakeEMCOnly extends SlotFakeTypeOnly {
+    private static class SlotFakeEMCOnly extends FakeSlot {
         SlotFakeEMCOnly(AppEngInternalAEInventory inv, int idx, int x, int y) {
             super(inv, idx, x, y);
         }

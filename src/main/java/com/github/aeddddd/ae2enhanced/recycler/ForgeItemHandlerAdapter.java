@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -51,7 +51,7 @@ public class ForgeItemHandlerAdapter implements TargetAdapter {
 
     @Override
     @Nullable
-    public ItemStack extract(@Nonnull IAEItemStack requested, boolean simulate) {
+    public ItemStack extract(@Nonnull AEItemKey requested, boolean simulate) {
         IItemHandler h = getHandler();
         if (h == null) return ItemStack.EMPTY;
 

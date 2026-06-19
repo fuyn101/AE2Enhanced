@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import appeng.api.storage.data.IAEItemStack;
+import ae2.api.storage.data.AEItemKey;
 import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;

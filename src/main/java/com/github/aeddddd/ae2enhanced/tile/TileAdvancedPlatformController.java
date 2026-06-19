@@ -1,20 +1,20 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.storage.ICellContainer;
-import appeng.api.storage.ICellInventory;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.MachineSource;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.ticking.IGridTickable;
+import ae2.api.networking.ticking.TickRateModulation;
+import ae2.api.networking.ticking.TickingRequest;
+import ae2.api.storage.ICellContainer;
+import ae2.api.storage.ICellInventory;
+import ae2.api.storage.IMEInventoryHandler;
+import ae2.api.storage.AEKeyType;
+import ae2.api.util.AECableType;
+import ae2.api.util.AEPartLocation;
+import ae2.me.GridAccessException;
+import ae2.me.helpers.MachineSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlatformEnergySync;
@@ -25,7 +25,7 @@ import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
-import appeng.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.channels.IItemStorageChannel;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -182,7 +182,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
         if (!isPlatformActive) return TickRateModulation.SLEEP;
         try {
-            if (getProxy().getEnergy().extractAEPower(1, Actionable.SIMULATE, appeng.api.config.PowerMultiplier.CONFIG) < 1) {
+            if (getProxy().getEnergy().extractAEPower(1, Actionable.SIMULATE, ae2.api.config.PowerMultiplier.CONFIG) < 1) {
                 return TickRateModulation.SLEEP;
             }
         } catch (GridAccessException e) {
@@ -199,7 +199,7 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     // === ICellContainer ===
 
     @Override
-    public List<IMEInventoryHandler> getCellArray(IStorageChannel<?> channel) {
+    public List<IMEInventoryHandler> getCellArray(AEKeyType<?> channel) {
         List<IMEInventoryHandler> list = new ArrayList<>();
         if (channel instanceof IEnergyStorageChannel && networkEnergyStorage != null) {
             list.add(networkEnergyStorage);
@@ -245,10 +245,10 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private void supplyReceiversFromNetwork() {
         if (energyFacilities.isEmpty()) return;
 
-        appeng.api.networking.storage.IStorageGrid storageGrid = null;
+        ae2.api.networking.storage.IStorageService storageGrid = null;
         boolean networkAvailable = false;
         try {
-            storageGrid = getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            storageGrid = getProxy().getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
             networkAvailable = storageGrid != null;
         } catch (GridAccessException e) {
             // 断网
@@ -324,8 +324,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
     private void handleBufferRecovery() {
         if (rfBuffer <= 0) return;
         try {
-            appeng.api.networking.storage.IStorageGrid storageGrid =
-                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            ae2.api.networking.storage.IStorageService storageGrid =
+                    getProxy().getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
             if (storageGrid == null) return;
 
             long toRecover = Math.min(rfBuffer, rfExtractPerTick);
@@ -351,8 +351,8 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
         long networkStored = 0;
         try {
-            appeng.api.networking.storage.IStorageGrid storageGrid =
-                    getProxy().getGrid().getCache(appeng.api.networking.storage.IStorageGrid.class);
+            ae2.api.networking.storage.IStorageService storageGrid =
+                    getProxy().getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
             if (storageGrid != null) {
                 IAEEnergyStack first = storageGrid.getInventory(
                         AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
@@ -567,9 +567,9 @@ public class TileAdvancedPlatformController extends TileAENetworkBase
 
     public boolean hasHyperdimensionalController() {
         try {
-            appeng.api.networking.IGrid grid = getProxy().getGrid();
+            ae2.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return false;
-            for (appeng.api.networking.IGridNode node : grid.getNodes()) {
+            for (ae2.api.networking.IGridNode node : grid.getNodes()) {
                 if (node != null && node.getMachine() instanceof TileHyperdimensionalController) {
                     return true;
                 }

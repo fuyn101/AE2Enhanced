@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.integration.terminal;
 
-import appeng.api.implementations.ICraftingPatternItem;
+import ae2.api.implementations.ICraftingPatternItem;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;

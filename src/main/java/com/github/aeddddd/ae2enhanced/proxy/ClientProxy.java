@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.proxy;
 
-import appeng.api.AEApi;
+import ae2.api.AEApi;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;

@@ -1,9 +1,9 @@
 package com.github.aeddddd.ae2enhanced.client.me;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.client.gui.widgets.IScrollSource;
-import appeng.client.gui.widgets.ISortSource;
-import appeng.client.me.ItemRepo;
+import ae2.api.storage.data.AEItemKey;
+import ae2.client.gui.widgets.IScrollSource;
+import ae2.client.gui.widgets.ISortSource;
+import ae2.client.me.Repo;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageRequest;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniPageResult;
@@ -16,7 +16,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Omni Terminal 专用 ItemRepo —— R3 服务端分页架构。
+ * Omni Terminal 专用 Repo —— R3 服务端分页架构。
  *
  * <p><b>核心改变：客户端不再维护完整物品列表。</b>
  * 只缓存当前可见页 ±1 页（最多 135 个物品）。排序/搜索/过滤全部在服务端执行。
@@ -27,7 +27,7 @@ import java.util.List;
  * 获取 HEI 的匹配结果，并将 {@link ItemDescriptor} 列表附加到分页请求中，
  * 从而支持 JECH/HECH 拼音搜索以及 HEI 原生的 tooltip/mod 搜索语义。
  */
-public class OmniItemRepo extends ItemRepo {
+public class OmniItemRepo extends Repo {
 
     // ==================== 常量 ====================
     public static final int CACHE_PAGES = 3;             // 当前页 + 上一页 + 下一页
@@ -44,25 +44,25 @@ public class OmniItemRepo extends ItemRepo {
 
     static {
         try {
-            VIEW_FIELD = ItemRepo.class.getDeclaredField("view");
+            VIEW_FIELD = Repo.class.getDeclaredField("view");
             VIEW_FIELD.setAccessible(true);
-            LIST_FIELD = ItemRepo.class.getDeclaredField("list");
+            LIST_FIELD = Repo.class.getDeclaredField("list");
             LIST_FIELD.setAccessible(true);
-            CHANGED_FIELD = ItemRepo.class.getDeclaredField("changed");
+            CHANGED_FIELD = Repo.class.getDeclaredField("changed");
             CHANGED_FIELD.setAccessible(true);
-            RESORT_FIELD = ItemRepo.class.getDeclaredField("resort");
+            RESORT_FIELD = Repo.class.getDeclaredField("resort");
             RESORT_FIELD.setAccessible(true);
-            SORT_SRC_FIELD = ItemRepo.class.getDeclaredField("sortSrc");
+            SORT_SRC_FIELD = Repo.class.getDeclaredField("sortSrc");
             SORT_SRC_FIELD.setAccessible(true);
-            SEARCH_STRING_FIELD = ItemRepo.class.getDeclaredField("searchString");
+            SEARCH_STRING_FIELD = Repo.class.getDeclaredField("searchString");
             SEARCH_STRING_FIELD.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            throw new RuntimeException("Failed to access ItemRepo fields", e);
+            throw new RuntimeException("Failed to access Repo fields", e);
         }
     }
 
     // ==================== R3: 三页缓存 ====================
-    private final IAEItemStack[] cache = new IAEItemStack[MAX_CACHE_SIZE];
+    private final AEItemKey[] cache = new AEItemKey[MAX_CACHE_SIZE];
     private int cacheOffset = -1;   // cache[0] 对应服务端列表的哪个 offset，-1 表示未初始化
     private int totalCount = 0;
     private int scrollOffset = 0;   // 当前 GUI 滚动位置（物品索引，不是页数）
@@ -84,7 +84,7 @@ public class OmniItemRepo extends ItemRepo {
     private final IScrollSource scrollSrc;
     private final OmniItemRegistry registry = new OmniItemRegistry();
     private List<CraftingStatus> activeCrafting = Collections.emptyList();
-    private List<IAEItemStack> normalView = Collections.emptyList();
+    private List<AEItemKey> normalView = Collections.emptyList();
 
     public OmniItemRepo(IScrollSource src, ISortSource sortSrc) {
         super(src, sortSrc);
@@ -122,7 +122,7 @@ public class OmniItemRepo extends ItemRepo {
      * GUI 通过此方法获取指定槽位的物品。
      * slotIndex 是 GUI 中的槽位索引 (0-44)。
      */
-    public IAEItemStack getSlotStack(int slotIndex) {
+    public AEItemKey getSlotStack(int slotIndex) {
         int globalIndex = this.scrollOffset + slotIndex;
         int cacheIdx = globalIndex - this.cacheOffset;
         if (cacheIdx >= 0 && cacheIdx < this.cache.length) {
@@ -132,7 +132,7 @@ public class OmniItemRepo extends ItemRepo {
     }
 
     @Override
-    public IAEItemStack getReferenceItem(int idx) {
+    public AEItemKey getReferenceItem(int idx) {
         if (this.activeCrafting.isEmpty()) {
             return getSlotStack(idx);
         }
@@ -169,7 +169,7 @@ public class OmniItemRepo extends ItemRepo {
         for (int i = 0; i < entries.size() && i < this.cache.length; i++) {
             PacketOmniPageResult.Entry e = entries.get(i);
             this.registry.register(e.id, e.stack, e.count);
-            IAEItemStack stack = this.registry.getStack(e.id);
+            AEItemKey stack = this.registry.getStack(e.id);
             if (stack != null) {
                 this.cache[i] = stack;
             }
@@ -306,7 +306,7 @@ public class OmniItemRepo extends ItemRepo {
 
     @Override
     public void updateView() {
-        // R3 不再调用父类的 updateView()（那会导致 IItemList 遍历）
+        // R3 不再调用父类的 updateView()（那会导致 KeyCounter 遍历）
         // 而是直接同步当前缓存到父类 view 字段
         syncToParentView();
     }
@@ -320,7 +320,7 @@ public class OmniItemRepo extends ItemRepo {
 
     private void syncToParentView() {
         try {
-            List<IAEItemStack> viewList = Arrays.asList(this.cache);
+            List<AEItemKey> viewList = Arrays.asList(this.cache);
             VIEW_FIELD.set(this, viewList);
             CHANGED_FIELD.set(this, false);
             RESORT_FIELD.set(this, false);
@@ -333,7 +333,7 @@ public class OmniItemRepo extends ItemRepo {
 
     private void updateNormalView() {
         this.normalView = new ArrayList<>();
-        for (IAEItemStack stack : this.cache) {
+        for (AEItemKey stack : this.cache) {
             if (stack == null) continue;
             if (!isInActiveCrafting(stack)) {
                 this.normalView.add(stack);
@@ -341,7 +341,7 @@ public class OmniItemRepo extends ItemRepo {
         }
     }
 
-    private boolean isInActiveCrafting(IAEItemStack stack) {
+    private boolean isInActiveCrafting(AEItemKey stack) {
         for (CraftingStatus status : this.activeCrafting) {
             if (status.output.equals(stack)) {
                 return true;
@@ -378,7 +378,7 @@ public class OmniItemRepo extends ItemRepo {
         // R3: 旧差量同步协议已废弃，改用 UPDATE_NOTIFY + PAGE_REQUEST
     }
 
-    public void handleItemRegister(int id, IAEItemStack stack) {
+    public void handleItemRegister(int id, AEItemKey stack) {
         this.registry.register(id, stack, 0);
     }
 

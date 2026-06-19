@@ -47,7 +47,7 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
         for (Slot slot : gui.inventorySlots.inventorySlots) {
             int slotNumber = slot.slotNumber;
             if (slotNumber >= slotStart && slotNumber < slotEnd) {
-                if (slot instanceof appeng.container.slot.SlotFake) {
+                if (slot instanceof ae2.container.slot.SlotFake) {
                     Target<I> target = new GhostIngredientTargetWrapper<>(gui.getGuiLeft(), gui.getGuiTop(), slot);
                     targets.add(target);
                 }
@@ -87,13 +87,13 @@ public class SmartPatternInterfaceGhostHandler implements IGhostIngredientHandle
 
         @Override
         public void accept(@Nonnull I ingredient) {
-            appeng.api.storage.data.IAEItemStack aeStack = GhostIngredientTarget.resolveIngredient(ingredient);
+            ae2.api.storage.data.AEItemKey aeStack = GhostIngredientTarget.resolveIngredient(ingredient);
             if (aeStack == null) return;
             try {
-                appeng.core.sync.network.NetworkHandler.instance().sendToServer(
-                    new appeng.core.sync.packets.PacketInventoryAction(
-                        appeng.helpers.InventoryAction.PLACE_JEI_GHOST_ITEM,
-                        (appeng.container.slot.SlotFake) this.slot,
+                ae2.core.sync.network.NetworkHandler.instance().sendToServer(
+                    new ae2.core.sync.packets.PacketInventoryAction(
+                        ae2.helpers.InventoryAction.PLACE_JEI_GHOST_ITEM,
+                        (ae2.container.slot.SlotFake) this.slot,
                         aeStack
                     )
                 );

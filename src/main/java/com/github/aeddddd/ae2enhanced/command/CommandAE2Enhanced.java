@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.command;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.core.AEConfig;
-import appeng.core.features.AEFeature;
-import appeng.hooks.TickHandler;
-import appeng.me.Grid;
-import appeng.me.cache.GridStorageCache;
-import appeng.me.helpers.MachineSource;
-import appeng.me.helpers.PlayerSource;
+import ae2.api.AEApi;
+import ae2.api.config.Actionable;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.core.AEConfig;
+import ae2.core.features.AEFeature;
+import ae2.hooks.TickHandler;
+import ae2.me.Grid;
+import ae2.me.cache.GridStorageCache;
+import ae2.me.helpers.MachineSource;
+import ae2.me.helpers.PlayerSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
@@ -41,7 +41,7 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.common.config.Config;
-import appeng.util.item.AEItemStack;
+import ae2.util.item.AEItemKey;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -169,13 +169,13 @@ public class CommandAE2Enhanced extends CommandBase {
                 GridStorageCache storageCache = grid.getCache(GridStorageCache.class);
                 if (storageCache == null) continue;
 
-                appeng.api.storage.IMEMonitor<IAEItemStack> itemMonitor = storageCache.getInventory(itemChannel);
+                ae2.api.storage.MEStorage<AEItemKey> itemMonitor = storageCache.getInventory(itemChannel);
                 if (itemMonitor == null) continue;
 
-                appeng.api.storage.data.IItemList<IAEItemStack> itemList = itemChannel.createList();
+                ae2.api.storage.data.KeyCounter<AEItemKey> itemList = itemChannel.createList();
                 itemMonitor.getAvailableItems(itemList);
 
-                for (IAEItemStack stack : itemList) {
+                for (AEItemKey stack : itemList) {
                     if (stack == null || stack.getStackSize() <= 0) continue;
 
                     ItemStack mcStack = stack.createItemStack();
@@ -185,8 +185,8 @@ public class CommandAE2Enhanced extends CommandBase {
                     if (fluid == null || fluid.getFluid() == null) continue;
 
                     // 提取全部 AE2E fluid drop
-                    IAEItemStack toExtract = stack.copy();
-                    IAEItemStack notExtracted = itemMonitor.extractItems(toExtract, Actionable.MODULATE, source);
+                    AEItemKey toExtract = stack.copy();
+                    AEItemKey notExtracted = itemMonitor.extractItems(toExtract, Actionable.MODULATE, source);
                     long extracted = stack.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
                     if (extracted <= 0) continue;
 
@@ -198,13 +198,13 @@ public class CommandAE2Enhanced extends CommandBase {
                         // 转换失败,把原 drop 还回去
                         ItemStack returnStack = mcStack.copy();
                         returnStack.setCount((int) extracted);
-                        itemMonitor.injectItems(AEItemStack.fromItemStack(returnStack), Actionable.MODULATE, source);
+                        itemMonitor.injectItems(AEItemKey.fromItemStack(returnStack), Actionable.MODULATE, source);
                         continue;
                     }
 
                     // 注回物品通道,由 ae2fc 接管
-                    IAEItemStack toInsert = AEItemStack.fromItemStack(ae2fcDrop);
-                    IAEItemStack notInserted = itemMonitor.injectItems(toInsert, Actionable.MODULATE, source);
+                    AEItemKey toInsert = AEItemKey.fromItemStack(ae2fcDrop);
+                    AEItemKey notInserted = itemMonitor.injectItems(toInsert, Actionable.MODULATE, source);
                     long inserted = toConvert.amount - (notInserted != null ? notInserted.getStackSize() : 0);
                     convertedAmount += inserted;
                     convertedStacks++;
@@ -483,12 +483,12 @@ public class CommandAE2Enhanced extends CommandBase {
             ItemStack stack = generateRandomGear(random);
             if (stack.isEmpty()) continue;
 
-            IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
+            AEItemKey aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
             if (aeStack == null) continue;
 
             long amountLong = Math.abs(random.nextLong());
             if (amountLong <= 0) amountLong = 1;
-            IAEItemStack toInject = aeStack.copy();
+            AEItemKey toInject = aeStack.copy();
             toInject.setStackSize(amountLong);
             adapter.injectItems(toInject, Actionable.MODULATE, actionSource);
         }

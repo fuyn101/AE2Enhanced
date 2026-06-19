@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.crafting.smartpattern;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.item.AEItemKey;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
@@ -18,23 +18,23 @@ import java.util.Map;
  */
 public class SmartRecipe {
 
-    private IAEItemStack[] inputs;
-    private IAEItemStack[] outputs;
+    private AEItemKey[] inputs;
+    private AEItemKey[] outputs;
     private final boolean isCrafting;
 
-    public SmartRecipe(@Nonnull IAEItemStack[] inputs, @Nonnull IAEItemStack[] outputs, boolean isCrafting) {
-        this.inputs = inputs != null ? inputs.clone() : new IAEItemStack[0];
-        this.outputs = outputs != null ? outputs.clone() : new IAEItemStack[0];
+    public SmartRecipe(@Nonnull AEItemKey[] inputs, @Nonnull AEItemKey[] outputs, boolean isCrafting) {
+        this.inputs = inputs != null ? inputs.clone() : new AEItemKey[0];
+        this.outputs = outputs != null ? outputs.clone() : new AEItemKey[0];
         this.isCrafting = isCrafting;
     }
 
     @Nonnull
-    public IAEItemStack[] getInputs() {
+    public AEItemKey[] getInputs() {
         return inputs;
     }
 
     @Nonnull
-    public IAEItemStack[] getOutputs() {
+    public AEItemKey[] getOutputs() {
         return outputs;
     }
 
@@ -46,8 +46,8 @@ public class SmartRecipe {
      * 获取主要输出(第一个非空输出).
      */
     @Nullable
-    public IAEItemStack getPrimaryOutput() {
-        for (IAEItemStack output : outputs) {
+    public AEItemKey getPrimaryOutput() {
+        for (AEItemKey output : outputs) {
             if (output != null && output.getStackSize() > 0) {
                 return output;
             }
@@ -55,7 +55,7 @@ public class SmartRecipe {
         return null;
     }
 
-    public void setInput(int index, @Nullable IAEItemStack stack) {
+    public void setInput(int index, @Nullable AEItemKey stack) {
         if (index < 0) return;
         if (index >= inputs.length) {
             inputs = java.util.Arrays.copyOf(inputs, index + 1);
@@ -63,7 +63,7 @@ public class SmartRecipe {
         inputs[index] = stack;
     }
 
-    public void setOutput(int index, @Nullable IAEItemStack stack) {
+    public void setOutput(int index, @Nullable AEItemKey stack) {
         if (index < 0) return;
         if (index >= outputs.length) {
             outputs = java.util.Arrays.copyOf(outputs, index + 1);
@@ -75,7 +75,7 @@ public class SmartRecipe {
      * 只保留主输出,清空其他输出.
      */
     public void keepPrimary() {
-        IAEItemStack primary = getPrimaryOutput();
+        AEItemKey primary = getPrimaryOutput();
         for (int i = 0; i < outputs.length; i++) {
             outputs[i] = null;
         }
@@ -155,14 +155,14 @@ public class SmartRecipe {
 
     public void rotateInputs() {
         if (inputs.length <= 1) return;
-        IAEItemStack first = inputs[0];
+        AEItemKey first = inputs[0];
         System.arraycopy(inputs, 1, inputs, 0, inputs.length - 1);
         inputs[inputs.length - 1] = first;
     }
 
     public void rotateOutputs() {
         if (outputs.length <= 1) return;
-        IAEItemStack first = outputs[0];
+        AEItemKey first = outputs[0];
         System.arraycopy(outputs, 1, outputs, 0, outputs.length - 1);
         outputs[outputs.length - 1] = first;
     }
@@ -187,18 +187,18 @@ public class SmartRecipe {
      * 将多个槽位中的同类输入合并到前面的槽位.
      */
     public void stackInputs() {
-        Map<IAEItemStack, Long> merged = new HashMap<>();
-        for (IAEItemStack input : inputs) {
+        Map<AEItemKey, Long> merged = new HashMap<>();
+        for (AEItemKey input : inputs) {
             if (input != null) {
-                IAEItemStack key = input.copy();
+                AEItemKey key = input.copy();
                 key.setStackSize(0);
                 merged.merge(key, input.getStackSize(), Long::sum);
             }
         }
         int slot = 0;
-        for (Map.Entry<IAEItemStack, Long> entry : merged.entrySet()) {
+        for (Map.Entry<AEItemKey, Long> entry : merged.entrySet()) {
             if (slot < inputs.length) {
-                IAEItemStack stack = entry.getKey().copy();
+                AEItemKey stack = entry.getKey().copy();
                 stack.setStackSize(Math.min(entry.getValue(), Integer.MAX_VALUE));
                 inputs[slot++] = stack;
             }
@@ -223,7 +223,7 @@ public class SmartRecipe {
         // 对每个非空槽位,如果有空槽位,将数量平均分配
         for (int srcIdx : nonEmpty) {
             if (empty.isEmpty()) break;
-            IAEItemStack src = inputs[srcIdx];
+            AEItemKey src = inputs[srcIdx];
             if (src == null || src.getStackSize() <= 1) continue;
 
             long perSlot = src.getStackSize() / (empty.size() + 1);
@@ -235,7 +235,7 @@ public class SmartRecipe {
 
             for (int j = 0; j < empty.size() && j < empty.size(); ) {
                 int destIdx = empty.get(j);
-                IAEItemStack copy = src.copy();
+                AEItemKey copy = src.copy();
                 copy.setStackSize(perSlot + (remainder > 0 ? 1 : 0));
                 inputs[destIdx] = copy;
                 if (remainder > 0) remainder--;
@@ -255,18 +255,18 @@ public class SmartRecipe {
     }
 
     public static SmartRecipe fromNBT(NBTTagCompound tag) {
-        IAEItemStack[] inputs = readStackArray(tag.getTagList("inputs", 10));
-        IAEItemStack[] outputs = readStackArray(tag.getTagList("outputs", 10));
+        AEItemKey[] inputs = readStackArray(tag.getTagList("inputs", 10));
+        AEItemKey[] outputs = readStackArray(tag.getTagList("outputs", 10));
         // 智能样板统一作为 processing 配方，忽略旧 NBT 中的 crafting 标记
         return new SmartRecipe(inputs, outputs, false);
     }
 
-    private static NBTTagList writeStackArray(IAEItemStack[] stacks) {
+    private static NBTTagList writeStackArray(AEItemKey[] stacks) {
         NBTTagList list = new NBTTagList();
-        for (IAEItemStack stack : stacks) {
+        for (AEItemKey stack : stacks) {
             if (stack != null) {
                 NBTTagCompound itemTag = new NBTTagCompound();
-                ((AEItemStack) stack).writeToNBT(itemTag);
+                ((AEItemKey) stack).writeToNBT(itemTag);
                 list.appendTag(itemTag);
             } else {
                 list.appendTag(new NBTTagCompound());
@@ -275,14 +275,14 @@ public class SmartRecipe {
         return list;
     }
 
-    private static IAEItemStack[] readStackArray(NBTTagList list) {
-        IAEItemStack[] stacks = new IAEItemStack[list.tagCount()];
+    private static AEItemKey[] readStackArray(NBTTagList list) {
+        AEItemKey[] stacks = new AEItemKey[list.tagCount()];
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound itemTag = list.getCompoundTagAt(i);
             if (itemTag.getKeySet().isEmpty()) {
                 stacks[i] = null;
             } else {
-                stacks[i] = AEItemStack.fromNBT(itemTag);
+                stacks[i] = AEItemKey.fromNBT(itemTag);
             }
         }
         return stacks;

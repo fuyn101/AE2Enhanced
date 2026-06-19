@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.container;
 
-import appeng.container.slot.SlotFake;
+import ae2.container.slot.SlotFake;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartBlankPattern;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
 import com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;

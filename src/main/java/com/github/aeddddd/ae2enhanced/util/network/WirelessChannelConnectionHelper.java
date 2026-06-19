@@ -1,15 +1,15 @@
 package com.github.aeddddd.ae2enhanced.util.network;
 
-import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.pathing.IPathingGrid;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.parts.automation.PartUpgradeable;
-import appeng.util.Platform;
-import appeng.util.inv.IAEAppEngInventory;
+import ae2.api.AEApi;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridConnection;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.pathing.IPathingService;
+import ae2.api.parts.IPart;
+import ae2.api.parts.IPartHost;
+import ae2.parts.automation.UpgradeablePart;
+import ae2.util.Platform;
+import ae2.util.inv.IAEAppEngInventory;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
@@ -173,7 +173,7 @@ public class WirelessChannelConnectionHelper {
                 // 手动再触发一次 repath() 以修正路径计算.
                 IGrid grid = node.getGrid();
                 if (grid != null) {
-                    IPathingGrid pathing = grid.getCache(IPathingGrid.class);
+                    IPathingService pathing = grid.getCache(IPathingService.class);
                     if (pathing != null) {
                         pathing.repath();
                         AE2Enhanced.LOGGER.warn("[AE2E] Triggered manual repath() for wireless connection");
@@ -187,31 +187,31 @@ public class WirelessChannelConnectionHelper {
     }
 
     private static IGridNode getNodeFromParent(IAEAppEngInventory parent) {
-        // 1. PartUpgradeable
-        if (parent instanceof PartUpgradeable) {
-            return ((PartUpgradeable) parent).getProxy().getNode();
+        // 1. UpgradeablePart
+        if (parent instanceof UpgradeablePart) {
+            return ((UpgradeablePart) parent).getProxy().getNode();
         }
         // 2. IActionHost
-        if (parent instanceof appeng.api.networking.security.IActionHost) {
-            return ((appeng.api.networking.security.IActionHost) parent).getActionableNode();
+        if (parent instanceof ae2.api.networking.security.IActionHost) {
+            return ((ae2.api.networking.security.IActionHost) parent).getActionableNode();
         }
         // 3. IGridProxyable
-        if (parent instanceof appeng.me.helpers.IGridProxyable) {
-            appeng.me.helpers.AENetworkProxy proxy = ((appeng.me.helpers.IGridProxyable) parent).getProxy();
+        if (parent instanceof ae2.me.helpers.IGridProxyable) {
+            ae2.me.helpers.AENetworkProxy proxy = ((ae2.me.helpers.IGridProxyable) parent).getProxy();
             return proxy != null ? proxy.getNode() : null;
         }
         // 4. getProxy() method
         try {
             java.lang.reflect.Method m = parent.getClass().getMethod("getProxy");
-            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) m.invoke(parent);
+            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) m.invoke(parent);
             return proxy != null ? proxy.getNode() : null;
         } catch (Exception ignored) {
         }
-        // 5. gridProxy field (DualityInterface etc.)
+        // 5. gridProxy field (InterfaceLogic etc.)
         try {
             java.lang.reflect.Field f = parent.getClass().getDeclaredField("gridProxy");
             f.setAccessible(true);
-            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) f.get(parent);
+            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) f.get(parent);
             return proxy != null ? proxy.getNode() : null;
         } catch (Exception ignored) {
         }
@@ -219,7 +219,7 @@ public class WirelessChannelConnectionHelper {
         try {
             java.lang.reflect.Field f = parent.getClass().getDeclaredField("proxy");
             f.setAccessible(true);
-            appeng.me.helpers.AENetworkProxy proxy = (appeng.me.helpers.AENetworkProxy) f.get(parent);
+            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) f.get(parent);
             return proxy != null ? proxy.getNode() : null;
         } catch (Exception ignored) {
         }
@@ -228,8 +228,8 @@ public class WirelessChannelConnectionHelper {
 
     private static IItemHandler getUpgradesFromParent(IAEAppEngInventory parent) {
         // 1. ISegmentedInventory
-        if (parent instanceof appeng.api.implementations.tiles.ISegmentedInventory) {
-            return ((appeng.api.implementations.tiles.ISegmentedInventory) parent).getInventoryByName("upgrades");
+        if (parent instanceof ae2.api.implementations.tiles.ISegmentedInventory) {
+            return ((ae2.api.implementations.tiles.ISegmentedInventory) parent).getInventoryByName("upgrades");
         }
         // 2. getInventoryByName method
         try {
@@ -258,11 +258,11 @@ public class WirelessChannelConnectionHelper {
         if (parent instanceof TileEntity) {
             return (TileEntity) parent;
         }
-        if (parent instanceof PartUpgradeable) {
-            return ((PartUpgradeable) parent).getTile();
+        if (parent instanceof UpgradeablePart) {
+            return ((UpgradeablePart) parent).getTile();
         }
-        if (parent instanceof appeng.helpers.DualityInterface) {
-            return ((appeng.helpers.DualityInterface) parent).getTile();
+        if (parent instanceof ae2.helpers.InterfaceLogic) {
+            return ((ae2.helpers.InterfaceLogic) parent).getTile();
         }
         // try getTile() / getTileEntity()
         try {
@@ -315,7 +315,7 @@ public class WirelessChannelConnectionHelper {
             // 向后兼容：旧版卡片可能绑定到 IPartHost(线缆)上的 Part
             if (te instanceof IPartHost) {
                 IPartHost host = (IPartHost) te;
-                for (appeng.api.util.AEPartLocation side : appeng.api.util.AEPartLocation.SIDE_LOCATIONS) {
+                for (ae2.api.util.AEPartLocation side : ae2.api.util.AEPartLocation.SIDE_LOCATIONS) {
                     IPart part = host.getPart(side);
                     if (part != null) {
                         try {
@@ -330,7 +330,7 @@ public class WirelessChannelConnectionHelper {
 
         TileWirelessChannelTransmitter tile = (TileWirelessChannelTransmitter) te;
         try {
-            IGridNode node = tile.getGridNode(appeng.api.util.AEPartLocation.INTERNAL);
+            IGridNode node = tile.getGridNode(ae2.api.util.AEPartLocation.INTERNAL);
             if (node == null) {
                 AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: tile.getGridNode() returned null at {}", pos);
             }

@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import appeng.api.AEApi;
-import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.InventoryAdaptor;
-import appeng.util.Platform;
+import ae2.api.AEApi;
+import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.storage.data.AEItemKey;
+import ae2.util.InventoryAdaptor;
+import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -26,7 +26,7 @@ public class PacketPickerAction implements IMessage {
     public PacketPickerAction() {
     }
 
-    public PacketPickerAction(IAEItemStack stack) {
+    public PacketPickerAction(AEItemKey stack) {
         this.definition = stack.getDefinition().copy();
         this.stackSize = stack.getStackSize();
         this.craftable = stack.isCraftable();
@@ -60,7 +60,7 @@ public class PacketPickerAction implements IMessage {
                     return;
                 }
 
-                IAEItemStack ais = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+                AEItemKey ais = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
                         .createStack(message.definition);
                 if (ais == null) {
                     return;
@@ -78,7 +78,7 @@ public class PacketPickerAction implements IMessage {
                 }
 
                 // 执行提取
-                IAEItemStack extracted = Platform.poweredExtraction(
+                AEItemKey extracted = Platform.poweredExtraction(
                         container.getPowerSource(),
                         container.getCellInventory(),
                         ais,

@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.gui.slot;
 
-import appeng.container.slot.AppEngSlot;
+import ae2.container.slot.AppEngSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 

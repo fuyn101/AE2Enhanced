@@ -9,16 +9,16 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-import appeng.api.networking.GridFlags;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridMultiblock;
-import appeng.api.networking.IGridNode;
-import appeng.api.util.AEPartLocation;
-import appeng.me.GridConnection;
-import appeng.me.GridNode;
-import appeng.me.pathfinding.IPathItem;
-import appeng.tile.networking.TileController;
+import ae2.api.networking.GridFlags;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridConnection;
+import ae2.api.networking.IGridMultiblock;
+import ae2.api.networking.IGridNode;
+import ae2.api.util.AEPartLocation;
+import ae2.me.GridConnection;
+import ae2.me.GridNode;
+import ae2.me.pathfinding.IPathItem;
+import ae2.tile.networking.TileController;
 
 /**
  * 从 AE2 PR #8285 移植的快速频道路径计算。

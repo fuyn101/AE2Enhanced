@@ -1,13 +1,13 @@
 package com.github.aeddddd.ae2enhanced.client.gui.slot;
 
-import appeng.container.slot.IOptionalSlotHost;
-import appeng.container.slot.SlotPatternOutputs;
+import ae2.container.slot.IOptionalSlotHost;
+import ae2.container.slot.PatternOutputsSlot;
 import net.minecraftforge.items.IItemHandler;
 
 /**
  * 支持 visible 切换的样板输出槽位(81槽位编码终端用)
  */
-public class RCSlotPatternOutputs extends SlotPatternOutputs {
+public class RCSlotPatternOutputs extends PatternOutputsSlot {
 
     public boolean visible = true;
     private final int defX;
