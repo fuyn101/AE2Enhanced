@@ -1,9 +1,7 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer.fsl;
 
-import ae2.api.config.AccessRestriction;
 import ae2.api.config.Actionable;
 import ae2.api.networking.security.IActionSource;
-import ae2.api.storage.channels.IItemStorageChannel;
 import ae2.api.stacks.AEItemKey;
 import ae2.api.stacks.KeyCounter;
 import com.github.aeddddd.ae2enhanced.integration.drawer.IDrawerIndexAdapter;
@@ -24,15 +22,16 @@ import java.util.Map;
  *
  * <p>完全替代 {@link com.xinyihl.functionalstoragelegacy.common.integration.ae2.ControllerMEItemHandler},
  * 在 {@link ControllerItemHandler} 之上建立 {@code Map<Item, Map<meta, List<SlotRef>>>} Hash 索引,
- * 使 injectItems / extractItems / getAvailableItems 全部走 O(同物品槽位数) 路径.</p>
+ * 使 injectItems / extractItems / getAvailableStacks 全部走 O(同物品槽位数) 路径.</p>
  *
  * <p>索引在首次使用时惰性构建,每次 MODULATE 操作后标记失效,下次使用时重建.
  * 所有 NPE 检查已封装在内部.</p>
+ *
+ * <p>已迁移至 AE2S API:使用 {@link AEItemKey} + {@code long amount} 与 {@link KeyCounter}.</p>
  */
 public class FSLAdapter implements IDrawerIndexAdapter {
 
     private final ControllerItemHandler handler;
-    private final IItemStorageChannel channel;
 
     // Hash 索引: 完整物品类型(Item + meta + NBT) -> SlotRef 列表
     // 必须包含 NBT,否则同 Item+meta 但 NBT 不同的物品会被错误合并.
@@ -88,9 +87,8 @@ public class FSLAdapter implements IDrawerIndexAdapter {
         }
     }
 
-    public FSLAdapter(ControllerItemHandler handler, IItemStorageChannel channel) {
+    public FSLAdapter(ControllerItemHandler handler) {
         this.handler = handler;
-        this.channel = channel;
     }
 
     private synchronized void rebuildIndex() {
@@ -118,16 +116,16 @@ public class FSLAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
-        if (input == null || input.getStackSize() <= 0) {
-            return null;
+    public long injectItems(AEItemKey input, long amount, Actionable type, IActionSource src) {
+        if (input == null || amount <= 0) {
+            return amount;
         }
         if (this.indexDirty) {
             rebuildIndex();
         }
 
-        ItemStack inputStack = input.getDefinition();
-        long remaining = input.getStackSize();
+        ItemStack inputStack = input.toStack();
+        long remaining = amount;
         boolean simulate = type == Actionable.SIMULATE;
 
         // 1. 先尝试放入已有相同物品类型(含 NBT)的槽位
@@ -159,28 +157,20 @@ public class FSLAdapter implements IDrawerIndexAdapter {
             this.indexDirty = true;
         }
 
-        if (remaining <= 0) {
-            return null;
-        }
-        if (remaining >= input.getStackSize()) {
-            return input;
-        }
-        AEItemKey result = input.copy();
-        result.setStackSize(remaining);
-        return result;
+        return remaining;
     }
 
     @Override
-    public AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src) {
-        if (request == null || request.getStackSize() <= 0) {
-            return null;
+    public long extractItems(AEItemKey request, long amount, Actionable mode, IActionSource src) {
+        if (request == null || amount <= 0) {
+            return 0;
         }
         if (this.indexDirty) {
             rebuildIndex();
         }
 
-        ItemStack requestStack = request.getDefinition();
-        long toExtract = request.getStackSize();
+        ItemStack requestStack = request.toStack();
+        long toExtract = amount;
         long extracted = 0;
         boolean simulate = mode == Actionable.SIMULATE;
 
@@ -198,16 +188,11 @@ public class FSLAdapter implements IDrawerIndexAdapter {
             this.indexDirty = true;
         }
 
-        if (extracted <= 0) {
-            return null;
-        }
-        AEItemKey result = request.copy();
-        result.setStackSize(extracted);
-        return result;
+        return extracted;
     }
 
     @Override
-    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
+    public void getAvailableStacks(KeyCounter out) {
         if (this.indexDirty) {
             rebuildIndex();
         }
@@ -236,60 +221,13 @@ public class FSLAdapter implements IDrawerIndexAdapter {
                         prototype.setTagCompound(key.tag.copy());
                     }
                 }
-                AEItemKey aeStack = this.channel.createStack(prototype);
-                if (aeStack != null) {
-                    aeStack.setStackSize(totalCount);
-                    out.add(aeStack);
+                if (!prototype.isEmpty()) {
+                    AEItemKey aeKey = AEItemKey.of(prototype);
+                    if (aeKey != null) {
+                        out.add(aeKey, totalCount);
+                    }
                 }
             }
         }
-        return out;
-    }
-
-    @Override
-    public AccessRestriction getAccess() {
-        return AccessRestriction.READ_WRITE;
-    }
-
-    @Override
-    public boolean isPrioritized(AEItemKey input) {
-        return false;
-    }
-
-    @Override
-    public boolean canAccept(AEItemKey input) {
-        if (input == null) {
-            return false;
-        }
-        if (this.indexDirty) {
-            rebuildIndex();
-        }
-        ItemStack inputStack = input.getDefinition();
-        // 如果已有相同物品类型(含 NBT)且未满,或有空槽位,则可以接受
-        List<SlotRef> slots = this.itemIndex.get(new ItemKey(inputStack));
-        if (slots != null) {
-            for (SlotRef ref : slots) {
-                if (ref.handler == null) continue;
-                if (ref.handler.getStoredAmount(ref.slot) < ref.handler.getLongSlotLimit(ref.slot)) {
-                    return true;
-                }
-            }
-        }
-        return !this.emptySlots.isEmpty();
-    }
-
-    @Override
-    public int getPriority() {
-        return 0;
-    }
-
-    @Override
-    public int getSlot() {
-        return 0;
-    }
-
-    @Override
-    public boolean validForPass(int pass) {
-        return true;
     }
 }

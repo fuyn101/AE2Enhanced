@@ -1,12 +1,9 @@
 package com.github.aeddddd.ae2enhanced.integration.drawer.sd;
 
-import ae2.api.config.AccessRestriction;
 import ae2.api.config.Actionable;
 import ae2.api.networking.security.IActionSource;
-import ae2.api.storage.channels.IItemStorageChannel;
 import ae2.api.stacks.AEItemKey;
 import ae2.api.stacks.KeyCounter;
-import ae2.api.stacks.AEItemKey;
 import com.github.aeddddd.ae2enhanced.integration.drawer.IDrawerIndexAdapter;
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 import com.jaquadro.minecraft.storagedrawers.api.storage.IDrawer;
@@ -29,14 +26,15 @@ import java.util.Set;
  * StorageDrawers Hash 索引适配器.
  *
  * <p>包装 {@link IItemRepository},对 TileEntityController 利用其内置的
- * drawerPrimaryLookup Hash 索引加速 {@link #getAvailableItems},跳过空槽位遍历.</p>
+ * drawerPrimaryLookup Hash 索引加速 {@link #getAvailableStacks},跳过空槽位遍历.</p>
  *
  * <p>所有反射和类加载风险全部封装在本类内部,外部调用者无需考虑 NPE.</p>
+ *
+ * <p>已迁移至 AE2S API:使用 {@link AEItemKey} + {@code long amount} 与 {@link KeyCounter}.</p>
  */
 public class StorageDrawersAdapter implements IDrawerIndexAdapter {
 
     private final IItemRepository repository;
-    private final IItemStorageChannel channel;
     private final TileEntityController controller;
     private final Object lookup;
     private final Method entrySetMethod;
@@ -62,9 +60,8 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         SLOT_RECORD_SLOT_FIELD = slotField;
     }
 
-    public StorageDrawersAdapter(IItemRepository repository, TileEntity tile, IItemStorageChannel channel) {
+    public StorageDrawersAdapter(IItemRepository repository, TileEntity tile) {
         this.repository = repository;
-        this.channel = channel;
         if (tile instanceof TileEntityController) {
             this.controller = (TileEntityController) tile;
             Object lk = null;
@@ -86,39 +83,30 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
     }
 
     @Override
-    public AEItemKey injectItems(AEItemKey input, Actionable type, IActionSource src) {
-        if (input == null || input.getStackSize() <= 0) {
-            return null;
+    public long injectItems(AEItemKey input, long amount, Actionable type, IActionSource src) {
+        if (input == null || amount <= 0) {
+            return amount;
         }
-        ItemStack stack = input.getDefinition().copy();
-        stack.setCount((int) Math.min(input.getStackSize(), Integer.MAX_VALUE));
+        ItemStack stack = input.toStack();
+        stack.setCount((int) Math.min(amount, Integer.MAX_VALUE));
         ItemStack remaining = this.repository.insertItem(stack, type == Actionable.SIMULATE);
         if (remaining == stack) {
-            return input;
+            return amount;
         }
         if (remaining.isEmpty()) {
-            return null;
+            return 0;
         }
-        AEItemKey result = input.copy();
-        result.setStackSize(remaining.getCount());
-        return result;
+        return remaining.getCount();
     }
 
     @Override
-    public AEItemKey extractItems(AEItemKey request, Actionable mode, IActionSource src) {
-        if (request == null || request.getStackSize() <= 0) {
-            return null;
+    public long extractItems(AEItemKey request, long amount, Actionable mode, IActionSource src) {
+        if (request == null || amount <= 0) {
+            return 0;
         }
-        int amount = (int) Math.min(request.getStackSize(), Integer.MAX_VALUE);
-        ItemStack extracted = this.repository.extractItem(request.getDefinition(), amount, mode == Actionable.SIMULATE);
-        if (extracted.isEmpty()) {
-            return null;
-        }
-        AEItemKey result = AEItemKey.fromItemStack(extracted);
-        if (result != null) {
-            result.setStackSize(extracted.getCount());
-        }
-        return result;
+        int amt = (int) Math.min(amount, Integer.MAX_VALUE);
+        ItemStack extracted = this.repository.extractItem(request.toStack(), amt, mode == Actionable.SIMULATE);
+        return extracted.isEmpty() ? 0 : extracted.getCount();
     }
 
     /**
@@ -157,7 +145,7 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
 
     @Override
     @SuppressWarnings("unchecked")
-    public KeyCounter<AEItemKey> getAvailableItems(KeyCounter<AEItemKey> out) {
+    public void getAvailableStacks(KeyCounter out) {
         if (this.lookup != null && this.entrySetMethod != null && SLOT_RECORD_CLASS != null
                 && SLOT_RECORD_GROUP_FIELD != null && SLOT_RECORD_SLOT_FIELD != null) {
             try {
@@ -202,17 +190,16 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
                             if (prototype == null || prototype.isEmpty()) {
                                 prototype = new ItemStack(itemEntry.getKey(), 1, metaEntry.getKey());
                             }
-                            if (group.count > 0) {
-                                AEItemKey aeStack = this.channel.createStack(prototype);
-                                if (aeStack != null) {
-                                    aeStack.setStackSize(group.count);
-                                    out.add(aeStack);
+                            if (group.count > 0 && !prototype.isEmpty()) {
+                                AEItemKey aeKey = AEItemKey.of(prototype);
+                                if (aeKey != null) {
+                                    out.add(aeKey, group.count);
                                 }
                             }
                         }
                     }
                 }
-                return out;
+                return;
             } catch (Exception ignored) {
                 // 反射失败,回退到默认路径
             }
@@ -222,45 +209,12 @@ public class StorageDrawersAdapter implements IDrawerIndexAdapter {
         NonNullList<IItemRepository.ItemRecord> records = this.repository.getAllItems();
         for (IItemRepository.ItemRecord record : records) {
             if (record == null || record.itemPrototype == null) continue;
-            AEItemKey aeStack = this.channel.createStack(record.itemPrototype);
-            if (aeStack != null) {
-                aeStack.setStackSize(record.count);
-                out.add(aeStack);
+            if (record.count > 0 && !record.itemPrototype.isEmpty()) {
+                AEItemKey aeKey = AEItemKey.of(record.itemPrototype);
+                if (aeKey != null) {
+                    out.add(aeKey, record.count);
+                }
             }
         }
-        return out;
-    }
-
-    @Override
-    public AccessRestriction getAccess() {
-        return AccessRestriction.READ_WRITE;
-    }
-
-    @Override
-    public boolean isPrioritized(AEItemKey input) {
-        return false;
-    }
-
-    @Override
-    public boolean canAccept(AEItemKey input) {
-        if (input == null) {
-            return false;
-        }
-        return this.repository.getRemainingItemCapacity(input.getDefinition()) > 0;
-    }
-
-    @Override
-    public int getPriority() {
-        return 0;
-    }
-
-    @Override
-    public int getSlot() {
-        return 0;
-    }
-
-    @Override
-    public boolean validForPass(int pass) {
-        return true;
     }
 }

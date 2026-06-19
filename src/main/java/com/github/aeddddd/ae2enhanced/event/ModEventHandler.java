@@ -1,9 +1,7 @@
 package com.github.aeddddd.ae2enhanced.event;
 
-import ae2.api.AEApi;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.storage.MEStorage;
-import ae2.api.storage.channels.IItemStorageChannel;
 import ae2.api.stacks.AEItemKey;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
@@ -168,7 +166,7 @@ public final class ModEventHandler {
                 }
             }
         } else if (dropMode == ItemAdvancedMEOmniTool.DROP_AE) {
-            MEStorage<AEItemKey> monitor = WirelessTransmitterNetworkLink.getItemMonitor(mainHand, player.world);
+            MEStorage monitor = WirelessTransmitterNetworkLink.getItemMonitor(mainHand, player.world);
             if (monitor == null) {
                 // 未绑定 AE 或发射器不可用，回退到正常掉落
                 for (ItemStack drop : drops) {
@@ -194,11 +192,11 @@ public final class ModEventHandler {
             };
 
             for (ItemStack drop : drops) {
-                AEItemKey aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(drop);
+                AEItemKey aeStack = AEItemKey.of(drop);
                 if (aeStack != null) {
-                    AEItemKey leftover = monitor.injectItems(aeStack, ae2.api.config.Actionable.MODULATE, source);
-                    if (leftover != null && leftover.getStackSize() > 0) {
-                        ItemStack overflow = leftover.createItemStack();
+                    long leftover = monitor.insert(aeStack, drop.getCount(), ae2.api.config.Actionable.MODULATE, source);
+                    if (leftover > 0) {
+                        ItemStack overflow = aeStack.toStack((int) Math.min(leftover, Integer.MAX_VALUE));
                         EntityItem entityItem = new EntityItem(player.world, player.posX, player.posY, player.posZ, overflow);
                         player.world.spawnEntity(entityItem);
                     }
