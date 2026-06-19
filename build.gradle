@@ -73,6 +73,12 @@ dependencies {
     modCompileOnly files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
     modRuntimeOnly files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
 
+    // Optional AE2S addon channels
+    modCompileOnly files('libs/mekeng-1.1.0.jar')
+    modRuntimeOnly files('libs/mekeng-1.1.0.jar')
+    modCompileOnly files('libs/appbot-1.0.0.jar')
+    modRuntimeOnly files('libs/appbot-1.0.0.jar')
+
     // Optional mod compat (provided in libs/, remapped for dev)
     modCompileOnly files('libs/Mekanism-1.12.2-9.8.3.390.jar')
     modCompileOnly files('libs/MekanismEnergistics-0.1.5.jar')
