@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.item.ItemStack;
 
 import javax.annotation.Nonnull;

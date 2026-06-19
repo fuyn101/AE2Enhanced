@@ -2,37 +2,26 @@ package com.github.aeddddd.ae2enhanced.container;
 
 import ae2.api.config.FuzzyMode;
 import ae2.api.config.Settings;
-import ae2.api.config.Upgrades;
 import ae2.api.config.YesNo;
+import ae2.api.inventories.InternalInventory;
+import ae2.api.upgrades.IUpgradeInventory;
+import ae2.api.upgrades.Upgrades;
 import ae2.container.guisync.GuiSync;
 import ae2.container.implementations.UpgradeableContainer;
+import ae2.container.slot.FakeSlot;
 import ae2.container.slot.IOptionalSlotHost;
 import ae2.container.slot.OptionalFakeSlot;
-import ae2.container.slot.SlotFake;
-import ae2.container.slot.FakeSlot;
 import ae2.container.slot.RestrictedInputSlot;
-import ae2.helpers.InventoryAction;
 import ae2.util.Platform;
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.network.packet.PacketCollectorConfig;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.items.IItemHandler;
 
 /**
  * 先进 ME 收集器的 Container.
  *
  * <p>7×9 过滤槽(容量卡解锁后 5 行),5 个升级槽.</p>
  */
-public class ContainerAdvancedMECollector extends UpgradeableContainer implements IOptionalSlotHost {
+public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvancedMECollector> implements IOptionalSlotHost {
 
     private final TileAdvancedMECollector tile;
 
@@ -54,7 +43,7 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer implement
 
     @Override
     protected void setupConfig() {
-        IItemHandler config = this.getUpgradeable().getInventoryByName("config");
+        InternalInventory config = this.getHost().getConfig();
         for (int y = 0; y < 7; y++) {
             for (int x = 0; x < 9; x++) {
                 if (y < 2) {
@@ -65,12 +54,12 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer implement
             }
         }
 
-        IItemHandler upgrades = this.getUpgradeable().getInventoryByName("upgrades");
-        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 0, 187, 8, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 1, 187, 26, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 2, 187, 44, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 3, 187, 62, this.getInventoryPlayer()).setNotDraggable());
-        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 4, 187, 80, this.getInventoryPlayer()).setNotDraggable());
+        IUpgradeInventory upgrades = this.getHost().getUpgrades();
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 0, 187, 8).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 1, 187, 26).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 2, 187, 44).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 3, 187, 62).setNotDraggable());
+        this.addSlotToContainer(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, 4, 187, 80).setNotDraggable());
     }
 
     @Override
@@ -85,7 +74,7 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer implement
 
     @Override
     public boolean isSlotEnabled(int idx) {
-        int capacityUpgrades = this.tile.getInstalledUpgrades(Upgrades.CAPACITY);
+        int capacityUpgrades = this.getHost().getInstalledUpgrades(Upgrades.CAPACITY);
         return idx < capacityUpgrades;
     }
 
@@ -93,8 +82,8 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer implement
     public void func_75142_b() {
         this.verifyPermissions(ae2.api.config.SecurityPermissions.BUILD, false);
         if (Platform.isServer()) {
-            this.setFuzzyMode((FuzzyMode) this.getUpgradeable().getConfigManager().getSetting(Settings.FUZZY_MODE));
-            this.setCraftingMode((YesNo) this.getUpgradeable().getConfigManager().getSetting(Settings.CRAFT_ONLY));
+            this.setFuzzyMode((FuzzyMode) this.getHost().getConfigManager().getSetting(Settings.FUZZY_MODE));
+            this.setCraftingMode((YesNo) this.getHost().getConfigManager().getSetting(Settings.CRAFT_ONLY));
             this.range = this.tile.getRange();
             this.sideLength = this.tile.getActualSideLength();
         }
@@ -103,65 +92,5 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer implement
 
     public TileAdvancedMECollector getTile() {
         return this.tile;
-    }
-
-    @Override
-    public void doAction(EntityPlayerMP player, InventoryAction action, int slot, long id) {
-        if (slot >= 0 && slot < this.inventorySlots.size()) {
-            Slot s = this.inventorySlots.get(slot);
-            if (s instanceof SlotFake) {
-                ItemStack held = player.inventory.getItemStack();
-                if (!held.isEmpty()) {
-                    ItemStack fake = tryConvertHeldToFake(held);
-                    if (fake != null && !fake.isEmpty()) {
-                        if (action == InventoryAction.PICKUP_OR_SET_DOWN) {
-                            s.putStack(fake);
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-        super.doAction(player, action, slot, id);
-    }
-
-    private static ItemStack tryConvertHeldToFake(ItemStack held) {
-        if (held.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)) {
-            IFluidHandlerItem fh = held.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
-            if (fh != null) {
-                FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
-                if (drained != null && drained.amount > 0) {
-                    return ItemFluidDrop.createStack(drained);
-                }
-            }
-        }
-
-        ItemStack gasFake = tryConvertGasToFake(held);
-        if (gasFake != null) return gasFake;
-
-        ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(held);
-        if (essentiaFake != null) return essentiaFake;
-
-        return null;
-    }
-
-    private static ItemStack tryConvertGasToFake(ItemStack held) {
-        try {
-            Class<?> gasItemClass = Class.forName("mekanism.api.gas.IGasItem");
-            if (!gasItemClass.isInstance(held.getItem())) return null;
-            Object gasItem = held.getItem();
-            Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
-            java.lang.reflect.Field amountField = gasStackClass.getField("amount");
-            Object gasStack = gasItemClass.getMethod("getGas", ItemStack.class).invoke(gasItem, held);
-            if (gasStack == null) return null;
-            int amount = amountField.getInt(gasStack);
-            Object gasType = gasStackClass.getMethod("getGas").invoke(gasStack);
-            Object newGasStack = gasStackClass.getConstructor(gasType.getClass(), int.class)
-                    .newInstance(gasType, Math.min(amount, 1000));
-            Class<?> itemGasDropClass = Class.forName("com.github.aeddddd.ae2enhanced.item.ItemGasDrop");
-            return (ItemStack) itemGasDropClass.getMethod("createStack", gasStackClass).invoke(null, newGasStack);
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

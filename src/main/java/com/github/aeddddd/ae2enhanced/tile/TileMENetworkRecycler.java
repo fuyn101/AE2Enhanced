@@ -1,34 +1,13 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGridNode;
-import ae2.api.storage.ICellContainer;
-import ae2.api.storage.ICellInventory;
-import ae2.api.storage.IMEInventoryHandler;
-import ae2.api.storage.AEKeyType;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.networking.events.MENetworkChannelsChanged;
-import ae2.api.networking.events.MENetworkEventSubscribe;
-import ae2.api.networking.events.MENetworkPowerStatusChange;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.storage.IStorageProvider;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
 import ae2.api.util.DimensionalBlockPos;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.common.util.Constants;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
@@ -37,14 +16,25 @@ import com.github.aeddddd.ae2enhanced.recycler.RecyclerNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager.TargetRef;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.play.server.SPacketUpdateTileEntity;
+import net.minecraft.util.ITickable;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.util.Constants;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * ME 网络回收节点的 TileEntity.
  *
- * <p>接入 AE2 网络,管理远程/跨维度回收目标,通过单一 RecyclerNetworkHandler
- * 向网络暴露存储视图,实际产物直接写入超维度仓储中枢.</p>
+ * <p>接入 AE2 网络,管理远程/跨维度回收目标,通过 RecyclerNetworkHandler
+ * 向网络暴露存储视图,实际产物直接写入网络存储.</p>
  */
-public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable, ICellContainer {
+public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable, IActionHost {
 
     private final TargetManager targetManager = new TargetManager();
     private final RecyclerNetworkHandler networkHandler = new RecyclerNetworkHandler(this);
@@ -63,17 +53,16 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     public TileMENetworkRecycler() {
     }
 
+    @Override
+    protected IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(AE2EnhancedConfig.recycler.idlePower)
+                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(BlockRegistry.ME_NETWORK_RECYCLER))
+                .addService(IStorageProvider.class, networkHandler);
+    }
+
     // ---- TileAENetworkBase ----
-
-    @Override
-    protected String getProxyName() {
-        return "me_network_recycler";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.ME_NETWORK_RECYCLER);
-    }
 
     @Override
     public void disassemble() {
@@ -83,20 +72,8 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     @Override
-    public void securityBreak() {
-        if (world != null && !world.isRemote) {
-            world.destroyBlock(pos, false);
-        }
-    }
-
-    @Override
     public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
         return AECableType.SMART;
-    }
-
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        return getProxy().getNode();
     }
 
     @Override
@@ -104,33 +81,11 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         return new DimensionalBlockPos(this);
     }
 
-    // ---- ICellContainer ----
+    // ---- IActionHost ----
 
     @Override
     public IGridNode getActionableNode() {
-        return getProxy().getNode();
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<IMEInventoryHandler> getCellArray(AEKeyType<?> channel) {
-        if (channel instanceof IItemStorageChannel) {
-            return Collections.singletonList(networkHandler);
-        }
-        return Collections.emptyList();
-    }
-
-    @Override
-    public int getPriority() {
-        return 0;
-    }
-
-    @Override
-    public void blinkCell(int slot) {
-    }
-
-    @Override
-    public void saveChanges(ICellInventory<?> inv) {
+        return getMainNode().getNode();
     }
 
     // ---- 生命周期 ----
@@ -166,13 +121,6 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     public void update() {
         if (world == null || world.isRemote) return;
 
-        if (needsReady()) {
-            clearNeedsReady();
-            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
-            getProxy().setIdlePowerUsage(AE2EnhancedConfig.recycler.idlePower);
-            getProxy().onReady();
-        }
-
         syncClientState();
 
         tickCounter++;
@@ -202,24 +150,6 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         }
     }
 
-    // ---- AE 网络事件 ----
-
-    @MENetworkEventSubscribe
-    public void chanRender(MENetworkChannelsChanged c) {
-        if (world != null && !world.isRemote) {
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
-    @MENetworkEventSubscribe
-    public void powerRender(MENetworkPowerStatusChange c) {
-        if (world != null && !world.isRemote) {
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
     // ---- 目标管理 ----
 
     public TargetManager getTargetManager() {
@@ -231,11 +161,11 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     public boolean isPowered() {
-        return getProxy().isPowered();
+        return getMainNode().isPowered();
     }
 
     public boolean isActive() {
-        return getProxy().isActive();
+        return getMainNode().isActive();
     }
 
     public int getClientFlags() {

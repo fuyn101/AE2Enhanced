@@ -1,7 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import ae2.api.storage.data.AEItemKey;
-import com.github.aeddddd.ae2enhanced.storage.ItemDescriptor;
+import ae2.api.stacks.AEItemKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.item.ItemStack;
@@ -16,10 +15,10 @@ import java.util.Set;
  */
 public class RecyclerIndex {
 
-    private final Object2ObjectOpenHashMap<ItemDescriptor, ObjectOpenHashSet<TargetManager.TargetRef>> index =
+    private final Object2ObjectOpenHashMap<AEItemKey, ObjectOpenHashSet<TargetManager.TargetRef>> index =
             new Object2ObjectOpenHashMap<>();
 
-    public void add(@Nonnull ItemDescriptor desc, @Nonnull TargetManager.TargetRef target) {
+    public void add(@Nonnull AEItemKey desc, @Nonnull TargetManager.TargetRef target) {
         ObjectOpenHashSet<TargetManager.TargetRef> set = index.get(desc);
         if (set == null) {
             set = new ObjectOpenHashSet<>();
@@ -28,7 +27,7 @@ public class RecyclerIndex {
         set.add(target);
     }
 
-    public void remove(@Nonnull ItemDescriptor desc, @Nonnull TargetManager.TargetRef target) {
+    public void remove(@Nonnull AEItemKey desc, @Nonnull TargetManager.TargetRef target) {
         ObjectOpenHashSet<TargetManager.TargetRef> set = index.get(desc);
         if (set != null) {
             set.remove(target);
@@ -43,17 +42,17 @@ public class RecyclerIndex {
     }
 
     @Nonnull
-    public Set<TargetManager.TargetRef> getTargets(@Nonnull ItemDescriptor desc) {
+    public Set<TargetManager.TargetRef> getTargets(@Nonnull AEItemKey desc) {
         ObjectOpenHashSet<TargetManager.TargetRef> set = index.get(desc);
         return set == null ? Collections.emptySet() : Collections.unmodifiableSet(set);
     }
 
     @Nonnull
-    public Set<ItemDescriptor> getAllTypes() {
+    public Set<AEItemKey> getAllTypes() {
         return Collections.unmodifiableSet(index.keySet());
     }
 
-    public boolean contains(@Nonnull ItemDescriptor desc) {
+    public boolean contains(@Nonnull AEItemKey desc) {
         return index.containsKey(desc);
     }
 
@@ -63,7 +62,10 @@ public class RecyclerIndex {
             TargetManager.TargetRef target = entry.getKey();
             for (ItemStack stack : entry.getValue().contents) {
                 if (stack.isEmpty()) continue;
-                add(new ItemDescriptor(stack), target);
+                AEItemKey key = AEItemKey.of(stack);
+                if (key != null) {
+                    add(key, target);
+                }
             }
         }
     }

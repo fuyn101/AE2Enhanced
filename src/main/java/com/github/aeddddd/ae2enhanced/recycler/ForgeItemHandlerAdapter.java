@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.stacks.AEItemKey;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -55,7 +55,7 @@ public class ForgeItemHandlerAdapter implements TargetAdapter {
         IItemHandler h = getHandler();
         if (h == null) return ItemStack.EMPTY;
 
-        ItemStack wanted = requested.createItemStack();
+        ItemStack wanted = requested.toStack();
         int remaining = wanted.getCount();
         ItemStack collected = ItemStack.EMPTY;
 

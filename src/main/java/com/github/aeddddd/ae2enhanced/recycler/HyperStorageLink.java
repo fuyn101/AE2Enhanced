@@ -1,33 +1,26 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
 import ae2.api.networking.IGrid;
-import ae2.api.networking.IGridNode;
+import ae2.api.networking.IManagedGridNode;
 import ae2.api.networking.storage.IStorageService;
-import ae2.api.storage.IMEInventoryHandler;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.me.GridAccessException;
-import ae2.me.helpers.AENetworkProxy;
-import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
-import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.math.BlockPos;
+import ae2.api.storage.MEStorage;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 
 import javax.annotation.Nullable;
-import java.util.List;
 
 /**
- * 缓存并查找当前网络中超维度中枢的 ItemStorageAdapter.
+ * 缓存并查找当前网络中的主存储视图.
  */
 public class HyperStorageLink {
 
-    private ItemStorageAdapter cachedAdapter;
+    private MEStorage cachedStorage;
     private long lastSearchTick;
     private static final long SEARCH_COOLDOWN = 20;
 
     @Nullable
-    public ItemStorageAdapter find(AENetworkProxy proxy, long currentTick) {
-        if (cachedAdapter != null) {
-            return cachedAdapter;
+    public MEStorage find(IManagedGridNode node, long currentTick) {
+        if (cachedStorage != null) {
+            return cachedStorage;
         }
         if (currentTick - lastSearchTick < SEARCH_COOLDOWN) {
             return null;
@@ -35,31 +28,22 @@ public class HyperStorageLink {
         lastSearchTick = currentTick;
 
         try {
-            IGrid grid = proxy.getGrid();
+            if (!node.isReady()) return null;
+            IGrid grid = node.getGrid();
             if (grid == null) return null;
-
-            // 1. 尝试从网格节点直接查找 TileHyperdimensionalController
-            for (IGridNode node : grid.getNodes()) {
-                if (node == null) continue;
-                Object host = node.getMachine();
-                if (host instanceof TileHyperdimensionalController) {
-                    TileHyperdimensionalController controller = (TileHyperdimensionalController) host;
-                    cachedAdapter = controller.getItemAdapter();
-                    if (cachedAdapter != null) return cachedAdapter;
-                }
+            IStorageService storageService = grid.getService(IStorageService.class);
+            if (storageService != null) {
+                cachedStorage = storageService.getInventory();
             }
-
-        } catch (GridAccessException e) {
-            // network not ready
         } catch (Exception e) {
-            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to find hyperdimensional storage adapter", e);
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to find network storage for recycler", e);
         }
 
-        return cachedAdapter;
+        return cachedStorage;
     }
 
     public void invalidate() {
-        cachedAdapter = null;
+        cachedStorage = null;
         lastSearchTick = 0;
     }
 }

@@ -4,24 +4,28 @@ import ae2.api.config.Actionable;
 import ae2.api.config.FuzzyMode;
 import ae2.api.config.RedstoneMode;
 import ae2.api.config.Settings;
-import ae2.api.config.Upgrades;
 import ae2.api.config.YesNo;
+import ae2.api.upgrades.Upgrades;
+import ae2.api.networking.GridFlags;
+import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridNode;
-import ae2.api.networking.events.MENetworkChannelsChanged;
-import ae2.api.networking.events.MENetworkEventSubscribe;
-import ae2.api.networking.events.MENetworkPowerStatusChange;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.storage.data.AEItemKey;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.storage.IStorageService;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.upgrades.IUpgradeInventory;
+import ae2.api.upgrades.IUpgradeableObject;
+import ae2.api.upgrades.UpgradeInventories;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
 import ae2.api.util.DimensionalBlockPos;
-import ae2.me.GridAccessException;
-import ae2.me.helpers.AENetworkProxy;
-import ae2.me.helpers.MachineSource;
-import ae2.tile.inventory.AppEngInternalAEInventory;
+import ae2.api.util.IConfigManagerListener;
+import ae2.api.util.IConfigurableObject;
+import ae2.util.ConfigManager;
 import ae2.util.Platform;
-import ae2.util.inv.IAEAppEngInventory;
-import ae2.util.inv.InvOperation;
+import ae2.util.inv.AppEngInternalInventory;
+import ae2.util.inv.InternalInventoryHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.collector.CollectorRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -38,11 +42,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
-import ae2.parts.automation.StackUpgradeInventory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -55,16 +56,16 @@ import java.util.List;
  * 物品暂存到内部缓冲区,每 tick 继续注入.只有在缓冲区也放不下时才生成实体.</p>
  */
 public class TileAdvancedMECollector extends TileAENetworkBase
-        implements ITickable, IAEAppEngInventory, ae2.api.implementations.IUpgradeableHost,
-        ae2.api.networking.security.IActionHost, ae2.util.IConfigManagerHost {
+        implements ITickable, InternalInventoryHost, IUpgradeableObject, IActionHost,
+        IConfigurableObject, IConfigManagerListener {
 
     public static final int CONFIG_SIZE = 63;
     public static final int UPGRADE_SLOTS = 5;
     public static final int BUFFER_SIZE = 27;
     public static final int BUFFER_STACK_LIMIT = 4096;
 
-    private final AppEngInternalAEInventory config;
-    private StackUpgradeInventory upgrades;
+    private final AppEngInternalInventory config;
+    private IUpgradeInventory upgrades;
     private final ItemStackHandler buffer;
 
     private int range = AE2EnhancedConfig.collector.defaultRange;
@@ -80,8 +81,10 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     private long statBufferOverflows = 0;
     private int statLogCounter = 0;
 
+    private ConfigManager configManager;
+
     public TileAdvancedMECollector() {
-        this.config = new AppEngInternalAEInventory(this, CONFIG_SIZE);
+        this.config = new AppEngInternalInventory(this, CONFIG_SIZE);
         this.buffer = new ItemStackHandler(BUFFER_SIZE) {
             @Override
             public int getSlotLimit(int slot) {
@@ -95,17 +98,15 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         };
     }
 
+    @Override
+    protected IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(AE2EnhancedConfig.collector.idlePower)
+                .setVisualRepresentation(AEItemKey.of(BlockRegistry.ADVANCED_ME_COLLECTOR));
+    }
+
     // ---- TileAENetworkBase ----
-
-    @Override
-    protected String getProxyName() {
-        return "advanced_me_collector";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.ADVANCED_ME_COLLECTOR);
-    }
 
     @Override
     public void disassemble() {
@@ -115,20 +116,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public void securityBreak() {
-        if (world != null && !world.isRemote) {
-            world.destroyBlock(pos, false);
-        }
-    }
-
-    @Override
     public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
         return AECableType.SMART;
-    }
-
-    @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        return getProxy().getNode();
     }
 
     @Override
@@ -161,13 +150,6 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     @Override
     public void update() {
         if (world == null || world.isRemote) return;
-
-        if (needsReady()) {
-            clearNeedsReady();
-            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
-            getProxy().setIdlePowerUsage(AE2EnhancedConfig.collector.idlePower);
-            getProxy().onReady();
-        }
 
         syncClientState();
 
@@ -239,46 +221,20 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         }
     }
 
-    // ---- AE 网络事件 ----
-
-    @MENetworkEventSubscribe
-    public void chanRender(MENetworkChannelsChanged c) {
-        if (world != null && !world.isRemote) {
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
-    @MENetworkEventSubscribe
-    public void powerRender(MENetworkPowerStatusChange c) {
-        if (world != null && !world.isRemote) {
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
     // ---- 状态访问 ----
 
     public boolean isPowered() {
         if (world != null && world.isRemote) {
             return (this.clientFlags & 1) == 1;
         }
-        try {
-            return getProxy().getEnergy().isNetworkPowered();
-        } catch (GridAccessException e) {
-            return false;
-        }
+        return getMainNode().isPowered();
     }
 
     public boolean isActive() {
         if (world != null && world.isRemote) {
             return isPowered() && (this.clientFlags & 2) == 2;
         }
-        try {
-            return getProxy().isActive();
-        } catch (Exception e) {
-            return false;
-        }
+        return getMainNode().isActive();
     }
 
     public int getRange() {
@@ -312,24 +268,19 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
     // ---- 过滤库存与升级槽 ----
 
-    public AppEngInternalAEInventory getConfig() {
+    public AppEngInternalInventory getConfig() {
         return this.config;
     }
 
-    public ItemStackHandler getBuffer() {
-        return this.buffer;
-    }
-
-    private StackUpgradeInventory getUpgrades() {
+    @Override
+    public IUpgradeInventory getUpgrades() {
         if (this.upgrades == null) {
-            this.upgrades = new StackUpgradeInventory(getProxy().getMachineRepresentation(), this, UPGRADE_SLOTS);
+            this.upgrades = UpgradeInventories.forMachine(
+                    new ItemStack(BlockRegistry.ADVANCED_ME_COLLECTOR).getItem(),
+                    UPGRADE_SLOTS,
+                    this::markDirty);
         }
         return this.upgrades;
-    }
-
-    @Override
-    public int getInstalledUpgrades(Upgrades u) {
-        return getUpgrades().getInstalledUpgrades(u);
     }
 
     @Override
@@ -352,12 +303,10 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return this;
     }
 
-    private ae2.util.ConfigManager configManager;
-
     @Override
     public ae2.api.util.IConfigManager getConfigManager() {
         if (this.configManager == null) {
-            this.configManager = new ae2.util.ConfigManager(this);
+            this.configManager = new ConfigManager(this);
             this.configManager.registerSetting(Settings.REDSTONE_CONTROLLED, RedstoneMode.IGNORE);
             this.configManager.registerSetting(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
             this.configManager.registerSetting(Settings.CRAFT_ONLY, YesNo.NO);
@@ -366,13 +315,13 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public void updateSetting(ae2.api.util.IConfigManager manager, Enum settingName, Enum newValue) {
+    public void onSettingChanged(ae2.api.util.IConfigManager manager, ae2.api.config.Setting<?> setting) {
         this.markDirty();
     }
 
     @Override
-    public ae2.api.networking.IGridNode getActionableNode() {
-        return getProxy().getNode();
+    public IGridNode getActionableNode() {
+        return getMainNode().getNode();
     }
 
     @Override
@@ -472,26 +421,29 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     private ItemStack injectToNetwork(ItemStack stack, Actionable mode) {
-        try {
-            IItemStorageChannel channel = ae2.api.AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            AEItemKey toInsert = channel.createStack(stack);
-            if (toInsert == null) return stack;
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+        IManagedGridNode node = getMainNode();
+        if (!node.isActive()) return stack;
+        IGrid grid = node.getGrid();
+        if (grid == null) return stack;
+        IStorageService storage = grid.getService(IStorageService.class);
+        if (storage == null) return stack;
 
-            AEItemKey remaining = Platform.poweredInsert(
-                    getProxy().getEnergy(),
-                    getProxy().getStorage().getInventory(channel),
-                    toInsert,
-                    new MachineSource(this)
-            );
-
-            if (remaining != null && remaining.getStackSize() > 0) {
-                return remaining.createItemStack();
-            }
-            this.statItemsInjected += stack.getCount();
-            return ItemStack.EMPTY;
-        } catch (GridAccessException e) {
+        AEItemKey key = AEItemKey.of(stack);
+        long remaining = storage.getInventory().insert(key, stack.getCount(), mode, IActionSource.ofMachine(this));
+        if (remaining >= stack.getCount()) {
             return stack;
         }
+        if (remaining <= 0) {
+            if (mode == Actionable.MODULATE) {
+                this.statItemsInjected += stack.getCount();
+            }
+            return ItemStack.EMPTY;
+        }
+        if (mode == Actionable.MODULATE) {
+            this.statItemsInjected += stack.getCount() - remaining;
+        }
+        return key.toStack((int) remaining);
     }
 
     private ItemStack insertToBuffer(ItemStack stack) {
@@ -510,8 +462,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         int activeSlots = getAvailableFilterSlots();
         boolean hasAnyFilter = false;
         for (int i = 0; i < activeSlots; i++) {
-            AEItemKey filter = this.config.getAEStackInSlot(i);
-            if (filter == null) continue;
+            ItemStack filter = this.config.getStackInSlot(i);
+            if (filter.isEmpty()) continue;
             hasAnyFilter = true;
             if (isFilterMatch(filter, stack)) {
                 return true;
@@ -520,19 +472,17 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return !hasAnyFilter;
     }
 
-    private boolean isFilterMatch(AEItemKey filter, ItemStack stack) {
-        if (filter == null) return false;
-        ItemStack filterStack = filter.createItemStack();
-        if (filterStack.isEmpty()) return false;
+    private boolean isFilterMatch(ItemStack filter, ItemStack stack) {
+        if (filter.isEmpty()) return false;
 
-        if (filterStack.getItem() != stack.getItem()) return false;
+        if (filter.getItem() != stack.getItem()) return false;
 
-        if (filterStack.getHasSubtypes() && filterStack.getMetadata() != stack.getMetadata()) {
+        if (filter.getHasSubtypes() && filter.getMetadata() != stack.getMetadata()) {
             return false;
         }
 
-        if (filterStack.hasTagCompound()) {
-            if (!filterStack.getTagCompound().equals(stack.getTagCompound())) {
+        if (filter.hasTagCompound()) {
+            if (!filter.getTagCompound().equals(stack.getTagCompound())) {
                 return false;
             }
         }
@@ -555,11 +505,21 @@ public class TileAdvancedMECollector extends TileAENetworkBase
                 this.pos, this.statItemsInjected, this.statEntitiesPrevented, this.statItemsBuffered, this.statBufferOverflows);
     }
 
-    // ---- 物品栏变化回调 ----
+    // ---- InternalInventoryHost ----
 
     @Override
-    public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
+    public void saveChangedInventory(AppEngInternalInventory inv) {
         this.markDirty();
+    }
+
+    @Override
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+        this.markDirty();
+    }
+
+    @Override
+    public boolean isClientSide() {
+        return world != null && world.isRemote;
     }
 
     // ---- NBT ----
@@ -618,8 +578,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
 
     public void dropContents() {
         if (world == null || world.isRemote) return;
-        dropInventory(this.config, world, pos);
-        dropInventory(getUpgrades(), world, pos);
+        dropInventory(this.config.toItemHandler(), world, pos);
+        dropInventory(getUpgrades().toItemHandler(), world, pos);
         dropInventory(this.buffer, world, pos);
     }
 

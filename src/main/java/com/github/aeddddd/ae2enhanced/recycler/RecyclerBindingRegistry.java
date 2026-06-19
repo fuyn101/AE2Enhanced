@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
-import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
+import ae2.api.storage.MEStorage;
 import net.minecraft.util.math.BlockPos;
 
 import javax.annotation.Nullable;
@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 维护“机器位置 → 回收节点 handler”的绑定关系，用于机器产物源头直注。
  *
  * <p>当机器完成运行、产物即将写入输出槽时，通过本注册表找到负责该机器的回收节点，
- * 并尝试把产物直接注入其所在网络的超维度仓储中枢。</p>
+ * 并尝试把产物直接注入其所在网络的存储。</p>
  */
 public class RecyclerBindingRegistry {
 
@@ -71,12 +71,12 @@ public class RecyclerBindingRegistry {
     }
 
     /**
-     * 更新某个绑定当前缓存的超维度物品适配器。
+     * 更新某个绑定当前缓存的网络存储视图。
      */
-    public void updateAdapter(TargetManager.TargetRef ref, @Nullable ItemStorageAdapter adapter) {
+    public void updateAdapter(TargetManager.TargetRef ref, @Nullable MEStorage storage) {
         Entry entry = exactMap.get(ref);
         if (entry != null) {
-            entry.cachedAdapter = adapter;
+            entry.cachedStorage = storage;
         }
     }
 
@@ -122,7 +122,7 @@ public class RecyclerBindingRegistry {
     public static final class Entry {
         public final TargetManager.TargetRef ref;
         private final WeakReference<RecyclerNetworkHandler> handlerRef;
-        public volatile ItemStorageAdapter cachedAdapter;
+        public volatile MEStorage cachedStorage;
 
         public Entry(TargetManager.TargetRef ref, RecyclerNetworkHandler handler) {
             this.ref = ref;
