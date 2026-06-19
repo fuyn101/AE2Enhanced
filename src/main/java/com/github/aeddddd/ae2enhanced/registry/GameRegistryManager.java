@@ -39,7 +39,6 @@ public final class GameRegistryManager {
         ItemRegistry.CHANNEL_RECEIVER_CARD = new ItemChannelReceiverCard();
         ItemRegistry.UNIVERSAL_MEMORY_CARD = new ItemUniversalMemoryCard();
         ItemRegistry.OMNI_WIRELESS_TERMINAL = new ItemOmniWirelessTerminal();
-        ItemRegistry.OMNI_UPGRADE_CARD = new ItemOmniUpgradeCard();
         ItemRegistry.SMART_BLANK_PATTERN = new ItemSmartBlankPattern();
         ItemRegistry.SMART_PATTERN = new ItemSmartPattern();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
@@ -124,7 +123,6 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.CHANNEL_RECEIVER_CARD);
         event.getRegistry().register(ItemRegistry.UNIVERSAL_MEMORY_CARD);
         event.getRegistry().register(ItemRegistry.OMNI_WIRELESS_TERMINAL);
-        event.getRegistry().register(ItemRegistry.OMNI_UPGRADE_CARD);
         event.getRegistry().register(ItemRegistry.SMART_BLANK_PATTERN);
         event.getRegistry().register(ItemRegistry.SMART_PATTERN);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);

@@ -19,7 +19,6 @@ import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
-import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.container.ContainerAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.container.ContainerEMCInterface;
 import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
@@ -28,7 +27,6 @@ import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemMEPlacementTool;
-import com.github.aeddddd.ae2enhanced.item.ItemOmniWirelessTerminal;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileHyperdimensionalController;
@@ -54,7 +52,6 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_COMPUTATION_UNFORMED = 5;
     public static final int GUI_WIRELESS_CHANNEL_TRANSMITTER = 9;
     public static final int GUI_UNIVERSAL_MEMORY_CARD = 10;
-    public static final int GUI_OMNI_TERMINAL = 11;
     public static final int GUI_CENTRAL_ME_INTERFACE = 12;
     public static final int GUI_SMART_PATTERN_INTERFACE = 13;
     public static final int GUI_OMNI_TOOL_CONFIG = 24;
@@ -80,26 +77,6 @@ public class GuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-        // Omni 终端是无线物品 GUI,不依赖 TileEntity,优先处理避免与 (0,0,0) 处 TileEntity 冲突
-        if (ID == GUI_OMNI_TERMINAL) {
-            ItemStack held = findOmniTerminalStack(player, x, y);
-            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-                ae2.api.features.IWirelessTermHandler handler = ae2.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
-                if (handler == null) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal");
-                    return null;
-                }
-                ae2.helpers.WirelessTerminalGuiHost host = new ae2.helpers.WirelessTerminalGuiHost(handler, held, player, world, x, y, 0);
-                if (host.getActionableNode() == null) {
-                    player.sendMessage(ae2.core.localization.PlayerMessages.OutOfRange.get());
-                    return null;
-                }
-                return new ContainerOmniTerm(player.inventory, host);
-            }
-            AE2Enhanced.LOGGER.warn("[AE2E] OmniTerminal not found for {}", player.getName());
-            return null;
-        }
-
         TileEntity te = world.getTileEntity(new BlockPos(x, y, z));
         if (te instanceof TileAssemblyController) {
             TileAssemblyController tile = (TileAssemblyController) te;
@@ -176,21 +153,6 @@ public class GuiHandler implements IGuiHandler {
 
     @Override
     public Object getClientGuiElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
-        // Omni 终端是无线物品 GUI,不依赖 TileEntity,优先处理避免与 (0,0,0) 处 TileEntity 冲突
-        if (ID == GUI_OMNI_TERMINAL) {
-            ItemStack held = findOmniTerminalStack(player, x, y);
-            if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-                ae2.api.features.IWirelessTermHandler handler = ae2.api.AEApi.instance().registries().wireless().getWirelessTerminalHandler(held);
-                if (handler == null) {
-                    AE2Enhanced.LOGGER.warn("[AE2E] No wireless handler found for OmniTerminal (client)");
-                    return null;
-                }
-                ae2.helpers.WirelessTerminalGuiHost host = new ae2.helpers.WirelessTerminalGuiHost(handler, held, player, world, x, y, 0);
-                return new com.github.aeddddd.ae2enhanced.client.gui.GuiOmniTerm(player.inventory, host);
-            }
-            return null;
-        }
-
         TileEntity te = world.getTileEntity(new BlockPos(x, y, z));
         if (te instanceof TileAssemblyController) {
             TileAssemblyController tile = (TileAssemblyController) te;
@@ -263,44 +225,4 @@ public class GuiHandler implements IGuiHandler {
         return null;
     }
 
-    /**
-     * 根据 GUI 参数查找 Omni Terminal ItemStack.
-     * y == 1 表示从 Baubles 饰品槽位读取(x 为 Baubles 槽位索引).
-     */
-    private static ItemStack findOmniTerminalStack(EntityPlayer player, int x, int y) {
-        if (y == 1 && net.minecraftforge.fml.common.Loader.isModLoaded("baubles")) {
-            // 从 Baubles 饰品槽获取
-            try {
-                Object handler = Class.forName("baubles.api.BaublesApi")
-                        .getMethod("getBaublesHandler", EntityPlayer.class)
-                        .invoke(null, player);
-                ItemStack stack = (ItemStack) handler.getClass()
-                        .getMethod("getStackInSlot", int.class)
-                        .invoke(handler, x);
-                if (!stack.isEmpty() && stack.getItem() instanceof ItemOmniWirelessTerminal) {
-                    return stack;
-                }
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.error("[AE2E] Failed to get Bauble stack", e);
-            }
-        }
-        // 主手
-        ItemStack held = player.getHeldItemMainhand();
-        if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-            return held;
-        }
-        // 副手
-        held = player.getHeldItemOffhand();
-        if (held.getItem() instanceof ItemOmniWirelessTerminal) {
-            return held;
-        }
-        // 物品栏
-        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
-            ItemStack stack = player.inventory.getStackInSlot(i);
-            if (stack.getItem() instanceof ItemOmniWirelessTerminal) {
-                return stack;
-            }
-        }
-        return ItemStack.EMPTY;
-    }
 }

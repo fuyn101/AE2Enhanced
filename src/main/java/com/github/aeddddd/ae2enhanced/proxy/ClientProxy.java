@@ -28,9 +28,6 @@ import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelBakeEvent;
-import net.minecraftforge.client.settings.KeyConflictContext;
-import net.minecraftforge.client.settings.KeyModifier;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
@@ -57,28 +54,10 @@ public class ClientProxy extends CommonProxy {
             "key.categories.ae2enhanced"
     );
 
-    public static final KeyBinding OPEN_OMNI_TERMINAL_KEY = new KeyBinding(
-            "key.ae2enhanced.openOmniTerminal",
-            KeyConflictContext.IN_GAME,
-            KeyModifier.SHIFT,
-            Keyboard.KEY_E,
-            "key.categories.ae2enhanced"
-    );
-
-    public static final KeyBinding TOGGLE_MAGNET_KEY = new KeyBinding(
-            "key.ae2enhanced.toggleMagnet",
-            KeyConflictContext.IN_GAME,
-            Keyboard.KEY_H,
-            "key.categories.ae2enhanced"
-    );
-
-
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         ClientRegistry.registerKeyBinding(JEI_SEARCH_KEY);
-        ClientRegistry.registerKeyBinding(OPEN_OMNI_TERMINAL_KEY);
-        ClientRegistry.registerKeyBinding(TOGGLE_MAGNET_KEY);
         KeyHandlerOmniTool.init();
     }
 
@@ -153,17 +132,6 @@ public class ClientProxy extends CommonProxy {
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to register Thaumcraft aspect textures: {}", e.getMessage());
-        }
-    }
-
-    @SideOnly(Side.CLIENT)
-    @SubscribeEvent
-    public static void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (OPEN_OMNI_TERMINAL_KEY.isPressed()) {
-            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniTerminal());
-        }
-        if (TOGGLE_MAGNET_KEY.isPressed()) {
-            AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketToggleMagnet());
         }
     }
 
@@ -297,17 +265,6 @@ public class ClientProxy extends CommonProxy {
                 }
             });
         }
-
-        // Omni 专用升级卡模型(根据 metadata 动态选择)
-        ModelLoader.registerItemVariants(ItemRegistry.OMNI_UPGRADE_CARD,
-            new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_magnet", "inventory"),
-            new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_picker", "inventory")
-        );
-        ModelLoader.setCustomMeshDefinition(ItemRegistry.OMNI_UPGRADE_CARD, stack -> {
-            int meta = stack.getMetadata();
-            String name = (meta == 0) ? "magnet" : (meta == 1) ? "picker" : "unknown";
-            return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_" + name, "inventory");
-        });
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ItemRegistry.UPGRADE_CARD, stack -> {

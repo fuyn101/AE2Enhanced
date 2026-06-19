@@ -1,13 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.gui.jei;
 
 import ae2.api.stacks.AEItemKey;
-import ae2.container.slot.SlotFake;
-import ae2.core.sync.network.NetworkHandler;
-import ae2.core.sync.packets.PacketInventoryAction;
-import ae2.helpers.InventoryAction;
-import ae2.api.stacks.AEItemKey;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentiaSafe;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -17,11 +10,14 @@ import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 
 import javax.annotation.Nonnull;
 import java.awt.Rectangle;
-import java.io.IOException;
 
 /**
  * E1a：通用输入总线的 JEI Ghost Ingredient Target.
- * 支持 ItemStack(含流体/气体容器)、FluidStack、GasStack(反射)的拖放.
+ * 支持 ItemStack(含流体容器) 的拖放.
+ *
+ * <p>AE2S 迁移：原 {@code ae2.container.slot.SlotFake} 与
+ * {@code InventoryAction.PLACE_JEI_GHOST_ITEM} 已不存在。当前保留目标区域
+ * 与成分解析，实际放置逻辑暂存根，等待 AE2S 提供等效 API 后再恢复。</p>
  */
 public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Object> {
 
@@ -43,19 +39,7 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
 
     @Override
     public void accept(@Nonnull Object ingredient) {
-        AEItemKey aeStack = resolveIngredient(ingredient);
-        if (aeStack == null) return;
-
-        try {
-            PacketInventoryAction p = new PacketInventoryAction(
-                    InventoryAction.PLACE_JEI_GHOST_ITEM,
-                    (SlotFake) this.slot,
-                    aeStack
-            );
-            NetworkHandler.instance().sendToServer(p);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // AE2S 目前没有与 PLACE_JEI_GHOST_ITEM 等效的网络包，暂存根。
     }
 
     public static AEItemKey resolveIngredient(Object ingredient) {
@@ -63,10 +47,9 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
             return resolveItemStack((ItemStack) ingredient);
         }
         if (ingredient instanceof FluidStack) {
-            return FakeFluids.packFluid2AEDrops((FluidStack) ingredient);
+            return resolveFluidStack((FluidStack) ingredient);
         }
-        // 尝试反射处理 GasStack
-        return tryResolveGas(ingredient);
+        return null;
     }
 
     private static AEItemKey resolveItemStack(ItemStack is) {
@@ -78,40 +61,16 @@ public class GhostIngredientTarget implements IGhostIngredientHandler.Target<Obj
             if (fh != null) {
                 FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
                 if (drained != null && drained.amount > 0) {
-                    return FakeFluids.packFluid2AEDrops(drained);
+                    return resolveFluidStack(drained);
                 }
             }
         }
 
-        // 气体物品(反射调用 FakeGases)
-        AEItemKey gasStack = tryResolveGasFromItem(is);
-        if (gasStack != null) return gasStack;
-
-        // 源质容器(反射调用 FakeEssentias)
-        ItemStack essentiaFake = FakeEssentiaSafe.tryConvertContainerToFake(is);
-        if (essentiaFake != null && !essentiaFake.isEmpty()) {
-            return AEItemKey.fromItemStack(essentiaFake);
-        }
-
-        // 普通物品
-        return AEItemKey.fromItemStack(is);
+        return AEItemKey.of(is);
     }
 
-    private static AEItemKey tryResolveGas(Object ingredient) {
-        try {
-            Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
-            return (AEItemKey) fakeGasesClass.getMethod("tryPackJEIGas", Object.class).invoke(null, ingredient);
-        } catch (Throwable e) {
-            return null;
-        }
-    }
-
-    private static AEItemKey tryResolveGasFromItem(ItemStack is) {
-        try {
-            Class<?> fakeGasesClass = Class.forName("com.github.aeddddd.ae2enhanced.util.fakeitem.FakeGases");
-            return (AEItemKey) fakeGasesClass.getMethod("tryPackJEIGasFromItem", ItemStack.class).invoke(null, is);
-        } catch (Throwable e) {
-            return null;
-        }
+    private static AEItemKey resolveFluidStack(FluidStack fluid) {
+        // AE2S 流体 drops / fake items 需要专用工具类，当前项目缺少这些类，暂返回 null。
+        return null;
     }
 }

@@ -86,6 +86,7 @@ dependencies {
     modCompileOnly files('libs/Thaumcraft-1.12.2-6.1.BETA26.jar')
     modCompileOnly files('libs/thaumic-energistics-extended-life-1.12.2-2.3.5.jar')
     modCompileOnly files('libs/Baubles-1.12-1.5.2.jar')
+    compileOnly files('libs/Baubles-1.12-1.5.2.jar')
     modCompileOnly files('libs/Botania r1.10-364.4.jar')
     modCompileOnly files('libs/BloodMagic-1.12.2-2.4.3-105.jar')
     modCompileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')

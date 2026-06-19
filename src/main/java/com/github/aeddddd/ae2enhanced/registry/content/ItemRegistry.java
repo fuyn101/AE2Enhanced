@@ -17,7 +17,6 @@ public final class ItemRegistry {
     public static ItemChannelReceiverCard CHANNEL_RECEIVER_CARD;
     public static ItemUniversalMemoryCard UNIVERSAL_MEMORY_CARD;
     public static ItemOmniWirelessTerminal OMNI_WIRELESS_TERMINAL;
-    public static ItemOmniUpgradeCard OMNI_UPGRADE_CARD;
     public static ItemSmartBlankPattern SMART_BLANK_PATTERN;
     public static ItemSmartPattern SMART_PATTERN;
 
