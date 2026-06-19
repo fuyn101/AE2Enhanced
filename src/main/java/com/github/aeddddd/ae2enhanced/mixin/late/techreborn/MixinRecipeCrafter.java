@@ -8,16 +8,15 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import reborncore.common.recipes.RecipeCrafter;
 
 /**
  * TechReborn 机器产物直注 Mixin。
  *
- * <p>在 {@link RecipeCrafter#fitStack(ItemStack, int)} 写入产物到机器物品栏之前，
- * 尝试把产物重定向到已绑定的 ME 网络回收节点。若全部注入成功，
+ * <p>在 {@code reborncore.common.recipes.RecipeCrafter#fitStack(ItemStack, int)}
+ * 写入产物到机器物品栏之前，尝试把产物重定向到已绑定的 ME 网络回收节点。若全部注入成功，
  * fitStack 看到空 stack 后直接返回，产物不会进入输出槽。</p>
  */
-@Mixin(value = RecipeCrafter.class, remap = false)
+@Mixin(targets = "reborncore.common.recipes.RecipeCrafter", remap = false)
 public class MixinRecipeCrafter {
 
     @Shadow

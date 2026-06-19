@@ -1,8 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.eio;
 
 import com.github.aeddddd.ae2enhanced.recycler.MachineOutputRedirector;
-import crazypants.enderio.base.machine.baselegacy.AbstractPoweredTaskEntity;
-import crazypants.enderio.base.machine.baselegacy.SlotDefinition;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -16,10 +14,10 @@ import java.lang.reflect.Field;
 /**
  * Ender IO 机器产物直注 Mixin。
  *
- * <p>在 {@link AbstractPoweredTaskEntity#taskComplete()} 把产物写入输出槽之后，
- * 立即把输出槽中的产物重定向到已绑定的 ME 网络回收节点。</p>
+ * <p>在 {@code crazypants.enderio.base.machine.baselegacy.AbstractPoweredTaskEntity#taskComplete()}
+ * 把产物写入输出槽之后，立即把输出槽中的产物重定向到已绑定的 ME 网络回收节点。</p>
  */
-@Mixin(value = AbstractPoweredTaskEntity.class, remap = false)
+@Mixin(targets = "crazypants.enderio.base.machine.baselegacy.AbstractPoweredTaskEntity", remap = false)
 public class MixinAbstractPoweredTaskEntity {
 
     private static final Field FIELD_SLOT_DEFINITION;
@@ -59,6 +57,14 @@ public class MixinAbstractPoweredTaskEntity {
         return null;
     }
 
+    private static int getInt(Object obj, Field field) {
+        try {
+            return field.getInt(obj);
+        } catch (IllegalAccessException e) {
+            return 0;
+        }
+    }
+
     @Inject(method = "taskComplete", at = @At("TAIL"))
     private void ae2enhanced$redirectOutputsAfterTaskComplete(CallbackInfo ci) {
         if (FIELD_SLOT_DEFINITION == null || FIELD_INVENTORY == null || FIELD_WORLD == null || FIELD_POS == null) {
@@ -69,14 +75,17 @@ public class MixinAbstractPoweredTaskEntity {
             if (world == null || world.isRemote) {
                 return;
             }
-            SlotDefinition slotDefinition = (SlotDefinition) FIELD_SLOT_DEFINITION.get(this);
+            Object slotDefinition = FIELD_SLOT_DEFINITION.get(this);
             ItemStack[] inventory = (ItemStack[]) FIELD_INVENTORY.get(this);
             BlockPos pos = (BlockPos) FIELD_POS.get(this);
             if (slotDefinition == null || inventory == null) {
                 return;
             }
 
-            for (int i = slotDefinition.minOutputSlot; i <= slotDefinition.maxOutputSlot; i++) {
+            int minOutputSlot = getInt(slotDefinition, findField(slotDefinition.getClass(), "minOutputSlot"));
+            int maxOutputSlot = getInt(slotDefinition, findField(slotDefinition.getClass(), "maxOutputSlot"));
+
+            for (int i = minOutputSlot; i <= maxOutputSlot; i++) {
                 if (i < 0 || i >= inventory.length) {
                     continue;
                 }
