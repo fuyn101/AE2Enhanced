@@ -1,34 +1,24 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
-import ae2.api.AEApi;
-import ae2.api.config.Actionable;
+import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGridNode;
+import ae2.api.networking.IManagedGridNode;
 import ae2.api.networking.security.IActionHost;
-import ae2.api.networking.events.MENetworkChannelsChanged;
-import ae2.api.networking.events.MENetworkEventSubscribe;
-import ae2.api.networking.events.MENetworkPowerStatusChange;
-import ae2.api.storage.MEStorage;
+import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
-import ae2.me.GridAccessException;
 import ae2.me.helpers.MachineSource;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
-import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
-import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
-import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
 
@@ -42,15 +32,11 @@ import java.util.Set;
 /**
  * 区块供电节点的 TileEntity.
  *
- * <p>消耗 1 个 AE 频道,从连接的 ME 网络 RF 存储通道提取能量,
- * 向所在区块(16×16)内所有可接收 Forge Energy 的设备供能.</p>
+ * <p>本应消耗 1 个 AE 频道，从连接的 ME 网络能量/物品通道提取能量，
+ * 向所在区块(16×16)内所有可接收 Forge Energy 的设备供能。</p>
  *
- * <p>供能策略：</p>
- * <ul>
- *   <li>每 {@link #CACHE_REFRESH_INTERVAL} tick 重新扫描本区块目标设备并缓存位置</li>
- *   <li>每 tick 遍历缓存,按需从 ME 网络提取并注入</li>
- *   <li>未用完的能量立即返还 ME 网络</li>
- * </ul>
+ * <p>AE2S 迁移期间：原 RF/Energy 存储通道实现已不存在，供能逻辑暂时存根。
+ * 仍然保持网络节点、朝向、状态同步与目标缓存功能。</p>
  */
 public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, IActionHost {
 
@@ -84,13 +70,28 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     public TileChunkPowerNode() {
     }
 
+    @Override
+    protected IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(32)
+                .setExposedOnSides(getExposedSides())
+                .setVisualRepresentation(AEItemKey.of(new ItemStack(BlockRegistry.CHUNK_POWER_NODE)));
+    }
+
+    private java.util.Set<EnumFacing> getExposedSides() {
+        return EnumSet.of(this.forward.getOpposite());
+    }
+
+    private void updateExposedSides() {
+        getMainNode().setExposedOnSides(getExposedSides());
+    }
+
     // ---------- 朝向与代理 ----------
 
     public void setForward(EnumFacing facing) {
         this.forward = facing != null ? facing : EnumFacing.NORTH;
-        if (getProxy() != null) {
-            getProxy().setValidSides(EnumSet.of(this.forward.getOpposite()));
-        }
+        updateExposedSides();
         markDirty();
     }
 
@@ -99,21 +100,10 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     }
 
     @Override
-    protected String getProxyName() {
-        return "chunk_power_node";
-    }
-
-    @Override
-    protected ItemStack getProxyRepresentation() {
-        return new ItemStack(BlockRegistry.CHUNK_POWER_NODE);
-    }
-
-    @Override
     public void disassemble() {
         // 无需额外清理
     }
 
-    @Override
     public void securityBreak() {
         if (world != null && !world.isRemote) {
             world.destroyBlock(pos, true);
@@ -121,8 +111,8 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     }
 
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
-        if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
+        if (this.forward != null && dir == this.forward.getOpposite()) {
             return AECableType.SMART;
         }
         return AECableType.NONE;
@@ -130,13 +120,13 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
     @Override
     public IGridNode getActionableNode() {
-        return getProxy().getNode();
+        return getMainNode().getNode();
     }
 
     @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
-            return getProxy().getNode();
+    public IGridNode getGridNode(@Nonnull EnumFacing dir) {
+        if (this.forward != null && dir == this.forward.getOpposite()) {
+            return getMainNode().getNode();
         }
         return null;
     }
@@ -146,13 +136,6 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
     @Override
     public void update() {
         if (world == null || world.isRemote) return;
-
-        if (needsReady()) {
-            clearNeedsReady();
-            getProxy().setFlags(ae2.api.networking.GridFlags.REQUIRE_CHANNEL);
-            getProxy().setIdlePowerUsage(32);
-            getProxy().onReady();
-        }
 
         if (!isActive()) return;
 
@@ -170,20 +153,12 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
 
         if (cachedTargets.isEmpty()) return;
 
-        ae2.api.networking.storage.IStorageService storageGrid;
-        try {
-            storageGrid = getProxy().getGrid().getCache(ae2.api.networking.storage.IStorageService.class);
-            if (storageGrid == null) return;
-        } catch (GridAccessException e) {
-            return;
-        }
-
-        MEStorage<IAEEnergyStack> energyMonitor = storageGrid.getInventory(
-                AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class));
-        MachineSource source = getMachineSource();
-
+        // TODO: optional mod dependency — AE2S 不再提供 RF/Energy 存储通道。
+        // 如需恢复供能，需要接入 AE2S 的能量服务或外部 RF 网络，
+        // 并替换下面的 energyMonitor 提取/注入逻辑。
         for (BlockPos targetPos : cachedTargets) {
-            TileEntity te = world.getTileEntity(targetPos);
+            // 保留 TE 与 cap 探测代码，便于后续实现
+            net.minecraft.tileentity.TileEntity te = world.getTileEntity(targetPos);
             if (te == null || te.isInvalid()) continue;
 
             IEnergyStorage cap = null;
@@ -198,22 +173,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
             }
             if (cap == null) continue;
 
-            // TODO: platform removed — energy adapter registry deleted; fall back to direct Forge Energy simulation
-            int simulated = cap.receiveEnergy(Integer.MAX_VALUE, true);
-            if (simulated <= 0) continue;
-
-            long demand = Math.min(simulated, (long) Integer.MAX_VALUE);
-            IAEEnergyStack request = AEEnergyStack.create(demand);
-            IAEEnergyStack extracted = energyMonitor.extractItems(request, Actionable.MODULATE, source);
-            if (extracted == null || extracted.getStackSize() <= 0) continue;
-
-            int toInject = (int) Math.min(extracted.getStackSize(), (long) Integer.MAX_VALUE);
-            int actual = cap.receiveEnergy(toInject, false);
-
-            int leftover = toInject - actual;
-            if (leftover > 0) {
-                energyMonitor.injectItems(AEEnergyStack.create(leftover), Actionable.MODULATE, source);
-            }
+            // Stub: 实际供能逻辑待能量通道适配完成后实现。
         }
     }
 
@@ -232,7 +192,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
         Chunk chunk = world.getChunk(pos);
         if (chunk == null) return;
 
-        for (TileEntity te : chunk.getTileEntityMap().values()) {
+        for (net.minecraft.tileentity.TileEntity te : chunk.getTileEntityMap().values()) {
             if (te == null || te.isInvalid()) continue;
             if (te == this) continue;
 
@@ -274,42 +234,18 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
         }
     }
 
-    @MENetworkEventSubscribe
-    public void chanRender(MENetworkChannelsChanged c) {
-        if (world != null && !world.isRemote) {
-            IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
-    @MENetworkEventSubscribe
-    public void powerRender(MENetworkPowerStatusChange c) {
-        if (world != null && !world.isRemote) {
-            IBlockState state = world.getBlockState(pos);
-            world.notifyBlockUpdate(pos, state, state, 2);
-        }
-    }
-
     public boolean isPowered() {
         if (world != null && world.isRemote) {
             return (this.clientFlags & 1) == 1;
         }
-        try {
-            return getProxy().getEnergy().isNetworkPowered();
-        } catch (GridAccessException e) {
-            return false;
-        }
+        return getMainNode().isPowered();
     }
 
     public boolean isActive() {
         if (world != null && world.isRemote) {
             return isPowered() && (this.clientFlags & 2) == 2;
         }
-        try {
-            return getProxy().isActive();
-        } catch (Exception e) {
-            return false;
-        }
+        return getMainNode().isActive();
     }
 
     // ---------- 辅助 ----------
@@ -328,7 +264,7 @@ public class TileChunkPowerNode extends TileAENetworkBase implements ITickable, 
         super.readFromNBT(compound);
         this.forward = EnumFacing.byIndex(compound.getInteger("forward"));
         this.clientFlags = compound.getInteger("clientFlags");
-        // cachedTargets 不持久化,重新扫描即可
+        updateExposedSides();
     }
 
     @Override

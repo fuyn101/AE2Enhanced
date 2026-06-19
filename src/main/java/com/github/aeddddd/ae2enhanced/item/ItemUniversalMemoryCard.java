@@ -242,8 +242,8 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isSmartPatternInterface = te instanceof com.github.aeddddd.ae2enhanced.tile.TileSmartPatternInterface;
                     boolean isRecycler = te instanceof com.github.aeddddd.ae2enhanced.tile.TileMENetworkRecycler;
 
-                    boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
-                            || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
+                    boolean isAlt = com.github.aeddddd.ae2enhanced.client.LwjglCompat.isKeyDown(com.github.aeddddd.ae2enhanced.client.LwjglCompat.KEY_LMENU)
+                            || com.github.aeddddd.ae2enhanced.client.LwjglCompat.isKeyDown(com.github.aeddddd.ae2enhanced.client.LwjglCompat.KEY_RMENU);
 
                     // 智能样板接口绑定：客户端查询 JEI 后直接发送 PacketSmartPatternBind
                     if (isSmartPatternInterface && !isSneaking && !isCtrl && !isAlt) {

@@ -1,30 +1,16 @@
 package com.github.aeddddd.ae2enhanced.network.packet;
 
-import ae2.api.networking.IGrid;
-import ae2.api.networking.IGridNode;
-import ae2.api.networking.crafting.ICraftingService;
-import ae2.api.networking.crafting.ICraftingJob;
-import ae2.api.networking.security.IActionHost;
-import ae2.container.ContainerOpenContext;
 import ae2.container.implementations.ContainerCraftAmount;
-import ae2.container.implementations.ContainerCraftConfirm;
-import ae2.container.interfaces.IInventorySlotAware;
-import ae2.core.AELog;
-import ae2.core.sync.GuiBridge;
-import ae2.util.Platform;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import java.util.concurrent.Future;
-
 /**
- * 支持 long 数量下单的合成请求包.
- * AE2-UEL 原生的 PacketCraftRequest 构造函数接收 int,导致超过 int 范围的下单量被截断.
- * 此包复制了原生包的完整服务端处理逻辑,但使用 long 传输数量.
+ * 支持 long 数量下单的合成请求包。
+ * AE2S 的 ContainerCraftAmount#confirm(int, boolean, boolean) 已经封装了打开确认 GUI、
+ * 计划合成任务等完整逻辑，因此本包只需转发数量与 Shift 状态即可。
  */
 public class PacketCraftRequestLong implements IMessage {
 
@@ -57,43 +43,10 @@ public class PacketCraftRequestLong implements IMessage {
         public IMessage onMessage(PacketCraftRequestLong message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                ContainerCraftAmount cca;
-                Object target;
-                if (player.openContainer instanceof ContainerCraftAmount
-                        && (target = (cca = (ContainerCraftAmount) player.openContainer).getTarget()) instanceof IActionHost) {
-                    IActionHost ah = (IActionHost) target;
-                    IGridNode gn = ah.getActionableNode();
-                    if (gn == null) return;
-                    IGrid g = gn.getGrid();
-                    if (g == null || cca.getItemToCraft() == null) return;
-
-                    cca.getItemToCraft().setStackSize(message.amount);
-                    Future<ICraftingJob> futureJob = null;
-                    try {
-                        ICraftingService cg = g.getCache(ICraftingService.class);
-                        futureJob = cg.beginCraftingJob(cca.getWorld(), cca.getGrid(), cca.getActionSrc(), cca.getItemToCraft(), null);
-                        ContainerOpenContext context = cca.getOpenContext();
-                        if (context != null) {
-                            TileEntity te = context.getTile();
-                            if (te != null) {
-                                Platform.openGUI(player, te, cca.getOpenContext().getSide(), GuiBridge.GUI_CRAFTING_CONFIRM);
-                            } else if (ah instanceof IInventorySlotAware) {
-                                IInventorySlotAware i = (IInventorySlotAware) ah;
-                                Platform.openGUI(player, i.getInventorySlot(), GuiBridge.GUI_CRAFTING_CONFIRM, i.isBaubleSlot());
-                            }
-                            if (player.openContainer instanceof ContainerCraftConfirm) {
-                                ContainerCraftConfirm ccc = (ContainerCraftConfirm) player.openContainer;
-                                ccc.setAutoStart(message.heldShift);
-                                ccc.setJob(futureJob);
-                                cca.detectAndSendChanges();
-                            }
-                        }
-                    } catch (Throwable e) {
-                        if (futureJob != null) {
-                            futureJob.cancel(true);
-                        }
-                        AELog.debug(e);
-                    }
+                if (player.openContainer instanceof ContainerCraftAmount) {
+                    ContainerCraftAmount cca = (ContainerCraftAmount) player.openContainer;
+                    int amt = (int) Math.min(Math.max(message.amount, 1), ContainerCraftAmount.MAX_AUTO_CRAFT_AMOUNT);
+                    cca.confirm(amt, message.heldShift, false);
                 }
             });
             return null;

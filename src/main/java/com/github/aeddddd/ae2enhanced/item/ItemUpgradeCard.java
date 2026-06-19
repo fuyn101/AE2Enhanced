@@ -1,7 +1,5 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import ae2.api.config.Upgrades;
-import ae2.api.implementations.items.IUpgradeModule;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
@@ -14,7 +12,7 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class ItemUpgradeCard extends Item implements IUpgradeModule {
+public class ItemUpgradeCard extends Item {
 
     public static final int COUNT = 6;
 
@@ -48,14 +46,14 @@ public class ItemUpgradeCard extends Item implements IUpgradeModule {
     }
 
     /**
-     * 获取指定类型升级卡在装配枢纽升级槽中的最大堆叠数量�?
-     * 槽位索引�?metadata 一一对应�?=并行, 1=速度, 2=效率, 3=扩容, 4=预留1, 5=预留2
+     * 获取指定类型升级卡在装配枢纽升级槽中的最大堆叠数量。
+     * 槽位索引与 metadata 一一对应：0=并行, 1=速度, 2=效率, 3=扩容, 4=预留1, 5=预留2
      */
     public static int getMaxStackForMeta(int meta) {
         switch (meta) {
             case META_PARALLEL:
-            case META_SPEED:      return 5;   // 5�?�?Long.MAX_VALUE / 1 tick
-            case META_RESERVED1:  return 1;   // 自动上传模块：每个控制器只需1�?
+            case META_SPEED:      return 5;   // 5张≈ Long.MAX_VALUE / 1 tick
+            case META_RESERVED1:  return 1;   // 自动上传模块：每个控制器只需1张
             default:              return 10;  // 预留
         }
     }
@@ -93,15 +91,6 @@ public class ItemUpgradeCard extends Item implements IUpgradeModule {
                 break;
             default:
                 tooltip.add(I18n.format("item.ae2enhanced.upgrade_card.reserved2.tooltip"));
-        }
-    }
-
-    @Override
-    public Upgrades getType(ItemStack is) {
-        switch (is.getMetadata()) {
-            case META_SPEED:      return Upgrades.SPEED;
-            case META_CAPACITY:   return Upgrades.CAPACITY;
-            default:              return null;
         }
     }
 

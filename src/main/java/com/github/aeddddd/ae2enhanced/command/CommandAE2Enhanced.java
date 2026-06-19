@@ -1,51 +1,36 @@
 package com.github.aeddddd.ae2enhanced.command;
 
-import ae2.api.AEApi;
 import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.pathing.ChannelMode;
 import ae2.api.networking.security.IActionSource;
-import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.networking.storage.IStorageService;
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.KeyCounter;
 import ae2.core.AEConfig;
-import ae2.core.features.AEFeature;
-import ae2.hooks.TickHandler;
-import ae2.me.Grid;
-import ae2.me.cache.GridStorageCache;
-import ae2.me.helpers.MachineSource;
 import ae2.me.helpers.PlayerSource;
+import ae2.api.storage.MEStorage;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
-import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
-import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
-import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
-import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidCompat;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemBow;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemSword;
-import net.minecraft.item.ItemTool;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.common.config.Config;
-import ae2.api.stacks.AEItemKey;
 
 import javax.annotation.Nonnull;
 import java.io.File;
-import java.lang.reflect.Field;
-import java.math.BigInteger;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.UUID;
 
 /**
  * AE2Enhanced main command.
@@ -144,77 +129,8 @@ public class CommandAE2Enhanced extends CommandBase {
     // ---- migrate fluids ----
 
     private void executeMigrateFluids(@Nonnull ICommandSender sender) {
-        if (!Ae2fcCompat.AE2FC_LOADED) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] ae2fc is not loaded, no migration needed."));
-            return;
-        }
-
-        if (!(sender instanceof EntityPlayerMP)) {
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command must be executed by a player."));
-            return;
-        }
-
-        EntityPlayerMP player = (EntityPlayerMP) sender;
-        IActionSource source = new PlayerSource(player, null);
-
-        int convertedStacks = 0;
-        long convertedAmount = 0;
-
-        try {
-            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-
-            for (Grid grid : TickHandler.INSTANCE.getGridList()) {
-                GridStorageCache storageCache = grid.getCache(GridStorageCache.class);
-                if (storageCache == null) continue;
-
-                ae2.api.storage.MEStorage<AEItemKey> itemMonitor = storageCache.getInventory(itemChannel);
-                if (itemMonitor == null) continue;
-
-                ae2.api.storage.data.KeyCounter<AEItemKey> itemList = itemChannel.createList();
-                itemMonitor.getAvailableItems(itemList);
-
-                for (AEItemKey stack : itemList) {
-                    if (stack == null || stack.getStackSize() <= 0) continue;
-
-                    ItemStack mcStack = stack.createItemStack();
-                    if (!ItemFluidDrop.isFluidDrop(mcStack)) continue;
-
-                    FluidStack fluid = ItemFluidDrop.getFluidStack(mcStack);
-                    if (fluid == null || fluid.getFluid() == null) continue;
-
-                    // 提取全部 AE2E fluid drop
-                    AEItemKey toExtract = stack.copy();
-                    AEItemKey notExtracted = itemMonitor.extractItems(toExtract, Actionable.MODULATE, source);
-                    long extracted = stack.getStackSize() - (notExtracted != null ? notExtracted.getStackSize() : 0);
-                    if (extracted <= 0) continue;
-
-                    // 转换为 ae2fc 格式
-                    FluidStack toConvert = fluid.copy();
-                    toConvert.amount = (int) Math.min(extracted, Integer.MAX_VALUE);
-                    ItemStack ae2fcDrop = Ae2fcFluidCompat.createFluidDrop(toConvert);
-                    if (ae2fcDrop.isEmpty()) {
-                        // 转换失败,把原 drop 还回去
-                        ItemStack returnStack = mcStack.copy();
-                        returnStack.setCount((int) extracted);
-                        itemMonitor.injectItems(AEItemKey.fromItemStack(returnStack), Actionable.MODULATE, source);
-                        continue;
-                    }
-
-                    // 注回物品通道,由 ae2fc 接管
-                    AEItemKey toInsert = AEItemKey.fromItemStack(ae2fcDrop);
-                    AEItemKey notInserted = itemMonitor.injectItems(toInsert, Actionable.MODULATE, source);
-                    long inserted = toConvert.amount - (notInserted != null ? notInserted.getStackSize() : 0);
-                    convertedAmount += inserted;
-                    convertedStacks++;
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to migrate fluid drops", e);
-            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Migration failed: " + e.getMessage()));
-            return;
-        }
-
-        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Migrated " + convertedStacks + " AE2E fluid drop stacks (" + convertedAmount + " mB) to ae2fc format."));
+        // TODO: optional mod dependency — ae2fc / ItemFluidDrop unavailable in AE2S migration.
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] migratefluids is disabled during the AE2S migration (ae2fc not available)."));
     }
 
     // ---- spgc ----
@@ -242,40 +158,20 @@ public class CommandAE2Enhanced extends CommandBase {
         AEConfig config = AEConfig.instance();
         switch (action) {
             case "enable":
-                setChannelsEnabled(true);
+                config.setChannelMode(ChannelMode.DEFAULT);
                 sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 channel checking enabled."));
                 break;
             case "disable":
-                setChannelsEnabled(false);
+                config.setChannelMode(ChannelMode.INFINITE);
                 sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] AE2 channel checking disabled (infinite channels)."));
                 break;
             case "status":
-                boolean enabled = config.isFeatureEnabled(AEFeature.CHANNELS);
+                boolean enabled = config.getRequireChannel();
                 String status = enabled ? TextFormatting.GREEN + "Enabled" : TextFormatting.YELLOW + "Disabled (infinite channels)";
                 sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] AE2 channel checking status: " + status));
                 break;
             default:
                 sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e channels <enable|disable|status>"));
-        }
-    }
-
-    private void setChannelsEnabled(boolean enabled) {
-        try {
-            AEConfig config = AEConfig.instance();
-            Field field = AEConfig.class.getDeclaredField("featureFlags");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            EnumSet<AEFeature> flags = (EnumSet<AEFeature>) field.get(config);
-            if (enabled) {
-                flags.add(AEFeature.CHANNELS);
-            } else {
-                flags.remove(AEFeature.CHANNELS);
-            }
-            net.minecraftforge.common.config.Property prop = config.get("Features.NetworkFeatures", "Channels", true);
-            prop.set(enabled);
-            config.save();
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to toggle AE2 channel feature.", e);
         }
     }
 
@@ -331,7 +227,7 @@ public class CommandAE2Enhanced extends CommandBase {
     }
 
     private void listHdUuids(@Nonnull ICommandSender sender) {
-        WorldServer world = FMLCommonHandler.instance().getMinecraftServerInstance().getWorld(0);
+        WorldServer world = net.minecraftforge.common.DimensionManager.getWorld(0);
         if (world == null) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Cannot access the overworld."));
             return;
@@ -387,50 +283,14 @@ public class CommandAE2Enhanced extends CommandBase {
             return;
         }
         EntityPlayerMP player = (EntityPlayerMP) sender;
-        ItemStack stack = new ItemStack(BlockRegistry.HYPERDIMENSIONAL_CONTROLLER);
-        NBTTagCompound tag = new NBTTagCompound();
-        tag.setUniqueId("nexusId", uuid);
-        stack.setTagCompound(tag);
-        boolean added = player.inventory.addItemStackToInventory(stack);
-        if (!added) {
-            player.dropItem(stack, false);
-        }
-        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Given Hyperdimensional Controller block carrying UUID " + uuidStr + "."));
+        // TODO: optional migration dependency — Hyperdimensional Controller block removed in AE2S migration.
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Hyperdimensional Controller block is not available during the AE2S migration."));
     }
 
     // ---- testhd ----
-
-    private static final List<Item> GEAR_CACHE = new ArrayList<>();
 
     private void executeTestHd(MinecraftServer server, ICommandSender sender, String[] args) {
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Hyperdimensional Controller has been removed in the AE2S migration; testhd is disabled."));
         return;
     }
-
-
-    private static ItemStack generateRandomGear(Random random) {
-        Item item = GEAR_CACHE.get(random.nextInt(GEAR_CACHE.size()));
-        ItemStack stack = new ItemStack(item);
-
-        int enchantCount = random.nextInt(6); // 0..5 enchantments
-        if (enchantCount > 0) {
-            List<Enchantment> possible = new ArrayList<>();
-            for (Enchantment ench : Enchantment.REGISTRY) {
-                if (ench != null && ench.canApply(stack)) {
-                    possible.add(ench);
-                }
-            }
-            if (!possible.isEmpty()) {
-                Collections.shuffle(possible, random);
-                for (int i = 0; i < Math.min(enchantCount, possible.size()); i++) {
-                    Enchantment ench = possible.get(i);
-                    int level = 1 + random.nextInt(ench.getMaxLevel());
-                    stack.addEnchantment(ench, level);
-                }
-            }
-        }
-        return stack;
-    }
-
-
 }

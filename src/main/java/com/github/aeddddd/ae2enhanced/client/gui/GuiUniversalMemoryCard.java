@@ -160,7 +160,7 @@ public class GuiUniversalMemoryCard extends GuiContainer {
     @Override
     public void handleMouseInput() throws IOException {
         super.handleMouseInput();
-        int delta = org.lwjgl.input.Mouse.getEventDWheel();
+        int delta = com.github.aeddddd.ae2enhanced.client.LwjglCompat.getMouseDWheel();
         if (delta != 0) {
             scrollIndex -= Integer.signum(delta);
             clampScroll();

@@ -29,6 +29,10 @@ public final class LwjglCompat {
 
     public static final int KEY_LSHIFT = 42;
     public static final int KEY_RSHIFT = 54;
+    public static final int KEY_LCONTROL = 29;
+    public static final int KEY_RCONTROL = 157;
+    public static final int KEY_LMENU = 56;
+    public static final int KEY_RMENU = 184;
 
     public static boolean isKeyDown(int keyCode) {
         try {

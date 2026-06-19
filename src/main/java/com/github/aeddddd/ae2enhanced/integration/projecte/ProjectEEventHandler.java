@@ -1,20 +1,16 @@
 package com.github.aeddddd.ae2enhanced.integration.projecte;
 
-import moze_intel.projecte.api.event.EMCRemapEvent;
-import moze_intel.projecte.api.event.PlayerKnowledgeChangeEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-
 import java.lang.ref.WeakReference;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * ProjectE 事件监听.
+ * ProjectE 事件监听。
  *
- * <p>该类仅在 ProjectE 已加载时通过反射实例化,因此可以直接引用 ProjectE 事件类.</p>
+ * <p>该类在 ProjectE 已加载时本应通过反射实例化并注册到 Forge 事件总线。
+ * 由于 ProjectE 事件类在 AE2S 迁移期间未出现在编译类路径中，当前为存根实现，
+ * 保留 API 入口以避免 TileEMCInterface 调用处编译失败。</p>
  */
 public class ProjectEEventHandler {
 
@@ -26,7 +22,10 @@ public class ProjectEEventHandler {
     public static synchronized void ensureRegistered() {
         if (!registered) {
             INSTANCE = new ProjectEEventHandler();
-            MinecraftForge.EVENT_BUS.register(INSTANCE);
+            // TODO: optional mod dependency — ProjectE event classes unavailable at compile time.
+            // When ProjectE is reliably on the compile classpath, register INSTANCE with
+            // MinecraftForge.EVENT_BUS and add typed @SubscribeEvent handlers for
+            // moze_intel.projecte.api.event.PlayerKnowledgeChangeEvent / EMCRemapEvent.
             registered = true;
         }
     }
@@ -48,37 +47,5 @@ public class ProjectEEventHandler {
         }
     }
 
-    @SubscribeEvent
-    public void onPlayerKnowledgeChange(PlayerKnowledgeChangeEvent event) {
-        UUID uuid = event.getPlayerUUID();
-        synchronized (ProjectEEventHandler.class) {
-            Iterator<WeakReference<com.github.aeddddd.ae2enhanced.tile.TileEMCInterface>> it = tiles.iterator();
-            while (it.hasNext()) {
-                com.github.aeddddd.ae2enhanced.tile.TileEMCInterface tile = it.next().get();
-                if (tile == null || tile.isInvalid()) {
-                    it.remove();
-                    continue;
-                }
-                if (uuid != null && uuid.equals(tile.getOwnerUUID())) {
-                    tile.invalidateHandlerCache();
-                }
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onEMCRemap(EMCRemapEvent event) {
-        synchronized (ProjectEEventHandler.class) {
-            Iterator<WeakReference<com.github.aeddddd.ae2enhanced.tile.TileEMCInterface>> it = tiles.iterator();
-            while (it.hasNext()) {
-                com.github.aeddddd.ae2enhanced.tile.TileEMCInterface tile = it.next().get();
-                if (tile == null || tile.isInvalid()) {
-                    it.remove();
-                    continue;
-                }
-                tile.invalidateHandlerCache();
-                tile.invalidateEmcCache();
-            }
-        }
-    }
+    // TODO: optional mod dependency — add typed event handlers once ProjectE is on classpath.
 }

@@ -1,8 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client;
 
-import ae2.client.gui.implementations.GuiMEStorage;
-import ae2.client.gui.widgets.MEGuiTextField;
-import ae2.client.me.Repo;
+import ae2.client.gui.me.common.GuiMEStorage;
+import ae2.client.gui.me.common.Repo;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.IIngredientListOverlay;
@@ -50,17 +49,23 @@ public class JEISearchKeyHandler {
      * @return true 表示成功设置了搜索文本并应拦截原按键事件；false 表示未执行搜索
      */
     public static boolean performSearch(GuiMEStorage gui, int mouseX, int mouseY) {
-        MEGuiTextField searchField;
+        Object searchField;
         try {
             Field searchFieldField = GuiMEStorage.class.getDeclaredField("searchField");
             searchFieldField.setAccessible(true);
-            searchField = (MEGuiTextField) searchFieldField.get(gui);
+            searchField = searchFieldField.get(gui);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.debug("[AE2E] Failed to get searchField via reflection", e);
             return false;
         }
         if (searchField == null) return false;
-        if (searchField.isFocused()) return false; // 搜索栏已聚焦时不触发,避免打断输入
+        try {
+            Method isFocusedMethod = searchField.getClass().getMethod("isFocused");
+            if ((boolean) isFocusedMethod.invoke(searchField)) return false; // 搜索栏已聚焦时不触发
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to check searchField focus", e);
+            return false;
+        }
 
         // 获取 JEI 悬停物品：先查物品列表,再查收藏栏
         if (jeiRuntime == null) {
@@ -113,7 +118,8 @@ public class JEISearchKeyHandler {
 
         // 设置搜索栏文本并立即刷新 repo
         try {
-            searchField.setText(searchText);
+            Method setTextMethod = searchField.getClass().getMethod("setText", String.class);
+            setTextMethod.invoke(searchField, searchText);
 
             // 更新 repo 搜索字符串(立即生效,无需等待 drawScreen)
             Field repoField = GuiMEStorage.class.getDeclaredField("repo");
@@ -124,14 +130,22 @@ public class JEISearchKeyHandler {
             }
 
             // 更新 static memoryText(使关闭再打开 GUI 时保留搜索词)
-            Field memoryTextField = GuiMEStorage.class.getDeclaredField("memoryText");
-            memoryTextField.setAccessible(true);
-            memoryTextField.set(null, searchText);
+            try {
+                Field memoryTextField = GuiMEStorage.class.getDeclaredField("memoryText");
+                memoryTextField.setAccessible(true);
+                memoryTextField.set(null, searchText);
+            } catch (Exception ignored) {
+                // AE2S 中该字段可能不存在或已改名
+            }
 
             // 调整滚动条以匹配新的搜索结果数量
-            Method setScrollBarMethod = GuiMEStorage.class.getDeclaredMethod("setScrollBar");
-            setScrollBarMethod.setAccessible(true);
-            setScrollBarMethod.invoke(gui);
+            try {
+                Method setScrollBarMethod = GuiMEStorage.class.getDeclaredMethod("setScrollBar");
+                setScrollBarMethod.setAccessible(true);
+                setScrollBarMethod.invoke(gui);
+            } catch (Exception ignored) {
+                // AE2S 中该方法可能不存在或已改名
+            }
 
             AE2Enhanced.LOGGER.debug("[AE2E] JEI search key pressed: set terminal search to '{}'", searchText);
         } catch (Exception e) {

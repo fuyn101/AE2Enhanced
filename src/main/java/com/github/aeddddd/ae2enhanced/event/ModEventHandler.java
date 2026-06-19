@@ -123,8 +123,8 @@ public final class ModEventHandler {
                 && ItemAdvancedMEOmniTool.getMode(stack) == ItemAdvancedMEOmniTool.MODE_PLACEMENT;
         if (!isPlacementTool && !isOmniPlacement) return;
 
-        if (!org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LCONTROL)
-                && !org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RCONTROL)) {
+        if (!com.github.aeddddd.ae2enhanced.client.LwjglCompat.isKeyDown(com.github.aeddddd.ae2enhanced.client.LwjglCompat.KEY_LCONTROL)
+                && !com.github.aeddddd.ae2enhanced.client.LwjglCompat.isKeyDown(com.github.aeddddd.ae2enhanced.client.LwjglCompat.KEY_RCONTROL)) {
             return;
         }
 

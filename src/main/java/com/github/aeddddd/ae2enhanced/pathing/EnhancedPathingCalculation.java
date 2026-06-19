@@ -14,7 +14,6 @@ import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridConnection;
 import ae2.api.networking.IGridMultiblock;
 import ae2.api.networking.IGridNode;
-import ae2.api.util.AEPartLocation;
 import ae2.me.GridConnection;
 import ae2.me.GridNode;
 import ae2.me.pathfinding.IPathItem;
@@ -35,7 +34,7 @@ public class EnhancedPathingCalculation {
     private static final Object SUBTREE_END = new Object();
 
     private final IGrid grid;
-    private final Set<GridNode> multiblocksWithChannel = new HashSet<>();
+    private final Set<IGridNode> multiblocksWithChannel = new HashSet<>();
     @SuppressWarnings("unchecked")
     private final Queue<IPathItem>[] queues = new Queue[] {
             new ArrayDeque<>(), // 0: dense cable
@@ -52,7 +51,7 @@ public class EnhancedPathingCalculation {
     public EnhancedPathingCalculation(IGrid grid) {
         this.grid = grid;
 
-        for (IGridNode controllerNode : grid.getMachines(TileController.class)) {
+        for (IGridNode controllerNode : grid.getMachineNodes(TileController.class)) {
             if (controllerNode == null) {
                 continue;
             }
@@ -62,11 +61,11 @@ public class EnhancedPathingCalculation {
             for (IGridConnection gcc : controllerNode.getConnections()) {
                 GridConnection gc = (GridConnection) gcc;
                 IGridNode otherSide = gc.getOtherSide(controllerNode);
-                if (otherSide.getMachine() instanceof TileController) {
+                if (otherSide.getOwner() instanceof TileController) {
                     continue;
                 }
                 this.enqueue(gc, 0);
-                gc.setControllerRoute((GridNode) controllerNode, true);
+                gc.setControllerRoute(controllerPathItem);
             }
         }
     }
@@ -78,10 +77,9 @@ public class EnhancedPathingCalculation {
         if (pathItem instanceof GridConnection) {
             possibleIndex = 0;
         } else {
-            EnumSet<GridFlags> flags = pathItem.getFlags();
-            if (flags.contains(GridFlags.DENSE_CAPACITY)) {
+            if (pathItem.hasFlag(GridFlags.DENSE_CAPACITY)) {
                 possibleIndex = 0;
-            } else if (flags.contains(GridFlags.PREFERRED)) {
+            } else if (pathItem.hasFlag(GridFlags.PREFERRED)) {
                 possibleIndex = 1;
             } else {
                 possibleIndex = 2;
@@ -111,21 +109,21 @@ public class EnhancedPathingCalculation {
                 }
 
                 // 设置 BFS 父节点。
-                pi.setControllerRoute(current, true);
+                pi.setControllerRoute(current);
 
-                EnumSet<GridFlags> flags = pi.getFlags();
-                if (flags.contains(GridFlags.REQUIRE_CHANNEL)) {
-                    if (!this.multiblocksWithChannel.contains(pi)) {
-                        boolean worked = this.tryUseChannel((GridNode) pi);
+                if (pi.hasFlag(GridFlags.REQUIRE_CHANNEL)) {
+                    IGridNode node = (IGridNode) pi;
+                    if (!this.multiblocksWithChannel.contains(node)) {
+                        boolean worked = this.tryUseChannel((GridNode) node);
 
-                        if (worked && flags.contains(GridFlags.MULTIBLOCK)) {
-                            IGridMultiblock multiblock = (IGridMultiblock) ((IGridNode) pi).getGridBlock();
+                        if (worked && pi.hasFlag(GridFlags.MULTIBLOCK)) {
+                            IGridMultiblock multiblock = node.getService(IGridMultiblock.class);
                             if (multiblock != null) {
                                 Iterator<IGridNode> it = multiblock.getMultiblockNodes();
                                 while (it.hasNext()) {
                                     IGridNode other = it.next();
                                     if (other != pi) {
-                                        this.multiblocksWithChannel.add((GridNode) other);
+                                        this.multiblocksWithChannel.add(other);
                                     }
                                 }
                             }
@@ -140,7 +138,7 @@ public class EnhancedPathingCalculation {
 
     private boolean tryUseChannel(GridNode start) {
         IEnhancedPathItem enhancedStart = (IEnhancedPathItem) start;
-        if (start.getFlags().contains(GridFlags.COMPRESSED_CHANNEL)
+        if (start.hasFlag(GridFlags.COMPRESSED_CHANNEL)
                 && !enhancedStart.ae2enhanced$getSubtreeAllowsCompressedChannels()) {
             return false;
         }
@@ -170,7 +168,7 @@ public class EnhancedPathingCalculation {
         ArrayDeque<Object> stack = new ArrayDeque<>();
         Set<IPathItem> controllerNodes = new HashSet<>();
 
-        for (IGridNode controllerNode : this.grid.getMachines(TileController.class)) {
+        for (IGridNode controllerNode : this.grid.getMachineNodes(TileController.class)) {
             if (controllerNode == null) {
                 continue;
             }
@@ -180,7 +178,7 @@ public class EnhancedPathingCalculation {
             for (IGridConnection gcc : controllerNode.getConnections()) {
                 GridConnection gc = (GridConnection) gcc;
                 IGridNode otherSide = gc.getOtherSide(controllerNode);
-                if (!(otherSide.getMachine() instanceof TileController)) {
+                if (!(otherSide.getOwner() instanceof TileController)) {
                     stack.addLast(gc);
                 }
             }
@@ -214,8 +212,8 @@ public class EnhancedPathingCalculation {
         }
 
         // 给 multiblock 中已获得过频道的其他节点也加 1。
-        for (GridNode multiblockNode : this.multiblocksWithChannel) {
-            ((IPathItem) multiblockNode).incrementChannelCount(1);
+        for (IGridNode multiblockNode : this.multiblocksWithChannel) {
+            ((GridNode) multiblockNode).incrementChannelCount(1);
         }
     }
 
