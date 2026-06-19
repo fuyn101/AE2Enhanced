@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.registry;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
-import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
@@ -33,8 +32,8 @@ public final class ModRecipes {
 
     private static void registerSingularityRecipes() {
         // 系统 A：微型奇点仪式
-        Item ae2Material = Item.REGISTRY.getObject(new ResourceLocation("appliedenergistics2", "material"));
-        Block ae2Controller = Block.REGISTRY.getObject(new ResourceLocation("appliedenergistics2", "controller"));
+        Item ae2Material = Item.REGISTRY.getObject(new ResourceLocation("ae2", "material"));
+        Block ae2Controller = Block.REGISTRY.getObject(new ResourceLocation("ae2", "controller"));
         if (ae2Material != null && ae2Controller != null) {
             List<ItemStack> ritualInputs = new ArrayList<>();
             ritualInputs.add(new ItemStack(ae2Material, 64, 47)); // AE2 奇点
@@ -66,19 +65,19 @@ public final class ModRecipes {
         BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                 "test_obsidian", bhInputs, new ItemStack(Blocks.OBSIDIAN, 1)));
 
-        Item ae2Material = Item.REGISTRY.getObject(new ResourceLocation("appliedenergistics2", "material"));
+        Item ae2Material = Item.REGISTRY.getObject(new ResourceLocation("ae2", "material"));
         if (ae2Material != null) {
             // 稳态时空流形：16 空间组件 + 64 奇点
             Map<String, Integer> manifoldInputs = new HashMap<>();
-            manifoldInputs.put("appliedenergistics2:material:34", 16);
-            manifoldInputs.put("appliedenergistics2:material:47", 64);
+            manifoldInputs.put("ae2:material:34", 16);
+            manifoldInputs.put("ae2:material:47", 64);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "stable_spacetime_manifold", manifoldInputs,
                     new ItemStack(ItemRegistry.STABLE_SPACETIME_MANIFOLD, 1)));
 
             // 微分形式稳定单元：128 奇点 + 16 下界之星
             Map<String, Integer> stabilizerInputs = new HashMap<>();
-            stabilizerInputs.put("appliedenergistics2:material:47", 128);
+            stabilizerInputs.put("ae2:material:47", 128);
             stabilizerInputs.put(BlackHoleRecipe.keyOf(new ItemStack(Items.NETHER_STAR)), 16);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "differential_form_stabilizer", stabilizerInputs,
@@ -96,7 +95,7 @@ public final class ModRecipes {
         // 智能空白样板：64 空白样板
         if (ae2Material != null) {
             Map<String, Integer> smartPatternInputs = new HashMap<>();
-            smartPatternInputs.put("appliedenergistics2:material:52", 64);
+            smartPatternInputs.put("ae2:material:52", 64);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "smart_blank_pattern", smartPatternInputs,
                     new ItemStack(ItemRegistry.SMART_BLANK_PATTERN, 1)));
