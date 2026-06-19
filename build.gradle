@@ -21,6 +21,7 @@ compileJava {
     options.encoding = 'UTF-8'
 }
 
+
 repositories {
     mavenCentral()
     maven { url = 'https://maven.cleanroommc.com' }
@@ -45,7 +46,7 @@ unimined.minecraft {
     }
 
     cleanroom {
-        loader '0.5.6-alpha'
+        loader '0.5.14-alpha'
         runs.auth.username = 'Developer'
         runs.all {
             systemProperty('crl.dev.mixin', 'mixins.ae2enhanced.late.json')
@@ -69,9 +70,8 @@ unimined.minecraft {
 }
 
 dependencies {
-    // AE2 Supergiant
-    modCompileOnly files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
-    modRuntimeOnly files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
+    // AE2 Supergiant (already MCP-mapped dev jar, add as normal implementation)
+    implementation files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
 
     // Optional AE2S addon channels
     modCompileOnly files('libs/mekeng-1.1.0.jar')
