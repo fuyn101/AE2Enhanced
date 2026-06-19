@@ -1,6 +1,6 @@
 package com.github.aeddddd.ae2enhanced.client.render;
 
-import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
+import com.github.aeddddd.ae2enhanced.central.TargetBinding;
 import com.github.aeddddd.ae2enhanced.item.ItemUniversalMemoryCard;
 import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import net.minecraft.client.Minecraft;
