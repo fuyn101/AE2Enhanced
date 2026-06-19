@@ -3,7 +3,7 @@ plugins {
     id 'xyz.wagyourtail.unimined' version '1.4.23-kappa'
 }
 
-version = '1.5.3-hotfix2'
+version = '1.5.4-ae2s'
 group = 'com.github.aeddddd'
 
 base {
