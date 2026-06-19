@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.integration.projecte;
 import ae2.api.config.Actionable;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
 import ae2.api.stacks.KeyCounter;
 import ae2.api.storage.IStorageMounts;
 import ae2.api.storage.IStorageProvider;
@@ -38,20 +39,21 @@ public class EMCInventoryHandler implements MEStorage, IStorageProvider {
     }
 
     @Override
-    public long insert(AEItemKey what, long amount, Actionable mode, IActionSource source) {
+    public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
         return amount; // 不接受注入
     }
 
     @Override
-    public long extract(AEItemKey what, long amount, Actionable mode, IActionSource source) {
-        if (!tile.isBound() || amount <= 0) return 0;
+    public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+        if (!(what instanceof AEItemKey) || !tile.isBound() || amount <= 0) return 0;
+        AEItemKey itemKey = (AEItemKey) what;
         UUID owner = tile.getOwnerUUID();
         if (owner == null) return 0;
 
         Object provider = ProjectEHelper.getKnowledgeProvider(owner);
         if (provider == null) return 0;
 
-        ItemStack representative = what.toStack();
+        ItemStack representative = itemKey.toStack();
         if (representative.isEmpty()) return 0;
         if (!ProjectEHelper.hasKnowledge(provider, representative)) return 0;
 

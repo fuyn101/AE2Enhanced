@@ -5,15 +5,16 @@ import ae2.api.config.Settings;
 import ae2.api.config.YesNo;
 import ae2.api.inventories.InternalInventory;
 import ae2.api.upgrades.IUpgradeInventory;
-import ae2.api.upgrades.Upgrades;
 import ae2.container.guisync.GuiSync;
 import ae2.container.implementations.UpgradeableContainer;
 import ae2.container.slot.FakeSlot;
-import ae2.container.slot.IOptionalSlotHost;
 import ae2.container.slot.OptionalFakeSlot;
 import ae2.container.slot.RestrictedInputSlot;
 import ae2.util.Platform;
+import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.tile.TileAdvancedMECollector;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 
 /**
@@ -21,7 +22,7 @@ import net.minecraft.entity.player.InventoryPlayer;
  *
  * <p>7×9 过滤槽(容量卡解锁后 5 行),5 个升级槽.</p>
  */
-public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvancedMECollector> implements IOptionalSlotHost {
+public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvancedMECollector> {
 
     private final TileAdvancedMECollector tile;
 
@@ -37,11 +38,6 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvan
     }
 
     @Override
-    protected int getHeight() {
-        return 251;
-    }
-
-    @Override
     protected void setupConfig() {
         InternalInventory config = this.getHost().getConfig();
         for (int y = 0; y < 7; y++) {
@@ -49,7 +45,7 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvan
                 if (y < 2) {
                     this.addSlotToContainer(new FakeSlot(config, y * 9 + x, 8 + x * 18, 29 + y * 18));
                 } else {
-                    this.addSlotToContainer(new OptionalFakeSlot(config, this, y * 9 + x, 8, 29, x, y, y - 2));
+                    this.addSlotToContainer(new OptionalFakeSlot(config, this, y * 9 + x, 8 + x * 18, 29 + y * 18, y - 2));
                 }
             }
         }
@@ -63,24 +59,29 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvan
     }
 
     @Override
-    protected boolean supportCapacity() {
-        return true;
-    }
-
-    @Override
-    public int availableUpgrades() {
-        return 5;
-    }
-
-    @Override
     public boolean isSlotEnabled(int idx) {
-        int capacityUpgrades = this.getHost().getInstalledUpgrades(Upgrades.CAPACITY);
+        int capacityUpgrades = getInstalledCapacityUpgrades();
         return idx < capacityUpgrades;
     }
 
+    private int getInstalledCapacityUpgrades() {
+        int count = 0;
+        IUpgradeInventory upgrades = this.getHost().getUpgrades();
+        if (ItemRegistry.UPGRADE_CARD != null) {
+            for (int i = 0; i < upgrades.size(); i++) {
+                net.minecraft.item.ItemStack stack = upgrades.getStackInSlot(i);
+                if (!stack.isEmpty()
+                        && stack.getItem() == ItemRegistry.UPGRADE_CARD
+                        && stack.getMetadata() == ItemUpgradeCard.META_CAPACITY) {
+                    count += stack.getCount();
+                }
+            }
+        }
+        return count;
+    }
+
     @Override
-    public void func_75142_b() {
-        this.verifyPermissions(ae2.api.config.SecurityPermissions.BUILD, false);
+    public void broadcastChanges() {
         if (Platform.isServer()) {
             this.setFuzzyMode((FuzzyMode) this.getHost().getConfigManager().getSetting(Settings.FUZZY_MODE));
             this.setCraftingMode((YesNo) this.getHost().getConfigManager().getSetting(Settings.CRAFT_ONLY));
@@ -88,6 +89,11 @@ public class ContainerAdvancedMECollector extends UpgradeableContainer<TileAdvan
             this.sideLength = this.tile.getActualSideLength();
         }
         this.standardDetectAndSendChanges();
+    }
+
+    @Override
+    public boolean canInteractWith(EntityPlayer player) {
+        return Platform.hasPermissions(new ae2.api.util.DimensionalBlockPos(this.tile), player);
     }
 
     public TileAdvancedMECollector getTile() {

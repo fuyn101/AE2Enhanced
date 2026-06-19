@@ -6,6 +6,7 @@ import ae2.api.networking.IManagedGridNode;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.networking.storage.IStorageService;
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
 import ae2.api.stacks.KeyCounter;
 import ae2.api.storage.IStorageMounts;
 import ae2.api.storage.IStorageProvider;
@@ -252,14 +253,16 @@ public class RecyclerNetworkHandler implements MEStorage, IStorageProvider {
     // ---- MEStorage ----
 
     @Override
-    public long insert(AEItemKey what, long amount, Actionable mode, IActionSource source) {
+    public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
         // 回收节点不接受外部注入
         return amount;
     }
 
     @Override
-    public long extract(AEItemKey what, long amount, Actionable mode, IActionSource source) {
-        List<TargetManager.TargetRef> refs = new ArrayList<>(index.getTargets(what));
+    public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+        if (!(what instanceof AEItemKey)) return 0;
+        AEItemKey itemKey = (AEItemKey) what;
+        List<TargetManager.TargetRef> refs = new ArrayList<>(index.getTargets(itemKey));
         if (refs.isEmpty()) return 0;
 
         long requested = amount;
@@ -269,7 +272,7 @@ public class RecyclerNetworkHandler implements MEStorage, IStorageProvider {
             TargetAdapter adapter = adapters.get(ref);
             if (adapter == null) continue;
             int requestAmount = (int) Math.min(requested, Integer.MAX_VALUE);
-            AEItemKey request = AEItemKey.of(what.toStack(requestAmount));
+            AEItemKey request = AEItemKey.of(itemKey.toStack(requestAmount));
             ItemStack got = adapter.extract(request, mode == Actionable.SIMULATE);
             if (got == null || got.isEmpty()) continue;
 

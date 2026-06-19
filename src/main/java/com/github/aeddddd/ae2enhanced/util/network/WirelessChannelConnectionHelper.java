@@ -1,15 +1,17 @@
 package com.github.aeddddd.ae2enhanced.util.network;
 
-import ae2.api.AEApi;
+import ae2.api.inventories.ISegmentedInventory;
+import ae2.api.networking.GridHelper;
 import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridConnection;
 import ae2.api.networking.IGridNode;
 import ae2.api.networking.pathing.IPathingService;
+import ae2.api.networking.security.IActionHost;
 import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
+import ae2.api.util.DimensionalBlockPos;
 import ae2.parts.automation.UpgradeablePart;
 import ae2.util.Platform;
-import ae2.util.inv.IAEAppEngInventory;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
@@ -32,8 +34,8 @@ public class WirelessChannelConnectionHelper {
 
     private static final Map<IGridNode, IGridConnection> AE2E_REMOTE_CONNECTIONS = new HashMap<>();
 
-    public static void destroyConnection(IAEAppEngInventory parent) {
-        IGridNode node = getNodeFromParent(parent);
+    public static void destroyConnection(IActionHost parent) {
+        IGridNode node = parent != null ? parent.getActionableNode() : null;
         if (node == null) return;
         IGridConnection old = AE2E_REMOTE_CONNECTIONS.remove(node);
         if (old != null) {
@@ -75,21 +77,21 @@ public class WirelessChannelConnectionHelper {
             IGridNode a = conn.a();
             IGridNode b = conn.b();
             if (a == null || b == null) return false;
-            IGrid gridA = a.getGrid();
-            IGrid gridB = b.getGrid();
+            IGrid gridA = a.grid();
+            IGrid gridB = b.grid();
             return gridA != null && gridB != null;
         } catch (Exception e) {
             return false;
         }
     }
 
-    public static void tryConnect(IAEAppEngInventory parent) {
+    public static void tryConnect(IActionHost parent) {
         if (!Platform.isServer()) return;
 
-        IGridNode node = getNodeFromParent(parent);
+        IGridNode node = parent != null ? parent.getActionableNode() : null;
         if (node == null) {
             AE2Enhanced.LOGGER.debug("[AE2E] tryConnect: node is null for {}",
-                    parent.getClass().getSimpleName());
+                    parent != null ? parent.getClass().getSimpleName() : "null");
             return;
         }
 
@@ -163,7 +165,7 @@ public class WirelessChannelConnectionHelper {
             if (transmitterNode == node) continue;
 
             try {
-                IGridConnection conn = AEApi.instance().grid().createGridConnection(node, transmitterNode);
+                IGridConnection conn = GridHelper.createConnection(node, transmitterNode);
                 AE2E_REMOTE_CONNECTIONS.put(node, conn);
                 AE2Enhanced.LOGGER.warn("[AE2E] Created wireless grid connection for {} -> transmitter at {}",
                         parent.getClass().getSimpleName(), pos);
@@ -171,9 +173,9 @@ public class WirelessChannelConnectionHelper {
                 // AE2 的 createGridConnection 在 addConnection 之前调用 repath(),
                 // 导致路径系统看不到这条新连接,从而无法分配频道.
                 // 手动再触发一次 repath() 以修正路径计算.
-                IGrid grid = node.getGrid();
+                IGrid grid = node.grid();
                 if (grid != null) {
-                    IPathingService pathing = grid.getCache(IPathingService.class);
+                    IPathingService pathing = grid.getService(IPathingService.class);
                     if (pathing != null) {
                         pathing.repath();
                         AE2Enhanced.LOGGER.warn("[AE2E] Triggered manual repath() for wireless connection");
@@ -186,62 +188,28 @@ public class WirelessChannelConnectionHelper {
         }
     }
 
-    private static IGridNode getNodeFromParent(IAEAppEngInventory parent) {
-        // 1. UpgradeablePart
-        if (parent instanceof UpgradeablePart) {
-            return ((UpgradeablePart) parent).getProxy().getNode();
-        }
-        // 2. IActionHost
-        if (parent instanceof ae2.api.networking.security.IActionHost) {
-            return ((ae2.api.networking.security.IActionHost) parent).getActionableNode();
-        }
-        // 3. IGridProxyable
-        if (parent instanceof ae2.me.helpers.IGridProxyable) {
-            ae2.me.helpers.AENetworkProxy proxy = ((ae2.me.helpers.IGridProxyable) parent).getProxy();
-            return proxy != null ? proxy.getNode() : null;
-        }
-        // 4. getProxy() method
-        try {
-            java.lang.reflect.Method m = parent.getClass().getMethod("getProxy");
-            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) m.invoke(parent);
-            return proxy != null ? proxy.getNode() : null;
-        } catch (Exception ignored) {
-        }
-        // 5. gridProxy field (InterfaceLogic etc.)
-        try {
-            java.lang.reflect.Field f = parent.getClass().getDeclaredField("gridProxy");
-            f.setAccessible(true);
-            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) f.get(parent);
-            return proxy != null ? proxy.getNode() : null;
-        } catch (Exception ignored) {
-        }
-        // 6. proxy field (TileAENetworkBase etc.)
-        try {
-            java.lang.reflect.Field f = parent.getClass().getDeclaredField("proxy");
-            f.setAccessible(true);
-            ae2.me.helpers.AENetworkProxy proxy = (ae2.me.helpers.AENetworkProxy) f.get(parent);
-            return proxy != null ? proxy.getNode() : null;
-        } catch (Exception ignored) {
-        }
-        return null;
-    }
-
-    private static IItemHandler getUpgradesFromParent(IAEAppEngInventory parent) {
+    private static IItemHandler getUpgradesFromParent(IActionHost parent) {
         // 1. ISegmentedInventory
-        if (parent instanceof ae2.api.implementations.tiles.ISegmentedInventory) {
-            return ((ae2.api.implementations.tiles.ISegmentedInventory) parent).getInventoryByName("upgrades");
+        if (parent instanceof ISegmentedInventory) {
+            return ((ISegmentedInventory) parent).getSubInventory(ISegmentedInventory.UPGRADES).toItemHandler();
         }
         // 2. getInventoryByName method
         try {
             java.lang.reflect.Method m = parent.getClass().getMethod("getInventoryByName", String.class);
-            IItemHandler inv = (IItemHandler) m.invoke(parent, "upgrades");
-            if (inv != null) return inv;
+            Object result = m.invoke(parent, "upgrades");
+            if (result instanceof ae2.api.inventories.InternalInventory) {
+                return ((ae2.api.inventories.InternalInventory) result).toItemHandler();
+            }
+            if (result instanceof IItemHandler) return (IItemHandler) result;
         } catch (Exception ignored) {
         }
         // 3. getUpgrades / getUpgradeInventory method
         try {
             java.lang.reflect.Method m = parent.getClass().getMethod("getUpgrades");
             Object result = m.invoke(parent);
+            if (result instanceof ae2.api.inventories.InternalInventory) {
+                return ((ae2.api.inventories.InternalInventory) result).toItemHandler();
+            }
             if (result instanceof IItemHandler) return (IItemHandler) result;
         } catch (Exception ignored) {
         }
@@ -254,15 +222,25 @@ public class WirelessChannelConnectionHelper {
         return null;
     }
 
-    private static TileEntity getTileFromParent(IAEAppEngInventory parent) {
+    private static TileEntity getTileFromParent(IActionHost parent) {
         if (parent instanceof TileEntity) {
             return (TileEntity) parent;
         }
         if (parent instanceof UpgradeablePart) {
-            return ((UpgradeablePart) parent).getTile();
+            return ((UpgradeablePart) parent).getTileEntity();
         }
         if (parent instanceof ae2.helpers.InterfaceLogic) {
-            return ((ae2.helpers.InterfaceLogic) parent).getTile();
+            try {
+                java.lang.reflect.Field f = ae2.helpers.InterfaceLogic.class.getDeclaredField("host");
+                f.setAccessible(true);
+                Object host = f.get(parent);
+                if (host instanceof TileEntity) return (TileEntity) host;
+                if (host instanceof ae2.helpers.InterfaceLogicHost) {
+                    return ((ae2.helpers.InterfaceLogicHost) host).getTileEntity();
+                }
+            } catch (Exception ignored) {
+            }
+            return null;
         }
         // try getTile() / getTileEntity()
         try {
@@ -315,7 +293,7 @@ public class WirelessChannelConnectionHelper {
             // 向后兼容：旧版卡片可能绑定到 IPartHost(线缆)上的 Part
             if (te instanceof IPartHost) {
                 IPartHost host = (IPartHost) te;
-                for (ae2.api.util.AEPartLocation side : ae2.api.util.AEPartLocation.SIDE_LOCATIONS) {
+                for (net.minecraft.util.EnumFacing side : net.minecraft.util.EnumFacing.VALUES) {
                     IPart part = host.getPart(side);
                     if (part != null) {
                         try {
@@ -330,7 +308,7 @@ public class WirelessChannelConnectionHelper {
 
         TileWirelessChannelTransmitter tile = (TileWirelessChannelTransmitter) te;
         try {
-            IGridNode node = tile.getGridNode(ae2.api.util.AEPartLocation.INTERNAL);
+            IGridNode node = tile.getGridNode((net.minecraft.util.EnumFacing) null);
             if (node == null) {
                 AE2Enhanced.LOGGER.debug("[AE2E] findTransmitterNode: tile.getGridNode() returned null at {}", pos);
             }

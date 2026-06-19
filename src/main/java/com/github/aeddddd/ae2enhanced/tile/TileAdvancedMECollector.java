@@ -8,9 +8,7 @@ import ae2.api.config.YesNo;
 import ae2.api.upgrades.Upgrades;
 import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGrid;
-import ae2.api.networking.IGridNode;
 import ae2.api.networking.IManagedGridNode;
-import ae2.api.networking.security.IActionHost;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.networking.storage.IStorageService;
 import ae2.api.stacks.AEItemKey;
@@ -18,8 +16,6 @@ import ae2.api.upgrades.IUpgradeInventory;
 import ae2.api.upgrades.IUpgradeableObject;
 import ae2.api.upgrades.UpgradeInventories;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
-import ae2.api.util.DimensionalBlockPos;
 import ae2.api.util.IConfigManagerListener;
 import ae2.api.util.IConfigurableObject;
 import ae2.util.ConfigManager;
@@ -29,7 +25,9 @@ import ae2.util.inv.InternalInventoryHost;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.collector.CollectorRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
+import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -56,7 +54,7 @@ import java.util.List;
  * 物品暂存到内部缓冲区,每 tick 继续注入.只有在缓冲区也放不下时才生成实体.</p>
  */
 public class TileAdvancedMECollector extends TileAENetworkBase
-        implements ITickable, InternalInventoryHost, IUpgradeableObject, IActionHost,
+        implements ITickable, InternalInventoryHost, IUpgradeableObject,
         IConfigurableObject, IConfigManagerListener {
 
     public static final int CONFIG_SIZE = 63;
@@ -103,7 +101,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return super.createMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setIdlePowerUsage(AE2EnhancedConfig.collector.idlePower)
-                .setVisualRepresentation(AEItemKey.of(BlockRegistry.ADVANCED_ME_COLLECTOR));
+                .setVisualRepresentation(AEItemKey.of(new ItemStack(BlockRegistry.ADVANCED_ME_COLLECTOR)));
     }
 
     // ---- TileAENetworkBase ----
@@ -116,13 +114,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
         return AECableType.SMART;
-    }
-
-    @Override
-    public DimensionalBlockPos getLocation() {
-        return new DimensionalBlockPos(this);
     }
 
     // ---- 生命周期 ----
@@ -142,8 +135,8 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
         CollectorRegistry.unregister(this);
     }
 
@@ -283,8 +276,7 @@ public class TileAdvancedMECollector extends TileAENetworkBase
         return this.upgrades;
     }
 
-    @Override
-    public IItemHandler getInventoryByName(String name) {
+    public ae2.api.inventories.InternalInventory getInventoryByName(String name) {
         if ("config".equals(name)) {
             return this.config;
         }
@@ -292,15 +284,6 @@ public class TileAdvancedMECollector extends TileAENetworkBase
             return getUpgrades();
         }
         return null;
-    }
-
-    @Override
-    public net.minecraft.tileentity.TileEntity getTile() {
-        return this;
-    }
-
-    public net.minecraft.tileentity.TileEntity getTileEntity() {
-        return this;
     }
 
     @Override
@@ -317,11 +300,6 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     @Override
     public void onSettingChanged(ae2.api.util.IConfigManager manager, ae2.api.config.Setting<?> setting) {
         this.markDirty();
-    }
-
-    @Override
-    public IGridNode getActionableNode() {
-        return getMainNode().getNode();
     }
 
     @Override
@@ -491,8 +469,23 @@ public class TileAdvancedMECollector extends TileAENetworkBase
     }
 
     public int getAvailableFilterSlots() {
-        int capacityUpgrades = getInstalledUpgrades(Upgrades.CAPACITY);
+        int capacityUpgrades = getInstalledCapacityUpgrades();
         return Math.min(18 + capacityUpgrades * 9, CONFIG_SIZE);
+    }
+
+    private int getInstalledCapacityUpgrades() {
+        int count = 0;
+        if (ItemRegistry.UPGRADE_CARD != null) {
+            for (int i = 0; i < getUpgrades().size(); i++) {
+                ItemStack stack = getUpgrades().getStackInSlot(i);
+                if (!stack.isEmpty()
+                        && stack.getItem() == ItemRegistry.UPGRADE_CARD
+                        && stack.getMetadata() == ItemUpgradeCard.META_CAPACITY) {
+                    count += stack.getCount();
+                }
+            }
+        }
+        return count;
     }
 
     // ---- 统计 ----

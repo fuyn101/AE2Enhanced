@@ -102,6 +102,7 @@ dependencies {
     modCompileOnly files('libs/nuclearcraft-1.12.2-2o.9.7.jar')
     modCompileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
     modCompileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
+    modCompileOnly files('libs/ProjectE-1.12.2-PE1.4.1.jar')
 
     // Fastutil for runtime shading
     implementation 'it.unimi.dsi:fastutil:8.5.12'

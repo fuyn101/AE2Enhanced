@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
 import ae2.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import net.minecraft.item.ItemStack;
@@ -32,8 +33,12 @@ public class BulkCollector {
     public List<Object2LongMap.Entry<AEItemKey>> drain() {
         if (buffer.isEmpty()) return Collections.emptyList();
         List<Object2LongMap.Entry<AEItemKey>> result = new java.util.ArrayList<>();
-        for (Object2LongMap.Entry<AEItemKey> entry : buffer) {
-            result.add(entry);
+        for (Object2LongMap.Entry<AEKey> entry : buffer) {
+            if (entry.getKey() instanceof AEItemKey) {
+                @SuppressWarnings("unchecked")
+                Object2LongMap.Entry<AEItemKey> cast = (Object2LongMap.Entry<AEItemKey>) (Object) entry;
+                result.add(cast);
+            }
         }
         buffer.reset();
         return result;
@@ -49,7 +54,7 @@ public class BulkCollector {
 
     public long getTotalCount() {
         long total = 0;
-        for (Object2LongMap.Entry<AEItemKey> entry : buffer) {
+        for (Object2LongMap.Entry<AEKey> entry : buffer) {
             total += entry.getLongValue();
         }
         return total;

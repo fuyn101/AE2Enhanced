@@ -2,24 +2,17 @@ package com.github.aeddddd.ae2enhanced.client.gui;
 
 import ae2.client.gui.implementations.GuiUpgradeable;
 import ae2.client.gui.style.GuiStyleManager;
-import ae2.container.slot.FakeSlot;
 import ae2.core.localization.GuiText;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.client.gui.jei.GhostIngredientTarget;
 import com.github.aeddddd.ae2enhanced.container.ContainerAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketCollectorConfig;
-import mezz.jei.api.gui.IGhostIngredientHandler;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * 先进 ME 收集器的 GUI.
@@ -33,14 +26,15 @@ public class GuiAdvancedMECollector extends GuiUpgradeable<ContainerAdvancedMECo
     private GuiButton decreaseRangeButton;
 
     public GuiAdvancedMECollector(InventoryPlayer inventoryPlayer, ContainerAdvancedMECollector container) {
-        super(container, inventoryPlayer, null, GuiStyleManager.loadStyleDoc("/screens/storage_bus.json"));
+        super(container, inventoryPlayer, new TextComponentTranslation("gui.ae2enhanced.advanced_me_collector.name"),
+                GuiStyleManager.loadStyleDoc("/screens/storage_bus.json"));
         this.container = container;
         this.ySize = 251;
     }
 
     @Override
-    protected void addButtons() {
-        super.addButtons();
+    public void initGui() {
+        super.initGui();
         this.increaseRangeButton = new GuiButton(100, this.guiLeft + 150, this.guiTop + 6, 20, 12, "+");
         this.decreaseRangeButton = new GuiButton(101, this.guiLeft + 128, this.guiTop + 6, 20, 12, "-");
         this.buttonList.add(this.increaseRangeButton);
@@ -49,7 +43,7 @@ public class GuiAdvancedMECollector extends GuiUpgradeable<ContainerAdvancedMECo
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.fontRenderer.drawString(this.getGuiDisplayName(I18n.format("gui.ae2enhanced.advanced_me_collector.name")), 8, 6, 0x404040);
+        this.fontRenderer.drawString(this.getGuiDisplayName(new TextComponentTranslation("gui.ae2enhanced.advanced_me_collector.name")).getUnformattedText(), 8, 6, 0x404040);
         this.fontRenderer.drawString(GuiText.Inventory.getLocal(), 8, this.ySize - 96 + 3, 0x404040);
 
         // 范围显示
@@ -58,9 +52,8 @@ public class GuiAdvancedMECollector extends GuiUpgradeable<ContainerAdvancedMECo
         this.fontRenderer.drawString(rangeText, 120 - rangeTextWidth, 19, 0x404040);
     }
 
-    @Override
-    protected String getBackground() {
-        return "guis/storagebus.png";
+    protected ResourceLocation getBackground() {
+        return new ResourceLocation("ae2", "textures/guis/storagebus.png");
     }
 
     @Override
@@ -74,36 +67,8 @@ public class GuiAdvancedMECollector extends GuiUpgradeable<ContainerAdvancedMECo
     }
 
     @Override
-    public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
+    public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY, float partialTicks) {
         this.bindTexture(this.getBackground());
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, 177, this.ySize);
-    }
-
-    @Override
-    public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
-        this.mapTargetSlot.clear();
-
-        boolean isItem = ingredient instanceof ItemStack;
-        boolean isFluid = ingredient instanceof FluidStack;
-        boolean isGas = false;
-        if (!isItem && !isFluid) {
-            try {
-                isGas = ingredient.getClass().getName().equals("mekanism.api.gas.GasStack");
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (!isItem && !isFluid && !isGas) {
-            return Collections.emptyList();
-        }
-
-        ArrayList<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
-        for (Slot slot : this.inventorySlots.inventorySlots) {
-            if (!(slot instanceof FakeSlot) || !((FakeSlot) slot).isSlotEnabled()) continue;
-            GhostIngredientTarget target = new GhostIngredientTarget(this.getGuiLeft(), this.getGuiTop(), slot);
-            targets.add(target);
-            this.mapTargetSlot.putIfAbsent(target, slot);
-        }
-        return targets;
     }
 }

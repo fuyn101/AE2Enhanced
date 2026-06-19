@@ -5,8 +5,6 @@ import ae2.api.networking.IGridNode;
 import ae2.api.networking.IManagedGridNode;
 import ae2.api.stacks.AEItemKey;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
-import ae2.api.networking.GridHelper;
 import ae2.util.Platform;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
@@ -65,7 +63,7 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
 
     @Override
     protected IManagedGridNode createMainNode() {
-        return GridHelper.createManagedNode(this, listener())
+        return super.createMainNode()
                 .setFlags(GridFlags.DENSE_CAPACITY, GridFlags.REQUIRE_CHANNEL)
                 .setIdlePowerUsage(AE2EnhancedConfig.wirelessChannel.transmitterPower)
                 .setExposedOnSides(getExposedSides())
@@ -99,7 +97,6 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
         }
     }
 
-    @Override
     public void securityBreak() {
         if (world != null && !world.isRemote) {
             dropInventory(world, pos);
@@ -108,21 +105,21 @@ public class TileWirelessChannelTransmitter extends TileAENetworkBase implements
     }
 
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
-        if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
+        if (this.forward != null && dir == this.forward.getOpposite()) {
             return AECableType.DENSE_SMART;
         }
         return AECableType.NONE;
     }
 
     @Override
-    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
-        // INTERNAL 用于远程查询(如频道接收卡查找发射器节点)
-        if (dir == AEPartLocation.INTERNAL) {
+    public IGridNode getGridNode(@Nonnull EnumFacing dir) {
+        // null/INTERNAL 用于远程查询(如频道接收卡查找发射器节点)
+        if (dir == null) {
             return getMainNode().getNode();
         }
         // 仅背面暴露节点(用于线缆连接)
-        if (this.forward != null && dir.getFacing() == this.forward.getOpposite()) {
+        if (this.forward != null && dir == this.forward.getOpposite()) {
             return getMainNode().getNode();
         }
         return null;

@@ -1,13 +1,9 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import ae2.api.networking.GridFlags;
-import ae2.api.networking.IGridNode;
 import ae2.api.networking.IManagedGridNode;
-import ae2.api.networking.security.IActionHost;
 import ae2.api.storage.IStorageProvider;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
-import ae2.api.util.DimensionalBlockPos;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
@@ -17,6 +13,7 @@ import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager.TargetRef;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
@@ -34,7 +31,7 @@ import javax.annotation.Nullable;
  * <p>接入 AE2 网络,管理远程/跨维度回收目标,通过 RecyclerNetworkHandler
  * 向网络暴露存储视图,实际产物直接写入网络存储.</p>
  */
-public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable, IActionHost {
+public class TileMENetworkRecycler extends TileAENetworkBase implements ITickable {
 
     private final TargetManager targetManager = new TargetManager();
     private final RecyclerNetworkHandler networkHandler = new RecyclerNetworkHandler(this);
@@ -58,7 +55,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         return super.createMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setIdlePowerUsage(AE2EnhancedConfig.recycler.idlePower)
-                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(BlockRegistry.ME_NETWORK_RECYCLER))
+                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(new ItemStack(BlockRegistry.ME_NETWORK_RECYCLER)))
                 .addService(IStorageProvider.class, networkHandler);
     }
 
@@ -72,20 +69,8 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
         return AECableType.SMART;
-    }
-
-    @Override
-    public DimensionalBlockPos getLocation() {
-        return new DimensionalBlockPos(this);
-    }
-
-    // ---- IActionHost ----
-
-    @Override
-    public IGridNode getActionableNode() {
-        return getMainNode().getNode();
     }
 
     // ---- 生命周期 ----
@@ -109,8 +94,8 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
         if (networkHandler != null) {
             networkHandler.onInvalidate();
         }

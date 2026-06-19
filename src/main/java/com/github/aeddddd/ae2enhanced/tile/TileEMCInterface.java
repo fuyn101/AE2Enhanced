@@ -4,13 +4,11 @@ import ae2.api.networking.GridFlags;
 import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridNode;
 import ae2.api.networking.IManagedGridNode;
-import ae2.api.networking.security.IActionHost;
 import ae2.api.stacks.AEItemKey;
 import ae2.api.storage.IStorageProvider;
 import ae2.api.util.AECableType;
-import ae2.api.util.AEPartLocation;
-import ae2.api.util.DimensionalBlockPos;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import net.minecraft.util.EnumFacing;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.integration.projecte.EMCInventoryHandler;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEHelper;
@@ -39,7 +37,7 @@ import java.util.UUID;
  *
  * <p>将绑定玩家的 ProjectE EMC 余额作为 AE 网络物品源.单向输出,不接收物品.</p>
  */
-public class TileEMCInterface extends TileAENetworkBase implements ITickable, InternalInventoryHost, IActionHost {
+public class TileEMCInterface extends TileAENetworkBase implements ITickable, InternalInventoryHost {
 
     public static final int WHITELIST_PAGES = 20;
     public static final int WHITELIST_SLOTS_PER_PAGE = 102; // 17×6，与 3.png 顶部网格一致
@@ -79,27 +77,16 @@ public class TileEMCInterface extends TileAENetworkBase implements ITickable, In
         return super.createMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setIdlePowerUsage(AE2EnhancedConfig.emcInterface.idlePower)
-                .setVisualRepresentation(AEItemKey.of(BlockRegistry.EMC_INTERFACE))
+                .setVisualRepresentation(ae2.api.stacks.AEItemKey.of(new ItemStack(BlockRegistry.EMC_INTERFACE)))
                 .addService(IStorageProvider.class, handler);
     }
 
     @Nonnull
     @Override
-    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+    public AECableType getCableConnectionType(@Nonnull EnumFacing dir) {
         return AECableType.SMART;
     }
 
-    @Override
-    public DimensionalBlockPos getLocation() {
-        return new DimensionalBlockPos(this);
-    }
-
-    @Override
-    public IGridNode getActionableNode() {
-        return getMainNode().getNode();
-    }
-
-    @Override
     public void securityBreak() {
         // 安全破坏时不掉落,仅解绑
         ownerUUID = null;
@@ -207,8 +194,8 @@ public class TileEMCInterface extends TileAENetworkBase implements ITickable, In
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
         unregisterProjectEEvents();
     }
 
@@ -333,6 +320,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ITickable, In
         if (grid == null) return;
         Set<TileEMCInterface> duplicates = new HashSet<>();
         for (IGridNode node : grid.getNodes()) {
+            if (node == null) continue;
             Object host = node.getOwner();
             if (host instanceof TileEMCInterface && host != this) {
                 TileEMCInterface other = (TileEMCInterface) host;
