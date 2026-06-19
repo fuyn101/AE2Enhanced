@@ -54,15 +54,7 @@ unimined.minecraft {
         }
     }
 
-    defaultRemapJar = false
-
-    remap(tasks.jar) {
-        mixinRemap {
-            enableBaseMixin()
-            enableMixinExtra()
-            disableRefmap()
-        }
-    }
+    defaultRemapJar = true
 
     mods {
         remap(configurations.modCompileOnly)
@@ -73,6 +65,7 @@ unimined.minecraft {
 dependencies {
     // AE2 Supergiant (already MCP-mapped dev jar, add as normal implementation)
     implementation files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
+    modRuntimeOnly files('libs/AppliedEnergistics2-Supergiant-1.0.4.jar')
 
     // Optional AE2S addon channels
     modCompileOnly files('libs/mekeng-1.1.0.jar')
