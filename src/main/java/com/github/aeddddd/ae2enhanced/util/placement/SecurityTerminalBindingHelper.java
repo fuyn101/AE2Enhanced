@@ -1,28 +1,25 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import ae2.api.AEApi;
-import ae2.api.features.ILocatable;
+import ae2.api.features.Locatables;
 import ae2.api.networking.IGrid;
 import ae2.api.networking.IGridNode;
 import ae2.api.networking.security.IActionHost;
 import ae2.api.networking.security.IActionSource;
 import ae2.api.networking.storage.IStorageService;
 import ae2.api.storage.MEStorage;
-import ae2.api.storage.AEKeyType;
-import ae2.api.storage.channels.IItemStorageChannel;
-import ae2.api.stacks.AEItemKey;
 import ae2.core.localization.PlayerMessages;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
-import java.util.Optional;
 
 /**
  * 安全终端绑定辅助类。
  * 为独立放置工具和先进 ME 工具提供统一的 AE2 安全终端绑定、网络获取逻辑。
+ *
+ * AE2S 中不存在独立的安全终端方块，因此保留加密钥 NBT 存储，并通过 Locatables
+ * 存根化地解析绑定的 IActionHost。实际绑定需要外部机制写入 encryptionKey。
  */
 public final class SecurityTerminalBindingHelper {
 
@@ -65,7 +62,7 @@ public final class SecurityTerminalBindingHelper {
         String key = getEncryptionKey(stack);
         if (key.isEmpty()) {
             if (player != null) {
-                player.sendMessage(PlayerMessages.DeviceNotLinked.get());
+                player.sendMessage(PlayerMessages.DeviceNotLinked.text());
             }
             return null;
         }
@@ -75,23 +72,23 @@ public final class SecurityTerminalBindingHelper {
             encKey = Long.parseLong(key);
         } catch (NumberFormatException e) {
             if (player != null) {
-                player.sendMessage(PlayerMessages.DeviceNotLinked.get());
+                player.sendMessage(PlayerMessages.DeviceNotLinked.text());
             }
             return null;
         }
 
         if (!world.isRemote) {
-            ILocatable locatable = AEApi.instance().registries().locatable().getLocatableBy(encKey);
-            if (locatable instanceof IActionHost) {
-                IGridNode node = ((IActionHost) locatable).getActionableNode();
-                if (node != null && node.getGrid() != null) {
-                    return node.getGrid();
+            IActionHost host = Locatables.quantumNetworkBridges().get(world, encKey);
+            if (host != null) {
+                IGridNode node = host.getActionableNode();
+                if (node != null && node.grid() != null) {
+                    return node.grid();
                 }
             }
         }
 
         if (player != null) {
-            player.sendMessage(PlayerMessages.StationCanNotBeLocated.get());
+            player.sendMessage(PlayerMessages.LinkedNetworkNotFound.text());
         }
         return null;
     }
@@ -100,38 +97,22 @@ public final class SecurityTerminalBindingHelper {
      * 获取网络的物品存储监控器。
      */
     @Nullable
-    public static MEStorage<AEItemKey> getItemMonitor(IGrid grid) {
+    public static MEStorage getItemMonitor(IGrid grid) {
         if (grid == null) return null;
-        IStorageService storageGrid = grid.getCache(IStorageService.class);
-        if (storageGrid == null) return null;
-        AEKeyType<AEItemKey> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        return storageGrid.getInventory(channel);
+        IStorageService storageService = grid.getStorageService();
+        if (storageService == null) return null;
+        return storageService.getInventory();
     }
 
     /**
      * 创建以玩家为来源的 IActionSource。
      */
     public static IActionSource createPlayerSource(final EntityPlayer player) {
-        return new IActionSource() {
-            @Override
-            public Optional<EntityPlayer> player() {
-                return Optional.of(player);
-            }
-
-            @Override
-            public Optional<IActionHost> machine() {
-                return Optional.empty();
-            }
-
-            @Override
-            public <T> Optional<T> context(Class<T> key) {
-                return Optional.empty();
-            }
-        };
+        return IActionSource.ofPlayer(player);
     }
 
     /**
-     * 尝试让物品实现 INetworkEncodable 时委托使用的工具方法。
+     * 尝试让物品实现旧版 INetworkEncodable 时委托使用的工具方法（AE2S 中该接口已移除）。
      */
     public static String getEncryptionKeyForEncodable(ItemStack item) {
         return getEncryptionKey(item);

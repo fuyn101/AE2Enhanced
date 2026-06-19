@@ -1,10 +1,10 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import ae2.api.AEApi;
 import ae2.api.config.Actionable;
 import ae2.api.networking.IGrid;
-import ae2.api.storage.MEStorage;
+import ae2.api.parts.PartHelper;
 import ae2.api.stacks.AEItemKey;
+import ae2.api.storage.MEStorage;
 import ae2.api.util.AEColor;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -54,7 +54,7 @@ public final class CablePlacementHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return result;
 
-        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return result;
@@ -79,11 +79,9 @@ public final class CablePlacementHelper {
         }
 
         // 模拟提取全部
-        AEItemKey toExtract = request.copy();
-        toExtract.setStackSize(path.size());
-        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
+        long simulated = monitor.extract(request, path.size(), Actionable.SIMULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
-        if (simulated == null || simulated.getStackSize() < path.size()) {
+        if (simulated < path.size()) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                     placeStack.getDisplayName()));
             return result;
@@ -112,11 +110,9 @@ public final class CablePlacementHelper {
         }
 
         // 实际提取已放置数量
-        AEItemKey finalExtract = request.copy();
-        finalExtract.setStackSize(placed.size());
-        AEItemKey extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
+        long extracted = monitor.extract(request, placed.size(), Actionable.MODULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
-        if (extracted == null || extracted.getStackSize() < placed.size()) {
+        if (extracted < placed.size()) {
             // 回滚
             for (BlockPos pos : placed) {
                 world.setBlockToAir(pos);
@@ -169,11 +165,12 @@ public final class CablePlacementHelper {
 
     private static boolean tryPlaceCable(EntityPlayer player, World world, BlockPos pos,
                                           ItemStack cableStack, EnumHand hand) {
-        // 线缆放在方块中心（ INTERNAL 位置）
+        // 线缆放在方块中心（INTERNAL 位置），通过 usePartItem 交给 PartItem 处理
         ItemStack originalMain = player.getHeldItemMainhand();
         try {
             player.setHeldItem(EnumHand.MAIN_HAND, cableStack);
-            EnumActionResult result = AEApi.instance().partHelper().placeBus(cableStack, pos, EnumFacing.DOWN, player, hand, world);
+            EnumActionResult result = PartHelper.usePartItem(cableStack, player, world, pos,
+                    hand, EnumFacing.DOWN, 0.5f, 0.5f, 0.5f);
             return result == EnumActionResult.SUCCESS;
         } finally {
             player.setHeldItem(EnumHand.MAIN_HAND, originalMain);

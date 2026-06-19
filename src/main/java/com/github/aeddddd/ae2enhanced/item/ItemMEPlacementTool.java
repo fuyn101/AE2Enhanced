@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import ae2.api.features.INetworkEncodable;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementConfig;
 import com.github.aeddddd.ae2enhanced.util.placement.PlacementMode;
@@ -28,32 +27,20 @@ import java.util.List;
 
 /**
  * ME 放置工具 —— 从 ME 网络直接放置方块、AE2 Part、Facade、线缆。
- * 通过 AE2 安全终端绑定。
+ * 通过加密钥与 ME 网络绑定（AE2S 中安全终端已移除，绑定机制存根化保留）。
  *
  * 重做后特性：
  * - 无配置 GUI，使用 G 键径向菜单 + 鼠标中键选取。
  * - 自动检测线缆并进入线缆放置模式。
  * - 右键方块放置，右键空气无动作。
  */
-public class ItemMEPlacementTool extends Item implements INetworkEncodable {
+public class ItemMEPlacementTool extends Item {
 
     public ItemMEPlacementTool() {
         setMaxStackSize(1);
         setCreativeTab(AE2Enhanced.CREATIVE_TAB);
         setTranslationKey("ae2enhanced.me_placement_tool");
         setRegistryName("me_placement_tool");
-    }
-
-    // ==================== INetworkEncodable ====================
-
-    @Override
-    public String getEncryptionKey(ItemStack item) {
-        return SecurityTerminalBindingHelper.getEncryptionKey(item);
-    }
-
-    @Override
-    public void setEncryptionKey(ItemStack item, String encKey, String name) {
-        SecurityTerminalBindingHelper.setEncryptionKey(item, encKey);
     }
 
     // ==================== Item Use ====================

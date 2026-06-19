@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolMode;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolSilkTouch;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolDropMode;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.settings.KeyConflictContext;
@@ -12,21 +13,26 @@ import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 
 /**
  * 先进ME工具客户端按键处理.
  * N: 循环切换模式
  * Shift+N: 切换精准采集
+ *
+ * 按键值使用 LWJGL 键码（与 GLFW 字母键码一致），避免直接依赖 org.lwjgl.input。
  */
 public class KeyHandlerOmniTool {
+
+    // LWJGL/GLFW 键码：N=78, C=67, G=71
+    private static final int KEY_CODE_N = 78;
+    private static final int KEY_CODE_C = 67;
+    private static final int KEY_CODE_G = 71;
 
     public static final KeyBinding KEY_MODE = new KeyBinding(
         "key.ae2enhanced.omnitool_mode",
         KeyConflictContext.IN_GAME,
         KeyModifier.NONE,
-        Keyboard.KEY_N,
+        KEY_CODE_N,
         "key.categories.ae2enhanced"
     );
 
@@ -34,7 +40,7 @@ public class KeyHandlerOmniTool {
         "key.ae2enhanced.omnitool_silk",
         KeyConflictContext.IN_GAME,
         KeyModifier.SHIFT,
-        Keyboard.KEY_N,
+        KEY_CODE_N,
         "key.categories.ae2enhanced"
     );
 
@@ -42,7 +48,7 @@ public class KeyHandlerOmniTool {
         "key.ae2enhanced.omnitool_drop_mode",
         KeyConflictContext.IN_GAME,
         KeyModifier.CONTROL,
-        Keyboard.KEY_N,
+        KEY_CODE_N,
         "key.categories.ae2enhanced"
     );
 
@@ -50,7 +56,7 @@ public class KeyHandlerOmniTool {
         "key.ae2enhanced.omnitool_config",
         KeyConflictContext.IN_GAME,
         KeyModifier.NONE,
-        Keyboard.KEY_C,
+        KEY_CODE_C,
         "key.categories.ae2enhanced"
     );
 
@@ -58,7 +64,7 @@ public class KeyHandlerOmniTool {
         "key.ae2enhanced.placement_radial",
         KeyConflictContext.IN_GAME,
         KeyModifier.NONE,
-        Keyboard.KEY_G,
+        KEY_CODE_G,
         "key.categories.ae2enhanced"
     );
 
@@ -91,7 +97,7 @@ public class KeyHandlerOmniTool {
         }
 
         // Shift + 滚轮切换单格/批量（仅 Omni Tool 放置模式）
-        if (isOmniPlacement && org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LSHIFT)
+        if (isOmniPlacement && GuiScreen.isShiftKeyDown()
                 && event.getDwheel() != 0) {
             event.setCanceled(true);
             AE2Enhanced.network.sendToServer(new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolPlacementSubMode(event.getDwheel() > 0));

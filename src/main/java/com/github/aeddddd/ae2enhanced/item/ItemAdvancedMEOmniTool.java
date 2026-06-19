@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.item;
 
-import ae2.api.features.INetworkEncodable;
 import ae2.api.networking.IGrid;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.omnitool.ConformalChargeHandler;
@@ -44,7 +43,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
+public class ItemAdvancedMEOmniTool extends Item {
 
     // ---- Drop Modes ----
     public static final int DROP_NORMAL = 0;
@@ -189,15 +188,13 @@ public class ItemAdvancedMEOmniTool extends Item implements INetworkEncodable {
 
     // ==================== AE Binding ====================
 
-    // INetworkEncodable —— 用于放置模式的安全终端绑定（不影响原有的无线频道发射器绑定）
-    @Override
+    // 放置模式的安全终端绑定（AE2S 中 INetworkEncodable 已移除）
     public String getEncryptionKey(ItemStack item) {
         return SecurityTerminalNetworkLink.INSTANCE.isLinked(item)
                 ? SecurityTerminalBindingHelper.getEncryptionKey(item)
                 : "";
     }
 
-    @Override
     public void setEncryptionKey(ItemStack item, String encKey, String name) {
         SecurityTerminalNetworkLink.INSTANCE.clear(item);
         if (encKey != null && !encKey.isEmpty()) {

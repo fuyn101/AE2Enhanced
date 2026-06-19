@@ -1,18 +1,22 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import ae2.api.AEApi;
 import ae2.api.parts.IPart;
 import ae2.api.parts.IPartHost;
-import ae2.api.parts.PartItemStack;
-import ae2.api.storage.MEStorage;
+import ae2.api.parts.IPartItem;
 import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.KeyCounter;
+import ae2.api.storage.MEStorage;
 import ae2.api.util.AEColor;
 import ae2.api.util.AEPartLocation;
-import ae2.items.parts.ItemPart;
-import ae2.items.parts.PartType;
+import ae2.core.definitions.AEParts;
+import ae2.core.definitions.ColoredItemDefinition;
+import ae2.items.parts.ColoredPartItem;
+import ae2.items.parts.PartItem;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -102,9 +106,9 @@ public final class PlacementTargetResolver {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof IPartHost) {
             IPartHost host = (IPartHost) te;
-            IPart center = host.getPart(AEPartLocation.INTERNAL);
+            IPart center = host.getPart(AEPartLocation.INTERNAL.getFacing());
             if (center != null) {
-                ItemStack pick = center.getItemStack(PartItemStack.PICK);
+                ItemStack pick = center.getPartItem().asItemStack();
                 if (!pick.isEmpty()) {
                     return pick;
                 }
@@ -122,34 +126,38 @@ public final class PlacementTargetResolver {
     public static boolean isPlaceable(ItemStack stack) {
         if (stack.isEmpty()) return false;
         return stack.getItem() instanceof ItemBlock
-                || stack.getItem() instanceof ae2.api.parts.IPartItem
-                || stack.getItem() instanceof ae2.facade.IFacadeItem;
+                || stack.getItem() instanceof IPartItem
+                || stack.getItem() instanceof ae2.api.implementations.items.IFacadeItem;
     }
 
     /**
      * 判断物品是否为 AE2 线缆。
+     * AE2S 中线缆均为 ColoredPartItem（Glass/Covered/Smart/Dense）。
      */
     public static boolean isCable(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        if (!(stack.getItem() instanceof ItemPart)) return false;
-        PartType type = ((ItemPart) stack.getItem()).getTypeByStack(stack);
-        return type != null && type.isCable();
+        return stack.getItem() instanceof ColoredPartItem;
     }
 
     /**
-     * 获取线缆的基础类型（颜色视为 TRANSPARENT），用于忽略颜色进行比较。
+     * 获取线缆的基础类型（用 Part 类表示），用于忽略颜色进行比较。
      */
-    public static PartType getCablePartType(ItemStack cable) {
+    @Nullable
+    public static Class<?> getCablePartType(ItemStack cable) {
         if (!isCable(cable)) return null;
-        return ((ItemPart) cable.getItem()).getTypeByStack(cable);
+        Item item = cable.getItem();
+        if (item instanceof PartItem) {
+            return ((PartItem<?>) item).getPartClass();
+        }
+        return null;
     }
 
     /**
      * 判断两种线缆是否为同一类型（忽略颜色）。
      */
     public static boolean isSameCableType(ItemStack a, ItemStack b) {
-        PartType typeA = getCablePartType(a);
-        PartType typeB = getCablePartType(b);
+        Class<?> typeA = getCablePartType(a);
+        Class<?> typeB = getCablePartType(b);
         return typeA != null && typeA == typeB;
     }
 
@@ -161,15 +169,18 @@ public final class PlacementTargetResolver {
      * @return 找到的网络栈，无则 null
      */
     @Nullable
-    public static AEItemKey findCableOfType(MEStorage<AEItemKey> monitor, ItemStack baseCable) {
+    public static AEItemKey findCableOfType(MEStorage monitor, ItemStack baseCable) {
         if (!isCable(baseCable)) return null;
-        PartType targetType = getCablePartType(baseCable);
+        Class<?> targetType = getCablePartType(baseCable);
         if (targetType == null) return null;
 
-        for (AEItemKey stack : monitor.getStorageList()) {
-            ItemStack netStack = stack.getDefinition();
+        KeyCounter available = monitor.getAvailableStacks();
+        for (AEKey key : available.keySet()) {
+            if (!(key instanceof AEItemKey)) continue;
+            AEItemKey itemKey = (AEItemKey) key;
+            ItemStack netStack = itemKey.toStack();
             if (isSameCableType(baseCable, netStack)) {
-                return stack.copy();
+                return itemKey;
             }
         }
         return null;
@@ -184,15 +195,19 @@ public final class PlacementTargetResolver {
      */
     public static ItemStack createCableOfColor(ItemStack baseCable, AEColor color) {
         if (!isCable(baseCable)) return ItemStack.EMPTY;
-        ItemPart itemPart = (ItemPart) baseCable.getItem();
-        PartType type = itemPart.getTypeByStack(baseCable);
-        if (type == null) return ItemStack.EMPTY;
-        // 通过 PartType + AEColor 创建对应 meta 的 stack
-        int damage = itemPart.getDamageByType(type);
-        if (damage < 0) return ItemStack.EMPTY;
-        // 基础 damage 对应 TRANSPARENT，需要加上颜色偏移
-        int colorOffset = color.ordinal();
-        return new ItemStack(itemPart, 1, damage + colorOffset);
+        Class<?> targetClass = getCablePartType(baseCable);
+        if (targetClass == null) return ItemStack.EMPTY;
+
+        for (ColoredItemDefinition<?> def : AEParts.COLORED_PARTS) {
+            if (def == null) continue;
+            ItemStack sample = def.stack(AEColor.TRANSPARENT, 1);
+            if (sample.isEmpty()) continue;
+            Item item = sample.getItem();
+            if (item instanceof PartItem && ((PartItem<?>) item).getPartClass() == targetClass) {
+                return def.stack(color, 1);
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     /**
@@ -200,14 +215,10 @@ public final class PlacementTargetResolver {
      */
     public static AEColor getCableColor(ItemStack cable) {
         if (!isCable(cable)) return AEColor.TRANSPARENT;
-        ItemPart itemPart = (ItemPart) cable.getItem();
-        PartType type = itemPart.getTypeByStack(cable);
-        if (type == null) return AEColor.TRANSPARENT;
-        int baseDamage = itemPart.getDamageByType(type);
-        int colorIndex = cable.getMetadata() - baseDamage;
-        if (colorIndex < 0 || colorIndex >= AEColor.values().length) {
-            return AEColor.TRANSPARENT;
+        Item item = cable.getItem();
+        if (item instanceof ColoredPartItem) {
+            return ((ColoredPartItem<?>) item).getColor();
         }
-        return AEColor.values()[colorIndex];
+        return AEColor.TRANSPARENT;
     }
 }

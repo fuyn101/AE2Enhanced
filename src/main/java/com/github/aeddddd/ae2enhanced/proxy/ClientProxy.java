@@ -4,9 +4,6 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.client.handler.KeyHandlerOmniTool;
-import com.github.aeddddd.ae2enhanced.client.model.FluidDropModel;
-import com.github.aeddddd.ae2enhanced.client.model.StarlightDropModel;
-import com.github.aeddddd.ae2enhanced.client.render.EssentiaPacketModel;
 import com.github.aeddddd.ae2enhanced.client.render.RenderBlackHole;
 import com.github.aeddddd.ae2enhanced.client.render.RenderComputationCore;
 import com.github.aeddddd.ae2enhanced.client.render.SelectionBoxRenderer;
@@ -16,7 +13,6 @@ import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import com.github.aeddddd.ae2enhanced.tile.TileMicroSingularity;
-import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -29,7 +25,6 @@ import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.ModelLoaderRegistry;
-import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -40,14 +35,16 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.input.Keyboard;
 
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, value = Side.CLIENT)
 public class ClientProxy extends CommonProxy {
 
+    // LWJGL/GLFW 键码 F=70
+    private static final int KEY_CODE_F = 70;
+
     public static final KeyBinding JEI_SEARCH_KEY = new KeyBinding(
             "key.ae2enhanced.jeiSearchTerminal",
-            Keyboard.KEY_F,
+            KEY_CODE_F,
             "key.categories.ae2enhanced"
     );
 
@@ -72,6 +69,11 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileAssemblyController.class, new RenderBlackHole());
         ClientRegistry.bindTileEntitySpecialRenderer(TileMicroSingularity.class, new RenderMicroSingularity());
         ClientRegistry.bindTileEntitySpecialRenderer(TileComputationCore.class, new RenderComputationCore());
+
+        // AE2S 迁移期间：FluidDrop / GasDrop / EssentiaDrop / StarlightDrop 的自定义模型与颜色处理
+        // 依赖的类（FluidDropModel / GasDropModel / EssentiaPacketModel / FakeItemRegister / StarlightDropModel）
+        // 当前未迁移，先整体注释掉以避免 ClientProxy 编译失败。
+        /*
         // E2a：注册 EssentiaDrop 的内置物品渲染器(流体/气体使用标准模型系统)
         if (ItemRegistry.ESSENTIA_DROP != null) {
             try {
@@ -108,6 +110,7 @@ public class ClientProxy extends CommonProxy {
                 return -1;
             }, ItemRegistry.GAS_DROP);
         }
+        */
     }
 
     @Override
@@ -119,11 +122,19 @@ public class ClientProxy extends CommonProxy {
     @SubscribeEvent
     @Optional.Method(modid = "thaumcraft")
     public static void onTextureStitch(TextureStitchEvent.Pre event) {
-        // 将 Thaumcraft 的所有 aspect 纹理注册到 texture atlas
+        // AE2S 迁移期间：Thaumcraft 未在编译类路径中，使用反射存根化。
         try {
-            for (thaumcraft.api.aspects.Aspect aspect : thaumcraft.api.aspects.Aspect.aspects.values()) {
-                if (aspect != null && aspect.getImage() != null) {
-                    event.getMap().registerSprite(aspect.getImage());
+            Class<?> aspectClass = Class.forName("thaumcraft.api.aspects.Aspect");
+            java.lang.reflect.Field aspectsField = aspectClass.getDeclaredField("aspects");
+            Object aspectsMap = aspectsField.get(null);
+            if (aspectsMap instanceof java.util.Map) {
+                for (Object aspect : ((java.util.Map<?, ?>) aspectsMap).values()) {
+                    if (aspect == null) continue;
+                    java.lang.reflect.Method getImage = aspectClass.getMethod("getImage");
+                    Object image = getImage.invoke(aspect);
+                    if (image instanceof net.minecraft.util.ResourceLocation) {
+                        event.getMap().registerSprite((net.minecraft.util.ResourceLocation) image);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -134,8 +145,8 @@ public class ClientProxy extends CommonProxy {
     @SideOnly(Side.CLIENT)
     @SubscribeEvent
     public static void onModelBake(ModelBakeEvent event) {
-        // 将 essentia_drop 的模型替换为 BakedEssentiaPacketModel,使 isBuiltInRenderer()=true
-        // 从而触发 RenderItem 调用 Item 自己的 TileEntityItemStackRenderer
+        // AE2S 迁移期间：essentia_drop 模型替换依赖的 EssentiaPacketModel 未迁移，暂时禁用。
+        /*
         try {
             net.minecraft.util.registry.IRegistry<ModelResourceLocation, IBakedModel> registry = event.getModelRegistry();
             ModelResourceLocation locationEssentia = new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory");
@@ -143,6 +154,7 @@ public class ClientProxy extends CommonProxy {
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to replace essentia_drop model", e);
         }
+        */
     }
 
     @SideOnly(Side.CLIENT)
@@ -164,15 +176,19 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER);
         registerBlockItemModel(BlockRegistry.CHUNK_POWER_NODE);
         registerBlockItemModel(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE);
+        // AE2S 迁移期间：Botania/Mana 相关方块注册字段未定义，暂时注释。
+        /*
         if (BlockRegistry.CHUNK_MANA_NODE != null) {
             registerBlockItemModel(BlockRegistry.CHUNK_MANA_NODE);
             registerBlockItemModel(BlockRegistry.COMPRESSED_CHUNK_MANA_NODE);
         }
-        registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
-        registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
-        registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
-        registerBlockItemModel(BlockRegistry.MANA_ACCESS_NODE);
-        registerBlockItemModel(BlockRegistry.STARLIGHT_ACCESS_NODE);
+        */
+        // AE2S 迁移期间：以下 BlockRegistry 字段未定义，相关方块模型注册暂时禁用。
+        // registerBlockItemModel(BlockRegistry.CENTRAL_ME_INTERFACE);
+        // registerBlockItemModel(BlockRegistry.SMART_PATTERN_INTERFACE);
+        // registerBlockItemModel(BlockRegistry.RF_ACCESS_NODE);
+        // registerBlockItemModel(BlockRegistry.MANA_ACCESS_NODE);
+        // registerBlockItemModel(BlockRegistry.STARLIGHT_ACCESS_NODE);
         registerBlockItemModel(BlockRegistry.ADVANCED_ME_COLLECTOR);
         registerBlockItemModel(BlockRegistry.ME_NETWORK_RECYCLER);
         if (BlockRegistry.EMC_INTERFACE != null) {
@@ -194,13 +210,17 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.CONFORMAL_CHARGE);
         registerItemModel(ItemRegistry.DIFFERENTIAL_FORM_STABILIZER);
         registerItemModel(ItemRegistry.STABLE_SPACETIME_MANIFOLD);
-        // EssentiaDrop：使用 CustomMeshDefinition 让所有 damage 值都映射到同一个模型路径
+
+        // AE2S 迁移期间：EssentiaDrop 的 CustomMeshDefinition 依赖未迁移的类，暂时禁用。
+        /*
         if (ItemRegistry.ESSENTIA_DROP != null) {
             ModelLoader.setCustomMeshDefinition(ItemRegistry.ESSENTIA_DROP, stack ->
                     new ModelResourceLocation(AE2Enhanced.MOD_ID + ":essentia_drop", "inventory"));
         }
+        */
 
-        // 注册 FluidDrop / GasDrop / StarlightDrop 的自定义模型加载器
+        // AE2S 迁移期间：FluidDrop / GasDrop / StarlightDrop 的自定义模型加载器依赖未迁移的类，暂时禁用。
+        /*
         ModelLoaderRegistry.registerLoader(new FluidDropModel.Loader());
         ModelLoader.setCustomModelResourceLocation(ItemRegistry.FLUID_DROP, 0,
                 new ModelResourceLocation(FluidDropModel.MODEL_LOCATION, "inventory"));
@@ -221,6 +241,7 @@ public class ClientProxy extends CommonProxy {
                 AE2Enhanced.LOGGER.error("[AE2E] Failed to register gas drop model", e);
             }
         }
+        */
 
         registerItemModel(ItemRegistry.CHANNEL_RECEIVER_CARD);
         registerItemModel(ItemRegistry.UNIVERSAL_MEMORY_CARD);
@@ -229,10 +250,14 @@ public class ClientProxy extends CommonProxy {
         registerItemModel(ItemRegistry.OMNI_WIRELESS_TERMINAL);
         registerItemModel(ItemRegistry.SMART_BLANK_PATTERN);
         registerItemModel(ItemRegistry.SMART_PATTERN);
-        registerItemModel(ItemRegistry.ENERGY_DROP);
+        // AE2S 迁移期间：ENERGY_DROP 字段未定义，暂时禁用。
+        // registerItemModel(ItemRegistry.ENERGY_DROP);
+        // AE2S 迁移期间：MANA_DROP 字段未定义，暂时注释。
+        /*
         if (ItemRegistry.MANA_DROP != null) {
             registerItemModel(ItemRegistry.MANA_DROP);
         }
+        */
 
         // ME 放置工具
         registerItemModel(ItemRegistry.ME_PLACEMENT_TOOL);

@@ -1,17 +1,17 @@
 package com.github.aeddddd.ae2enhanced.util.placement;
 
-import ae2.api.AEApi;
 import ae2.api.config.Actionable;
+import ae2.api.implementations.items.IFacadeItem;
 import ae2.api.networking.IGrid;
 import ae2.api.parts.IPartHost;
 import ae2.api.parts.IPartItem;
-import ae2.api.storage.MEStorage;
-import ae2.api.storage.channels.IItemStorageChannel;
+import ae2.api.parts.PartHelper;
 import ae2.api.stacks.AEItemKey;
-import ae2.api.util.AEColor;
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.KeyCounter;
+import ae2.api.storage.MEStorage;
 import ae2.api.util.AEPartLocation;
 import ae2.facade.FacadePart;
-import ae2.facade.IFacadeItem;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemBlock;
@@ -74,7 +74,7 @@ public final class PlacementToolHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return false;
 
-        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return false;
@@ -93,10 +93,8 @@ public final class PlacementToolHelper {
         }
 
         // 模拟提取
-        AEItemKey toExtract = request.copy();
-        toExtract.setStackSize(1);
-        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
-        if (simulated == null || simulated.getStackSize() < 1) {
+        long simulated = monitor.extract(request, 1, Actionable.SIMULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+        if (simulated < 1) {
             // 如果目标是副手物品，尝试直接消耗副手
             if (isTargetFromOffhand(player, target)) {
                 return placeFromOffhand(player, world, pos, side, hand, target, 1);
@@ -106,7 +104,7 @@ public final class PlacementToolHelper {
             return false;
         }
 
-        ItemStack placeStack = request.getDefinition().copy();
+        ItemStack placeStack = request.toStack();
         placeStack.setCount(1);
 
         BlockPos blockPlacePos = pos.offset(side);
@@ -131,8 +129,8 @@ public final class PlacementToolHelper {
         }
 
         if (placed) {
-            AEItemKey extracted = monitor.extractItems(toExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
-            if (extracted == null || extracted.getStackSize() < 1) {
+            long extracted = monitor.extract(request, 1, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+            if (extracted < 1) {
                 rollbackSingle(world, pos, side, preSnapshot.getCurrentBlock(), targetType);
                 player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                         target.getDisplayName()));
@@ -148,7 +146,7 @@ public final class PlacementToolHelper {
             if (targetType == PlacementTarget.BLOCK) {
                 record.snapshots.add(preSnapshot);
             }
-            record.consumed.put(request.copy().setStackSize(1), 1L);
+            record.consumed.put(request, 1L);
             PLAYER_UNDO.put(player.getUniqueID(), record);
             return true;
         } else {
@@ -181,7 +179,7 @@ public final class PlacementToolHelper {
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
         if (grid == null) return false;
 
-        MEStorage<AEItemKey> monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
+        MEStorage monitor = SecurityTerminalBindingHelper.getItemMonitor(grid);
         if (monitor == null) {
             player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.no_storage"));
             return false;
@@ -201,13 +199,11 @@ public final class PlacementToolHelper {
         }
 
         // 模拟提取
-        AEItemKey toExtract = request.copy();
-        toExtract.setStackSize(positions.size());
-        AEItemKey simulated = monitor.extractItems(toExtract, Actionable.SIMULATE,
+        long simulated = monitor.extract(request, positions.size(), Actionable.SIMULATE,
                 SecurityTerminalBindingHelper.createPlayerSource(player));
 
         boolean useOffhand = false;
-        if (simulated == null || simulated.getStackSize() < positions.size()) {
+        if (simulated < positions.size()) {
             // 如果目标是副手物品，尝试从副手补充
             if (isTargetFromOffhand(player, target)) {
                 useOffhand = true;
@@ -218,7 +214,7 @@ public final class PlacementToolHelper {
             }
         }
 
-        ItemStack placeStack = request.getDefinition().copy();
+        ItemStack placeStack = request.toStack();
         placeStack.setCount(1);
 
         List<BlockSnapshot> snapshots = new ArrayList<>();
@@ -252,11 +248,9 @@ public final class PlacementToolHelper {
         int offhandConsumed = 0;
         if (useOffhand) {
             // 网络能拿多少拿多少
-            if (simulated != null && simulated.getStackSize() > 0) {
-                AEItemKey netExtract = request.copy();
-                netExtract.setStackSize(simulated.getStackSize());
-                monitor.extractItems(netExtract, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
-                networkConsumed = (int) simulated.getStackSize();
+            if (simulated > 0) {
+                monitor.extract(request, simulated, Actionable.MODULATE, SecurityTerminalBindingHelper.createPlayerSource(player));
+                networkConsumed = (int) simulated;
             }
             offhandConsumed = placedPositions.size() - networkConsumed;
             ItemStack off = player.getHeldItemOffhand();
@@ -268,11 +262,9 @@ public final class PlacementToolHelper {
             }
             off.shrink(offhandConsumed);
         } else {
-            AEItemKey finalExtract = request.copy();
-            finalExtract.setStackSize(placedPositions.size());
-            AEItemKey extracted = monitor.extractItems(finalExtract, Actionable.MODULATE,
+            long extracted = monitor.extract(request, placedPositions.size(), Actionable.MODULATE,
                     SecurityTerminalBindingHelper.createPlayerSource(player));
-            if (extracted == null || extracted.getStackSize() < placedPositions.size()) {
+            if (extracted < placedPositions.size()) {
                 rollbackBulk(world, snapshots);
                 player.sendMessage(new net.minecraft.util.text.TextComponentTranslation("message.ae2enhanced.placement.network_missing",
                         target.getDisplayName()));
@@ -284,7 +276,7 @@ public final class PlacementToolHelper {
         // 记录撤销
         UndoRecord record = new UndoRecord();
         record.snapshots.addAll(snapshots);
-        record.consumed.put(request.copy().setStackSize(1), (long) networkConsumed);
+        record.consumed.put(request, (long) networkConsumed);
         PLAYER_UNDO.put(player.getUniqueID(), record);
 
         world.playSound(null, pos, net.minecraft.init.SoundEvents.BLOCK_STONE_PLACE,
@@ -299,7 +291,7 @@ public final class PlacementToolHelper {
      * 放置单格线缆，使用配置颜色。
      */
     private static boolean placeSingleCable(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
-                                            EnumHand hand, ItemStack toolStack, ItemStack baseCable, AEColor color) {
+                                            EnumHand hand, ItemStack toolStack, ItemStack baseCable, ae2.api.util.AEColor color) {
         BlockPos placePos = pos.offset(side);
         List<BlockPos> placed = CablePlacementHelper.placeCable(player, world, placePos, placePos,
                 hand, toolStack, baseCable, color);
@@ -324,7 +316,7 @@ public final class PlacementToolHelper {
             return false;
         }
 
-        AEColor color = config.getCableColor();
+        ae2.api.util.AEColor color = config.getCableColor();
         List<BlockPos> placed = CablePlacementHelper.placeCable(player, world, start, end, hand, toolStack, target, color);
         if (placed.isEmpty()) return false;
 
@@ -349,7 +341,7 @@ public final class PlacementToolHelper {
         }
 
         IGrid grid = SecurityTerminalBindingHelper.getLinkedGrid(toolStack, world, player);
-        MEStorage<AEItemKey> monitor = grid != null ? SecurityTerminalBindingHelper.getItemMonitor(grid) : null;
+        MEStorage monitor = grid != null ? SecurityTerminalBindingHelper.getItemMonitor(grid) : null;
 
         List<BlockSnapshot> snapshots = new ArrayList<>(record.snapshots);
         java.util.Collections.reverse(snapshots);
@@ -363,13 +355,11 @@ public final class PlacementToolHelper {
 
         if (monitor != null) {
             for (Map.Entry<AEItemKey, Long> entry : record.consumed.entrySet()) {
-                AEItemKey refund = entry.getKey().copy();
-                refund.setStackSize(entry.getValue());
-                AEItemKey notInjected = monitor.injectItems(refund, Actionable.MODULATE,
+                long leftover = monitor.insert(entry.getKey(), entry.getValue(), Actionable.MODULATE,
                         SecurityTerminalBindingHelper.createPlayerSource(player));
-                if (notInjected != null && notInjected.getStackSize() > 0) {
-                    ItemStack drop = notInjected.getDefinition().copy();
-                    drop.setCount((int) Math.min(notInjected.getStackSize(), drop.getMaxStackSize()));
+                if (leftover > 0) {
+                    ItemStack drop = entry.getKey().toStack((int) Math.min(leftover, Integer.MAX_VALUE));
+                    drop.setCount((int) Math.min(leftover, drop.getMaxStackSize()));
                     net.minecraft.entity.item.EntityItem entity = new net.minecraft.entity.item.EntityItem(world,
                             player.posX, player.posY, player.posZ, drop);
                     world.spawnEntity(entity);
@@ -427,7 +417,7 @@ public final class PlacementToolHelper {
         return false;
     }
 
-    private static AEColor configColor(ItemStack toolStack) {
+    private static ae2.api.util.AEColor configColor(ItemStack toolStack) {
         return new PlacementConfig(toolStack).getCableColor();
     }
 
@@ -488,7 +478,8 @@ public final class PlacementToolHelper {
     private static boolean tryPlacePart(EntityPlayer player, World world, BlockPos clickedPos, EnumFacing side,
                                         EnumHand hand, ItemStack placeStack) {
         try {
-            EnumActionResult result = AEApi.instance().partHelper().placeBus(placeStack, clickedPos, side, player, hand, world);
+            EnumActionResult result = PartHelper.usePartItem(placeStack, player, world, clickedPos,
+                    hand, side, 0.5f, 0.5f, 0.5f);
             return result == EnumActionResult.SUCCESS;
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to place part", e);
@@ -500,14 +491,14 @@ public final class PlacementToolHelper {
                                           ItemStack placeStack) {
         try {
             IFacadeItem facadeItem = (IFacadeItem) placeStack.getItem();
-            AEPartLocation loc = AEPartLocation.fromFacing(side);
-            FacadePart facade = facadeItem.createPartFromItemStack(placeStack, loc);
+            ae2.api.parts.IFacadePart facade = facadeItem.createPartFromItemStack(placeStack, side);
             if (facade == null) return false;
 
-            IPartHost host = AEApi.instance().partHelper().getPartHost(world, clickedPos);
+            IPartHost host = PartHelper.getPartHost(world, clickedPos);
             if (host == null) return false;
 
-            if (host.getPart(AEPartLocation.INTERNAL) != null && host.getFacadeContainer().canAddFacade(facade)) {
+            if (host.getPart(AEPartLocation.INTERNAL.getFacing()) != null
+                    && host.getFacadeContainer().canAddFacade(facade)) {
                 boolean added = host.getFacadeContainer().addFacade(facade);
                 if (added) {
                     host.markForSave();
@@ -522,26 +513,31 @@ public final class PlacementToolHelper {
     }
 
     @Nullable
-    public static AEItemKey findMatchingStack(MEStorage<AEItemKey> monitor, ItemStack target) {
-        AEItemKey request = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
-                .createStack(target);
-        if (request == null) return null;
-        request.setStackSize(1);
+    public static AEItemKey findMatchingStack(MEStorage monitor, ItemStack target) {
+        AEItemKey request = AEItemKey.of(target);
+
+        KeyCounter available = monitor.getAvailableStacks();
 
         // 优先精确匹配
-        for (AEItemKey stack : monitor.getStorageList()) {
-            if (stack.isSameType(target)) {
-                return stack.copy();
+        for (AEKey key : available.keySet()) {
+            if (key instanceof AEItemKey) {
+                AEItemKey itemKey = (AEItemKey) key;
+                if (itemKey.matches(target)) {
+                    return itemKey;
+                }
             }
         }
 
         // 退而忽略 NBT 匹配 item + meta
-        for (AEItemKey stack : monitor.getStorageList()) {
-            ItemStack netStack = stack.getDefinition().copy();
-            netStack.setCount(1);
-            if (netStack.getItem() == target.getItem()
-                    && netStack.getMetadata() == target.getMetadata()) {
-                return stack.copy();
+        for (AEKey key : available.keySet()) {
+            if (key instanceof AEItemKey) {
+                AEItemKey itemKey = (AEItemKey) key;
+                ItemStack netStack = itemKey.toStack();
+                netStack.setCount(1);
+                if (netStack.getItem() == target.getItem()
+                        && netStack.getMetadata() == target.getMetadata()) {
+                    return itemKey;
+                }
             }
         }
 
@@ -555,16 +551,16 @@ public final class PlacementToolHelper {
                 BlockPos placePos = clickedPos.offset(side);
                 world.setBlockState(placePos, prevBlockState);
             } else if (targetType == PlacementTarget.PART) {
-                IPartHost host = AEApi.instance().partHelper().getPartHost(world, clickedPos);
+                IPartHost host = PartHelper.getPartHost(world, clickedPos);
                 if (host != null) {
-                    host.removePart(AEPartLocation.fromFacing(side), true);
+                    host.removePartFromSide(side);
                     host.markForSave();
                     host.markForUpdate();
                 }
             } else if (targetType == PlacementTarget.FACADE) {
-                IPartHost host = AEApi.instance().partHelper().getPartHost(world, clickedPos);
+                IPartHost host = PartHelper.getPartHost(world, clickedPos);
                 if (host != null) {
-                    host.getFacadeContainer().removeFacade(host, AEPartLocation.fromFacing(side));
+                    host.getFacadeContainer().removeFacade(host, side);
                     host.markForSave();
                     host.markForUpdate();
                 }
