@@ -1,28 +1,28 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
+import ae2.api.AECapabilities;
 import ae2.api.networking.IGridNode;
+import ae2.api.networking.IInWorldGridNodeHost;
 import ae2.api.util.AECableType;
 import ae2.api.util.AEPartLocation;
-import ae2.api.util.DimensionalBlockPos;
-import ae2.me.helpers.AENetworkProxy;
-import ae2.me.helpers.IGridProxyable;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.capabilities.Capability;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
- * 委托控制器代理的网络接口 TileEntity 基类.
+ * 委托控制器节点的网络接口 TileEntity 基类.
  *
- * ME 接口方块本身不创建独立 AE 节点,而是将网络接入委托给对应的控制器.
- * 统一封装 controllerPos 读写、getProxy/getGridNode 委托、securityBreak 转发,
- * 消除 TileAssemblyMeInterface / TileHyperdimensionalMeInterface / TileSuperCraftingInterface
- * 中各自重复的 ~30 行样板代码.
+ * ME 接口方块本身不创建独立 AE 节点，而是将网络接入委托给对应的控制器。
+ * 在 AE2S 下通过 {@link IInWorldGridNodeHost} 暴露控制器的 {@link IManagedGridNode#getNode()}。
  *
- * @param <C> 控制器类型,必须实现 IGridProxyable
+ * @param <C> 控制器类型，必须继承 {@link TileAENetworkBase}
  */
-public abstract class TileDelegatedProxyBase<C extends TileEntity & IGridProxyable> extends TileEntity implements IGridProxyable {
+public abstract class TileDelegatedProxyBase<C extends TileAENetworkBase> extends TileEntity implements IInWorldGridNodeHost {
 
     private BlockPos controllerPos;
 
@@ -49,29 +49,14 @@ public abstract class TileDelegatedProxyBase<C extends TileEntity & IGridProxyab
         return getControllerClass().isInstance(te) ? getControllerClass().cast(te) : null;
     }
 
-    // ---- IGridProxyable 实现 ----
+    // ---- IInWorldGridNodeHost 实现 ----
 
-    @Override
-    public AENetworkProxy getProxy() {
-        C controller = getController();
-        return controller != null ? controller.getProxy() : null;
-    }
-
-    @Override
-    public DimensionalBlockPos getLocation() {
-        return new DimensionalBlockPos(this);
-    }
-
-    @Override
-    public void gridChanged() {
-    }
-
+    @Nullable
     @Override
     public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
         C controller = getController();
         if (controller != null && isControllerFormed(controller)) {
-            AENetworkProxy proxy = controller.getProxy();
-            return proxy != null ? proxy.getNode() : null;
+            return controller.getMainNode().getNode();
         }
         return null;
     }
@@ -83,12 +68,30 @@ public abstract class TileDelegatedProxyBase<C extends TileEntity & IGridProxyab
         return (controller != null && isControllerFormed(controller)) ? AECableType.SMART : AECableType.NONE;
     }
 
-    @Override
     public void securityBreak() {
         C controller = getController();
-        if (controller instanceof TileAENetworkBase) {
-            ((TileAENetworkBase) controller).disassemble();
+        if (controller != null) {
+            controller.disassemble();
         }
+    }
+
+    // ---- Capability ----
+
+    @Override
+    public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+        if (capability == AECapabilities.IN_WORLD_GRID_NODE_HOST) {
+            return true;
+        }
+        return super.hasCapability(capability, facing);
+    }
+
+    @Nullable
+    @Override
+    public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
+        if (capability == AECapabilities.IN_WORLD_GRID_NODE_HOST) {
+            return AECapabilities.IN_WORLD_GRID_NODE_HOST.cast(this);
+        }
+        return super.getCapability(capability, facing);
     }
 
     // ---- NBT ----
