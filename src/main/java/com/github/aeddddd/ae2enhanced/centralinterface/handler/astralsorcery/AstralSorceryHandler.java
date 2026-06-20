@@ -176,6 +176,11 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
     }
 
     @Override
+    public void onBindingRemoved(World world, BlockPos pos) {
+        recipeCache.remove(new RecipeCacheKey(world, pos));
+    }
+
+    @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);

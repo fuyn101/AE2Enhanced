@@ -105,6 +105,11 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
     }
 
     @Override
+    public void onBindingRemoved(World world, BlockPos pos) {
+        recipeCache.remove(pos);
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initBaseReflection();

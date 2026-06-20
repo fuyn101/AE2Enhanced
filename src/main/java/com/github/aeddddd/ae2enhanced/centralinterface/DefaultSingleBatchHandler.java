@@ -96,17 +96,19 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         if (te == null) {
             return Collections.emptyList();
         }
+        List<ItemStack> inputsSafe = session != null ? session.getInputs() : Collections.emptyList();
         List<ItemStack> reverted = new ArrayList<>();
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
             for (int slot = 0; slot < handler.getSlots(); slot++) {
                 ItemStack inSlot = handler.getStackInSlot(slot);
-                if (!inSlot.isEmpty()) {
-                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                    if (!extracted.isEmpty()) {
-                        reverted.add(extracted);
-                    }
+                if (inSlot.isEmpty()) continue;
+                // 只回退本次推送的输入材料，避免清空升级/电池槽
+                if (!isInputMaterial(inSlot, inputsSafe)) continue;
+                ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
+                if (!extracted.isEmpty()) {
+                    reverted.add(extracted);
                 }
             }
         }
@@ -119,21 +121,50 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
         if (te == null) {
             return Collections.emptyList();
         }
+        List<ItemStack> inputsSafe = session != null ? session.getInputs() : Collections.emptyList();
+        List<ItemStack> expectedSafe = getExpectedItemStacks(session);
         List<ItemStack> cleared = new ArrayList<>();
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
             if (handler == null) continue;
             for (int slot = 0; slot < handler.getSlots(); slot++) {
                 ItemStack inSlot = handler.getStackInSlot(slot);
-                if (!inSlot.isEmpty()) {
-                    ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
-                    if (!extracted.isEmpty()) {
-                        cleared.add(extracted);
-                    }
+                if (inSlot.isEmpty()) continue;
+                // 优先收集预期产物；若无法匹配预期产物，则收集非输入物品。
+                // 升级/电池等物品通常不在 expectedOutputs 也不在 inputs 中，借此避免被清空。
+                if (!isInputMaterial(inSlot, inputsSafe)
+                        && !matchesAnyExpected(inSlot, expectedSafe)) {
+                    continue;
+                }
+                ItemStack extracted = handler.extractItem(slot, inSlot.getCount(), false);
+                if (!extracted.isEmpty()) {
+                    cleared.add(extracted);
                 }
             }
         }
         return cleared;
+    }
+
+    private List<ItemStack> getExpectedItemStacks(TargetSession session) {
+        if (session == null || session.getExpectedOutputs() == null) {
+            return Collections.emptyList();
+        }
+        List<ItemStack> list = new ArrayList<>();
+        for (IAEItemStack stack : session.getExpectedOutputs()) {
+            if (stack != null) {
+                list.add(stack.createItemStack());
+            }
+        }
+        return list;
+    }
+
+    private boolean matchesAnyExpected(ItemStack stack, List<ItemStack> expectedList) {
+        for (ItemStack expected : expectedList) {
+            if (matchesLoosely(stack, expected)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

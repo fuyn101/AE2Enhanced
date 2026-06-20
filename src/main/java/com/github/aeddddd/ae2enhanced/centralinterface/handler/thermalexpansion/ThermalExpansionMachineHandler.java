@@ -265,20 +265,27 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
         ItemStack[] inventory = getInventoryArray(te);
         List<ItemStack> inputsSafe = inputs != null ? inputs : Collections.emptyList();
         boolean[] insertionSlots = getAllowInsertionSlots(te);
+        boolean[] extractionSlots = getAllowExtractionSlots(te);
         IInventory inv = (IInventory) te;
 
-        // 还有输入材料 → 未完成
         if (inventory != null) {
             for (int slot = 0; slot < inventory.length; slot++) {
                 ItemStack stack = inventory[slot];
                 if (stack.isEmpty()) continue;
+
+                // 还有输入材料 → 未完成
                 if (isInputSlot(inv, insertionSlots, slot) && isInputMaterial(stack, inputsSafe)) {
+                    return false;
+                }
+
+                // 输出槽仍有产物 → 未完成（等待下一次 tick 收集）
+                if (isOutputSlot(inv, extractionSlots, slot) && !isInputMaterial(stack, inputsSafe)) {
                     return false;
                 }
             }
         }
 
-        // 输入已耗尽且无产物 → 完成
+        // 输入已耗尽、输出槽已空且无产物流体 → 完成
         return getTankFluid(te) == null;
     }
 

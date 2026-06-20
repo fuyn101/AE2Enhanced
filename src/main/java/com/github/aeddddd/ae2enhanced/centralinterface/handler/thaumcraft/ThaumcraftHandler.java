@@ -161,7 +161,8 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return false;
-        clearAllPedestals(world, pos, te);
+        // dispatcher 已在 pushMaterials 前调用 clearOutputs 清空基座，
+        // 这里不再重复清空，避免意外删除残留物品。
 
         // 按 AE 样板槽位顺序收集：第一个非空 = 主材,其余 = 辅材
         List<ItemStack> stacks = new ArrayList<>();
@@ -496,6 +497,11 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectAllPedestalItems(world, pos);
+    }
+
+    @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
@@ -540,45 +546,7 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
 
     @Override
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
-        initReflection();
-        List<ItemStack> result = new ArrayList<>();
-        TileEntity te = world.getTileEntity(pos);
-        if (!CLASS_TILE_INFUSION_MATRIX.isInstance(te)) return result;
-
-        // 收集主材基座
-        BlockPos mainPos = pos.down(2);
-        TileEntity mainTe = world.getTileEntity(mainPos);
-        if (CLASS_TILE_PEDESTAL.isInstance(mainTe)) {
-            try {
-                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(mainTe, 0);
-                if (!stack.isEmpty()) {
-                    result.add(stack.copy());
-                    METHOD_PEDESTAL_SET_STACK.invoke(mainTe, 0, ItemStack.EMPTY);
-                }
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-
-        // 收集辅材基座
-        try {
-            METHOD_GET_SURROUNDINGS.invoke(te);
-            @SuppressWarnings("unchecked")
-            List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
-            for (BlockPos pPos : pedestals) {
-                TileEntity pTe = world.getTileEntity(pPos);
-                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
-                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0);
-                if (!stack.isEmpty()) {
-                    result.add(stack.copy());
-                    METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, ItemStack.EMPTY);
-                }
-            }
-        } catch (Exception e) {
-            // ignore
-        }
-
-        return result;
+        return collectAllPedestalItems(world, pos);
     }
 
     // ---- 配方查找(仅在 startProcess 回退路径中使用) ----
@@ -685,27 +653,45 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
         }
     }
 
-    private static void clearAllPedestals(World world, BlockPos pos, TileEntity te) {
-        try {
-            METHOD_GET_SURROUNDINGS.invoke(te);
-            @SuppressWarnings("unchecked")
-            List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
+    /**
+     * 收集主材基座与所有辅材基座上的物品，用于 clearOutputs / revertMaterials。
+     */
+    private List<ItemStack> collectAllPedestalItems(World world, BlockPos pos) {
+        initReflection();
+        List<ItemStack> result = new ArrayList<>();
 
-            // 清空主材基座
-            BlockPos mainPos = pos.down(2);
-            TileEntity mainTe = world.getTileEntity(mainPos);
-            if (CLASS_TILE_PEDESTAL.isInstance(mainTe)) {
-                METHOD_PEDESTAL_SET_STACK.invoke(mainTe, 0, ItemStack.EMPTY);
-            }
-
-            // 清空辅材基座
-            for (BlockPos pPos : pedestals) {
-                TileEntity pTe = world.getTileEntity(pPos);
-                if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
-                METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, ItemStack.EMPTY);
-            }
-        } catch (Exception e) {
-            // ignore
+        // 主材基座
+        BlockPos mainPos = pos.down(2);
+        TileEntity mainTe = world.getTileEntity(mainPos);
+        if (CLASS_TILE_PEDESTAL.isInstance(mainTe)) {
+            try {
+                ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(mainTe, 0);
+                if (!stack.isEmpty()) {
+                    result.add(stack.copy());
+                    METHOD_PEDESTAL_SET_STACK.invoke(mainTe, 0, ItemStack.EMPTY);
+                }
+            } catch (Exception ignored) {}
         }
+
+        // 辅材基座
+        TileEntity te = world.getTileEntity(pos);
+        if (CLASS_TILE_INFUSION_MATRIX.isInstance(te)) {
+            try {
+                METHOD_GET_SURROUNDINGS.invoke(te);
+                @SuppressWarnings("unchecked")
+                List<BlockPos> pedestals = (List<BlockPos>) FIELD_PEDESTALS.get(te);
+                for (BlockPos pPos : pedestals) {
+                    TileEntity pTe = world.getTileEntity(pPos);
+                    if (!CLASS_TILE_PEDESTAL.isInstance(pTe)) continue;
+                    ItemStack stack = (ItemStack) METHOD_PEDESTAL_GET_STACK.invoke(pTe, 0);
+                    if (!stack.isEmpty()) {
+                        result.add(stack.copy());
+                        METHOD_PEDESTAL_SET_STACK.invoke(pTe, 0, ItemStack.EMPTY);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return result;
     }
 }

@@ -46,6 +46,9 @@ import java.util.List;
  */
 public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
+    /** 推料保护期：防止推料后 burnTime/progress 尚未增加就被判定为 idle */
+    private static final int PUSH_IDLE_GRACE_TICKS = 4;
+
     @Override
     public boolean canHandle(String blockId) {
         return "bloodmagic:alchemy_table".equals(blockId)
@@ -78,14 +81,18 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
     @Override
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
+        boolean success = false;
         if (te instanceof TileAlchemyTable) {
-            return pushMaterialsAlchemyTable((TileAlchemyTable) te, ingredients);
+            success = pushMaterialsAlchemyTable((TileAlchemyTable) te, ingredients);
         } else if (te instanceof TileSoulForge) {
-            return pushMaterialsSoulForge((TileSoulForge) te, ingredients);
+            success = pushMaterialsSoulForge((TileSoulForge) te, ingredients);
         } else if (te instanceof TileAltar) {
-            return pushMaterialsAltar((TileAltar) te, ingredients);
+            success = pushMaterialsAltar((TileAltar) te, ingredients);
         }
-        return false;
+        if (success && session != null) {
+            session.setPushTick(world.getTotalWorldTime());
+        }
+        return success;
     }
 
     @Override
@@ -114,6 +121,9 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
 
     @Override
     public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
+        if (session != null && !session.isPushGraceElapsed(world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) {
+            return false;
+        }
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileAlchemyTable) {
             return ((TileAlchemyTable) te).getBurnTime() == 0;

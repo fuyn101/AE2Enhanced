@@ -62,6 +62,9 @@ public class BewitchmentHandler implements IRemoteHandler {
     private static Method METHOD_CAULDRON_RECIPE_MATCHES;
     private static Field FIELD_CAULDRON_RECIPE_OUTPUT;
 
+    /** 推料保护期：防止推料后进度尚未增加就被判定为 idle */
+    private static final int PUSH_IDLE_GRACE_TICKS = 4;
+
     private static boolean reflectionReady = false;
 
     private static void initReflection() {
@@ -191,16 +194,18 @@ public class BewitchmentHandler implements IRemoteHandler {
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
+        boolean success = false;
         if (CLASS_SPINNING_WHEEL.isInstance(te)) {
-            return pushSpinningWheel(te, ingredients);
+            success = pushSpinningWheel(te, ingredients);
+        } else if (CLASS_DISTILLERY.isInstance(te)) {
+            success = pushDistillery(te, ingredients);
+        } else if (CLASS_CAULDRON.isInstance(te)) {
+            success = pushCauldron(world, pos, te, ingredients);
         }
-        if (CLASS_DISTILLERY.isInstance(te)) {
-            return pushDistillery(te, ingredients);
+        if (success && session != null) {
+            session.setPushTick(world.getTotalWorldTime());
         }
-        if (CLASS_CAULDRON.isInstance(te)) {
-            return pushCauldron(world, pos, te, ingredients);
-        }
-        return false;
+        return success;
     }
 
     private boolean pushSpinningWheel(TileEntity te, InventoryCrafting ingredients) {
@@ -396,18 +401,23 @@ public class BewitchmentHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_SPINNING_WHEEL.isInstance(te)) {
-            return isIdleSpinningWheel(te);
+            return isIdleSpinningWheel(world, pos, te, session);
         }
         if (CLASS_DISTILLERY.isInstance(te)) {
-            return isIdleDistillery(te);
+            return isIdleDistillery(world, pos, te, session);
         }
         if (CLASS_CAULDRON.isInstance(te)) {
-            return isIdleCauldron(world, pos, te);
+            return isIdleCauldron(world, pos, te, session);
         }
         return false;
     }
 
-    private boolean isIdleSpinningWheel(TileEntity te) {
+    private boolean isGraceElapsed(TargetSession session, long currentWorldTime, int graceTicks) {
+        return session == null || session.isPushGraceElapsed(currentWorldTime, graceTicks);
+    }
+
+    private boolean isIdleSpinningWheel(World world, BlockPos pos, TileEntity te, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         try {
             int progress = (int) FIELD_SPINNING_PROGRESS.get(te);
             return progress == 0;
@@ -416,7 +426,8 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
     }
 
-    private boolean isIdleDistillery(TileEntity te) {
+    private boolean isIdleDistillery(World world, BlockPos pos, TileEntity te, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         try {
             int progress = (int) FIELD_DISTILLERY_PROGRESS.get(te);
             return progress == 0;
@@ -425,7 +436,8 @@ public class BewitchmentHandler implements IRemoteHandler {
         }
     }
 
-    private boolean isIdleCauldron(World world, BlockPos pos, TileEntity te) {
+    private boolean isIdleCauldron(World world, BlockPos pos, TileEntity te, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         try {
             int mode = (int) FIELD_CAULDRON_MODE.get(te);
             // mode 0/1 为空闲或已完成

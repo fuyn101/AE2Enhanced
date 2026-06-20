@@ -56,25 +56,12 @@ import net.minecraft.util.EnumParticleTypes;
  */
 public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
-    private static final String TAG_PORTAL_FLAG = "_elvenPortal";
     /** 中枢推送的输入物品标记,用于 revertMaterials 区分未消耗输入与产物 */
     private static final String TAG_INPUT_FLAG = "_ae2eInput";
-    /** 推料状态过期时间 */
-    private static final int STATE_EXPIRY_TICKS = 1200;
-
-    private static class PushState {
-        long pushTick;
-    }
-
-    private final java.util.Map<String, PushState> pushStates = new java.util.HashMap<>();
-
-    private static String key(World world, BlockPos pos) {
-        return world.provider.getDimension() + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ();
-    }
-
-    private void cleanupExpiredStates(long now) {
-        pushStates.entrySet().removeIf(e -> now - e.getValue().pushTick > STATE_EXPIRY_TICKS);
-    }
+    /** 推料保护期：防止推料后机器尚未开始处理就被判定为 idle */
+    private static final int PUSH_IDLE_GRACE_TICKS = 4;
+    /** Alf Portal 需要更长时间完成精灵交易 */
+    private static final int ALF_PORTAL_GRACE_TICKS = 20;
 
     @Override
     public boolean canHandle(String blockId) {
@@ -114,7 +101,6 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
 
     @Override
     public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
-        cleanupExpiredStates(world.getTotalWorldTime());
         TileEntity te = world.getTileEntity(pos);
         boolean success = false;
         if (te instanceof TilePool) {
@@ -128,10 +114,8 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         } else if (te instanceof TileAltar) {
             success = pushMaterialsAltar(world, pos, (TileAltar) te, ingredients);
         }
-        if (success) {
-            PushState state = new PushState();
-            state.pushTick = world.getTotalWorldTime();
-            pushStates.put(key(world, pos), state);
+        if (success && session != null) {
+            session.setPushTick(world.getTotalWorldTime());
         }
         return success;
     }
@@ -150,24 +134,17 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
-        List<ItemStack> result;
         if (te instanceof TileRuneAltar) {
-            result = collectProductsRuneAltar(world, pos, expectedOutputs);
+            return collectProductsRuneAltar(world, pos, expectedOutputs);
         } else if (te instanceof TileAltar) {
-            result = collectProductsAltar(world, pos);
+            return collectProductsAltar(world, pos);
         } else {
-            result = collectMatchingEntityItems(world, pos, expectedOutputs);
+            return collectMatchingEntityItems(world, pos, expectedOutputs);
         }
-        if (!result.isEmpty()) {
-            pushStates.remove(key(world, pos));
-        }
-        return result;
     }
 
     @Override
     public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
-        String k = key(world, pos);
-        pushStates.remove(k);
         TileEntity te = world.getTileEntity(pos);
 //         AE2Enhanced.LOGGER.debug("[AE2E-Botania] revertMaterials at {} te={}", pos, te != null ? te.getClass().getSimpleName() : "null");
         if (te instanceof TileRuneAltar) {
@@ -218,20 +195,23 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
 
     @Override
     public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
-        cleanupExpiredStates(world.getTotalWorldTime());
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {
-            return isIdlePool(world, pos);
+            return isIdlePool(world, pos, session);
         } else if (te instanceof TileAlfPortal) {
-            return isIdleAlfPortal(world, pos);
+            return isIdleAlfPortal(world, pos, session);
         } else if (te instanceof TileTerraPlate) {
-            return isIdleTerraPlate(world, pos);
+            return isIdleTerraPlate(world, pos, session);
         } else if (te instanceof TileRuneAltar) {
-            return isIdleRuneAltar(world, pos, (TileRuneAltar) te);
+            return isIdleRuneAltar(world, pos, (TileRuneAltar) te, session);
         } else if (te instanceof TileAltar) {
-            return isIdleAltar(world, pos, (TileAltar) te);
+            return isIdleAltar(world, pos, (TileAltar) te, session);
         }
         return true;
+    }
+
+    private boolean isGraceElapsed(TargetSession session, long currentWorldTime, int graceTicks) {
+        return session == null || session.isPushGraceElapsed(currentWorldTime, graceTicks);
     }
 
     // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
@@ -403,9 +383,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return true;
     }
 
-    private boolean isIdlePool(World world, BlockPos pos) {
+    private boolean isIdlePool(World world, BlockPos pos, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         // 空闲判定：没有带 TAG_INPUT_FLAG 的未处理输入即可。
-        // 有产物时需要收集，无产物时表示已清空可接受下一次发配。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
@@ -445,14 +425,15 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return true;
     }
 
-    private boolean isIdleAlfPortal(World world, BlockPos pos) {
-        // 空闲判定：没有未处理输入即可。
-        // 产物存在时需要收集，AABB 为空时表示已清空可接受下一次发配。
+    private boolean isIdleAlfPortal(World world, BlockPos pos, TargetSession session) {
+        // 推料后至少等待 grace，让精灵门有时间把输入传走并返回产物
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), ALF_PORTAL_GRACE_TICKS)) return false;
+        // 只要有非输入标记的实体（产物）就视为可收集；AABB 为空时 grace 已过后也视为 idle
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            if (!item.getEntityData().getBoolean(TAG_PORTAL_FLAG)) {
-                return false;
+            if (!item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                return true;
             }
         }
         return true;
@@ -497,9 +478,8 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return true;
     }
 
-    private boolean isIdleTerraPlate(World world, BlockPos pos) {
-        // 空闲判定：没有未处理输入即可。
-        // 泰拉钢锭存在时需要收集，AABB 为空时表示已清空可接受下一次发配。
+    private boolean isIdleTerraPlate(World world, BlockPos pos, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
@@ -642,7 +622,8 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         }
     }
 
-    private boolean isIdleRuneAltar(World world, BlockPos pos, TileRuneAltar altar) {
+    private boolean isIdleRuneAltar(World world, BlockPos pos, TileRuneAltar altar, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         int cooldown = BotaniaReflectionHelper.getRuneAltarCooldown(altar);
         // cooldown > 0 表示合成刚完成,正在冷却
         if (cooldown > 0) return true;
@@ -762,9 +743,10 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return true;
     }
 
-    private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar) {
+    private boolean isIdleAltar(World world, BlockPos pos, TileAltar altar, TargetSession session) {
+        if (!isGraceElapsed(session, world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) return false;
         // pushMaterialsAltar 已直接调用 collideEntityItem 并将输入 EntityItem setDead,
-        // 因此 AABB 中只会留下 Botania 生成的产物 EntityItem(标记为 ApothecarySpawned).
+        // 因此 AABB 中只会留下 Botania 生成的产物 EntityItem.
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
