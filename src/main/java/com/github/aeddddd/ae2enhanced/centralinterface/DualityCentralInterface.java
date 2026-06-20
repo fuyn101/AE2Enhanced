@@ -87,7 +87,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     // 虚拟合成冷却：每个目标成功执行一批后进入 20 tick 冷却
     private final Map<TargetBinding, Integer> virtualCooldowns = new HashMap<>();
-    private static final int VIRTUAL_COOLDOWN_TICKS = 20;
+    private static final int VIRTUAL_TARGET_COOLDOWN_TICKS = 20;
+
+    // 全局虚拟批间冷却：每个 pushPattern 调用最多触发一次虚拟批处理，成功/失败后均进入冷却
+    private int globalVirtualCooldown = 0;
+    private static final int VIRTUAL_GLOBAL_COOLDOWN_TICKS = 20;
 
     private static class VirtualParticleTarget {
         final BlockPos pos;
@@ -221,24 +225,29 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         int virtualParallel = getVirtualParallel();
         if (virtualParallel > 1) {
-            // 安装虚拟并行卡后，只走虚拟合成路径
+            // 安装虚拟并行卡后，只走虚拟批量合成路径
+            // 全局批间冷却：一个 pushPattern 调用周期内最多触发一次虚拟批处理
+            if (isOnGlobalVirtualCooldown()) {
+                return false;
+            }
             List<TargetBinding> candidates = findIdleTargets();
             for (TargetBinding target : candidates) {
                 if (tryVirtualBatchToTarget(proxy, patternDetails, table, target, virtualParallel)) {
+                    this.globalVirtualCooldown = VIRTUAL_GLOBAL_COOLDOWN_TICKS;
+                    tryWakeTickDevice();
                     return true;
                 }
             }
+            // 没有任何目标能执行时，也进入短暂全局冷却，防止 CPU 在同一 tick 内反复重试
+            this.globalVirtualCooldown = VIRTUAL_GLOBAL_COOLDOWN_TICKS;
+            tryWakeTickDevice();
             return false;
         }
 
-        // 未安装虚拟卡：原有物理物流路径
+        // 未安装虚拟卡：走物理物流路径
         List<TargetBinding> candidates = findIdleTargets();
-        if (candidates.isEmpty()) {
-            return false;
-        }
-
         for (TargetBinding target : candidates) {
-            if (tryPushPatternToTarget(proxy, patternDetails, table, target)) {
+            if (tryPhysicalDispatch(proxy, patternDetails, table, target)) {
                 return true;
             }
         }
@@ -266,11 +275,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return cooldown != null && cooldown > 0;
     }
 
+    private boolean isOnGlobalVirtualCooldown() {
+        return this.globalVirtualCooldown > 0;
+    }
+
     /**
      * 递减所有虚拟合成冷却，返回是否有冷却刚好结束。
      */
     private boolean decrementVirtualCooldowns() {
         boolean expired = false;
+
+        if (this.globalVirtualCooldown > 0) {
+            this.globalVirtualCooldown--;
+            if (this.globalVirtualCooldown <= 0) {
+                expired = true;
+            }
+        }
+
         Iterator<Map.Entry<TargetBinding, Integer>> it = this.virtualCooldowns.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<TargetBinding, Integer> entry = it.next();
@@ -289,17 +310,21 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
-     * 尝试把单个样板推送到指定目标.
+     * 物理发配路径：把单个样板的材料实际推送到目标机器，并在 tick 中收集产物.
      *
-     * <p>本方法内部会复制 {@code originalTable}，因此无论成功或失败都不会污染
+     * <p>本方法只处理物理交互，不再判断 {@link IVirtualCraftingHandler}。
+     * 虚拟合成仅在安装虚拟并行卡后由 {@link #tryVirtualBatchToTarget} 统一处理，
+     * 避免无卡时误走虚拟路径白嫖产物。</p>
+     *
+     * <p>内部会复制 {@code originalTable}，因此无论成功或失败都不会污染
      * AE2 传入的原始 {@link InventoryCrafting}，也不会影响其他 target 的推送尝试.</p>
      *
      * @return true 表示推送成功；false 表示失败，调用方应尝试下一个 target
      */
-    private boolean tryPushPatternToTarget(AENetworkProxy proxy,
-                                           ICraftingPatternDetails patternDetails,
-                                           InventoryCrafting originalTable,
-                                           TargetBinding target) {
+    private boolean tryPhysicalDispatch(AENetworkProxy proxy,
+                                        ICraftingPatternDetails patternDetails,
+                                        InventoryCrafting originalTable,
+                                        TargetBinding target) {
         World world = this.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
             return false;
@@ -312,7 +337,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
         TargetSession session = getOrCreateSession(target);
 
-        // 1A：每个 target 同一时刻只能有一份材料在途
+        // 每个 target 同一时刻只能有一份材料在途
         if (!session.isIdle()) {
             return false;
         }
@@ -322,28 +347,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        // 虚拟合成路径(Extended Crafting 工作台等)
-        if (handler instanceof IVirtualCraftingHandler) {
-            IVirtualCraftingHandler vh = (IVirtualCraftingHandler) handler;
-            // 复制 table，避免污染 AE2 传入的原始 InventoryCrafting
-            InventoryCrafting virtualTable = copyInventoryCrafting(originalTable);
-            IAEItemStack[] outputs = patternDetails.getOutputs();
-            if (vh.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
-                List<ItemStack> products = vh.virtualCraft(world, target.pos, virtualTable, outputs,
-                        new appeng.me.helpers.MachineSource(this.host));
-                if (!products.isEmpty()) {
-                    // 使用 handler 实际返回的产物,避免与 pattern 定义输出数量/物品不一致
-                    this.pendingVirtualProducts.addAll(products);
-                }
-                // 虚拟合成不占用物理设备,target 保持 IDLE,可立即复用
-                tryWakeTickDevice();
-                return true;
-            }
-            return false;
-        }
-
-        // 物理模式路径：复制 table，避免一个 target 的失败影响其他 target
+        // 复制 table，避免一个 target 的失败影响其他 target
         InventoryCrafting table = copyInventoryCrafting(originalTable);
+        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
 
         // 获取全局坐标所有权，进入 PUSHING 状态
         List<FluidStack> pushedFluids = new ArrayList<>();
@@ -360,43 +366,38 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
 
             // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
-            List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos,
-                    new appeng.me.helpers.MachineSource(this.host));
+            List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos, source);
             if (!clearedOutputs.isEmpty()) {
                 if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
                     stashItemsToStorage(world, clearedOutputs);
                 }
             }
 
-            // 物理模式路径
             if (!handler.canStart(world, target.pos, table)) {
                 revertPushedFluids(world, target.pos, pushedFluids);
                 return false;
             }
 
-            boolean pushed = handler.pushMaterials(world, target.pos, table,
-                    new appeng.me.helpers.MachineSource(this.host));
-            if (!pushed) {
+            if (!handler.pushMaterials(world, target.pos, table, source)) {
                 // 回退已推入的材料(handler 可能已部分推入)
-                List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
-                        new appeng.me.helpers.MachineSource(this.host));
+                List<ItemStack> reverted = handler.revertMaterials(world, target.pos, source);
                 if (!reverted.isEmpty()) {
-                    injectItemsToNetwork(proxy, world, reverted);
+                    if (!injectItemsToNetwork(proxy, world, reverted)) {
+                        stashItemsToStorage(world, reverted);
+                    }
                 }
                 revertPushedFluids(world, target.pos, pushedFluids);
                 return false;
             }
 
-            boolean started = handler.startProcess(world, target.pos,
-                    new appeng.me.helpers.MachineSource(this.host));
-            if (!started) {
+            if (!handler.startProcess(world, target.pos, source)) {
                 // 回退已推送的材料
-                List<ItemStack> reverted = handler.revertMaterials(world, target.pos,
-                        new appeng.me.helpers.MachineSource(this.host));
+                List<ItemStack> reverted = handler.revertMaterials(world, target.pos, source);
                 if (!reverted.isEmpty()) {
-                    injectItemsToNetwork(proxy, world, reverted);
+                    if (!injectItemsToNetwork(proxy, world, reverted)) {
+                        stashItemsToStorage(world, reverted);
+                    }
                 }
-                // 回退已推送的流体
                 revertPushedFluids(world, target.pos, pushedFluids);
                 return false;
             }
@@ -461,6 +462,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
+        // 防御性冷却检查：防止在 pushPattern 与 tick 之间出现竞态
+        if (isOnGlobalVirtualCooldown() || isOnVirtualCooldown(target)) {
+            return false;
+        }
+
+        TargetSession session = getOrCreateSession(target);
+        if (!session.isIdle()) {
+            return false;
+        }
+
         IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
         if (!(handler instanceof IVirtualBatchCraftingHandler)) {
             return false;
@@ -468,6 +479,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
 
         if (!handler.isValidTarget(world, target.pos)) {
+            session.setUnavailable();
             return false;
         }
 
@@ -535,8 +547,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
         addParticleTarget(target.pos, particleType);
 
-        // 进入虚拟合成冷却，20 tick 后才能接受下一批
-        this.virtualCooldowns.put(target, VIRTUAL_COOLDOWN_TICKS);
+        // 进入目标级虚拟合成冷却，20 tick 后才能接受下一批
+        this.virtualCooldowns.put(target, VIRTUAL_TARGET_COOLDOWN_TICKS);
 
         tryWakeTickDevice();
         return true;
@@ -683,6 +695,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     public boolean isBusy() {
         if (this.bindings.isEmpty()) {
             return false;
+        }
+        // 虚拟全局冷却期间，CPU 应认为本接口忙碌，避免同一 tick 内反复触发多批
+        if (isOnGlobalVirtualCooldown()) {
+            return true;
         }
         for (TargetBinding binding : this.bindings) {
             TargetSession session = this.sessions.get(binding);
@@ -1115,6 +1131,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     private boolean hasWorkToDo() {
+        if (isOnGlobalVirtualCooldown()) {
+            return true;
+        }
         if (!this.pendingVirtualProducts.isEmpty()) {
             return true;
         }
