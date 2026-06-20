@@ -138,6 +138,16 @@ public class ClientProxy extends CommonProxy {
                 return -1;
             }, ItemRegistry.GAS_DROP);
         }
+
+        // 虚拟并行卡按 tier 染色（必须在 init 中注册，registerModels 阶段 ItemColors 尚未初始化）
+        if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
+            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
+                if (tintIndex != 0 || stack.isEmpty()) {
+                    return -1;
+                }
+                return ItemVirtualParallelCard.getTierColor(ItemVirtualParallelCard.getTier(stack));
+            }, ItemRegistry.VIRTUAL_PARALLEL_CARD);
+        }
     }
 
     @Override
@@ -334,16 +344,6 @@ public class ClientProxy extends CommonProxy {
             String name = (meta == 0) ? "magnet" : (meta == 1) ? "picker" : "unknown";
             return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_" + name, "inventory");
         });
-
-        // 虚拟并行卡按 tier 染色
-        if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
-            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
-                if (tintIndex != 0 || stack.isEmpty()) {
-                    return -1;
-                }
-                return ItemVirtualParallelCard.getTierColor(ItemVirtualParallelCard.getTier(stack));
-            }, ItemRegistry.VIRTUAL_PARALLEL_CARD);
-        }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ItemRegistry.UPGRADE_CARD, stack -> {
