@@ -306,9 +306,9 @@ message.ae2enhanced.magnet.network=§b磁引卡：网络模式
 
 # 先进中枢平台
 tile.ae2enhanced.rf_access_node.name=RF访问节点
-item.ae2enhanced.energy_drop.name=RF能量滴
-item.ae2enhanced.mana_drop.name=魔力滴
-item.ae2enhanced.starlight_drop.name=星能滴
+item.ae2enhanced.energy_drop.name=RF
+item.ae2enhanced.mana_drop.name=Mana
+item.ae2enhanced.starlight_drop.name=星能
 
 
 tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器
@@ -516,5 +516,13 @@ item.ae2enhanced.virtual_parallel_card.tier5.name=虚拟并行卡（等级 5）
 item.ae2enhanced.virtual_parallel_card.tier6.name=虚拟并行卡（等级 6）
 item.ae2enhanced.virtual_parallel_card.tier7.name=虚拟并行卡（等级 7）
 item.ae2enhanced.virtual_parallel_card.tier8.name=虚拟并行卡（等级 8）
-item.ae2enhanced.virtual_parallel_card.tooltip=等级 %d | 虚拟并行：%s
-item.ae2enhanced.virtual_parallel_card.tooltip.detail=每次虚拟合成消耗 %.0f AE
+item.ae2enhanced.virtual_parallel_card.tooltip.parallel=§7虚拟并行：§r%s
+item.ae2enhanced.virtual_parallel_card.tooltip.detail=§7每次虚拟合成消耗 §r%.0f AE
+item.ae2enhanced.virtual_parallel_card.tooltip.tier1=§8“一次微不足道的走神，却足以让两个世界并行。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier2=§7“当你能同时想起昨天与明天，昨天便有了复数。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier3=§f“双手未动，工具已在自己的影子里完成了劳作。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier4=§e“假想的工坊不再需要砖石，只要一个念头便能点火。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier5=§a“数以万计的可能性在网中折叠，只等待一次轻轻的收取。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier6=§b“每一秒都有百万个未来被演算、被剔除、被实现。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier7=§d“因果律在此成了柔软的织物，任人经纬。”
+item.ae2enhanced.virtual_parallel_card.tooltip.tier8=§c“一念之间，万象俱兴；一息之后，万法归一。”

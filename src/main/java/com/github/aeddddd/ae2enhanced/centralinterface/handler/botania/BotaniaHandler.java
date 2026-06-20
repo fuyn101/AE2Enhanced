@@ -403,25 +403,16 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     private boolean isIdlePool(World world, BlockPos pos) {
-        // 只把不带 TAG_INPUT_FLAG 的 EntityItem 视为产物；
-        // 带标记的是未消耗的输入,不应视为产物
+        // 空闲判定：没有带 TAG_INPUT_FLAG 的未处理输入即可。
+        // 有产物时需要收集，无产物时表示已清空可接受下一次发配。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
-        boolean hasProduct = false;
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            boolean isInput = item.getEntityData().getBoolean(TAG_INPUT_FLAG);
-//             AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool scan at {}: {} inputFlag={} dead={}",
-//                     pos, item.getItem(), isInput, item.isDead);
-            if (!isInput) {
-                hasProduct = true;
+            if (item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                return false;
             }
         }
-        if (hasProduct) {
-//             AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool -> true (product found) at {}", pos);
-        } else {
-//             AE2Enhanced.LOGGER.debug("[AE2E-Botania] isIdlePool -> false (no product) at {}", pos);
-        }
-        return hasProduct;
+        return true;
     }
 
     // ==================== Alf Portal ====================
@@ -454,19 +445,16 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     private boolean isIdleAlfPortal(World world, BlockPos pos) {
+        // 空闲判定：没有未处理输入即可。
+        // 产物存在时需要收集，AABB 为空时表示已清空可接受下一次发配。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
-        boolean hasProducts = false;
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            // 未带 _elvenPortal 标记的物品是未处理的输入
             if (!item.getEntityData().getBoolean(TAG_PORTAL_FLAG)) {
                 return false;
             }
-            hasProducts = true;
         }
-        // 只有 AABB 内确实存在产物时才返回 true
-        // AABB 为空时返回 false,避免在输入被吞噬后、产物生成前过早触发
-        return hasProducts;
+        return true;
     }
 
     // ==================== Terra Plate ====================
@@ -509,15 +497,16 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     private boolean isIdleTerraPlate(World world, BlockPos pos) {
+        // 空闲判定：没有未处理输入即可。
+        // 泰拉钢锭存在时需要收集，AABB 为空时表示已清空可接受下一次发配。
         List<EntityItem> items = getEntityItemsInAABB(world, pos);
         for (EntityItem item : items) {
             if (item.isDead) continue;
-            ItemStack stack = item.getItem();
-            if (stack.getItem() == ModItems.manaResource && stack.getMetadata() == 4) {
-                return true; // 发现泰拉钢锭
+            if (item.getEntityData().getBoolean(TAG_INPUT_FLAG)) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     // ==================== Rune Altar ====================

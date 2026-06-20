@@ -139,15 +139,6 @@ public class ClientProxy extends CommonProxy {
             }, ItemRegistry.GAS_DROP);
         }
 
-        // 虚拟并行卡按 tier 染色（必须在 init 中注册，registerModels 阶段 ItemColors 尚未初始化）
-        if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
-            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
-                if (tintIndex != 0 || stack.isEmpty()) {
-                    return -1;
-                }
-                return ItemVirtualParallelCard.getTierColor(ItemVirtualParallelCard.getTier(stack));
-            }, ItemRegistry.VIRTUAL_PARALLEL_CARD);
-        }
     }
 
     @Override
@@ -309,7 +300,7 @@ public class ClientProxy extends CommonProxy {
         // ME 放置工具
         registerItemModel(ItemRegistry.ME_PLACEMENT_TOOL);
 
-        // 虚拟并行卡：单模型，按 tier 染色
+        // 虚拟并行卡：单模型，名称颜色按 tier 变化
         if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
             registerItemModel(ItemRegistry.VIRTUAL_PARALLEL_CARD);
         }

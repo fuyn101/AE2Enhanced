@@ -308,9 +308,9 @@ message.ae2enhanced.magnet.network=§bMagnet: Network Mode
 
 # Advanced Platform
 tile.ae2enhanced.rf_access_node.name=RF Access Node
-item.ae2enhanced.energy_drop.name=RF Energy Drop
-item.ae2enhanced.mana_drop.name=Mana Drop
-item.ae2enhanced.starlight_drop.name=Starlight Drop
+item.ae2enhanced.energy_drop.name=RF
+item.ae2enhanced.mana_drop.name=Mana
+item.ae2enhanced.starlight_drop.name=Starlight
 
 
 tile.ae2enhanced.advanced_platform_controller.name=Advanced Platform Controller
@@ -518,5 +518,13 @@ item.ae2enhanced.virtual_parallel_card.tier5.name=Virtual Parallel Card (Tier 5)
 item.ae2enhanced.virtual_parallel_card.tier6.name=Virtual Parallel Card (Tier 6)
 item.ae2enhanced.virtual_parallel_card.tier7.name=Virtual Parallel Card (Tier 7)
 item.ae2enhanced.virtual_parallel_card.tier8.name=Virtual Parallel Card (Tier 8)
-item.ae2enhanced.virtual_parallel_card.tooltip=Tier %d | Virtual Parallel: %s
-item.ae2enhanced.virtual_parallel_card.tooltip.detail=Each virtual craft consumes %.0f AE
+item.ae2enhanced.virtual_parallel_card.tooltip.parallel=§7Virtual Parallel: §r%s
+item.ae2enhanced.virtual_parallel_card.tooltip.detail=§7Each virtual craft consumes §r%.0f AE
+item.ae2enhanced.virtual_parallel_card.tooltip.tier1=§8"A single thought branches into two parallel worlds."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier2=§7"Yesterday and tomorrow briefly share the same bench."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier3=§f"The workshop begins to hum with plans that were never drawn."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier4=§e"Possibilities stack like cards, waiting for the right hand."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier5=§a"Countless futures fold into one decisive moment."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier6=§b"Every tick, a million what-ifs are calculated and discarded."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier7=§d"Causality softens into fabric, woven at your whim."
+item.ae2enhanced.virtual_parallel_card.tooltip.tier8=§c"In one breath, all things arise; in the next, all things resolve."
