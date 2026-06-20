@@ -167,9 +167,6 @@ public class BlockChunkManaNode extends Block {
                 com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
                         new com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlight(targets, 100),
                         (EntityPlayerMP) player);
-                String msg = String.format("[Chunk Mana Node] powered=%s active=%s targets=%d",
-                        node.isPowered(), node.isActive(), targets.size());
-                player.sendMessage(new net.minecraft.util.text.TextComponentString(msg));
                 return true;
             }
         }
