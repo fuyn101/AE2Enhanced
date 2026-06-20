@@ -506,3 +506,15 @@ gui.ae2enhanced.omni_tool_config.reach_distance=触及距离
 gui.ae2enhanced.omni_tool_config.reach_distance.desc=放置模式下的最大触及距离
 gui.ae2enhanced.omni_tool_config.placement_restriction=放置方向锁
 gui.ae2enhanced.omni_tool_config.placement_restriction.desc=批量放置时的方向限制（建筑手杖风格）
+
+item.ae2enhanced.virtual_parallel_card.name=虚拟并行卡
+item.ae2enhanced.virtual_parallel_card.tier1.name=虚拟并行卡（等级 1）
+item.ae2enhanced.virtual_parallel_card.tier2.name=虚拟并行卡（等级 2）
+item.ae2enhanced.virtual_parallel_card.tier3.name=虚拟并行卡（等级 3）
+item.ae2enhanced.virtual_parallel_card.tier4.name=虚拟并行卡（等级 4）
+item.ae2enhanced.virtual_parallel_card.tier5.name=虚拟并行卡（等级 5）
+item.ae2enhanced.virtual_parallel_card.tier6.name=虚拟并行卡（等级 6）
+item.ae2enhanced.virtual_parallel_card.tier7.name=虚拟并行卡（等级 7）
+item.ae2enhanced.virtual_parallel_card.tier8.name=虚拟并行卡（等级 8）
+item.ae2enhanced.virtual_parallel_card.tooltip=等级 %d | 虚拟并行：%s
+item.ae2enhanced.virtual_parallel_card.tooltip.detail=每次虚拟合成消耗 %.0f AE

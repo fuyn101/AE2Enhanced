@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.registry;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
+import com.github.aeddddd.ae2enhanced.item.ItemVirtualParallelCard;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.crafting.BlackHoleRecipeRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.SingularityRecipe;
@@ -100,6 +101,15 @@ public final class ModRecipes {
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "smart_blank_pattern", smartPatternInputs,
                     new ItemStack(ItemRegistry.SMART_BLANK_PATTERN, 1)));
+        }
+
+        // 虚拟并行卡（Tier 1）：512 个 AE2 加速卡
+        if (ae2Material != null && ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
+            Map<String, Integer> vpcInputs = new HashMap<>();
+            vpcInputs.put("appliedenergistics2:material:30", 512);
+            BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
+                    "virtual_parallel_card_tier1", vpcInputs,
+                    ItemVirtualParallelCard.createStack(0)));
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.upgrade;
 
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
+import com.github.aeddddd.ae2enhanced.item.ItemVirtualParallelCard;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +22,10 @@ public class MixinUpgradeInvFilter {
     @Inject(method = "allowInsert", at = @At("HEAD"), cancellable = true)
     private void ae2e$allowChannelReceiverCard(IItemHandler inv, int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        if (stack.getItem() instanceof ItemVirtualParallelCard) {
+            cir.setReturnValue(true);
             return;
         }
         if (!(stack.getItem() instanceof ItemChannelReceiverCard)) {

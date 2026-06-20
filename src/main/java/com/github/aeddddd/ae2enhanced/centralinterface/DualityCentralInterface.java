@@ -9,10 +9,12 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.events.MENetworkCraftingPatternChange;
+import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IConfigManager;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
@@ -26,6 +28,9 @@ import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternSubDetails;
 import com.github.aeddddd.ae2enhanced.item.ItemSmartPattern;
+import com.github.aeddddd.ae2enhanced.item.ItemVirtualParallelCard;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketVirtualCraftingParticles;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcFluidCompat;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -33,6 +38,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
@@ -75,6 +81,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final Map<TargetBinding, TargetSession> sessions = new HashMap<>();
     // 虚拟合成产物暂存队列(等待 waitingFor 注册后再注入网络)
     private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
+
+    // 虚拟合成粒子效果：目标位置 + 剩余 tick
+    private final List<VirtualParticleTarget> activeParticleTargets = new ArrayList<>();
+
+    private static class VirtualParticleTarget {
+        final BlockPos pos;
+        final int particleType;
+        final int color;
+        int remainingTicks;
+
+        VirtualParticleTarget(BlockPos pos, int particleType, int color, int duration) {
+            this.pos = pos;
+            this.particleType = particleType;
+            this.color = color;
+            this.remainingTicks = duration;
+        }
+    }
 
     // 流体 IO 尝试顺序：null（内部 tank）优先，然后按 UP/DOWN/NORTH/SOUTH/WEST/EAST 逐个尝试
     private static final List<EnumFacing> FLUID_FACE_ORDER;
@@ -192,7 +215,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        // 收集所有 IDLE 候选 target；逐个尝试，确保一个机器的失败不影响其他机器
+        int virtualParallel = getVirtualParallel();
+        if (virtualParallel > 1) {
+            // 安装虚拟并行卡后，只走虚拟合成路径
+            List<TargetBinding> candidates = findIdleTargets();
+            for (TargetBinding target : candidates) {
+                if (tryVirtualBatchToTarget(proxy, patternDetails, table, target, virtualParallel)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 未安装虚拟卡：原有物理物流路径
         List<TargetBinding> candidates = findIdleTargets();
         if (candidates.isEmpty()) {
             return false;
@@ -357,6 +392,207 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 session.reset();
             }
         }
+    }
+
+    /**
+     * 从 Central Interface 升级槽中读取虚拟并行卡，返回最高 tier 对应的并行数。
+     * 未安装卡时返回 1。
+     */
+    private int getVirtualParallel() {
+        int maxParallel = 1;
+        IItemHandler upgrades = this.host.getTileEntity().getCapability(
+                net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (upgrades == null) {
+            upgrades = getInventoryByName("upgrades");
+        }
+        if (upgrades == null) {
+            return maxParallel;
+        }
+        for (int i = 0; i < upgrades.getSlots(); i++) {
+            ItemStack stack = upgrades.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemVirtualParallelCard) {
+                maxParallel = Math.max(maxParallel, ItemVirtualParallelCard.getParallel(stack));
+            }
+        }
+        return maxParallel;
+    }
+
+    /**
+     * 尝试对指定目标执行批量虚拟合成。
+     *
+     * @return true 表示成功完成至少 1 份虚拟合成
+     */
+    private boolean tryVirtualBatchToTarget(AENetworkProxy proxy,
+                                            ICraftingPatternDetails patternDetails,
+                                            InventoryCrafting originalTable,
+                                            TargetBinding target,
+                                            int maxParallel) {
+        World world = this.host.getTileEntity().getWorld();
+        if (world.provider.getDimension() != target.dimension) {
+            return false;
+        }
+
+        IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+        if (!(handler instanceof IVirtualBatchCraftingHandler)) {
+            return false;
+        }
+        IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+
+        if (!handler.isValidTarget(world, target.pos)) {
+            return false;
+        }
+
+        InventoryCrafting virtualTable = copyInventoryCrafting(originalTable);
+        IAEItemStack[] outputs = patternDetails.getOutputs();
+
+        // 验证配方真实存在
+        if (!vh.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
+            return false;
+        }
+
+        IStorageGrid storage;
+        appeng.api.networking.energy.IEnergySource energy;
+        try {
+            storage = proxy.getStorage();
+            energy = proxy.getEnergy();
+        } catch (appeng.me.GridAccessException e) {
+            return false;
+        }
+
+        int actualParallel = computeActualParallel(storage, vh, world, target, virtualTable, outputs, maxParallel);
+        if (actualParallel <= 0) {
+            return false;
+        }
+
+        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
+
+        // 获取完整资源清单
+        List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, actualParallel);
+        if (costs == null || costs.isEmpty()) {
+            return false;
+        }
+
+        // 模拟提取
+        if (!VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+            return false;
+        }
+
+        // 扣除 AE 能量
+        double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * actualParallel;
+        if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
+            return false;
+        }
+
+        // 实际提取资源
+        if (!VirtualCostExtractor.extractAll(storage, costs, source)) {
+            // 能量已扣但资源提取失败，这种情况理论上不应发生，因为已模拟成功
+            return false;
+        }
+
+        // 执行虚拟合成
+        List<ItemStack> products = vh.virtualCraftBatch(world, target.pos, virtualTable, outputs, actualParallel, source);
+        if (products == null || products.isEmpty()) {
+            // 产物为空，不回滚资源（视为已消耗）
+            return false;
+        }
+
+        // 合并可堆叠产物，减少 pending 列表大小
+        products = mergeProducts(products);
+        this.pendingVirtualProducts.addAll(products);
+
+        // 触发粒子效果
+        List<EnumParticleTypes> particleTypes = vh.getVirtualCraftingParticles(world, target.pos);
+        int particleType = particleTypes.isEmpty() ? EnumParticleTypes.PORTAL.getParticleID()
+                : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
+        addParticleTarget(target.pos, particleType);
+
+        tryWakeTickDevice();
+        return true;
+    }
+
+    /**
+     * 计算当前网络资源可支撑的最大虚拟并行数。
+     */
+    private int computeActualParallel(IStorageGrid storage,
+                                      IVirtualBatchCraftingHandler vh,
+                                      World world,
+                                      TargetBinding target,
+                                      InventoryCrafting virtualTable,
+                                      IAEItemStack[] outputs,
+                                      int maxParallel) {
+        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
+        if (!AE2EnhancedConfig.centralInterface.virtualParallelPartialExecution) {
+            // 不允许部分执行：只尝试 maxParallel
+            List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, maxParallel);
+            return VirtualCostExtractor.simulateExtract(storage, costs, source) ? maxParallel : 0;
+        }
+
+        // 二分查找最大可执行并行数
+        int low = 1;
+        int high = maxParallel;
+        int best = 0;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, mid);
+            if (costs == null || costs.isEmpty()) {
+                high = mid - 1;
+                continue;
+            }
+            if (VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+                best = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        return best;
+    }
+
+    private void addParticleTarget(BlockPos pos, int particleType) {
+        int color = 0xFFFFFFFF;
+        // 默认颜色：根据粒子类型简单区分
+        if (particleType == EnumParticleTypes.PORTAL.getParticleID()) color = 0xFFAA55FF;
+        else if (particleType == EnumParticleTypes.ENCHANTMENT_TABLE.getParticleID()) color = 0xFF55AAFF;
+        else if (particleType == EnumParticleTypes.SPELL_WITCH.getParticleID()) color = 0xFFFF55FF;
+        else if (particleType == EnumParticleTypes.END_ROD.getParticleID()) color = 0xFFFFFFFF;
+
+        int maxTargets = AE2EnhancedConfig.centralInterface.virtualParticleMaxTargets;
+        if (activeParticleTargets.size() >= maxTargets) {
+            activeParticleTargets.remove(0);
+        }
+        activeParticleTargets.add(new VirtualParticleTarget(
+                pos, particleType, color, AE2EnhancedConfig.centralInterface.virtualParticleDurationTicks));
+    }
+
+    /**
+     * 合并产物列表中可堆叠的相同物品。
+     */
+    private List<ItemStack> mergeProducts(List<ItemStack> products) {
+        if (products == null || products.size() <= 1) {
+            return products;
+        }
+        List<ItemStack> merged = new ArrayList<>();
+        for (ItemStack incoming : products) {
+            if (incoming.isEmpty()) continue;
+            boolean found = false;
+            for (ItemStack existing : merged) {
+                if (ItemStack.areItemsEqual(existing, incoming) && ItemStack.areItemStackTagsEqual(existing, incoming)) {
+                    int canAdd = Math.min(incoming.getCount(), existing.getMaxStackSize() - existing.getCount());
+                    existing.grow(canAdd);
+                    if (canAdd < incoming.getCount()) {
+                        ItemStack leftover = incoming.copy();
+                        leftover.setCount(incoming.getCount() - canAdd);
+                        merged.add(leftover);
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                merged.add(incoming.copy());
+            }
+        }
+        return merged;
     }
 
     /**
@@ -549,10 +785,13 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
+        // 发送虚拟合成粒子包
+        sendParticlePackets();
+
         // 将 storage slots 中的物品推入网络(如果有空间)
         pushStorageToNetwork(proxy);
 
-        return hasWorkToDo()
+        return hasWorkToDo() || !this.activeParticleTargets.isEmpty()
                 ? (didWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
                 : TickRateModulation.SLEEP;
     }
@@ -611,6 +850,47 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         } catch (appeng.me.GridAccessException e) {
             // 网络未连接,保持 storage 中
+        }
+    }
+
+    /**
+     * 向附近玩家发送虚拟合成粒子包。
+     */
+    private void sendParticlePackets() {
+        if (this.activeParticleTargets.isEmpty()) {
+            return;
+        }
+        World world = this.host.getTileEntity().getWorld();
+        if (world == null || world.isRemote) {
+            return;
+        }
+
+        int countPerTick = AE2EnhancedConfig.centralInterface.virtualParticleCountPerTick;
+        int renderDistance = AE2EnhancedConfig.centralInterface.virtualParticleRenderDistance;
+        int renderDistanceSq = renderDistance * renderDistance;
+
+        List<PacketVirtualCraftingParticles.ParticleTarget> packetTargets = new ArrayList<>();
+        Iterator<VirtualParticleTarget> it = this.activeParticleTargets.iterator();
+        while (it.hasNext()) {
+            VirtualParticleTarget target = it.next();
+            target.remainingTicks--;
+            if (target.remainingTicks <= 0) {
+                it.remove();
+                continue;
+            }
+            packetTargets.add(new PacketVirtualCraftingParticles.ParticleTarget(
+                    target.pos, target.particleType, countPerTick, target.color));
+        }
+
+        if (packetTargets.isEmpty()) {
+            return;
+        }
+
+        PacketVirtualCraftingParticles packet = new PacketVirtualCraftingParticles(packetTargets);
+        BlockPos interfacePos = this.host.getTileEntity().getPos();
+        for (net.minecraft.entity.player.EntityPlayerMP player : world.getPlayers(net.minecraft.entity.player.EntityPlayerMP.class,
+                p -> p.getDistanceSq(interfacePos) <= renderDistanceSq)) {
+            AE2Enhanced.network.sendTo(packet, player);
         }
     }
 

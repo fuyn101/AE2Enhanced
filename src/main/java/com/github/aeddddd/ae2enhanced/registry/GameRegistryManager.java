@@ -73,6 +73,7 @@ public final class GameRegistryManager {
         ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
         ItemRegistry.ME_PLACEMENT_TOOL = new ItemMEPlacementTool();
+        ItemRegistry.VIRTUAL_PARALLEL_CARD = new ItemVirtualParallelCard();
     }
 
     @SubscribeEvent
@@ -219,6 +220,7 @@ public final class GameRegistryManager {
         event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
         event.getRegistry().register(ItemRegistry.ME_PLACEMENT_TOOL);
+        event.getRegistry().register(ItemRegistry.VIRTUAL_PARALLEL_CARD);
     }
 
     @SubscribeEvent

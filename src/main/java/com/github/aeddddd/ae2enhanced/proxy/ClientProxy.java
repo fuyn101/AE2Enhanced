@@ -16,6 +16,7 @@ import com.github.aeddddd.ae2enhanced.client.render.ChunkPowerHighlightRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.RenderHyperdimensionalController;
 import com.github.aeddddd.ae2enhanced.client.render.RenderMicroSingularity;
 import com.github.aeddddd.ae2enhanced.item.ItemUpgradeCard;
+import com.github.aeddddd.ae2enhanced.item.ItemVirtualParallelCard;
 import com.github.aeddddd.ae2enhanced.part.PartStockingBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.part.PartUniversalImportBus;
@@ -298,6 +299,11 @@ public class ClientProxy extends CommonProxy {
         // ME 放置工具
         registerItemModel(ItemRegistry.ME_PLACEMENT_TOOL);
 
+        // 虚拟并行卡：单模型，按 tier 染色
+        if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
+            registerItemModel(ItemRegistry.VIRTUAL_PARALLEL_CARD);
+        }
+
         // 先进ME工具：4模式使用 ItemMeshDefinition 动态切换模型
         if (ItemRegistry.ME_OMNI_TOOL != null) {
             ModelLoader.registerItemVariants(ItemRegistry.ME_OMNI_TOOL,
@@ -328,6 +334,16 @@ public class ClientProxy extends CommonProxy {
             String name = (meta == 0) ? "magnet" : (meta == 1) ? "picker" : "unknown";
             return new ModelResourceLocation(AE2Enhanced.MOD_ID + ":omni_upgrade_card_" + name, "inventory");
         });
+
+        // 虚拟并行卡按 tier 染色
+        if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
+            Minecraft.getMinecraft().getItemColors().registerItemColorHandler((stack, tintIndex) -> {
+                if (tintIndex != 0 || stack.isEmpty()) {
+                    return -1;
+                }
+                return ItemVirtualParallelCard.getTierColor(ItemVirtualParallelCard.getTier(stack));
+            }, ItemRegistry.VIRTUAL_PARALLEL_CARD);
+        }
 
         // 使用 ItemMeshDefinition 根据 metadata 动态选择模型
         ModelLoader.setCustomMeshDefinition(ItemRegistry.UPGRADE_CARD, stack -> {

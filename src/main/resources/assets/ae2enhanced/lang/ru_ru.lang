@@ -480,3 +480,15 @@ gui.ae2enhanced.omni_tool_config.reach_distance=Reach Distance
 gui.ae2enhanced.omni_tool_config.reach_distance.desc=Maximum reach distance in placement mode
 gui.ae2enhanced.omni_tool_config.placement_restriction=Placement Restriction
 gui.ae2enhanced.omni_tool_config.placement_restriction.desc=Bulk placement direction lock (Construction Wand style)
+
+item.ae2enhanced.virtual_parallel_card.name=Виртуальная Карта Параллелизма
+item.ae2enhanced.virtual_parallel_card.tier1.name=Виртуальная Карта Параллелизма (Ур. 1)
+item.ae2enhanced.virtual_parallel_card.tier2.name=Виртуальная Карта Параллелизма (Ур. 2)
+item.ae2enhanced.virtual_parallel_card.tier3.name=Виртуальная Карта Параллелизма (Ур. 3)
+item.ae2enhanced.virtual_parallel_card.tier4.name=Виртуальная Карта Параллелизма (Ур. 4)
+item.ae2enhanced.virtual_parallel_card.tier5.name=Виртуальная Карта Параллелизма (Ур. 5)
+item.ae2enhanced.virtual_parallel_card.tier6.name=Виртуальная Карта Параллелизма (Ур. 6)
+item.ae2enhanced.virtual_parallel_card.tier7.name=Виртуальная Карта Параллелизма (Ур. 7)
+item.ae2enhanced.virtual_parallel_card.tier8.name=Виртуальная Карта Параллелизма (Ур. 8)
+item.ae2enhanced.virtual_parallel_card.tooltip=Ур. %d | Виртуальный параллелизм: %s
+item.ae2enhanced.virtual_parallel_card.tooltip.detail=Каждое виртуальное крафта потребляет %.0f AE

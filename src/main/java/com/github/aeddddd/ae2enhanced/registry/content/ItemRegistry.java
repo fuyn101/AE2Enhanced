@@ -41,4 +41,7 @@ public final class ItemRegistry {
 
     // ME 放置工具
     public static ItemMEPlacementTool ME_PLACEMENT_TOOL;
+
+    // 中枢接口虚拟并行卡
+    public static ItemVirtualParallelCard VIRTUAL_PARALLEL_CARD;
 }

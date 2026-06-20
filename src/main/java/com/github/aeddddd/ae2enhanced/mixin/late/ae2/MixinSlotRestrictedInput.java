@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.mixin.late.ae2;
 import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.SlotRestrictedInput;
 import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
+import com.github.aeddddd.ae2enhanced.item.ItemVirtualParallelCard;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Final;
@@ -35,7 +36,8 @@ public class MixinSlotRestrictedInput {
         if (stack == null || stack.isEmpty()) {
             return;
         }
-        if (!(stack.getItem() instanceof ItemChannelReceiverCard)) {
+        boolean isVirtualCard = stack.getItem() instanceof ItemVirtualParallelCard;
+        if (!isVirtualCard && !(stack.getItem() instanceof ItemChannelReceiverCard)) {
             return;
         }
 

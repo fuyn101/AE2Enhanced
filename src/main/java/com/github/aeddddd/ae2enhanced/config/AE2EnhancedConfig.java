@@ -578,6 +578,50 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 20, max = 72000)
         public int processingTimeoutTicks = 600;
+
+        @Config.Comment({
+            "AE energy consumed per virtual parallel crafting operation.",
+            "Total cost = actualVirtualParallel × this value.",
+            "Range: 0.0 ~ 1000000.0, Default: 16.0"
+        })
+        @Config.RangeDouble(min = 0.0, max = 1000000.0)
+        public double virtualParallelEnergyCost = 16.0;
+
+        @Config.Comment({
+            "If true, virtual parallel crafting will execute the largest possible batch",
+            "when network resources are insufficient for the full parallel count.",
+            "Default: true"
+        })
+        public boolean virtualParallelPartialExecution = true;
+
+        @Config.Comment({
+            "Maximum number of virtual crafting targets that can simultaneously emit particles",
+            "per Central Interface. Excess targets are dropped in FIFO order.",
+            "Range: 1 ~ 256, Default: 32"
+        })
+        @Config.RangeInt(min = 1, max = 256)
+        public int virtualParticleMaxTargets = 32;
+
+        @Config.Comment({
+            "Number of particles spawned per target per tick during virtual crafting.",
+            "Range: 1 ~ 64, Default: 16"
+        })
+        @Config.RangeInt(min = 1, max = 64)
+        public int virtualParticleCountPerTick = 16;
+
+        @Config.Comment({
+            "Maximum distance (in blocks) at which virtual crafting particles are rendered.",
+            "Range: 8 ~ 128, Default: 32"
+        })
+        @Config.RangeInt(min = 8, max = 128)
+        public int virtualParticleRenderDistance = 32;
+
+        @Config.Comment({
+            "Duration (in ticks) that virtual crafting particles continue after a batch completes.",
+            "Range: 1 ~ 200, Default: 30"
+        })
+        @Config.RangeInt(min = 1, max = 200)
+        public int virtualParticleDurationTicks = 30;
     }
 
     public static class Thaumcraft {

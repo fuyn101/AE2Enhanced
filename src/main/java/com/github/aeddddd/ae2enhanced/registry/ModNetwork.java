@@ -44,6 +44,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOpenOmniToolGuiHandle
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlight;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketEMCInterfaceBind;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketChunkPowerHighlightHandler;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketVirtualCraftingParticles;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
@@ -116,6 +117,7 @@ public final class ModNetwork {
         nw.registerMessage(PacketOpenOmniToolGuiHandler.class, PacketOpenOmniToolGui.class, 31, Side.SERVER);
         nw.registerMessage(PacketOmniToolConfigHandler.class, PacketOmniToolConfig.class, 32, Side.SERVER);
         nw.registerMessage(PacketChunkPowerHighlightHandler.class, PacketChunkPowerHighlight.class, 39, Side.CLIENT);
+        nw.registerMessage(PacketVirtualCraftingParticles.Handler.class, PacketVirtualCraftingParticles.class, 49, Side.CLIENT);
         nw.registerMessage(PacketRecyclerSync.Handler.class, PacketRecyclerSync.class, 41, Side.CLIENT);
         nw.registerMessage(PacketEMCInterfaceBind.Handler.class, PacketEMCInterfaceBind.class, 42, Side.SERVER);
         nw.registerMessage(PacketPlacementUndoHandler.class, PacketPlacementUndo.class, 45, Side.SERVER);

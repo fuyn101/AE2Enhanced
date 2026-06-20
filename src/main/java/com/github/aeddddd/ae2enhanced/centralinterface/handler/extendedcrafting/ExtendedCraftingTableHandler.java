@@ -2,13 +2,16 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
-import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualCraftingHandler;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.NonNullList;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -27,7 +30,7 @@ import java.util.List;
  * <p>核心策略：忽略槽位与顺序,将输入材料按数量拆分为单件列表,
  * 与配方的非空 ingredients 进行多对多匹配.输出匹配忽略 NBT.</p>
  */
-public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
+public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandler {
 
     private static final String[] TABLE_IDS = {
         "extendedcrafting:table_basic",
@@ -131,6 +134,35 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
 
     @Override
     public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return java.util.Arrays.asList(
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.ENCHANTMENT_TABLE,
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                ItemStack cost = stack.copy();
+                cost.setCount(cost.getCount() * count);
+                costs.add(AEItemStack.fromItemStack(cost));
+            }
+        }
+        return costs;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
         initReflection();
         List<ItemStack> products = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -147,9 +179,11 @@ public class ExtendedCraftingTableHandler implements IVirtualCraftingHandler {
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
                 // 使用 pattern 定义的精确输出(确保 NBT 与 waitingFor 匹配)
-                for (IAEItemStack output : outputs) {
-                    if (output != null) {
-                        products.add(output.createItemStack());
+                for (int c = 0; c < count; c++) {
+                    for (IAEItemStack output : outputs) {
+                        if (output != null) {
+                            products.add(output.createItemStack());
+                        }
                     }
                 }
                 return products;
