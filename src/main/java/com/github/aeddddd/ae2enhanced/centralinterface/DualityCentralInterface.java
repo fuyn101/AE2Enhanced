@@ -275,10 +275,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      */
     int getVirtualParallel() {
         int maxParallel = 1;
-        IItemHandler upgrades = this.host.getTileEntity().getCapability(
-                net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-        if (upgrades == null) {
-            upgrades = getInventoryByName("upgrades");
+        IItemHandler upgrades = null;
+        try {
+            upgrades = ((appeng.api.implementations.IUpgradeableHost) this.host).getInventoryByName("upgrades");
+        } catch (Exception ignored) {
+            // host 不是 IUpgradeableHost 或不支持 upgrades 栏位
         }
         if (upgrades == null) {
             return maxParallel;
