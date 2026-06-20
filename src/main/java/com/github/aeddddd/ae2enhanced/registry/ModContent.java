@@ -28,7 +28,7 @@ public final class ModContent {
         if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
             FakeGases.init();
         }
-        if (Loader.isModLoaded("thaumcraft")) {
+        if (Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")) {
             FakeEssentias.init();
         }
         if (Loader.isModLoaded("botania")) {
