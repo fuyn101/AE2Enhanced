@@ -205,7 +205,11 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
             }
         }
 
-        costs.add(createLPCost(recipe.getSyphon(), count));
+        IAEStack lp = createLPCost(recipe.getSyphon(), count);
+        if (lp == null) {
+            return null;
+        }
+        costs.add(lp);
         return costs;
     }
 
@@ -237,7 +241,11 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
             }
         }
 
-        costs.add(createLPCost(recipe.getSyphon(), count));
+        IAEStack lp = createLPCost(recipe.getSyphon(), count);
+        if (lp == null) {
+            return null;
+        }
+        costs.add(lp);
         return costs;
     }
 

@@ -64,7 +64,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     public static final int NUMBER_OF_STORAGE_SLOTS = 9;
     public static final int NUMBER_OF_UPGRADE_SLOTS = 4;
 
-    private final ICentralInterfaceHost host;
+    final ICentralInterfaceHost host;
     private final ConfigManager cm;
 
     private final AppEngInternalAEInventory config;
@@ -78,22 +78,23 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     private final List<TargetBinding> bindings = new ArrayList<>();
     private String boundBlockId = null;
     // 每个绑定目标对应一个 TargetSession,集中管理 PUSHING/PROCESSING/COLLECTING/IDLE/UNAVAILABLE
-    private final Map<TargetBinding, TargetSession> sessions = new HashMap<>();
+    final Map<TargetBinding, TargetSession> sessions = new HashMap<>();
     // 虚拟合成产物暂存队列(等待 waitingFor 注册后再注入网络)
-    private final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
+    final List<ItemStack> pendingVirtualProducts = new ArrayList<>();
 
     // 虚拟合成粒子效果：目标位置 + 剩余 tick
-    private final List<VirtualParticleTarget> activeParticleTargets = new ArrayList<>();
+    final List<VirtualParticleTarget> activeParticleTargets = new ArrayList<>();
 
-    // 虚拟合成冷却：每个目标成功执行一批后进入 20 tick 冷却
-    private final Map<TargetBinding, Integer> virtualCooldowns = new HashMap<>();
-    private static final int VIRTUAL_TARGET_COOLDOWN_TICKS = 20;
+    // 虚拟合成冷却：每个目标成功执行一批后进入冷却
+    final Map<TargetBinding, Integer> virtualCooldowns = new HashMap<>();
 
     // 全局虚拟批间冷却：每个 pushPattern 调用最多触发一次虚拟批处理，成功/失败后均进入冷却
-    private int globalVirtualCooldown = 0;
-    private static final int VIRTUAL_GLOBAL_COOLDOWN_TICKS = 20;
+    int globalVirtualCooldown = 0;
 
-    private static class VirtualParticleTarget {
+    private final PhysicalDispatcher physicalDispatcher;
+    private final VirtualBatchEngine virtualBatchEngine;
+
+    static class VirtualParticleTarget {
         final BlockPos pos;
         final int particleType;
         final int color;
@@ -123,6 +124,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public DualityCentralInterface(ICentralInterfaceHost host) {
         this.host = host;
+        this.physicalDispatcher = new PhysicalDispatcher(this);
+        this.virtualBatchEngine = new VirtualBatchEngine(this);
         this.cm = new ConfigManager(new IConfigManagerHost() {
             @Override
             public void updateSetting(IConfigManager manager, Enum settingName, Enum newValue) {
@@ -224,34 +227,69 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         int virtualParallel = getVirtualParallel();
-        if (virtualParallel > 1) {
-            // 安装虚拟并行卡后，只走虚拟批量合成路径
-            // 全局批间冷却：一个 pushPattern 调用周期内最多触发一次虚拟批处理
-            if (isOnGlobalVirtualCooldown()) {
-                return false;
+        boolean virtualCardInstalled = virtualParallel > 1;
+        boolean globalVirtualCooling = virtualCardInstalled && isOnGlobalVirtualCooldown();
+        List<TargetBinding> candidates = findIdleTargets();
+        boolean attemptedVirtual = false;
+
+        for (TargetBinding target : candidates) {
+            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
+            if (handler == null) {
+                continue;
             }
-            List<TargetBinding> candidates = findIdleTargets();
-            for (TargetBinding target : candidates) {
-                if (tryVirtualBatchToTarget(proxy, patternDetails, table, target, virtualParallel)) {
-                    this.globalVirtualCooldown = VIRTUAL_GLOBAL_COOLDOWN_TICKS;
+
+            // 优先尝试虚拟批量合成（仅当安装了虚拟并行卡且 handler 支持）
+            if (virtualCardInstalled
+                    && !globalVirtualCooling
+                    && handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
+                    && handler instanceof IVirtualBatchCraftingHandler) {
+                attemptedVirtual = true;
+                IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+                if (this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel)) {
+                    this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
                     tryWakeTickDevice();
                     return true;
                 }
+                continue;
             }
-            // 没有任何目标能执行时，也进入短暂全局冷却，防止 CPU 在同一 tick 内反复重试
-            this.globalVirtualCooldown = VIRTUAL_GLOBAL_COOLDOWN_TICKS;
-            tryWakeTickDevice();
-            return false;
+
+            // 否则尝试物理发配
+            if (handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
+                if (this.physicalDispatcher.dispatch(proxy, patternDetails, table, target, handler)) {
+                    return true;
+                }
+            }
         }
 
-        // 未安装虚拟卡：走物理物流路径
-        List<TargetBinding> candidates = findIdleTargets();
-        for (TargetBinding target : candidates) {
-            if (tryPhysicalDispatch(proxy, patternDetails, table, target)) {
-                return true;
-            }
+        // 有虚拟卡且尝试了虚拟但未成功，进入全局冷却防止 CPU 同 tick 反复重试
+        if (virtualCardInstalled && attemptedVirtual) {
+            this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+            tryWakeTickDevice();
         }
         return false;
+    }
+
+    /**
+     * 从 Central Interface 升级槽中读取虚拟并行卡，返回最高 tier 对应的并行数。
+     * 未安装卡时返回 1。
+     */
+    int getVirtualParallel() {
+        int maxParallel = 1;
+        IItemHandler upgrades = this.host.getTileEntity().getCapability(
+                net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+        if (upgrades == null) {
+            upgrades = getInventoryByName("upgrades");
+        }
+        if (upgrades == null) {
+            return maxParallel;
+        }
+        for (int i = 0; i < upgrades.getSlots(); i++) {
+            ItemStack stack = upgrades.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemVirtualParallelCard) {
+                maxParallel = Math.max(maxParallel, ItemVirtualParallelCard.getParallel(stack));
+            }
+        }
+        return maxParallel;
     }
 
     /**
@@ -270,19 +308,19 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return result;
     }
 
-    private boolean isOnVirtualCooldown(TargetBinding binding) {
+    boolean isOnVirtualCooldown(TargetBinding binding) {
         Integer cooldown = this.virtualCooldowns.get(binding);
         return cooldown != null && cooldown > 0;
     }
 
-    private boolean isOnGlobalVirtualCooldown() {
+    boolean isOnGlobalVirtualCooldown() {
         return this.globalVirtualCooldown > 0;
     }
 
     /**
      * 递减所有虚拟合成冷却，返回是否有冷却刚好结束。
      */
-    private boolean decrementVirtualCooldowns() {
+    boolean decrementVirtualCooldowns() {
         boolean expired = false;
 
         if (this.globalVirtualCooldown > 0) {
@@ -305,338 +343,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return expired;
     }
 
-    private TargetSession getOrCreateSession(TargetBinding binding) {
+    TargetSession getOrCreateSession(TargetBinding binding) {
         return this.sessions.computeIfAbsent(binding, b -> new TargetSession(b, this));
-    }
-
-    /**
-     * 物理发配路径：把单个样板的材料实际推送到目标机器，并在 tick 中收集产物.
-     *
-     * <p>本方法只处理物理交互，不再判断 {@link IVirtualCraftingHandler}。
-     * 虚拟合成仅在安装虚拟并行卡后由 {@link #tryVirtualBatchToTarget} 统一处理，
-     * 避免无卡时误走虚拟路径白嫖产物。</p>
-     *
-     * <p>内部会复制 {@code originalTable}，因此无论成功或失败都不会污染
-     * AE2 传入的原始 {@link InventoryCrafting}，也不会影响其他 target 的推送尝试.</p>
-     *
-     * @return true 表示推送成功；false 表示失败，调用方应尝试下一个 target
-     */
-    private boolean tryPhysicalDispatch(AENetworkProxy proxy,
-                                        ICraftingPatternDetails patternDetails,
-                                        InventoryCrafting originalTable,
-                                        TargetBinding target) {
-        World world = this.host.getTileEntity().getWorld();
-        if (world.provider.getDimension() != target.dimension) {
-            return false;
-        }
-
-        IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
-        if (handler == null) {
-            return false;
-        }
-
-        TargetSession session = getOrCreateSession(target);
-
-        // 每个 target 同一时刻只能有一份材料在途
-        if (!session.isIdle()) {
-            return false;
-        }
-
-        if (!handler.isValidTarget(world, target.pos)) {
-            session.setUnavailable();
-            return false;
-        }
-
-        // 复制 table，避免一个 target 的失败影响其他 target
-        InventoryCrafting table = copyInventoryCrafting(originalTable);
-        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
-
-        // 获取全局坐标所有权，进入 PUSHING 状态
-        List<FluidStack> pushedFluids = new ArrayList<>();
-        if (!session.beginPush(pushedFluids)) {
-            return false;
-        }
-
-        boolean success = false;
-        try {
-            // 推送流体输入(如果配方包含流体),并从 table 中移除已推送的流体假物品
-            if (!pushFluidInputs(world, target.pos, table, pushedFluids)) {
-                revertPushedFluids(world, target.pos, pushedFluids);
-                return false;
-            }
-
-            // 发配前回收目标全部输出槽残留内容,防止残留产物干扰新材料推送
-            List<ItemStack> clearedOutputs = handler.clearOutputs(world, target.pos, source);
-            if (!clearedOutputs.isEmpty()) {
-                if (!injectItemsToNetwork(proxy, world, clearedOutputs)) {
-                    stashItemsToStorage(world, clearedOutputs);
-                }
-            }
-
-            if (!handler.canStart(world, target.pos, table)) {
-                revertPushedFluids(world, target.pos, pushedFluids);
-                return false;
-            }
-
-            if (!handler.pushMaterials(world, target.pos, table, source)) {
-                // 回退已推入的材料(handler 可能已部分推入)
-                List<ItemStack> reverted = handler.revertMaterials(world, target.pos, source);
-                if (!reverted.isEmpty()) {
-                    if (!injectItemsToNetwork(proxy, world, reverted)) {
-                        stashItemsToStorage(world, reverted);
-                    }
-                }
-                revertPushedFluids(world, target.pos, pushedFluids);
-                return false;
-            }
-
-            if (!handler.startProcess(world, target.pos, source)) {
-                // 回退已推送的材料
-                List<ItemStack> reverted = handler.revertMaterials(world, target.pos, source);
-                if (!reverted.isEmpty()) {
-                    if (!injectItemsToNetwork(proxy, world, reverted)) {
-                        stashItemsToStorage(world, reverted);
-                    }
-                }
-                revertPushedFluids(world, target.pos, pushedFluids);
-                return false;
-            }
-
-            IAEItemStack[] outputs = patternDetails.getOutputs();
-
-            // 保存输入材料快照(在 pushFluidInputs 后 table 中已移除流体,剩余为物品材料)
-            List<ItemStack> inputSnapshot = new ArrayList<>();
-            for (int i = 0; i < table.getSizeInventory(); i++) {
-                ItemStack stack = table.getStackInSlot(i);
-                if (!stack.isEmpty()) {
-                    inputSnapshot.add(stack.copy());
-                }
-            }
-
-            session.commitPush(outputs, inputSnapshot, pushedFluids, world.getTotalWorldTime());
-            success = true;
-            tryWakeTickDevice();
-            return true;
-        } finally {
-            if (!success) {
-                session.reset();
-            }
-        }
-    }
-
-    /**
-     * 从 Central Interface 升级槽中读取虚拟并行卡，返回最高 tier 对应的并行数。
-     * 未安装卡时返回 1。
-     */
-    private int getVirtualParallel() {
-        int maxParallel = 1;
-        IItemHandler upgrades = this.host.getTileEntity().getCapability(
-                net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-        if (upgrades == null) {
-            upgrades = getInventoryByName("upgrades");
-        }
-        if (upgrades == null) {
-            return maxParallel;
-        }
-        for (int i = 0; i < upgrades.getSlots(); i++) {
-            ItemStack stack = upgrades.getStackInSlot(i);
-            if (!stack.isEmpty() && stack.getItem() instanceof ItemVirtualParallelCard) {
-                maxParallel = Math.max(maxParallel, ItemVirtualParallelCard.getParallel(stack));
-            }
-        }
-        return maxParallel;
-    }
-
-    /**
-     * 尝试对指定目标执行批量虚拟合成。
-     *
-     * @return true 表示成功完成至少 1 份虚拟合成
-     */
-    private boolean tryVirtualBatchToTarget(AENetworkProxy proxy,
-                                            ICraftingPatternDetails patternDetails,
-                                            InventoryCrafting originalTable,
-                                            TargetBinding target,
-                                            int maxParallel) {
-        World world = this.host.getTileEntity().getWorld();
-        if (world.provider.getDimension() != target.dimension) {
-            return false;
-        }
-
-        // 防御性冷却检查：防止在 pushPattern 与 tick 之间出现竞态
-        if (isOnGlobalVirtualCooldown() || isOnVirtualCooldown(target)) {
-            return false;
-        }
-
-        TargetSession session = getOrCreateSession(target);
-        if (!session.isIdle()) {
-            return false;
-        }
-
-        IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
-        if (!(handler instanceof IVirtualBatchCraftingHandler)) {
-            return false;
-        }
-        IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
-
-        if (!handler.isValidTarget(world, target.pos)) {
-            session.setUnavailable();
-            return false;
-        }
-
-        InventoryCrafting virtualTable = copyInventoryCrafting(originalTable);
-        IAEItemStack[] outputs = patternDetails.getOutputs();
-
-        // 验证配方真实存在
-        if (!vh.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
-            return false;
-        }
-
-        IStorageGrid storage;
-        appeng.api.networking.energy.IEnergySource energy;
-        try {
-            storage = proxy.getStorage();
-            energy = proxy.getEnergy();
-        } catch (appeng.me.GridAccessException e) {
-            return false;
-        }
-
-        int actualParallel = computeActualParallel(storage, vh, world, target, virtualTable, outputs, maxParallel);
-        if (actualParallel <= 0) {
-            return false;
-        }
-
-        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
-
-        // 获取完整资源清单
-        List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, actualParallel);
-        if (costs == null || costs.isEmpty()) {
-            return false;
-        }
-
-        // 模拟提取
-        if (!VirtualCostExtractor.simulateExtract(storage, costs, source)) {
-            return false;
-        }
-
-        // 扣除 AE 能量
-        double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * actualParallel;
-        if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
-            return false;
-        }
-
-        // 实际提取资源
-        if (!VirtualCostExtractor.extractAll(storage, costs, source)) {
-            // 能量已扣但资源提取失败，这种情况理论上不应发生，因为已模拟成功
-            return false;
-        }
-
-        // 执行虚拟合成
-        List<ItemStack> products = vh.virtualCraftBatch(world, target.pos, virtualTable, outputs, actualParallel, source);
-        if (products == null || products.isEmpty()) {
-            // 产物为空，不回滚资源（视为已消耗）
-            return false;
-        }
-
-        // 合并可堆叠产物，减少 pending 列表大小
-        products = mergeProducts(products);
-        this.pendingVirtualProducts.addAll(products);
-
-        // 触发粒子效果
-        List<EnumParticleTypes> particleTypes = vh.getVirtualCraftingParticles(world, target.pos);
-        int particleType = particleTypes.isEmpty() ? EnumParticleTypes.PORTAL.getParticleID()
-                : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
-        addParticleTarget(target.pos, particleType);
-
-        // 进入目标级虚拟合成冷却，20 tick 后才能接受下一批
-        this.virtualCooldowns.put(target, VIRTUAL_TARGET_COOLDOWN_TICKS);
-
-        tryWakeTickDevice();
-        return true;
-    }
-
-    /**
-     * 计算当前网络资源可支撑的最大虚拟并行数。
-     */
-    private int computeActualParallel(IStorageGrid storage,
-                                      IVirtualBatchCraftingHandler vh,
-                                      World world,
-                                      TargetBinding target,
-                                      InventoryCrafting virtualTable,
-                                      IAEItemStack[] outputs,
-                                      int maxParallel) {
-        appeng.me.helpers.MachineSource source = new appeng.me.helpers.MachineSource(this.host);
-        if (!AE2EnhancedConfig.centralInterface.virtualParallelPartialExecution) {
-            // 不允许部分执行：只尝试 maxParallel
-            List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, maxParallel);
-            return VirtualCostExtractor.simulateExtract(storage, costs, source) ? maxParallel : 0;
-        }
-
-        // 二分查找最大可执行并行数
-        int low = 1;
-        int high = maxParallel;
-        int best = 0;
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
-            List<IAEStack> costs = vh.getVirtualCost(world, target.pos, virtualTable, outputs, mid);
-            if (costs == null || costs.isEmpty()) {
-                high = mid - 1;
-                continue;
-            }
-            if (VirtualCostExtractor.simulateExtract(storage, costs, source)) {
-                best = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-        return best;
-    }
-
-    private void addParticleTarget(BlockPos pos, int particleType) {
-        int color = 0xFFFFFFFF;
-        // 默认颜色：根据粒子类型简单区分
-        if (particleType == EnumParticleTypes.PORTAL.getParticleID()) color = 0xFFAA55FF;
-        else if (particleType == EnumParticleTypes.ENCHANTMENT_TABLE.getParticleID()) color = 0xFF55AAFF;
-        else if (particleType == EnumParticleTypes.SPELL_WITCH.getParticleID()) color = 0xFFFF55FF;
-        else if (particleType == EnumParticleTypes.END_ROD.getParticleID()) color = 0xFFFFFFFF;
-
-        int maxTargets = AE2EnhancedConfig.centralInterface.virtualParticleMaxTargets;
-        if (activeParticleTargets.size() >= maxTargets) {
-            activeParticleTargets.remove(0);
-        }
-        activeParticleTargets.add(new VirtualParticleTarget(
-                pos, particleType, color, AE2EnhancedConfig.centralInterface.virtualParticleDurationTicks));
-    }
-
-    /**
-     * 合并产物列表中可堆叠的相同物品。
-     */
-    private List<ItemStack> mergeProducts(List<ItemStack> products) {
-        if (products == null || products.size() <= 1) {
-            return products;
-        }
-        List<ItemStack> merged = new ArrayList<>();
-        for (ItemStack incoming : products) {
-            if (incoming.isEmpty()) continue;
-            boolean found = false;
-            for (ItemStack existing : merged) {
-                if (ItemStack.areItemsEqual(existing, incoming) && ItemStack.areItemStackTagsEqual(existing, incoming)) {
-                    int canAdd = Math.min(incoming.getCount(), existing.getMaxStackSize() - existing.getCount());
-                    existing.grow(canAdd);
-                    if (canAdd < incoming.getCount()) {
-                        ItemStack leftover = incoming.copy();
-                        leftover.setCount(incoming.getCount() - canAdd);
-                        merged.add(leftover);
-                    }
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                merged.add(incoming.copy());
-            }
-        }
-        return merged;
     }
 
     /**
@@ -644,7 +352,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 流体假物品走物品通道,由 ae2fc 的 FakeMonitor 体系接管(若 ae2fc 未安装,
      * 则由本 mod 的 MixinNetworkMonitorFluid 转注入流体通道).
      */
-    private boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
+    boolean injectItemsToNetwork(AENetworkProxy proxy, World world, List<ItemStack> items) {
         try {
             IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             for (ItemStack product : items) {
@@ -670,7 +378,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 将单个物品暂存到 storage slots,溢出则掉落.
      */
-    private void stashItemToStorage(World world, ItemStack item) {
+    void stashItemToStorage(World world, ItemStack item) {
         if (item.isEmpty()) return;
         ItemStack leftover = item.copy();
         for (int s = 0; s < this.storage.getSlots() && !leftover.isEmpty(); s++) {
@@ -686,7 +394,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 将物品暂存到 storage slots,溢出则掉落.
      */
-    private void stashItemsToStorage(World world, List<ItemStack> items) {
+    void stashItemsToStorage(World world, List<ItemStack> items) {
         for (ItemStack item : items) {
             stashItemToStorage(world, item);
         }
@@ -702,7 +410,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         for (TargetBinding binding : this.bindings) {
             TargetSession session = this.sessions.get(binding);
-            if (session == null || session.isIdle()) {
+            // UNAVAILABLE 目标不算作“忙碌”，否则目标方块短暂卸载/替换后会永久卡住 CPU
+            if (session == null || session.isIdle() || session.isUnavailable()) {
                 if (!isOnVirtualCooldown(binding)) {
                     return false;
                 }
@@ -756,129 +465,22 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         World world = this.host.getTileEntity().getWorld();
         int timeoutTicks = com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig.centralInterface.processingTimeoutTicks;
 
-        // 阶段 1：处理所有 PROCESSING 目标
-        // 如果机器已经 idle，则进入 COLLECTING；否则尝试条件启动或检查超时
-        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
-            if (!session.isProcessing()) continue;
-            if (checkSessionTimeout(session, world, timeoutTicks)) continue;
-
-            TargetBinding target = session.getBinding();
-            if (world.provider.getDimension() != target.dimension) continue;
-            if (!world.isBlockLoaded(target.pos)) continue;
-
-            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
-            if (handler == null) {
-                session.reset();
-                continue;
-            }
-
-            List<ItemStack> inputs = session.getInputs();
-            boolean idle = handler.isIdle(world, target.pos, inputs);
-            if (!idle) {
-                // 对于需要条件启动的设备(如符文祭坛),在 tick 中尝试启动
-                handler.startProcess(world, target.pos, new appeng.me.helpers.MachineSource(this.host));
-                continue;
-            }
-
-            session.beginCollect();
+        // 物理 session 处理（PROCESSING / COLLECTING）
+        if (this.physicalDispatcher.tick(proxy, world, timeoutTicks)) {
+            didWork = true;
         }
 
-        // 阶段 2：收集所有 COLLECTING 目标的产物
-        for (TargetSession session : new ArrayList<>(this.sessions.values())) {
-            if (!session.isCollecting()) continue;
-            if (checkSessionTimeout(session, world, timeoutTicks)) continue;
-
-            TargetBinding target = session.getBinding();
-            if (world.provider.getDimension() != target.dimension) continue;
-            if (!world.isBlockLoaded(target.pos)) continue;
-
-            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
-            if (handler == null) {
-                session.reset();
-                continue;
-            }
-
-            IAEItemStack[] expected = session.getExpectedOutputs();
-            List<ItemStack> inputs = session.getInputs();
-            List<ItemStack> products = handler.collectProducts(world, target.pos, expected, inputs,
-                    new appeng.me.helpers.MachineSource(this.host));
-
-            // 收集流体产物
-            List<ItemStack> fluidProducts = collectFluidProducts(world, target.pos, session);
-            if (!fluidProducts.isEmpty()) {
-                products.addAll(fluidProducts);
-            }
-
-            if (!products.isEmpty()) {
-                if (injectItemsToNetwork(proxy, world, products)) {
-                    didWork = true;
-                } else {
-                    // 注入失败(网络断开等),产物暂存到 storage slots,避免丢失
-                    stashItemsToStorage(world, products);
-                }
-            }
-
-            // 流水线模式：只有 handler 报告输入已耗尽且无后续产物时,才结束本次发配
-            boolean finished = handler.hasFinished(world, target.pos, inputs);
-            session.finishCollect(finished);
-            if (!products.isEmpty()) {
-                didWork = true;
-            }
+        // 虚拟产物注入 + 粒子包
+        if (this.virtualBatchEngine.tick(proxy)) {
+            didWork = true;
         }
-
-        // 注入待处理的虚拟合成产物(waitingFor 已注册,此时注入可被 CPU cluster 识别)
-        if (!this.pendingVirtualProducts.isEmpty()) {
-            List<ItemStack> toInject = new ArrayList<>(this.pendingVirtualProducts);
-            this.pendingVirtualProducts.clear();
-            if (injectItemsToNetwork(proxy, this.host.getTileEntity().getWorld(), toInject)) {
-                didWork = true;
-            } else {
-                // 注入失败,暂存到 storage slots
-                stashItemsToStorage(this.host.getTileEntity().getWorld(), toInject);
-            }
-        }
-
-        // 发送虚拟合成粒子包
-        sendParticlePackets();
 
         // 将 storage slots 中的物品推入网络(如果有空间)
         pushStorageToNetwork(proxy);
 
-        boolean hasCooldowns = !this.virtualCooldowns.isEmpty();
-        return (hasWorkToDo() || !this.activeParticleTargets.isEmpty() || hasCooldowns)
+        return (hasWorkToDo() || !this.activeParticleTargets.isEmpty())
                 ? (didWork || cooldownExpired ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
                 : TickRateModulation.SLEEP;
-    }
-
-    /**
-     * 检查指定 session 是否已超时。超时则紧急收集并强制回到 IDLE。
-     *
-     * @return true 表示已处理超时，调用方无需继续处理该 session
-     */
-    private boolean checkSessionTimeout(TargetSession session, World world, int timeoutTicks) {
-        if (!session.isTimedOut(world.getTotalWorldTime(), timeoutTicks)) {
-            return false;
-        }
-
-        TargetBinding target = session.getBinding();
-        if (world.provider.getDimension() == target.dimension && world.isBlockLoaded(target.pos)) {
-            IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
-            if (handler != null) {
-                IAEItemStack[] expected = session.getExpectedOutputs();
-                List<ItemStack> inputs = session.getInputs();
-                List<ItemStack> leftover = handler.collectProducts(world, target.pos, expected, inputs,
-                        new appeng.me.helpers.MachineSource(this.host));
-                List<ItemStack> leftoverFluids = collectFluidProducts(world, target.pos, session);
-                if (!leftoverFluids.isEmpty()) {
-                    leftover.addAll(leftoverFluids);
-                }
-                if (!leftover.isEmpty()) {
-                    stashItemsToStorage(world, leftover);
-                }
-            }
-        }
-        session.reset();
-        return true;
     }
 
     private void pushStorageToNetwork(AENetworkProxy proxy) {
@@ -910,44 +512,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 向附近玩家发送虚拟合成粒子包。
      */
-    private void sendParticlePackets() {
-        if (this.activeParticleTargets.isEmpty()) {
-            return;
-        }
-        World world = this.host.getTileEntity().getWorld();
-        if (world == null || world.isRemote) {
-            return;
-        }
-
-        int countPerTick = AE2EnhancedConfig.centralInterface.virtualParticleCountPerTick;
-        int renderDistance = AE2EnhancedConfig.centralInterface.virtualParticleRenderDistance;
-        int renderDistanceSq = renderDistance * renderDistance;
-
-        List<PacketVirtualCraftingParticles.ParticleTarget> packetTargets = new ArrayList<>();
-        Iterator<VirtualParticleTarget> it = this.activeParticleTargets.iterator();
-        while (it.hasNext()) {
-            VirtualParticleTarget target = it.next();
-            target.remainingTicks--;
-            if (target.remainingTicks <= 0) {
-                it.remove();
-                continue;
-            }
-            packetTargets.add(new PacketVirtualCraftingParticles.ParticleTarget(
-                    target.pos, target.particleType, countPerTick, target.color));
-        }
-
-        if (packetTargets.isEmpty()) {
-            return;
-        }
-
-        PacketVirtualCraftingParticles packet = new PacketVirtualCraftingParticles(packetTargets);
-        BlockPos interfacePos = this.host.getTileEntity().getPos();
-        for (net.minecraft.entity.player.EntityPlayerMP player : world.getPlayers(net.minecraft.entity.player.EntityPlayerMP.class,
-                p -> p.getDistanceSq(interfacePos) <= renderDistanceSq)) {
-            AE2Enhanced.network.sendTo(packet, player);
-        }
-    }
-
     // ---- 流体支持 ----
 
     /**
@@ -958,7 +522,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * <p>按 {@link #FLUID_FACE_ORDER} 依次尝试各方向面,第一个能完整接受流体的面即被使用,
      * 避免向多个 face 重复推送或污染输出槽.</p>
      */
-    private boolean pushFluidInputs(World world, BlockPos pos, InventoryCrafting table, List<FluidStack> pushedFluids) {
+    boolean pushFluidInputs(World world, BlockPos pos, InventoryCrafting table, List<FluidStack> pushedFluids) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return true;
 
@@ -1011,7 +575,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 回退已推送到目标 IFluidHandler 的流体.
      * 按 {@link #FLUID_FACE_ORDER} 依次尝试抽取,按精确 FluidStack 匹配回退.
      */
-    private void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
+    void revertPushedFluids(World world, BlockPos pos, List<FluidStack> fluids) {
         if (fluids.isEmpty()) return;
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return;
@@ -1044,7 +608,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 第二阶段作为兜底，抽取各 face 上剩余的非输入流体，避免 TE 等机器的产物
      * 因数量/NBT 不完全匹配而残留在 tank 中。</p>
      */
-    private List<ItemStack> collectFluidProducts(World world, BlockPos pos, TargetSession session) {
+    List<ItemStack> collectFluidProducts(World world, BlockPos pos, TargetSession session) {
         List<ItemStack> fluids = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return fluids;
@@ -1178,7 +742,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
     }
 
-    private void tryWakeTickDevice() {
+    void tryWakeTickDevice() {
         try {
             AENetworkProxy proxy = this.host.getProxy();
             if (proxy.isActive()) {
@@ -1341,39 +905,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     /** 紧急收集指定目标的产物(用于移除绑定前清理),收集失败则暂存到 storage slots */
     private void tryEmergencyCollect(TargetBinding binding) {
-        TargetSession session = this.sessions.get(binding);
-        if (session == null) return;
-
-        try {
-            World world = this.host.getTileEntity().getWorld();
-            if (world == null || world.provider.getDimension() != binding.dimension) return;
-            if (!world.isBlockLoaded(binding.pos)) return;
-
-            IRemoteHandler handler = HandlerRegistry.findHandler(binding.blockId);
-            if (handler == null) return;
-
-            List<ItemStack> inputs = session.getInputs();
-            IAEItemStack[] expected = session.getExpectedOutputs();
-
-            List<ItemStack> products = handler.collectProducts(world, binding.pos, expected, inputs,
-                    new appeng.me.helpers.MachineSource(this.host));
-            List<ItemStack> fluidProducts = collectFluidProducts(world, binding.pos, session);
-            if (!fluidProducts.isEmpty()) {
-                products.addAll(fluidProducts);
-            }
-            if (!products.isEmpty()) {
-                stashItemsToStorage(world, products);
-            }
-
-            List<ItemStack> reverted = handler.revertMaterials(world, binding.pos,
-                    new appeng.me.helpers.MachineSource(this.host));
-            if (!reverted.isEmpty()) {
-                stashItemsToStorage(world, reverted);
-            }
-            revertPushedFluids(world, binding.pos, Collections.emptyList());
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Emergency collect failed for binding {}: {}", binding.pos, e.toString());
-        }
+        this.physicalDispatcher.emergencyCollect(binding);
     }
 
     private void postPatternChangeEvent() {
@@ -1389,7 +921,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     // ---- 默认单份材料发配工具方法 ----
 
-    private InventoryCrafting copyInventoryCrafting(InventoryCrafting original) {
+    InventoryCrafting copyInventoryCrafting(InventoryCrafting original) {
         int size = original.getSizeInventory();
         int dim = (int) Math.round(Math.sqrt(size));
         if (dim * dim != size) {
@@ -1443,8 +975,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        // 恢复运行时处理状态(区块卸载/重载后可以继续收集产物)
-        readProcessingStateFromNBT(data);
+        // 恢复待注入的虚拟合成产物
+        readPendingVirtualProductsFromNBT(data);
+
+        // 旧版运行时状态（processingState）按用户要求直接丢弃，session 重置为 IDLE
 
         // 注意：不在 readFromNBT 时调用 updateCraftingList(),
         // 因为 SmartPattern 展开需要 world 对象,而 NBT 读取阶段 world 可能为 null.
@@ -1468,48 +1002,40 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         data.setTag("bindings", list);
 
-        // 持久化运行时处理状态
-        writeProcessingStateToNBT(data);
+        // 持久化待注入的虚拟合成产物
+        writePendingVirtualProductsToNBT(data);
     }
 
     /**
-     * 将正在运行的合成状态写入 NBT,以便区块卸载/服务器重启后恢复.
+     * 将待注入的虚拟合成产物写入 NBT，避免 chunk 卸载/服务器重启时丢失。
      */
-    private void writeProcessingStateToNBT(NBTTagCompound data) {
+    private void writePendingVirtualProductsToNBT(NBTTagCompound data) {
         NBTTagList list = new NBTTagList();
-        for (TargetSession session : this.sessions.values()) {
-            // 只持久化 PROCESSING；COLLECTING 也按 PROCESSING 恢复（用户已同意）
-            if (!session.isProcessing() && !session.isCollecting()) {
-                continue;
-            }
-            list.appendTag(session.serializeProcessing());
+        for (ItemStack product : this.pendingVirtualProducts) {
+            if (product.isEmpty()) continue;
+            list.appendTag(product.serializeNBT());
         }
         if (list.tagCount() > 0) {
-            data.setTag("processingState", list);
+            data.setTag("pendingVirtualProducts", list);
         } else {
-            data.removeTag("processingState");
+            data.removeTag("pendingVirtualProducts");
         }
     }
 
     /**
-     * 从 NBT 恢复正在运行的合成状态.
+     * 从 NBT 恢复待注入的虚拟合成产物。
      */
-    private void readProcessingStateFromNBT(NBTTagCompound data) {
-        if (!data.hasKey("processingState")) {
+    private void readPendingVirtualProductsFromNBT(NBTTagCompound data) {
+        this.pendingVirtualProducts.clear();
+        if (!data.hasKey("pendingVirtualProducts")) {
             return;
         }
-        NBTTagList list = data.getTagList("processingState", 10);
+        NBTTagList list = data.getTagList("pendingVirtualProducts", 10);
         for (int i = 0; i < list.tagCount(); i++) {
-            NBTTagCompound entry = list.getCompoundTagAt(i);
-            TargetSession session = TargetSession.deserializeProcessing(entry, this);
-            TargetBinding binding = session.getBinding();
-
-            // 只恢复仍然存在于 bindings 列表中的目标
-            if (!this.bindings.contains(binding)) {
-                continue;
+            ItemStack stack = new ItemStack(list.getCompoundTagAt(i));
+            if (!stack.isEmpty()) {
+                this.pendingVirtualProducts.add(stack);
             }
-
-            this.sessions.put(binding, session);
         }
     }
 

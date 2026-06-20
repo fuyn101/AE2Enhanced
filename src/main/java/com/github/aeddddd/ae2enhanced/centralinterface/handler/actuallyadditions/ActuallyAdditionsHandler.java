@@ -16,7 +16,9 @@ import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Actually Additions Empowerer + Display Stand 处理器.
@@ -33,6 +35,13 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
     private static Class<?> CLASS_DISPLAY_STAND;
     private static Method METHOD_GET_NEARBY_STANDS;
     private static boolean reflectionReady = false;
+
+    /**
+     * 防止 pushMaterials 后立即 isIdle(processTime==0) 导致提前收回材料。
+     * 记录每次成功推料的世界时间,isIdle 至少等待 GRACE_TICKS 后才认为可收集。
+     */
+    private static final int PUSH_IDLE_GRACE_TICKS = 2;
+    private final Map<String, Long> pushTimestamps = new HashMap<>();
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -128,6 +137,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
             single.setCount(1);
             standInv.insertItem(0, single, false);
         }
+        pushTimestamps.put(key(world, pos), world.getTotalWorldTime());
         return true;
     }
 
@@ -142,6 +152,10 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_EMPOWERER.isInstance(te)) return false;
+        // 推料后至少等待数 tick,避免 processTime==0 时立即收回刚放入的材料
+        if (!hasPushGraceElapsed(world, pos)) {
+            return false;
+        }
         try {
             int processTime = (int) CLASS_EMPOWERER.getField("processTime").get(te);
             IItemHandler inv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
@@ -183,6 +197,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
                 }
             }
         }
+        pushTimestamps.remove(key(world, pos));
         return result;
     }
 
@@ -212,7 +227,20 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
                 if (!stack.isEmpty()) result.add(stack);
             }
         }
+        pushTimestamps.remove(key(world, pos));
         return result;
+    }
+
+    private static String key(World world, BlockPos pos) {
+        return world.provider.getDimension() + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ();
+    }
+
+    private boolean hasPushGraceElapsed(World world, BlockPos pos) {
+        Long timestamp = pushTimestamps.get(key(world, pos));
+        if (timestamp == null) {
+            return true;
+        }
+        return world.getTotalWorldTime() > timestamp + PUSH_IDLE_GRACE_TICKS;
     }
 
     private Object[] getNearbyStands(TileEntity empowerer) {

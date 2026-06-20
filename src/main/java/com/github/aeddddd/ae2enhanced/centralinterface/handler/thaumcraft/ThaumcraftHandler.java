@@ -394,8 +394,12 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
 
         // 源质
         AspectList aspects = recipe.getAspects();
-        if (aspects != null) {
-            costs.addAll(createEssentiaCosts(aspects, count));
+        if (aspects != null && aspects.size() > 0) {
+            List<IAEStack> essentia = createEssentiaCosts(aspects, count);
+            if (essentia == null) {
+                return null;
+            }
+            costs.addAll(essentia);
         }
 
         return costs;
@@ -460,6 +464,8 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
 
     /**
      * 通过反射创建源质消耗栈，避免在 ThaumicEnergistics 未安装时类加载失败。
+     *
+     * @return 源质消耗列表；若 ThaumicEnergistics 缺失或任意源质栈无法创建则返回 null
      */
     private List<IAEStack> createEssentiaCosts(AspectList aspects, int count) {
         List<IAEStack> costs = new ArrayList<>();
@@ -475,12 +481,14 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
                 if (amount <= 0) continue;
                 Object essStack = ctor.newInstance(aspect, amount * count);
                 Object aeStack = fromEssentiaStack.invoke(null, essStack);
-                if (aeStack != null) {
-                    costs.add((IAEStack) aeStack);
+                if (aeStack == null) {
+                    return null;
                 }
+                costs.add((IAEStack) aeStack);
             }
         } catch (Exception e) {
-            // ThaumicEnergistics 未安装或版本不兼容，跳过源质消耗
+            // ThaumicEnergistics 未安装或版本不兼容
+            return null;
         }
         return costs;
     }

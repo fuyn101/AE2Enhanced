@@ -645,13 +645,17 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         // cooldown > 0 表示合成刚完成,正在冷却
         if (cooldown > 0) return true;
 
-        // 如果祭坛内有物品且 manaToGet > 0,说明正在充能,不 idle
-        if (!altar.isEmpty() && altar.manaToGet > 0) {
+        // 祭坛为空说明可以接收下一次发配
+        if (altar.isEmpty()) {
+            return true;
+        }
+
+        // 祭坛内有物品且 manaToGet > 0,说明正在充能/合成,不 idle
+        if (altar.manaToGet > 0) {
             return false;
         }
 
-        // 不通过扫描 AABB 判断 idle,防止无关物品导致误判
-        // 产物是否存在由 collectProducts 在 tick 中按 expectedOutputs 匹配收集
+        // 有物品但魔力已充满,startProcess 尚未完成,继续等待
         return false;
     }
 

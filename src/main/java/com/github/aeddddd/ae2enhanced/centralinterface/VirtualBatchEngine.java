@@ -1,0 +1,313 @@
+package com.github.aeddddd.ae2enhanced.centralinterface;
+
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.energy.IEnergySource;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.me.GridAccessException;
+import appeng.me.helpers.AENetworkProxy;
+import appeng.me.helpers.MachineSource;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketVirtualCraftingParticles;
+import net.minecraft.inventory.InventoryCrafting;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/**
+ * 虚拟批量合成引擎.
+ *
+ * <p>安装虚拟并行卡后，对支持 {@link HandlerCapabilities#VIRTUAL_BATCH} 的目标
+ * 直接从网络扣除资源并返回产物，不占用物理设备。</p>
+ */
+public class VirtualBatchEngine {
+
+
+
+    private final DualityCentralInterface owner;
+
+    public VirtualBatchEngine(DualityCentralInterface owner) {
+        this.owner = owner;
+    }
+
+    /**
+     * 尝试对指定目标执行一次虚拟批量合成。
+     *
+     * @param proxy       网络代理
+     * @param patternDetails 配方详情
+     * @param originalTable 原始合成台
+     * @param target      目标绑定
+     * @param handler     批量虚拟合成 handler
+     * @param maxParallel 卡片 tier 提供的最大并行数
+     * @return true 表示成功完成至少 1 份虚拟合成
+     */
+    public boolean execute(AENetworkProxy proxy,
+                           ICraftingPatternDetails patternDetails,
+                           InventoryCrafting originalTable,
+                           TargetBinding target,
+                           IVirtualBatchCraftingHandler handler,
+                           int maxParallel) {
+        World world = owner.host.getTileEntity().getWorld();
+        if (world.provider.getDimension() != target.dimension) {
+            return false;
+        }
+
+        // 防御性冷却/所有权检查
+        if (owner.isOnGlobalVirtualCooldown() || owner.isOnVirtualCooldown(target)) {
+            return false;
+        }
+        TargetSession session = owner.getOrCreateSession(target);
+        if (!session.isIdle()) {
+            return false;
+        }
+
+        if (!handler.isValidTarget(world, target.pos)) {
+            session.setUnavailable();
+            return false;
+        }
+
+        if (!TargetOwnershipTracker.instance().tryAcquire(target, owner)) {
+            return false;
+        }
+
+        boolean ownershipAcquired = true;
+        try {
+            InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
+            IAEItemStack[] outputs = patternDetails.getOutputs();
+
+            if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
+                return false;
+            }
+
+            IStorageGrid storage;
+            IEnergySource energy;
+            try {
+                storage = proxy.getStorage();
+                energy = proxy.getEnergy();
+            } catch (GridAccessException e) {
+                return false;
+            }
+
+            int actualParallel = computeActualParallel(storage, handler, world, target, virtualTable, outputs, maxParallel);
+            if (actualParallel <= 0) {
+                return false;
+            }
+
+            IActionSource source = new MachineSource(owner.host);
+
+            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, actualParallel);
+            if (costs == null || costs.isEmpty()) {
+                return false;
+            }
+
+            // 模拟提取
+            if (!VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+                return false;
+            }
+
+            // 模拟能量
+            double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * actualParallel;
+            if (!VirtualCostExtractor.simulateExtractEnergy(energy, energyCost)) {
+                return false;
+            }
+
+            // 实际提取资源
+            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, costs, source);
+            if (extracted == null) {
+                return false;
+            }
+
+            // 扣除能量
+            if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
+                // 资源已扣但能量不足：理论上前面已模拟，出现竞态时回滚资源
+                VirtualCostExtractor.rollbackExtracted(storage, extracted, source);
+                return false;
+            }
+
+            // 执行虚拟合成
+            List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, virtualTable, outputs, actualParallel, source);
+            if (products == null || products.isEmpty()) {
+                // 产物为空视为已消耗，不回滚
+                return false;
+            }
+
+            products = mergeProducts(products);
+            owner.pendingVirtualProducts.addAll(products);
+
+            // 粒子效果
+            List<EnumParticleTypes> particleTypes = handler.getVirtualCraftingParticles(world, target.pos);
+            int particleType = particleTypes.isEmpty()
+                    ? EnumParticleTypes.PORTAL.getParticleID()
+                    : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
+            addParticleTarget(target.pos, particleType);
+
+            // 进入冷却
+            owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
+            owner.tryWakeTickDevice();
+            return true;
+        } finally {
+            if (ownershipAcquired) {
+                TargetOwnershipTracker.instance().release(target, owner);
+            }
+        }
+    }
+
+    /**
+     * 处理虚拟产物的网络注入、粒子包发送、冷却递减。
+     *
+     * @return 是否在本 tick 中实际做了工作
+     */
+    public boolean tick(AENetworkProxy proxy) {
+        boolean didWork = false;
+        World world = owner.host.getTileEntity().getWorld();
+
+        // 注入待处理的虚拟合成产物
+        if (!owner.pendingVirtualProducts.isEmpty()) {
+            List<ItemStack> toInject = new ArrayList<>(owner.pendingVirtualProducts);
+            owner.pendingVirtualProducts.clear();
+            if (owner.injectItemsToNetwork(proxy, world, toInject)) {
+                didWork = true;
+            } else {
+                owner.stashItemsToStorage(world, toInject);
+            }
+        }
+
+        // 发送粒子包
+        if (sendParticlePackets(world)) {
+            didWork = true;
+        }
+
+        return didWork;
+    }
+
+    /**
+     * 计算当前网络资源可支撑的最大虚拟并行数。
+     */
+    private int computeActualParallel(IStorageGrid storage,
+                                      IVirtualBatchCraftingHandler handler,
+                                      World world,
+                                      TargetBinding target,
+                                      InventoryCrafting virtualTable,
+                                      IAEItemStack[] outputs,
+                                      int maxParallel) {
+        MachineSource source = new MachineSource(owner.host);
+        int cap = Math.min(maxParallel, AE2EnhancedConfig.centralInterface.virtualParallelMaxCap);
+        if (cap <= 0) return 0;
+
+        if (!AE2EnhancedConfig.centralInterface.virtualParallelPartialExecution) {
+            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, cap);
+            return VirtualCostExtractor.simulateExtract(storage, costs, source) ? cap : 0;
+        }
+
+        int low = 1;
+        int high = cap;
+        int best = 0;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, mid);
+            if (costs == null || costs.isEmpty()) {
+                high = mid - 1;
+                continue;
+            }
+            if (VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+                best = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 合并产物列表中可堆叠的相同物品。
+     */
+    private List<ItemStack> mergeProducts(List<ItemStack> products) {
+        if (products == null || products.size() <= 1) {
+            return products;
+        }
+        List<ItemStack> merged = new ArrayList<>();
+        for (ItemStack incoming : products) {
+            if (incoming.isEmpty()) continue;
+            boolean found = false;
+            for (ItemStack existing : merged) {
+                if (ItemStack.areItemsEqual(existing, incoming) && ItemStack.areItemStackTagsEqual(existing, incoming)) {
+                    int canAdd = Math.min(incoming.getCount(), existing.getMaxStackSize() - existing.getCount());
+                    existing.grow(canAdd);
+                    if (canAdd < incoming.getCount()) {
+                        ItemStack leftover = incoming.copy();
+                        leftover.setCount(incoming.getCount() - canAdd);
+                        merged.add(leftover);
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                merged.add(incoming.copy());
+            }
+        }
+        return merged;
+    }
+
+    private void addParticleTarget(BlockPos pos, int particleType) {
+        int color = 0xFFFFFFFF;
+        if (particleType == EnumParticleTypes.PORTAL.getParticleID()) color = 0xFFAA55FF;
+        else if (particleType == EnumParticleTypes.ENCHANTMENT_TABLE.getParticleID()) color = 0xFF55AAFF;
+        else if (particleType == EnumParticleTypes.SPELL_WITCH.getParticleID()) color = 0xFFFF55FF;
+        else if (particleType == EnumParticleTypes.END_ROD.getParticleID()) color = 0xFFFFFFFF;
+
+        int maxTargets = AE2EnhancedConfig.centralInterface.virtualParticleMaxTargets;
+        if (owner.activeParticleTargets.size() >= maxTargets) {
+            owner.activeParticleTargets.remove(0);
+        }
+        owner.activeParticleTargets.add(new DualityCentralInterface.VirtualParticleTarget(
+                pos, particleType, color, AE2EnhancedConfig.centralInterface.virtualParticleDurationTicks));
+    }
+
+    private boolean sendParticlePackets(World world) {
+        if (owner.activeParticleTargets.isEmpty()) {
+            return false;
+        }
+        if (world == null || world.isRemote) {
+            return false;
+        }
+
+        int countPerTick = AE2EnhancedConfig.centralInterface.virtualParticleCountPerTick;
+        int renderDistance = AE2EnhancedConfig.centralInterface.virtualParticleRenderDistance;
+        int renderDistanceSq = renderDistance * renderDistance;
+
+        List<PacketVirtualCraftingParticles.ParticleTarget> packetTargets = new ArrayList<>();
+        Iterator<DualityCentralInterface.VirtualParticleTarget> it = owner.activeParticleTargets.iterator();
+        while (it.hasNext()) {
+            DualityCentralInterface.VirtualParticleTarget target = it.next();
+            target.remainingTicks--;
+            if (target.remainingTicks <= 0) {
+                it.remove();
+                continue;
+            }
+            packetTargets.add(new PacketVirtualCraftingParticles.ParticleTarget(
+                    target.pos, target.particleType, countPerTick, target.color));
+        }
+
+        if (packetTargets.isEmpty()) {
+            return false;
+        }
+
+        PacketVirtualCraftingParticles packet = new PacketVirtualCraftingParticles(packetTargets);
+        BlockPos interfacePos = owner.host.getTileEntity().getPos();
+        for (net.minecraft.entity.player.EntityPlayerMP player : world.getPlayers(net.minecraft.entity.player.EntityPlayerMP.class,
+                p -> p.getDistanceSq(interfacePos) <= renderDistanceSq)) {
+            AE2Enhanced.network.sendTo(packet, player);
+        }
+        return true;
+    }
+}

@@ -46,20 +46,30 @@ public class VirtualCostExtractor {
     /**
      * 实际提取全部资源，失败时自动回滚已提取部分。
      *
-     * @return 是否全部提取成功
+     * @return 成功时返回已提取的资源清单（用于外部进一步回滚）；失败返回 null
      */
-    public static boolean extractAll(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
+    public static List<IAEStack> extractAll(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
         List<IAEStack> extracted = new ArrayList<>();
         for (IAEStack cost : costs) {
             if (isEmpty(cost)) continue;
             IAEStack remaining = extractOne(storage, cost, Actionable.MODULATE, source);
             if (!isEmpty(remaining)) {
                 rollback(storage, extracted, source);
-                return false;
+                return null;
             }
             extracted.add(cost.copy());
         }
-        return true;
+        return extracted;
+    }
+
+    /**
+     * 回滚已提取的资源。用于能量扣除失败后恢复已提取的材料。
+     */
+    public static void rollbackExtracted(IStorageGrid storage, List<IAEStack> extracted, IActionSource source) {
+        if (extracted == null || extracted.isEmpty()) {
+            return;
+        }
+        rollback(storage, extracted, source);
     }
 
     /**

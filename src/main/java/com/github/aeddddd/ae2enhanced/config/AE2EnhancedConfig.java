@@ -580,6 +580,30 @@ public class AE2EnhancedConfig {
         public int processingTimeoutTicks = 600;
 
         @Config.Comment({
+            "Cooldown in ticks applied to a virtual crafting target after each batch.",
+            "Prevents the same target from being spammed every tick.",
+            "Range: 0 ~ 6000, Default: 20 (1 second)"
+        })
+        @Config.RangeInt(min = 0, max = 6000)
+        public int virtualCooldownTargetTicks = 20;
+
+        @Config.Comment({
+            "Global cooldown in ticks after each pushPattern attempt that involves",
+            "virtual parallel crafting. Applied whether the batch succeeded or failed.",
+            "Range: 0 ~ 6000, Default: 20 (1 second)"
+        })
+        @Config.RangeInt(min = 0, max = 6000)
+        public int virtualCooldownGlobalTicks = 20;
+
+        @Config.Comment({
+            "Hard cap on the number of parallel crafts executed in a single virtual batch.",
+            "Limits memory usage when high-tier virtual parallel cards are installed.",
+            "Range: 1 ~ 2147483647, Default: 10000"
+        })
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public int virtualParallelMaxCap = 10000;
+
+        @Config.Comment({
             "AE energy consumed per virtual parallel crafting operation.",
             "Total cost = actualVirtualParallel × this value.",
             "Range: 0.0 ~ 1000000.0, Default: 16.0"
