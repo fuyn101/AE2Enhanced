@@ -2,10 +2,17 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
+import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.CapabilityItemHandler;
@@ -14,6 +21,7 @@ import net.minecraftforge.items.IItemHandler;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,7 +30,7 @@ import java.util.List;
  * <p>结构：中心 CraftingCore,周围 7×7 水平范围内放置 Pedestal.
  * slot 0 → Core 主材料,slot 1+ → Pedestals 辅助材料(各1个).</p>
  */
-public class ExtendedCraftingHandler implements IRemoteHandler {
+public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
     private static final String CORE_ID = "extendedcrafting:crafting_core";
 
@@ -34,6 +42,17 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
     private static Method METHOD_GET_INVENTORY_CORE;
     private static Method METHOD_GET_INVENTORY_PEDESTAL;
     private static boolean reflectionReady = false;
+
+    // 批量虚拟合成：CombinationRecipe 反射
+    private static Class<?> CLASS_COMBINATION_RECIPE;
+    private static Class<?> CLASS_COMBINATION_RECIPE_MANAGER;
+    private static Method METHOD_COMBINATION_GET_INSTANCE;
+    private static Method METHOD_COMBINATION_GET_RECIPES;
+    private static Method METHOD_RECIPE_GET_OUTPUT;
+    private static Method METHOD_RECIPE_GET_COST;
+    private static Method METHOD_RECIPE_GET_INPUT_INGREDIENT;
+    private static Method METHOD_RECIPE_GET_PEDESTAL_INGREDIENTS;
+    private static boolean virtualReflectionReady = false;
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -49,6 +68,23 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
             reflectionReady = true;
         } catch (Exception e) {
             throw new RuntimeException("[AE2E] ExtendedCrafting reflection init failed", e);
+        }
+    }
+
+    private static void initVirtualReflection() {
+        if (virtualReflectionReady) return;
+        try {
+            CLASS_COMBINATION_RECIPE = Class.forName("com.blakebr0.extendedcrafting.crafting.CombinationRecipe");
+            CLASS_COMBINATION_RECIPE_MANAGER = Class.forName("com.blakebr0.extendedcrafting.crafting.CombinationRecipeManager");
+            METHOD_COMBINATION_GET_INSTANCE = CLASS_COMBINATION_RECIPE_MANAGER.getMethod("getInstance");
+            METHOD_COMBINATION_GET_RECIPES = CLASS_COMBINATION_RECIPE_MANAGER.getMethod("getRecipes");
+            METHOD_RECIPE_GET_OUTPUT = CLASS_COMBINATION_RECIPE.getMethod("getOutput");
+            METHOD_RECIPE_GET_COST = CLASS_COMBINATION_RECIPE.getMethod("getCost");
+            METHOD_RECIPE_GET_INPUT_INGREDIENT = CLASS_COMBINATION_RECIPE.getMethod("getInputIngredient");
+            METHOD_RECIPE_GET_PEDESTAL_INGREDIENTS = CLASS_COMBINATION_RECIPE.getMethod("getPedestalIngredients");
+            virtualReflectionReady = true;
+        } catch (Exception e) {
+            throw new RuntimeException("[AE2E] ExtendedCrafting virtual reflection init failed", e);
         }
     }
 
@@ -243,6 +279,159 @@ public class ExtendedCraftingHandler implements IRemoteHandler {
             return (IItemHandler) METHOD_GET_INVENTORY_PEDESTAL.invoke(pedestal);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
+
+    @Override
+    public boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        initReflection();
+        initVirtualReflection();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_CORE.isInstance(te)) return false;
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+
+        ItemStack expected = outputs[0].createItemStack();
+        if (expected.isEmpty()) return false;
+
+        Object recipe = findCombinationRecipeByOutput(expected);
+        if (recipe == null) return false;
+
+        return ingredientsMatchCombination(recipe, ingredients);
+    }
+
+    @Override
+    public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return Arrays.asList(
+                EnumParticleTypes.ENCHANTMENT_TABLE,
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        initVirtualReflection();
+
+        // 物品消耗：核心材料 +  pedestal 材料，按 count 倍增
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                ItemStack cost = stack.copy();
+                cost.setCount(cost.getCount() * count);
+                costs.add(AEItemStack.fromItemStack(cost));
+            }
+        }
+
+        // RF 消耗：按配方 cost * count
+        Object recipe = findCombinationRecipeByOutput(outputs[0].createItemStack());
+        if (recipe != null) {
+            long rf = getRecipeCost(recipe);
+            if (rf > 0) {
+                costs.add(AEEnergyStack.create(rf * count));
+            }
+        }
+
+        return costs;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+        List<ItemStack> products = new ArrayList<>();
+        if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
+
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    products.add(output.createItemStack().copy());
+                }
+            }
+        }
+        return products;
+    }
+
+    // ---- 配方查找与匹配 ----
+
+    @SuppressWarnings("unchecked")
+    private static Object findCombinationRecipeByOutput(ItemStack output) {
+        initVirtualReflection();
+        try {
+            Object manager = METHOD_COMBINATION_GET_INSTANCE.invoke(null);
+            List<Object> recipes = (List<Object>) METHOD_COMBINATION_GET_RECIPES.invoke(manager);
+            if (recipes == null) return null;
+            for (Object recipe : recipes) {
+                ItemStack recipeOutput = (ItemStack) METHOD_RECIPE_GET_OUTPUT.invoke(recipe);
+                if (!recipeOutput.isEmpty()
+                        && recipeOutput.getItem() == output.getItem()
+                        && recipeOutput.getMetadata() == output.getMetadata()) {
+                    return recipe;
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean ingredientsMatchCombination(Object recipe, InventoryCrafting ingredients) {
+        try {
+            Ingredient coreIngredient = (Ingredient) METHOD_RECIPE_GET_INPUT_INGREDIENT.invoke(recipe);
+            List<Ingredient> pedestalIngredients = (List<Ingredient>) METHOD_RECIPE_GET_PEDESTAL_INGREDIENTS.invoke(recipe);
+
+            List<ItemStack> available = new ArrayList<>();
+            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+                ItemStack stack = ingredients.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    available.add(stack.copy());
+                }
+            }
+
+            // 核心材料：必须有一个且仅一个匹配
+            boolean coreFound = false;
+            for (int i = 0; i < available.size(); i++) {
+                if (coreIngredient.apply(available.get(i))) {
+                    available.remove(i);
+                    coreFound = true;
+                    break;
+                }
+            }
+            if (!coreFound) return false;
+
+            // pedestal 材料：每个 ingredient 必须有一个匹配
+            for (Ingredient ped : pedestalIngredients) {
+                if (ped == null || ped == Ingredient.EMPTY) continue;
+                boolean found = false;
+                for (int i = 0; i < available.size(); i++) {
+                    if (ped.apply(available.get(i))) {
+                        available.remove(i);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+            }
+
+            // 不能有额外材料
+            return available.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static long getRecipeCost(Object recipe) {
+        try {
+            return (long) METHOD_RECIPE_GET_COST.invoke(recipe);
+        } catch (Exception e) {
+            return 0;
         }
     }
 }

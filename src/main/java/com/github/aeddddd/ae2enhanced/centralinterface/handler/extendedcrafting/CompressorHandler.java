@@ -2,18 +2,25 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
+import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,7 +29,7 @@ import java.util.List;
  * <p>突破压缩机输入限制,直接将所需全部材料注入内部,
  * 绕过 {@code inputLimit} 和逐次堆叠限制.</p>
  */
-public class CompressorHandler implements IRemoteHandler {
+public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
     private static final String BLOCK_ID = "extendedcrafting:compressor";
 
@@ -34,6 +41,11 @@ public class CompressorHandler implements IRemoteHandler {
     private static Method METHOD_GET_RECIPES;
 
     private static Method METHOD_GET_INPUT;
+    private static Method METHOD_GET_OUTPUT;
+    private static Method METHOD_GET_INPUT_COUNT;
+    private static Method METHOD_GET_CATALYST;
+    private static Method METHOD_CONSUME_CATALYST;
+    private static Method METHOD_GET_POWER_COST;
     private static Field FIELD_MATERIAL_STACK;
     private static Field FIELD_MATERIAL_COUNT;
     private static Field FIELD_INPUT_LIMIT;
@@ -53,6 +65,11 @@ public class CompressorHandler implements IRemoteHandler {
 
 
             METHOD_GET_INPUT = CLASS_COMPRESSOR_RECIPE.getMethod("getInput");
+            METHOD_GET_OUTPUT = CLASS_COMPRESSOR_RECIPE.getMethod("getOutput");
+            METHOD_GET_INPUT_COUNT = CLASS_COMPRESSOR_RECIPE.getMethod("getInputCount");
+            METHOD_GET_CATALYST = CLASS_COMPRESSOR_RECIPE.getMethod("getCatalyst");
+            METHOD_CONSUME_CATALYST = CLASS_COMPRESSOR_RECIPE.getMethod("consumeCatalyst");
+            METHOD_GET_POWER_COST = CLASS_COMPRESSOR_RECIPE.getMethod("getPowerCost");
             FIELD_MATERIAL_STACK = CLASS_TILE_COMPRESSOR.getDeclaredField("materialStack");
             FIELD_MATERIAL_STACK.setAccessible(true);
             FIELD_MATERIAL_COUNT = CLASS_TILE_COMPRESSOR.getDeclaredField("materialCount");
@@ -213,6 +230,186 @@ public class CompressorHandler implements IRemoteHandler {
         } catch (Exception ignored) {}
 
         return result;
+    }
+
+    // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
+
+    @Override
+    public boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        initReflection();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+
+        ItemStack expected = outputs[0].createItemStack();
+        if (expected.isEmpty()) return false;
+
+        Object recipe = findRecipeByOutput(expected);
+        if (recipe == null) return false;
+
+        return ingredientsMatchCompressor(recipe, ingredients);
+    }
+
+    @Override
+    public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return Arrays.asList(
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.SMOKE_LARGE,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        initReflection();
+
+        Object recipe = findRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+
+        int inputCount = getRecipeInputCount(recipe);
+        int powerCost = getRecipePowerCost(recipe);
+        Ingredient inputIngredient = getRecipeInput(recipe);
+        Ingredient catalystIngredient = getRecipeCatalyst(recipe);
+        boolean consumeCatalyst = consumeCatalyst(recipe);
+
+        // 主材料：按配方 inputCount * count 扣除
+        ItemStack mainStack = findFirstMatchingStack(ingredients, inputIngredient);
+        if (!mainStack.isEmpty()) {
+            ItemStack mainCost = mainStack.copy();
+            mainCost.setCount(inputCount * count);
+            costs.add(AEItemStack.fromItemStack(mainCost));
+        }
+
+        // 催化剂：仅在消耗催化剂时扣除
+        if (consumeCatalyst && catalystIngredient != null) {
+            ItemStack catalystStack = findFirstMatchingStack(ingredients, catalystIngredient);
+            if (!catalystStack.isEmpty()) {
+                ItemStack catalystCost = catalystStack.copy();
+                catalystCost.setCount(count);
+                costs.add(AEItemStack.fromItemStack(catalystCost));
+            }
+        }
+
+        // RF 消耗
+        if (powerCost > 0) {
+            costs.add(AEEnergyStack.create((long) powerCost * count));
+        }
+
+        return costs;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+        List<ItemStack> products = new ArrayList<>();
+        if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
+
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    products.add(output.createItemStack().copy());
+                }
+            }
+        }
+        return products;
+    }
+
+    // ---- 配方查找与匹配 ----
+
+    @SuppressWarnings("unchecked")
+    private static Object findRecipeByOutput(ItemStack output) {
+        initReflection();
+        try {
+            List<Object> recipes = (List<Object>) METHOD_GET_RECIPES.invoke(RECIPE_MANAGER_INSTANCE);
+            if (recipes == null) return null;
+            for (Object recipe : recipes) {
+                ItemStack recipeOutput = (ItemStack) METHOD_GET_OUTPUT.invoke(recipe);
+                if (!recipeOutput.isEmpty()
+                        && recipeOutput.getItem() == output.getItem()
+                        && recipeOutput.getMetadata() == output.getMetadata()) {
+                    return recipe;
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    private static boolean ingredientsMatchCompressor(Object recipe, InventoryCrafting ingredients) {
+        try {
+            int inputCount = getRecipeInputCount(recipe);
+            Ingredient inputIngredient = getRecipeInput(recipe);
+            Ingredient catalystIngredient = getRecipeCatalyst(recipe);
+            boolean consumeCatalyst = consumeCatalyst(recipe);
+
+            int inputFound = 0;
+            boolean catalystFound = false;
+            for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+                ItemStack stack = ingredients.getStackInSlot(i);
+                if (stack.isEmpty()) continue;
+
+                if (inputIngredient.apply(stack)) {
+                    inputFound += stack.getCount();
+                } else if (consumeCatalyst && catalystIngredient != null && catalystIngredient.apply(stack)) {
+                    catalystFound = true;
+                } else {
+                    // 未知材料
+                    return false;
+                }
+            }
+
+            return inputFound >= inputCount && (!consumeCatalyst || catalystFound);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static ItemStack findFirstMatchingStack(InventoryCrafting ingredients, Ingredient ingredient) {
+        if (ingredient == null) return ItemStack.EMPTY;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty() && ingredient.apply(stack)) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static int getRecipeInputCount(Object recipe) {
+        try {
+            return (int) METHOD_GET_INPUT_COUNT.invoke(recipe);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static int getRecipePowerCost(Object recipe) {
+        try {
+            return (int) METHOD_GET_POWER_COST.invoke(recipe);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static Ingredient getRecipeCatalyst(Object recipe) {
+        try {
+            return (Ingredient) METHOD_GET_CATALYST.invoke(recipe);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean consumeCatalyst(Object recipe) {
+        try {
+            return (boolean) METHOD_CONSUME_CATALYST.invoke(recipe);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // ---- 反射辅助 ----

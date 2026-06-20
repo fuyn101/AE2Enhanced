@@ -2,15 +2,21 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+
+import java.util.Arrays;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -30,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 遍历配方列表进行多对多匹配；{@code pushMaterials} 按配方 {@code getIngredients()}
  * 的槽位顺序从可用物品中匹配并精确放置.</p>
  */
-public class EnderCrafterHandler implements IRemoteHandler {
+public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
     private static final String BLOCK_ID = "extendedcrafting:ender_crafter";
 
@@ -284,6 +290,73 @@ public class EnderCrafterHandler implements IRemoteHandler {
         }
 
         return result;
+    }
+
+    // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
+
+    @Override
+    public boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        initBaseReflection();
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+
+        Object recipe = findRecipe(ingredients);
+        if (recipe == null) return false;
+
+        // 验证产物是否匹配（忽略 NBT 预览与精确产物的差异，仅校验物品类型）
+        IRecipe irecipe = (IRecipe) recipe;
+        ItemStack recipeOutput = irecipe.getRecipeOutput();
+        if (recipeOutput.isEmpty()) return false;
+        ItemStack expected = outputs[0].createItemStack();
+        return recipeOutput.getItem() == expected.getItem()
+                && recipeOutput.getMetadata() == expected.getMetadata();
+    }
+
+    @Override
+    public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return Arrays.asList(
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.DRAGON_BREATH,
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos,
+                                         InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                ItemStack cost = stack.copy();
+                cost.setCount(cost.getCount() * count);
+                costs.add(AEItemStack.fromItemStack(cost));
+            }
+        }
+        return costs;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos,
+                                             InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+        List<ItemStack> products = new ArrayList<>();
+        if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
+
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    products.add(output.createItemStack().copy());
+                }
+            }
+        }
+        return products;
     }
 
     // ---- 配方查找与匹配 ----
