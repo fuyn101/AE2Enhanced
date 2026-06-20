@@ -14,10 +14,13 @@ import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.fml.common.Loader;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -133,6 +136,11 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     public boolean isValidTarget(World world, BlockPos pos) {
         TileEntity te = world.getTileEntity(pos);
         return AVAILABLE && te != null && ABSTRACT_MACHINE_ENTITY_CLASS.isInstance(te);
+    }
+
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.physicalOnly();
     }
 
     @Override

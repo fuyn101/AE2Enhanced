@@ -11,8 +11,11 @@ import net.minecraft.world.World;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,6 +49,11 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
             }
         }
         return false;
+    }
+
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.physicalOnly();
     }
 
     @Override

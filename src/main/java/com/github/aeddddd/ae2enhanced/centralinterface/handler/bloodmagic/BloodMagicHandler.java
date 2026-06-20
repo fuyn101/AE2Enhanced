@@ -138,7 +138,6 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
         return false;
     }
 
-    @Override
     public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
         return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
     }

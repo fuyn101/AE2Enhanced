@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -27,6 +28,24 @@ import java.util.List;
  * </pre>
  */
 public interface IRemoteHandler {
+
+    /**
+     * 返回本处理器支持的能力集合.
+     *
+     * <p>用于 {@link DualityCentralInterface} 决定对该目标使用物理发配还是虚拟批量合成。
+     * 例如虚拟-only 的 Extended Crafting Table 应只返回 {@link HandlerCapabilities#VIRTUAL_BATCH}，
+     * 避免无虚拟并行卡时误走物理路径白嫖产物。</p>
+     *
+     * @return 能力集合，不能为空
+     */
+    EnumSet<HandlerCapabilities> getCapabilities();
+
+    /**
+     * 判断本处理器是否支持指定能力.
+     */
+    default boolean hasCapability(HandlerCapabilities capability) {
+        return getCapabilities().contains(capability);
+    }
 
     /**
      * 按方块 ID 字符串匹配此处理器是否支持该类型.

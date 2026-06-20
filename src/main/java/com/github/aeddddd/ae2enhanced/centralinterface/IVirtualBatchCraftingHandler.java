@@ -9,16 +9,42 @@ import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
  * 支持批量虚拟合成的远程目标处理器接口.
  *
  * <p>实现此接口的 handler 可以在不占用物理设备的情况下,按指定份数直接从 AE2 网络
- * 扣除资源并返回产物.用于 Central Interface 安装虚拟并行卡后的高并行合成.</p>
+ * 扣除资源并返回产物.用于 Central Interface 安装虚拟并行卡后的高并行合成。</p>
+ *
+ * <p>此接口继承 {@link IRemoteHandler}，因此实现者仍需声明是否支持物理发配。
+ * 对于仅有虚拟合成意义的设备（如 Extended Crafting 工作台），可只返回
+ * {@link HandlerCapabilities#VIRTUAL_BATCH}，让调度器在无卡时直接跳过该目标。</p>
  */
-public interface IVirtualBatchCraftingHandler extends IVirtualCraftingHandler {
+public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
+
+    /**
+     * 默认能力：虚拟批量 + 物理发配（大多数设备两者都支持）。
+     * 纯虚拟设备应覆盖此方法并只返回 {@link HandlerCapabilities#VIRTUAL_BATCH}。
+     */
+    @Override
+    default EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.all();
+    }
+
+    /**
+     * 验证该配方是否可以通过此目标虚拟合成.
+     *
+     * @param world       目标世界
+     * @param pos         目标位置
+     * @param ingredients 单份配方的输入物品
+     * @param outputs     单份配方的预期产物
+     * @return true 表示可以执行虚拟合成
+     */
+    boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs);
 
     /**
      * 计算 {@code count} 次虚拟合成所需的全部资源.
@@ -31,7 +57,7 @@ public interface IVirtualBatchCraftingHandler extends IVirtualCraftingHandler {
      * @param ingredients 单份配方的输入物品(来自 {@link InventoryCrafting})
      * @param outputs     单份配方的预期产物
      * @param count       虚拟合成份数
-     * @return 资源清单；若无法计算则返回空列表
+     * @return 资源清单；若无法计算则返回空列表或 null（均视为失败）
      */
     List<IAEStack> getVirtualCost(World world, BlockPos pos,
                                   InventoryCrafting ingredients,
@@ -41,7 +67,7 @@ public interface IVirtualBatchCraftingHandler extends IVirtualCraftingHandler {
     /**
      * 执行 {@code count} 次虚拟合成.
      *
-     * <p>调用方保证资源已扣除,handler 内部不再重复扣资源,仅负责验证配方并返回产物.</p>
+     * <p>调用方保证资源已扣除,handler 内部不再重复扣资源,仅负责验证配方并返回产物。</p>
      *
      * @param world       目标世界
      * @param pos         目标位置
@@ -66,5 +92,32 @@ public interface IVirtualBatchCraftingHandler extends IVirtualCraftingHandler {
      */
     default List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
         return Collections.singletonList(EnumParticleTypes.PORTAL);
+    }
+
+    /**
+     * 默认实现：按 count 缩放单份产物，避免每个 handler 都手写循环。
+     *
+     * <p>若产物有随机副产物或 count 不能简单缩放，handler 应覆盖此方法。</p>
+     *
+     * @param outputs 单份产物模板
+     * @param count   份数
+     * @return 合并后的产物列表
+     */
+    default List<ItemStack> scaleOutputsByCount(IAEItemStack[] outputs, int count) {
+        if (outputs == null || outputs.length == 0 || count <= 0) {
+            return Collections.emptyList();
+        }
+        List<ItemStack> products = new ArrayList<>();
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    ItemStack copy = output.createItemStack().copy();
+                    if (!copy.isEmpty()) {
+                        products.add(copy);
+                    }
+                }
+            }
+        }
+        return products;
     }
 }

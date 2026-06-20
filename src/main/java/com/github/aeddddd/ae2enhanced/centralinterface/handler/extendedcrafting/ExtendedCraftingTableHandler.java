@@ -4,6 +4,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
 import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -18,6 +19,7 @@ import net.minecraft.world.World;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -79,6 +81,11 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         return CLASS_ABSTRACT_TABLE.isInstance(te);
     }
 
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.virtualOnly();
+    }
+
     // ---- IRemoteHandler 物理模式(虚拟合成不占用设备,这些方法均为空实现) ----
 
     @Override
@@ -132,7 +139,6 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         return false;
     }
 
-    @Override
     public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
         return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
     }

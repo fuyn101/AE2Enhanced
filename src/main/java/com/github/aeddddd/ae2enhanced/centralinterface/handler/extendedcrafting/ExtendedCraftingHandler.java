@@ -301,7 +301,6 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
         return ingredientsMatchCombination(recipe, ingredients);
     }
 
-    @Override
     public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
         return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
     }

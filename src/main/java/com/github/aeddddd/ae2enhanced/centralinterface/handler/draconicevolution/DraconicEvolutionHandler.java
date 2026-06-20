@@ -11,9 +11,12 @@ import net.minecraft.world.World;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -79,6 +82,11 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         return CLASS_CORE.isInstance(te);
+    }
+
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.physicalOnly();
     }
 
     @Override

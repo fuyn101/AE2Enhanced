@@ -16,9 +16,12 @@ import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -106,6 +109,11 @@ public class BewitchmentHandler implements IRemoteHandler {
         return CLASS_SPINNING_WHEEL.isInstance(te)
             || CLASS_DISTILLERY.isInstance(te)
             || CLASS_CAULDRON.isInstance(te);
+    }
+
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.physicalOnly();
     }
 
     // ===================== canStart =====================

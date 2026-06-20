@@ -14,10 +14,13 @@ import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -82,6 +85,11 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     public boolean isValidTarget(World world, BlockPos pos) {
         TileEntity te = world.getTileEntity(pos);
         return te instanceof IInventory && TILE_INVENTORY_CLASS.isInstance(te);
+    }
+
+    @Override
+    public EnumSet<HandlerCapabilities> getCapabilities() {
+        return HandlerCapabilities.physicalOnly();
     }
 
     @Override
