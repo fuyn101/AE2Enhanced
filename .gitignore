@@ -3,6 +3,7 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+*md
 
 ### IntelliJ IDEA ###
 .idea/
@@ -40,19 +41,9 @@ bin/
 .vscode/
 *.code-workspace
 
-### Project Docs (private) — DO NOT COMMIT ###
-Plan.md
-PLAN_*.md
-PROGRESS.md
-TODO.md
-AUDIT_*.md
-FIX_PLAN.md
-REFACTOR_PLAN.md
-REFACTOR_*.md
 
-### Mac OS ###
-.DS_Store
-
+!README.md
+!README_zh.md
 ### Minecraft Modding ###
 run/
 *.log
@@ -68,7 +59,6 @@ xml/
 *.html
 zone/
 *.txt
-AGENTS.md
 
 
 ### Bytecode / Decompiled classes ###
