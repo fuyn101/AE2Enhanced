@@ -2,7 +2,11 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.astralsorcery;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
+import com.github.aeddddd.ae2enhanced.storage.starlight.AEStarlightStack;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -19,10 +23,12 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.util.EnumParticleTypes;
 
 /**
  * Astral Sorcery 星辉祭坛远程处理器.
@@ -34,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code startProcess} 直接创建 {@code ActiveCraftingTask} 并注入 TileAltar,
  * 绕过 FakePlayer 进度门控.</p>
  */
-public class AstralSorceryHandler implements IRemoteHandler {
+public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
     private static final String BLOCK_ID = "astralsorcery:blockaltar";
     private static final UUID FAKE_PLAYER_UUID = UUID.fromString("ae2e0000-fa2e-4e2e-ae2e-ae2e00000000");
@@ -63,6 +69,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
     private static Method METHOD_MATCH_CRAFTING;
     private static Method METHOD_GET_RECIPE_INGREDIENT;
     private static Method METHOD_CRAFTING_TICK_TIME;
+    private static Method METHOD_GET_PASSIVE_STARLIGHT;
     private static Field FIELD_CRAFTING_TASK;
     private static Field FIELD_RECIPES_MAP;
     private static Field FIELD_ADDITIONAL_SLOTS;
@@ -123,6 +130,7 @@ public class AstralSorceryHandler implements IRemoteHandler {
             METHOD_GET_NATIVE_RECIPE = CLASS_ABSTRACT_ALTAR_RECIPE.getMethod("getNativeRecipe");
             METHOD_FULFILLES_STARLIGHT = CLASS_ABSTRACT_ALTAR_RECIPE.getMethod("fulfillesStarlightRequirement", CLASS_TILE_ALTAR);
             METHOD_CRAFTING_TICK_TIME = CLASS_ABSTRACT_ALTAR_RECIPE.getMethod("craftingTickTime");
+            METHOD_GET_PASSIVE_STARLIGHT = CLASS_ABSTRACT_ALTAR_RECIPE.getMethod("getPassiveStarlightRequired");
 
             METHOD_FIND_MATCHING_RECIPE = CLASS_ALTAR_RECIPE_REGISTRY.getMethod("findMatchingRecipe", CLASS_TILE_ALTAR, boolean.class);
             FIELD_RECIPES_MAP = CLASS_ALTAR_RECIPE_REGISTRY.getField("recipes");
@@ -314,6 +322,188 @@ public class AstralSorceryHandler implements IRemoteHandler {
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ALTAR.isInstance(te)) return false;
         return getActiveCraftingTask(te) == null;
+    }
+
+    // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
+
+    @Override
+    public boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        initReflection();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        TileEntity te = world.getTileEntity(pos);
+        if (!CLASS_TILE_ALTAR.isInstance(te)) return false;
+
+        ItemStack expected = outputs[0].createItemStack();
+        Object recipe = findAltarRecipeByOutput(expected);
+        if (recipe == null) return false;
+
+        List<Ingredient> required = collectRequiredIngredients(recipe);
+        return matchIngredients(required, ingredients);
+    }
+
+    @Override
+    public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return Arrays.asList(
+                EnumParticleTypes.ENCHANTMENT_TABLE,
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        initReflection();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
+
+        Object recipe = findAltarRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+
+        List<Ingredient> required = collectRequiredIngredients(recipe);
+        List<ItemStack> available = collectNonEmpty(ingredients);
+        for (Ingredient ing : required) {
+            if (ing == null || ing == Ingredient.EMPTY) continue;
+            for (int i = 0; i < available.size(); i++) {
+                if (ing.apply(available.get(i))) {
+                    ItemStack cost = available.remove(i).copy();
+                    cost.setCount(count);
+                    costs.add(AEItemStack.fromItemStack(cost));
+                    break;
+                }
+            }
+        }
+
+        int starlight = getPassiveStarlightRequired(recipe);
+        if (starlight > 0) {
+            costs.add(AEStarlightStack.create((long) starlight * count));
+        }
+
+        return costs;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+        List<ItemStack> products = new ArrayList<>();
+        if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    products.add(output.createItemStack().copy());
+                }
+            }
+        }
+        return products;
+    }
+
+    // ---- 批量虚拟合成辅助 ----
+
+    @SuppressWarnings("unchecked")
+    private Object findAltarRecipeByOutput(ItemStack output) {
+        if (output.isEmpty()) return null;
+        try {
+            Map<?, List<?>> recipes = (Map<?, List<?>>) FIELD_RECIPES_MAP.get(null);
+            if (recipes == null) return null;
+            for (List<?> list : recipes.values()) {
+                for (Object recipe : list) {
+                    ItemStack recipeOutput = (ItemStack) METHOD_GET_OUTPUT_FOR_MATCHING.invoke(recipe);
+                    if (!recipeOutput.isEmpty()
+                            && recipeOutput.getItem() == output.getItem()
+                            && recipeOutput.getMetadata() == output.getMetadata()) {
+                        return recipe;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Ingredient> collectRequiredIngredients(Object recipe) {
+        List<Ingredient> required = new ArrayList<>();
+        try {
+            Object nativeRecipe = METHOD_GET_NATIVE_RECIPE.invoke(recipe);
+            if (nativeRecipe instanceof net.minecraft.item.crafting.IRecipe) {
+                for (Ingredient ing : ((net.minecraft.item.crafting.IRecipe) nativeRecipe).getIngredients()) {
+                    if (ing != null && ing != Ingredient.EMPTY) {
+                        required.add(ing);
+                    }
+                }
+            }
+
+            addItemHandleIngredients(required, recipe, CLASS_ATTUNEMENT_RECIPE, FIELD_ADDITIONAL_SLOTS);
+            addItemHandleIngredients(required, recipe, CLASS_CONSTELLATION_RECIPE, FIELD_MATCH_STACKS);
+            addItemHandleIngredients(required, recipe, CLASS_TRAIT_RECIPE, FIELD_MATCH_TRAIT_STACKS);
+
+            if (CLASS_TRAIT_RECIPE.isInstance(recipe) && FIELD_ADDITIONALLY_REQUIRED_STACKS != null) {
+                List<Object> outerHandles = (List<Object>) FIELD_ADDITIONALLY_REQUIRED_STACKS.get(recipe);
+                if (outerHandles != null) {
+                    for (Object handle : outerHandles) {
+                        Ingredient ing = (Ingredient) METHOD_GET_RECIPE_INGREDIENT.invoke(handle);
+                        if (ing != null && ing != Ingredient.EMPTY) {
+                            required.add(ing);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return required;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addItemHandleIngredients(List<Ingredient> required, Object recipe, Class<?> recipeClass, Field field) throws Exception {
+        if (!recipeClass.isInstance(recipe) || field == null) return;
+        Map<?, ?> map = (Map<?, ?>) field.get(recipe);
+        if (map == null) return;
+        for (Object handle : map.values()) {
+            Ingredient ing = (Ingredient) METHOD_GET_RECIPE_INGREDIENT.invoke(handle);
+            if (ing != null && ing != Ingredient.EMPTY) {
+                required.add(ing);
+            }
+        }
+    }
+
+    private boolean matchIngredients(List<Ingredient> required, InventoryCrafting ingredients) {
+        List<ItemStack> available = collectNonEmpty(ingredients);
+        for (Ingredient ing : required) {
+            if (ing == null || ing == Ingredient.EMPTY) continue;
+            boolean found = false;
+            for (int i = 0; i < available.size(); i++) {
+                if (ing.apply(available.get(i))) {
+                    available.remove(i);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return available.isEmpty();
+    }
+
+    private List<ItemStack> collectNonEmpty(InventoryCrafting ingredients) {
+        List<ItemStack> list = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) list.add(stack.copy());
+        }
+        return list;
+    }
+
+    private int getPassiveStarlightRequired(Object recipe) {
+        try {
+            return (int) METHOD_GET_PASSIVE_STARLIGHT.invoke(recipe);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     @Override
