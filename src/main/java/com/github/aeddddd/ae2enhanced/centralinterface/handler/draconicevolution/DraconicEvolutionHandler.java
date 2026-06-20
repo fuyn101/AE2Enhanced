@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.draconicevolution;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
@@ -90,7 +92,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -134,7 +136,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -148,53 +150,81 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
         }
 
         List<Object> injectors = getConnectedInjectors(te);
-
-        // Slot 0 → Core slot 0(主材料)
         ItemStack main = ingredients.getStackInSlot(0);
-        if (!main.isEmpty()) {
-            IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-            if (coreInv != null) {
-                ItemStack inserted = coreInv.insertItem(0, main.copy(), false);
-                if (!inserted.isEmpty() && inserted.getCount() == main.getCount()) {
-                    return false;
-                }
-            } else {
-                // fallback: 直接设置
-                try {
-                    te.getClass().getMethod("setStackInCore", int.class, ItemStack.class).invoke(te, 0, main.copy());
-                } catch (Exception ex) {
-                    return false;
-                }
-            }
-        }
 
-        // Slot 1+ → Injectors(每个只放1个)
+        // 预检：收集需要使用的 injector，确保全部材料都有位置
+        List<Object> chosenInjectors = new ArrayList<>();
         int injectorIdx = 0;
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            // 找到下一个空 injector
+            Object chosen = null;
             while (injectorIdx < injectors.size()) {
                 Object injector = injectors.get(injectorIdx);
+                injectorIdx++;
                 try {
                     ItemStack existing = (ItemStack) METHOD_GET_STACK_IN_PEDESTAL.invoke(injector);
                     if (existing.isEmpty()) {
-                        ItemStack single = stack.copy();
-                        single.setCount(1);
-                        METHOD_SET_STACK_IN_PEDESTAL.invoke(injector, single);
-                        injectorIdx++;
+                        chosen = injector;
                         break;
                     }
                 } catch (Exception ignored) {}
-                injectorIdx++;
             }
+            if (chosen == null) {
+                return false; // 辅助材料无处可放
+            }
+            chosenInjectors.add(chosen);
         }
-        return true;
+
+        // 实际推送，失败时回滚
+        boolean mainPushed = false;
+        try {
+            if (!main.isEmpty()) {
+                IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+                if (coreInv != null) {
+                    ItemStack inserted = coreInv.insertItem(0, main.copy(), false);
+                    if (!inserted.isEmpty()) {
+                        return false;
+                    }
+                } else {
+                    try {
+                        te.getClass().getMethod("setStackInCore", int.class, ItemStack.class).invoke(te, 0, main.copy());
+                    } catch (Exception ex) {
+                        return false;
+                    }
+                }
+                mainPushed = true;
+            }
+
+            int auxIdx = 0;
+            for (int i = 1; i < ingredients.getSizeInventory(); i++) {
+                ItemStack stack = ingredients.getStackInSlot(i);
+                if (stack.isEmpty()) continue;
+                Object injector = chosenInjectors.get(auxIdx++);
+                ItemStack single = stack.copy();
+                single.setCount(1);
+                METHOD_SET_STACK_IN_PEDESTAL.invoke(injector, single);
+            }
+            return true;
+        } catch (Exception e) {
+            if (mainPushed) {
+                // 尽量回滚主材料
+                try {
+                    IItemHandler coreInv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+                    if (coreInv != null) {
+                        coreInv.extractItem(0, 64, false);
+                    } else {
+                        te.getClass().getMethod("setStackInCore", int.class, ItemStack.class).invoke(te, 0, ItemStack.EMPTY);
+                    }
+                } catch (Exception ignored) {}
+            }
+            return false;
+        }
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -207,7 +237,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -219,7 +249,7 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -267,7 +297,16 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectAllFromTarget(world, pos);
+    }
+
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectAllFromTarget(world, pos);
+    }
+
+    private List<ItemStack> collectAllFromTarget(World world, BlockPos pos) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);

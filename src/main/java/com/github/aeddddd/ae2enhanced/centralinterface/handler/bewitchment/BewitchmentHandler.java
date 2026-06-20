@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.bewitchment;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
@@ -119,7 +121,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     // ===================== canStart =====================
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_SPINNING_WHEEL.isInstance(te)) {
@@ -186,7 +188,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     // ===================== pushMaterials =====================
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_SPINNING_WHEEL.isInstance(te)) {
@@ -345,12 +347,12 @@ public class BewitchmentHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return true;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -390,7 +392,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     // ===================== isIdle =====================
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (CLASS_SPINNING_WHEEL.isInstance(te)) {
@@ -439,7 +441,7 @@ public class BewitchmentHandler implements IRemoteHandler {
     // ===================== collectProducts =====================
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);

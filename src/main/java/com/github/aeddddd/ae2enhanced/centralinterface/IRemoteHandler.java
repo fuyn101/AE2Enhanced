@@ -77,7 +77,7 @@ public interface IRemoteHandler {
      * @param ingredients 配方输入物品(来自 {@link InventoryCrafting})
      * @return true 表示可以开始推送材料
      */
-    boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients);
+    boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session);
 
     /**
      * 将合成配方所需的全部材料推送到目标方块输入端.
@@ -92,7 +92,7 @@ public interface IRemoteHandler {
      * @param source      AE 动作源(用于能量扣除等审计)
      * @return true 表示所有材料均已成功推送
      */
-    boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source);
+    boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session);
 
     /**
      * 启动机器处理流程(如激活祭坛、开始注魔等).
@@ -105,7 +105,7 @@ public interface IRemoteHandler {
      * @param source AE 动作源
      * @return true 表示成功触发启动
      */
-    boolean startProcess(World world, BlockPos pos, IActionSource source);
+    boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session);
 
     /**
      * 从目标方块收集已完成的产物(以及残余物品如空桶).
@@ -117,7 +117,7 @@ public interface IRemoteHandler {
      * @param source          AE 动作源
      * @return 实际收集到的物品列表；若无产物则返回空列表(非 null)
      */
-    List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source);
+    List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session);
 
     /**
      * 判断目标当前是否可以安全收集产物.
@@ -132,7 +132,7 @@ public interface IRemoteHandler {
      * @param inputs 该目标本次合成推送的输入材料快照(用于区分产物与残留输入)
      * @return true 表示目标当前可以收集产物
      */
-    boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs);
+    boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session);
 
     /**
      * 判断目标是否已完全处理完本次推送的所有输入材料.
@@ -145,8 +145,8 @@ public interface IRemoteHandler {
      * @param inputs 该目标本次合成推送的输入材料快照
      * @return true 表示所有输入已处理完成,可以结束本次发配
      */
-    default boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
-        return isIdle(world, pos, inputs);
+    default boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
+        return isIdle(world, pos, inputs, session);
     }
 
     /**
@@ -160,7 +160,7 @@ public interface IRemoteHandler {
      * @param source AE 动作源
      * @return 回退收集到的物品列表；无物品则返回空列表
      */
-    default List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    default List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return java.util.Collections.emptyList();
     }
 
@@ -174,7 +174,7 @@ public interface IRemoteHandler {
      * @param source AE 动作源
      * @return 回收到的物品列表；无物品则返回空列表
      */
-    default List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+    default List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return java.util.Collections.emptyList();
     }
 

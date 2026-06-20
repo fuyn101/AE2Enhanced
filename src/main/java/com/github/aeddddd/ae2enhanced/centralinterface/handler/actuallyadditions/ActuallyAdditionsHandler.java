@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.actuallyadditions;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
@@ -16,9 +18,7 @@ import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Actually Additions Empowerer + Display Stand 处理器.
@@ -38,10 +38,9 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
 
     /**
      * 防止 pushMaterials 后立即 isIdle(processTime==0) 导致提前收回材料。
-     * 记录每次成功推料的世界时间,isIdle 至少等待 GRACE_TICKS 后才认为可收集。
+     * 推料 tick 记录在 {@link TargetSession} 中,isIdle 至少等待 GRACE_TICKS 后才认为可收集。
      */
     private static final int PUSH_IDLE_GRACE_TICKS = 2;
-    private final Map<String, Long> pushTimestamps = new HashMap<>();
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -74,7 +73,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_EMPOWERER.isInstance(te)) return false;
@@ -103,7 +102,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_EMPOWERER.isInstance(te)) return false;
@@ -114,53 +113,76 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
         Object[] stands = getNearbyStands(te);
         if (stands == null) return false;
 
-        // Slot 0 → Empowerer
         ItemStack main = ingredients.getStackInSlot(0);
+        List<Integer> usedStands = new ArrayList<>();
+
+        // 预检：主材料能否完整放入
         if (!main.isEmpty()) {
-            ItemStack inserted = empowererInv.insertItem(0, main.copy(), false);
-            if (!inserted.isEmpty() && inserted.getCount() == main.getCount()) {
-                return false; // 完全没插入
+            ItemStack simulated = empowererInv.insertItem(0, main.copy(), true);
+            if (!simulated.isEmpty()) {
+                return false;
             }
         }
 
-        // Slot 1+ → Display Stands(每stand只放1个)
+        // 预检：每个辅助材料能否完整放入对应 Display Stand
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
+
             int standIdx = i - 1;
-            if (standIdx >= stands.length || stands[standIdx] == null) continue;
+            if (standIdx >= stands.length || stands[standIdx] == null) {
+                return false;
+            }
+            TileEntity standTe = (TileEntity) stands[standIdx];
+            IItemHandler standInv = standTe.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+            if (standInv == null) return false;
+
+            ItemStack single = stack.copy();
+            single.setCount(1);
+            ItemStack simulated = standInv.insertItem(0, single, true);
+            if (!simulated.isEmpty()) {
+                return false;
+            }
+            usedStands.add(standIdx);
+        }
+
+        // 全部预检通过，实际插入
+        if (!main.isEmpty()) {
+            empowererInv.insertItem(0, main.copy(), false);
+        }
+        for (int standIdx : usedStands) {
             TileEntity standTe = (TileEntity) stands[standIdx];
             IItemHandler standInv = standTe.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
             if (standInv == null) continue;
-            // 只插入1个,防止玩家未设置singleItem时出问题
-            ItemStack single = stack.copy();
+            ItemStack single = ingredients.getStackInSlot(standIdx + 1).copy();
             single.setCount(1);
             standInv.insertItem(0, single, false);
         }
-        pushTimestamps.put(key(world, pos), world.getTotalWorldTime());
+
+        // 推料 tick 由 dispatcher 在 commitPush 时写入 session，这里仅做防御性更新
+        if (session != null) {
+            session.setPushTick(world.getTotalWorldTime());
+        }
         return true;
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         // Empowerer 是自动检测配方的,不需要显式启动
         return true;
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_EMPOWERER.isInstance(te)) return false;
         // 推料后至少等待数 tick,避免 processTime==0 时立即收回刚放入的材料
-        if (!hasPushGraceElapsed(world, pos)) {
+        if (session != null && !session.isPushGraceElapsed(world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) {
             return false;
         }
         try {
             int processTime = (int) CLASS_EMPOWERER.getField("processTime").get(te);
-            IItemHandler inv = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-            // 空闲条件：无处理进度,且 slot 0 为空(或不是可能的输入——但合成完成后输出会在这里)
-            // 更精确：processTime == 0 即可,因为输出会替换 slot 0,我们 collectProducts 时会取走
             return processTime == 0;
         } catch (Exception e) {
             return false;
@@ -168,7 +190,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -197,12 +219,20 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
                 }
             }
         }
-        pushTimestamps.remove(key(world, pos));
         return result;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectInternal(world, pos);
+    }
+
+    @Override
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectInternal(world, pos);
+    }
+
+    private List<ItemStack> collectInternal(World world, BlockPos pos) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -227,20 +257,7 @@ public class ActuallyAdditionsHandler implements IRemoteHandler {
                 if (!stack.isEmpty()) result.add(stack);
             }
         }
-        pushTimestamps.remove(key(world, pos));
         return result;
-    }
-
-    private static String key(World world, BlockPos pos) {
-        return world.provider.getDimension() + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ();
-    }
-
-    private boolean hasPushGraceElapsed(World world, BlockPos pos) {
-        Long timestamp = pushTimestamps.get(key(world, pos));
-        if (timestamp == null) {
-            return true;
-        }
-        return world.getTotalWorldTime() > timestamp + PUSH_IDLE_GRACE_TICKS;
     }
 
     private Object[] getNearbyStands(TileEntity empowerer) {

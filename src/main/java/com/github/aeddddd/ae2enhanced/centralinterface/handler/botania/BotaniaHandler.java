@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.botania;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -94,7 +96,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {
             return canStartPool(world, pos, (TilePool) te, ingredients);
@@ -111,7 +113,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         cleanupExpiredStates(world.getTotalWorldTime());
         TileEntity te = world.getTileEntity(pos);
         boolean success = false;
@@ -135,7 +137,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileRuneAltar) {
             return startProcessRuneAltar(world, pos, (TileRuneAltar) te);
@@ -146,7 +148,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         List<ItemStack> result;
         if (te instanceof TileRuneAltar) {
@@ -163,7 +165,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         String k = key(world, pos);
         pushStates.remove(k);
         TileEntity te = world.getTileEntity(pos);
@@ -215,7 +217,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         cleanupExpiredStates(world.getTotalWorldTime());
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {

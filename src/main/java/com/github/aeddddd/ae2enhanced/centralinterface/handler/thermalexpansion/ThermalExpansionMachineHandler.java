@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.thermalexpansion;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
@@ -93,12 +95,12 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         return isValidTarget(world, pos);
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return false;
 
@@ -126,12 +128,12 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return true;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -153,7 +155,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -176,7 +178,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
-                                           List<ItemStack> inputs, IActionSource source) {
+            List<ItemStack> inputs, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -220,7 +222,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
@@ -251,7 +253,7 @@ public class ThermalExpansionMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 

@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.enderio;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
@@ -144,12 +146,12 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         return isValidTarget(world, pos);
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return false;
 
@@ -174,12 +176,12 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return true;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -193,7 +195,7 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -208,7 +210,7 @@ public class EnderIOMachineHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
-                                           List<ItemStack> inputs, IActionSource source) {
+            List<ItemStack> inputs, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return Collections.emptyList();
 
@@ -242,7 +244,7 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
@@ -256,7 +258,7 @@ public class EnderIOMachineHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (!isValidTarget(world, pos)) return true;
 
@@ -588,7 +590,13 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         try {
             Object queue = METHOD_GET_OUTPUT_QUEUE.invoke(te);
             if (queue instanceof List) {
-                return new ArrayList<>((List<ItemStack>) queue);
+                List<ItemStack> result = new ArrayList<>();
+                for (Object o : (List<?>) queue) {
+                    if (o instanceof ItemStack) {
+                        result.add(((ItemStack) o).copy());
+                    }
+                }
+                return result;
             }
         } catch (Exception e) {
             AE2Enhanced.LOGGER.debug("[AE2E] Failed to get EIO output queue", e);
@@ -596,18 +604,24 @@ public class EnderIOMachineHandler implements IRemoteHandler {
         return Collections.emptyList();
     }
 
+    @SuppressWarnings("unchecked")
     private List<ItemStack> drainOutputQueue(TileEntity te) {
-        List<ItemStack> result = getOutputQueue(te);
-        if (result.isEmpty()) return Collections.emptyList();
+        if (METHOD_GET_OUTPUT_QUEUE == null) return Collections.emptyList();
         try {
             Object queue = METHOD_GET_OUTPUT_QUEUE.invoke(te);
-            if (queue instanceof List) {
-                ((List<?>) queue).clear();
+            if (!(queue instanceof List)) return Collections.emptyList();
+            List<ItemStack> result = new ArrayList<>();
+            for (Object o : (List<?>) queue) {
+                if (o instanceof ItemStack) {
+                    result.add(((ItemStack) o).copy());
+                }
             }
+            ((List<?>) queue).clear();
+            return result;
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] Failed to clear EIO output queue", e);
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to drain EIO output queue", e);
         }
-        return result;
+        return Collections.emptyList();
     }
 
     private boolean isActive(TileEntity te) {

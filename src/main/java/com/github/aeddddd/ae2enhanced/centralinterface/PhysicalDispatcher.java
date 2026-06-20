@@ -92,7 +92,7 @@ public class PhysicalDispatcher {
         boolean success = false;
         try {
             // 1. 发配前回收目标输出槽残留内容，防止残留产物干扰新材料推送
-            List<ItemStack> clearedOutputs = safeClearOutputs(handler, world, target.pos, source);
+            List<ItemStack> clearedOutputs = safeClearOutputs(handler, world, target.pos, source, session);
             if (!clearedOutputs.isEmpty()) {
                 stashOrInject(proxy, world, clearedOutputs);
             }
@@ -104,19 +104,19 @@ public class PhysicalDispatcher {
             }
 
             // 3. 检查目标是否可以开始处理本次配方
-            if (!safeCanStart(handler, world, target.pos, table)) {
+            if (!safeCanStart(handler, world, target.pos, table, session)) {
                 revertSession(session, "canStart failed", source);
                 return false;
             }
 
             // 4. 推送物品材料。handler 必须保证原子性：全部进入目标或全部回退。
-            if (!safePushMaterials(handler, world, target.pos, table, source)) {
+            if (!safePushMaterials(handler, world, target.pos, table, source, session)) {
                 revertSession(session, "pushMaterials failed", source);
                 return false;
             }
 
             // 5. 启动机器处理流程
-            if (!safeStartProcess(handler, world, target.pos, source)) {
+            if (!safeStartProcess(handler, world, target.pos, source, session)) {
                 revertSession(session, "startProcess failed", source);
                 return false;
             }
@@ -167,7 +167,7 @@ public class PhysicalDispatcher {
             IActionSource source = new MachineSource(owner.host);
             List<ItemStack> inputs = session.getInputs();
 
-            Boolean idle = safeIsIdle(handler, world, target.pos, inputs);
+            Boolean idle = safeIsIdle(handler, world, target.pos, inputs, session);
             if (idle == null) {
                 // isIdle 本身抛异常，视为目标异常，回退并释放
                 revertSession(session, "isIdle exception", source);
@@ -184,7 +184,7 @@ public class PhysicalDispatcher {
             if (shouldAttemptStartProcess(session, world.getTotalWorldTime())) {
                 session.setLastStartProcessTick(world.getTotalWorldTime());
                 session.incrementStartProcessAttempts();
-                Boolean started = safeStartProcess(handler, world, target.pos, source);
+                Boolean started = safeStartProcess(handler, world, target.pos, source, session);
                 if (started != null && !started) {
                     // startProcess 在 tick 阶段返回 false 视为无法继续，安全回退
                     revertSession(session, "startProcess returned false in tick", source);
@@ -211,7 +211,7 @@ public class PhysicalDispatcher {
             IAEItemStack[] expected = session.getExpectedOutputs();
             List<ItemStack> inputs = session.getInputs();
 
-            List<ItemStack> products = safeCollectProducts(handler, world, target.pos, expected, inputs, source);
+            List<ItemStack> products = safeCollectProducts(handler, world, target.pos, expected, inputs, source, session);
             if (products == null) {
                 products = new ArrayList<>();
             }
@@ -227,7 +227,7 @@ public class PhysicalDispatcher {
                 }
             }
 
-            Boolean finished = safeHasFinished(handler, world, target.pos, inputs);
+            Boolean finished = safeHasFinished(handler, world, target.pos, inputs, session);
             if (finished == null) {
                 // hasFinished 异常，安全结束会话避免无限循环
                 finished = true;
@@ -279,13 +279,13 @@ public class PhysicalDispatcher {
                 if (handler != null) {
                     // 先尝试收集可能已产生的产物
                     List<ItemStack> products = safeCollectProducts(handler, world, target.pos,
-                            session.getExpectedOutputs(), session.getInputs(), source);
+                            session.getExpectedOutputs(), session.getInputs(), source, session);
                     if (products != null && !products.isEmpty()) {
                         stashOrInject(owner.host.getProxy(), world, products);
                     }
 
                     // 回退尚未消耗的材料
-                    List<ItemStack> reverted = safeRevertMaterials(handler, world, target.pos, source);
+                    List<ItemStack> reverted = safeRevertMaterials(handler, world, target.pos, source, session);
                     if (reverted != null && !reverted.isEmpty()) {
                         stashOrInject(owner.host.getProxy(), world, reverted);
                     }
@@ -367,18 +367,18 @@ public class PhysicalDispatcher {
 
     // ---- 带异常隔离的 handler 调用包装 ----
 
-    private List<ItemStack> safeClearOutputs(IRemoteHandler handler, World world, BlockPos pos, IActionSource source) {
+    private List<ItemStack> safeClearOutputs(IRemoteHandler handler, World world, BlockPos pos, IActionSource source, TargetSession session) {
         try {
-            return handler.clearOutputs(world, pos, source);
+            return handler.clearOutputs(world, pos, source, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler clearOutputs threw at {}: {}", pos, e.toString());
             return new ArrayList<>();
         }
     }
 
-    private boolean safeCanStart(IRemoteHandler handler, World world, BlockPos pos, InventoryCrafting table) {
+    private boolean safeCanStart(IRemoteHandler handler, World world, BlockPos pos, InventoryCrafting table, TargetSession session) {
         try {
-            return handler.canStart(world, pos, table);
+            return handler.canStart(world, pos, table, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler canStart threw at {}: {}", pos, e.toString());
             return false;
@@ -386,27 +386,27 @@ public class PhysicalDispatcher {
     }
 
     private boolean safePushMaterials(IRemoteHandler handler, World world, BlockPos pos,
-                                      InventoryCrafting table, IActionSource source) {
+                                      InventoryCrafting table, IActionSource source, TargetSession session) {
         try {
-            return handler.pushMaterials(world, pos, table, source);
+            return handler.pushMaterials(world, pos, table, source, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler pushMaterials threw at {}: {}", pos, e.toString());
             return false;
         }
     }
 
-    private Boolean safeStartProcess(IRemoteHandler handler, World world, BlockPos pos, IActionSource source) {
+    private Boolean safeStartProcess(IRemoteHandler handler, World world, BlockPos pos, IActionSource source, TargetSession session) {
         try {
-            return handler.startProcess(world, pos, source);
+            return handler.startProcess(world, pos, source, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler startProcess threw at {}: {}", pos, e.toString());
             return false;
         }
     }
 
-    private Boolean safeIsIdle(IRemoteHandler handler, World world, BlockPos pos, List<ItemStack> inputs) {
+    private Boolean safeIsIdle(IRemoteHandler handler, World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         try {
-            return handler.isIdle(world, pos, inputs);
+            return handler.isIdle(world, pos, inputs, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler isIdle threw at {}: {}", pos, e.toString());
             return null;
@@ -415,27 +415,27 @@ public class PhysicalDispatcher {
 
     private List<ItemStack> safeCollectProducts(IRemoteHandler handler, World world, BlockPos pos,
                                                 IAEItemStack[] expectedOutputs, List<ItemStack> inputs,
-                                                IActionSource source) {
+                                                IActionSource source, TargetSession session) {
         try {
-            return handler.collectProducts(world, pos, expectedOutputs, inputs, source);
+            return handler.collectProducts(world, pos, expectedOutputs, inputs, source, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler collectProducts threw at {}: {}", pos, e.toString());
             return null;
         }
     }
 
-    private List<ItemStack> safeRevertMaterials(IRemoteHandler handler, World world, BlockPos pos, IActionSource source) {
+    private List<ItemStack> safeRevertMaterials(IRemoteHandler handler, World world, BlockPos pos, IActionSource source, TargetSession session) {
         try {
-            return handler.revertMaterials(world, pos, source);
+            return handler.revertMaterials(world, pos, source, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler revertMaterials threw at {}: {}", pos, e.toString());
             return new ArrayList<>();
         }
     }
 
-    private Boolean safeHasFinished(IRemoteHandler handler, World world, BlockPos pos, List<ItemStack> inputs) {
+    private Boolean safeHasFinished(IRemoteHandler handler, World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         try {
-            return handler.hasFinished(world, pos, inputs);
+            return handler.hasFinished(world, pos, inputs, session);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Handler hasFinished threw at {}: {}", pos, e.toString());
             return null;

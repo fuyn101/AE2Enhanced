@@ -57,12 +57,12 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         return isValidTarget(world, pos);
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return false;
@@ -86,12 +86,12 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return true;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return Collections.emptyList();
@@ -114,7 +114,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
-    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return Collections.emptyList();
@@ -138,7 +138,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
-                                           List<ItemStack> inputs, IActionSource source) {
+            List<ItemStack> inputs, IActionSource source, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return Collections.emptyList();
@@ -168,7 +168,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return true;
@@ -194,7 +194,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
     }
 
     @Override
-    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean hasFinished(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) {
             return true;

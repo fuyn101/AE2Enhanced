@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -104,7 +106,7 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initBaseReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
@@ -139,7 +141,7 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initBaseReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
@@ -152,6 +154,12 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
             }
 
             List<ItemStack> matrix = (List<ItemStack>) METHOD_GET_MATRIX.invoke(te);
+
+            // 快照原 matrix，放置失败时回滚
+            List<ItemStack> snapshot = new ArrayList<>();
+            for (ItemStack stack : matrix) {
+                snapshot.add(stack.copy());
+            }
 
             // 收集可用物品(保持原始 count)
             List<ItemStack> available = new ArrayList<>();
@@ -179,6 +187,15 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
                 }
             }
 
+            // 所有输入物品必须被放置；否则回滚 matrix 并视为失败
+            if (!available.isEmpty()) {
+                for (int i = 0; i < matrix.size() && i < snapshot.size(); i++) {
+                    matrix.set(i, snapshot.get(i));
+                }
+                te.markDirty();
+                return false;
+            }
+
             te.markDirty();
             return true;
         } catch (Exception e) {
@@ -187,14 +204,14 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         recipeCache.remove(pos);
         return true;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initBaseReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -228,7 +245,7 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initBaseReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
@@ -258,7 +275,7 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         initBaseReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);

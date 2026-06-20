@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.thaumcraft;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -97,7 +99,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler, IVirtualBatchC
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_CRUCIBLE.isInstance(te)) return false;
@@ -114,7 +116,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler, IVirtualBatchC
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_CRUCIBLE.isInstance(te)) return false;
@@ -183,12 +185,12 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler, IVirtualBatchC
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         return true;
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         return !hasPendingCatalyst(world, pos);
     }
@@ -301,7 +303,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler, IVirtualBatchC
 
     @Override
     public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs,
-                                           List<ItemStack> inputs, IActionSource source) {
+            List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         // 如果还有未落下的催化剂,不能收集产物
         if (hasPendingCatalyst(world, pos)) {
@@ -326,7 +328,7 @@ public class ThaumcraftCrucibleHandler implements IRemoteHandler, IVirtualBatchC
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         // 杀死未落下的催化剂 EntityItem,收集已弹出的产物,不清空坩埚
         initReflection();
         killPendingCatalysts(world, pos);

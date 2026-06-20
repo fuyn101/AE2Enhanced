@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -22,9 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Extended Crafting 合成核心 + 基座处理器.
@@ -58,10 +58,9 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
 
     /**
      * 防止 pushMaterials 后立即 isIdle(progress==0) 导致提前收回材料。
-     * 记录每次成功推料的世界时间,isIdle 至少等待 GRACE_TICKS 后才认为可收集。
+     * 推料 tick 记录在 {@link TargetSession} 中。
      */
     private static final int PUSH_IDLE_GRACE_TICKS = 2;
-    private final Map<String, Long> pushTimestamps = new HashMap<>();
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -110,7 +109,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -131,7 +130,7 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
@@ -140,56 +139,88 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
         IItemHandler coreInv = getCoreInventory(te);
         if (coreInv == null) return false;
 
-        // Slot 0 → Core slot 0(主材料)
         ItemStack main = ingredients.getStackInSlot(0);
+        List<BlockPos> chosenPedestals = new ArrayList<>();
+
+        // 预检主材料
         if (!main.isEmpty()) {
-            ItemStack inserted = coreInv.insertItem(0, main.copy(), false);
-            if (!inserted.isEmpty() && inserted.getCount() == main.getCount()) {
+            ItemStack simulated = coreInv.insertItem(0, main.copy(), true);
+            if (!simulated.isEmpty()) {
                 return false;
             }
         }
 
-        // Slot 1+ → Pedestals(每个只放1个)
+        // 预检辅助材料
         List<BlockPos> pedestalPositions = getPedestalPositions(te);
         int pedestalIdx = 0;
         for (int i = 1; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            // 找到下一个 pedestal,只插入到空槽位
+            BlockPos chosen = null;
             while (pedestalIdx < pedestalPositions.size()) {
                 BlockPos pPos = pedestalPositions.get(pedestalIdx);
+                pedestalIdx++;
                 TileEntity pTe = world.getTileEntity(pPos);
                 if (CLASS_PEDESTAL.isInstance(pTe)) {
                     IItemHandler pInv = getPedestalInventory(pTe);
                     if (pInv != null && pInv.getStackInSlot(0).isEmpty()) {
                         ItemStack single = stack.copy();
                         single.setCount(1);
-                        pInv.insertItem(0, single, false);
-                        pedestalIdx++;
-                        break;
+                        ItemStack simulated = pInv.insertItem(0, single, true);
+                        if (simulated.isEmpty()) {
+                            chosen = pPos;
+                            break;
+                        }
                     }
                 }
-                pedestalIdx++;
             }
+            if (chosen == null) {
+                return false;
+            }
+            chosenPedestals.add(chosen);
         }
-        pushTimestamps.put(key(world, pos), world.getTotalWorldTime());
+
+        // 实际插入
+        if (!main.isEmpty()) {
+            coreInv.insertItem(0, main.copy(), false);
+        }
+        for (int i = 0; i < chosenPedestals.size(); i++) {
+            int ingredientSlot = 1 + i; // 当前实现按顺序一一对应
+            // 跳过空槽位重新对齐：找到第 i 个非空辅助材料
+            while (ingredientSlot < ingredients.getSizeInventory() && ingredients.getStackInSlot(ingredientSlot).isEmpty()) {
+                ingredientSlot++;
+            }
+            if (ingredientSlot >= ingredients.getSizeInventory()) break;
+            BlockPos pPos = chosenPedestals.get(i);
+            TileEntity pTe = world.getTileEntity(pPos);
+            if (!CLASS_PEDESTAL.isInstance(pTe)) continue;
+            IItemHandler pInv = getPedestalInventory(pTe);
+            if (pInv == null) continue;
+            ItemStack single = ingredients.getStackInSlot(ingredientSlot).copy();
+            single.setCount(1);
+            pInv.insertItem(0, single, false);
+        }
+
+        if (session != null) {
+            session.setPushTick(world.getTotalWorldTime());
+        }
         return true;
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         // EC CraftingCore 是自动检测配方并推进的,不需要显式启动
         return true;
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_CORE.isInstance(te)) return false;
         // 推料后至少等待数 tick,避免 progress==0 时立即收回刚放入的材料
-        if (!hasPushGraceElapsed(world, pos)) {
+        if (session != null && !session.isPushGraceElapsed(world.getTotalWorldTime(), PUSH_IDLE_GRACE_TICKS)) {
             return false;
         }
         // progress == 0 表示合成已完成(或尚未开始),允许 collectProducts 提取产物
@@ -197,7 +228,12 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectAllFromTarget(world, pos);
+    }
+
+    @Override
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -227,12 +263,15 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
                 }
             }
         }
-        pushTimestamps.remove(key(world, pos));
         return result;
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
+        return collectAllFromTarget(world, pos);
+    }
+
+    private List<ItemStack> collectAllFromTarget(World world, BlockPos pos) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -257,7 +296,6 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
                 }
             }
         }
-        pushTimestamps.remove(key(world, pos));
         return result;
     }
 
@@ -440,18 +478,6 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
         } catch (Exception e) {
             return false;
         }
-    }
-
-    private static String key(World world, BlockPos pos) {
-        return world.provider.getDimension() + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ();
-    }
-
-    private boolean hasPushGraceElapsed(World world, BlockPos pos) {
-        Long timestamp = pushTimestamps.get(key(world, pos));
-        if (timestamp == null) {
-            return true;
-        }
-        return world.getTotalWorldTime() > timestamp + PUSH_IDLE_GRACE_TICKS;
     }
 
     private static long getRecipeCost(Object recipe) {

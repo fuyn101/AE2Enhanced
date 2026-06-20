@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.centralinterface.handler.extendedcrafting;
 
+import com.github.aeddddd.ae2enhanced.centralinterface.TargetSession;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -100,7 +102,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients) {
+    public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
@@ -115,7 +117,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source) {
+    public boolean pushMaterials(World world, BlockPos pos, InventoryCrafting ingredients, IActionSource source, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
@@ -160,7 +162,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public boolean startProcess(World world, BlockPos pos, IActionSource source) {
+    public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
         // 压缩机在 materialCount >= inputCount 时自动开始
         // 将 ejecting 设为 false 防止它立刻弹出产物
         initReflection();
@@ -175,7 +177,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs) {
+    public boolean isIdle(World world, BlockPos pos, List<ItemStack> inputs, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_COMPRESSOR.isInstance(te)) return false;
@@ -187,7 +189,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source) {
+    public List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -211,7 +213,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source) {
+    public List<ItemStack> revertMaterials(World world, BlockPos pos, IActionSource source, TargetSession session) {
         initReflection();
         List<ItemStack> result = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
