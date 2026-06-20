@@ -36,6 +36,10 @@ public class TargetSession {
     private long lastStartProcessTick = -1;
     private int startProcessAttempts = 0;
 
+    // Handler 可在本 session 中临时缓存配方对象，替代 handler 实例中的 recipeCache map。
+    // 该字段不持久化，session reset 时自动清空。
+    private Object recipeCache;
+
     public TargetSession(TargetBinding binding, DualityCentralInterface owner) {
         this.binding = binding;
         this.owner = owner;
@@ -196,6 +200,7 @@ public class TargetSession {
         this.pushTick = -1;
         this.lastStartProcessTick = -1;
         this.startProcessAttempts = 0;
+        this.recipeCache = null;
     }
 
     /**
@@ -214,6 +219,27 @@ public class TargetSession {
             return;
         }
         this.state = TargetState.IDLE;
+    }
+
+    /**
+     * 获取 handler 在本 session 中缓存的临时对象（如配方）。
+     */
+    public Object getRecipeCache() {
+        return recipeCache;
+    }
+
+    /**
+     * 设置 handler 在本 session 中缓存的临时对象。
+     */
+    public void setRecipeCache(Object recipeCache) {
+        this.recipeCache = recipeCache;
+    }
+
+    /**
+     * 清空本 session 的配方缓存。
+     */
+    public void clearRecipeCache() {
+        this.recipeCache = null;
     }
 
     /**

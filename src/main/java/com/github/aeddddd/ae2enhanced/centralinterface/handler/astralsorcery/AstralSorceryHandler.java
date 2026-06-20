@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.util.EnumParticleTypes;
 
 /**
@@ -80,32 +79,6 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
     private static Field FIELD_ADDITIONALLY_REQUIRED_STACKS;
     private static Constructor<?> CTOR_ACTIVE_CRAFTING_TASK;
     private static boolean reflectionReady = false;
-
-    // 配方缓存：key 包含维度+坐标，防止跨维度同坐标祭坛互相覆盖
-    private final Map<RecipeCacheKey, Object> recipeCache = new ConcurrentHashMap<>();
-
-    private static final class RecipeCacheKey {
-        final int dimension;
-        final BlockPos pos;
-
-        RecipeCacheKey(World world, BlockPos pos) {
-            this.dimension = world.provider.getDimension();
-            this.pos = pos;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof RecipeCacheKey)) return false;
-            RecipeCacheKey other = (RecipeCacheKey) o;
-            return this.dimension == other.dimension && this.pos.equals(other.pos);
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * dimension + pos.hashCode();
-        }
-    }
 
     private static void initReflection() {
         if (reflectionReady) return;
@@ -176,11 +149,6 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
     }
 
     @Override
-    public void onBindingRemoved(World world, BlockPos pos) {
-        recipeCache.remove(new RecipeCacheKey(world, pos));
-    }
-
-    @Override
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initReflection();
         TileEntity te = world.getTileEntity(pos);
@@ -212,7 +180,9 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
         // 星能检查
         if (!fulfillesStarlightRequirement(recipe, te)) return false;
 
-        recipeCache.put(new RecipeCacheKey(world, pos), recipe);
+        if (session != null) {
+            session.setRecipeCache(recipe);
+        }
         return true;
     }
 
@@ -225,8 +195,7 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
         IItemHandler handler = getInventoryHandler(te);
         if (handler == null) return false;
 
-        RecipeCacheKey key = new RecipeCacheKey(world, pos);
-        Object recipe = recipeCache.get(key);
+        Object recipe = session != null ? session.getRecipeCache() : null;
         if (recipe == null) {
             // 回退：尝试重新查找
             recipe = findRecipeByIngredients(te, ingredients);
@@ -290,21 +259,20 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
         if (!CLASS_TILE_ALTAR.isInstance(te)) return false;
 
         // 已经处于合成中
-        RecipeCacheKey key = new RecipeCacheKey(world, pos);
         if (getActiveCraftingTask(te) != null) {
-            recipeCache.remove(key);
+            if (session != null) session.clearRecipeCache();
             return true;
         }
 
         try {
             // 直接使用 canStart/pushMaterials 已验证的配方创建 ActiveCraftingTask
-            Object recipe = recipeCache.get(key);
+            Object recipe = session != null ? session.getRecipeCache() : null;
             if (recipe == null) {
                 // 回退：通过 findMatchingRecipe 查找(此时物品已放置好,应该能找到)
                 recipe = METHOD_FIND_MATCHING_RECIPE.invoke(null, te, false);
             }
             if (recipe == null) {
-                recipeCache.remove(key);
+                if (session != null) session.clearRecipeCache();
                 return false;
             }
 
@@ -316,10 +284,10 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
             Object task = CTOR_ACTIVE_CRAFTING_TASK.newInstance(recipe, multiplier, FAKE_PLAYER_UUID);
             FIELD_CRAFTING_TASK.set(te, task);
             METHOD_MARK_FOR_UPDATE.invoke(te);
-            recipeCache.remove(key);
+            if (session != null) session.clearRecipeCache();
             return true;
         } catch (Exception e) {
-            recipeCache.remove(key);
+            if (session != null) session.clearRecipeCache();
             return false;
         }
     }

@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Extended Crafting 末影工作台远程处理器.
@@ -56,9 +54,6 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
     private static Method METHOD_RECIPE_MANAGER_GET_INSTANCE;
     private static Method METHOD_GET_RECIPES;
     private static boolean recipeReflectionReady = false;
-
-    // 配方缓存：BlockPos → IRecipe(canStart 与 pushMaterials 之间传递)
-    private final Map<BlockPos, Object> recipeCache = new ConcurrentHashMap<>();
 
     private static void initBaseReflection() {
         if (baseReflectionReady) return;
@@ -105,11 +100,6 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
     }
 
     @Override
-    public void onBindingRemoved(World world, BlockPos pos) {
-        recipeCache.remove(pos);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public boolean canStart(World world, BlockPos pos, InventoryCrafting ingredients, TargetSession session) {
         initBaseReflection();
@@ -138,7 +128,9 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
         // 通过 ingredients 反查配方(不依赖槽位顺序)
         Object recipe = findRecipe(ingredients);
         if (recipe != null) {
-            recipeCache.put(pos, recipe);
+            if (session != null) {
+                session.setRecipeCache(recipe);
+            }
             return true;
         }
         return false;
@@ -152,7 +144,7 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return false;
 
         try {
-            Object recipe = recipeCache.get(pos);
+            Object recipe = session != null ? session.getRecipeCache() : null;
             if (recipe == null) {
                 recipe = findRecipe(ingredients);
                 if (recipe == null) return false;
@@ -210,7 +202,9 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     public boolean startProcess(World world, BlockPos pos, IActionSource source, TargetSession session) {
-        recipeCache.remove(pos);
+        if (session != null) {
+            session.clearRecipeCache();
+        }
         return true;
     }
 
@@ -286,7 +280,9 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
         TileEntity te = world.getTileEntity(pos);
         if (!CLASS_TILE_ENDER_CRAFTER.isInstance(te)) return result;
 
-        recipeCache.remove(pos);
+        if (session != null) {
+            session.clearRecipeCache();
+        }
 
         try {
             // 收集 result 槽
