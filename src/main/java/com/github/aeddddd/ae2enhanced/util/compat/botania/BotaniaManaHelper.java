@@ -92,6 +92,8 @@ public final class BotaniaManaHelper {
             poolVariantCreative = null;
             poolVariantFabulous = null;
             available = false;
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.error(
+                    "[AE2E] BotaniaManaHelper initialization failed: {}", t.toString(), t);
         }
     }
 
