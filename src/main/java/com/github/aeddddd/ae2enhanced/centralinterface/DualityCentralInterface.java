@@ -85,6 +85,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 虚拟合成粒子效果：目标位置 + 剩余 tick
     private final List<VirtualParticleTarget> activeParticleTargets = new ArrayList<>();
 
+    // 虚拟合成冷却：每个目标成功执行一批后进入 20 tick 冷却
+    private final Map<TargetBinding, Integer> virtualCooldowns = new HashMap<>();
+    private static final int VIRTUAL_COOLDOWN_TICKS = 20;
+
     private static class VirtualParticleTarget {
         final BlockPos pos;
         final int particleType;
@@ -242,17 +246,42 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     /**
-     * 返回所有当前处于 IDLE 状态的绑定目标.
+     * 返回所有当前处于 IDLE 状态且不在虚拟冷却中的绑定目标.
      */
     private List<TargetBinding> findIdleTargets() {
         List<TargetBinding> result = new ArrayList<>();
         for (TargetBinding binding : this.bindings) {
             TargetSession session = this.sessions.get(binding);
             if (session == null || session.isIdle()) {
-                result.add(binding);
+                if (!isOnVirtualCooldown(binding)) {
+                    result.add(binding);
+                }
             }
         }
         return result;
+    }
+
+    private boolean isOnVirtualCooldown(TargetBinding binding) {
+        Integer cooldown = this.virtualCooldowns.get(binding);
+        return cooldown != null && cooldown > 0;
+    }
+
+    /**
+     * 递减所有虚拟合成冷却，返回是否有冷却刚好结束。
+     */
+    private boolean decrementVirtualCooldowns() {
+        boolean expired = false;
+        Iterator<Map.Entry<TargetBinding, Integer>> it = this.virtualCooldowns.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<TargetBinding, Integer> entry = it.next();
+            int remaining = entry.getValue() - 1;
+            entry.setValue(remaining);
+            if (remaining <= 0) {
+                it.remove();
+                expired = true;
+            }
+        }
+        return expired;
     }
 
     private TargetSession getOrCreateSession(TargetBinding binding) {
@@ -506,6 +535,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
         addParticleTarget(target.pos, particleType);
 
+        // 进入虚拟合成冷却，20 tick 后才能接受下一批
+        this.virtualCooldowns.put(target, VIRTUAL_COOLDOWN_TICKS);
+
         tryWakeTickDevice();
         return true;
     }
@@ -655,7 +687,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         for (TargetBinding binding : this.bindings) {
             TargetSession session = this.sessions.get(binding);
             if (session == null || session.isIdle()) {
-                return false;
+                if (!isOnVirtualCooldown(binding)) {
+                    return false;
+                }
             }
         }
         return true;
@@ -695,6 +729,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (!proxy.isActive()) {
             return TickRateModulation.SLEEP;
         }
+
+        // 递减虚拟合成冷却
+        boolean cooldownExpired = decrementVirtualCooldowns();
 
         // 先尝试恢复 UNAVAILABLE 目标：如果目标重新有效，则恢复为 IDLE
         recoverUnavailableTargets();
@@ -791,8 +828,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         // 将 storage slots 中的物品推入网络(如果有空间)
         pushStorageToNetwork(proxy);
 
-        return hasWorkToDo() || !this.activeParticleTargets.isEmpty()
-                ? (didWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
+        boolean hasCooldowns = !this.virtualCooldowns.isEmpty();
+        return (hasWorkToDo() || !this.activeParticleTargets.isEmpty() || hasCooldowns)
+                ? (didWork || cooldownExpired ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
                 : TickRateModulation.SLEEP;
     }
 
