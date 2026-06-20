@@ -22,17 +22,21 @@ import java.util.List;
  * 虚拟合成资源提取器：统一从 AE2 网络提取各类资源，并支持原子回滚。
  *
  * <p>当前支持：物品、流体、RF、Mana、Starlight、气体、源质。
- * 随着更多 handler 接入批量虚拟合成，可继续扩展。</p>
+ * 所有非物品/流体通道均通过反射 + {@link IStorageGrid#getInventory(IStorageChannel)} 访问，
+ * 避免硬引用可选 mod 类，同时修正了旧实现中错误的 channel 类名和不存在的方法名。</p>
  */
 public class VirtualCostExtractor {
+
+    private static final double ENERGY_EPSILON = 0.0001;
 
     /**
      * 模拟提取全部资源，返回是否可行。
      */
     public static boolean simulateExtract(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
         for (IAEStack cost : costs) {
+            if (isEmpty(cost)) continue;
             IAEStack remaining = extractOne(storage, cost, Actionable.SIMULATE, source);
-            if (remaining != null && remaining.getStackSize() > 0) {
+            if (!isEmpty(remaining)) {
                 return false;
             }
         }
@@ -47,8 +51,9 @@ public class VirtualCostExtractor {
     public static boolean extractAll(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
         List<IAEStack> extracted = new ArrayList<>();
         for (IAEStack cost : costs) {
+            if (isEmpty(cost)) continue;
             IAEStack remaining = extractOne(storage, cost, Actionable.MODULATE, source);
-            if (remaining != null && remaining.getStackSize() > 0) {
+            if (!isEmpty(remaining)) {
                 rollback(storage, extracted, source);
                 return false;
             }
@@ -58,17 +63,29 @@ public class VirtualCostExtractor {
     }
 
     /**
+     * 模拟扣除 AE 能量，返回网络是否有足够能量。
+     */
+    public static boolean simulateExtractEnergy(IEnergySource energy, double amount) {
+        if (amount <= 0) return true;
+        return energy.extractAEPower(amount, Actionable.SIMULATE, PowerMultiplier.CONFIG) >= amount - ENERGY_EPSILON;
+    }
+
+    /**
      * 扣除 AE 能量。
      *
      * @return 是否扣除成功
      */
     public static boolean extractEnergy(IEnergySource energy, double amount, IActionSource source) {
-        return energy.extractAEPower(amount, Actionable.MODULATE, PowerMultiplier.CONFIG) >= amount - 0.0001;
+        if (amount <= 0) return true;
+        return energy.extractAEPower(amount, Actionable.MODULATE, PowerMultiplier.CONFIG) >= amount - ENERGY_EPSILON;
+    }
+
+    private static boolean isEmpty(IAEStack stack) {
+        return stack == null || stack.getStackSize() <= 0;
     }
 
     private static IAEStack extractOne(IStorageGrid storage, IAEStack cost,
                                        Actionable mode, IActionSource source) {
-        String className = cost.getClass().getName();
         if (cost instanceof IAEItemStack) {
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             return storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
@@ -77,16 +94,33 @@ public class VirtualCostExtractor {
             IStorageChannel<IAEFluidStack> channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
             return storage.getInventory(channel).extractItems((IAEFluidStack) cost, mode, source);
         }
+
+        String className = cost.getClass().getName();
+        if (className.contains("AEEnergyStack")) {
+            return extractViaChannel(storage, cost, mode, source,
+                    "com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel", true);
+        }
+        if (className.contains("AEManaStack")) {
+            return extractViaChannel(storage, cost, mode, source,
+                    "com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel", true);
+        }
+        if (className.contains("AEStarlightStack")) {
+            return extractViaChannel(storage, cost, mode, source,
+                    "com.github.aeddddd.ae2enhanced.storage.starlight.IStarlightStorageChannel", true);
+        }
         if (className.contains("GasStack")) {
             return extractViaChannel(storage, cost, mode, source,
-                    "appeng.api.storage.channels.IGasStorageChannel", Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng"));
+                    "com.mekeng.github.common.me.storage.IGasStorageChannel",
+                    Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng"));
         }
         if (className.contains("EssentiaStack")) {
             return extractViaChannel(storage, cost, mode, source,
-                    "appeng.api.storage.channels.IEssentiaStorageChannel", Loader.isModLoaded("thaumcraft"));
+                    "thaumicenergistics.api.storage.IEssentiaStorageChannel",
+                    Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics"));
         }
-        // RF / Mana / Starlight 自定义标量通道
-        return extractScalar(storage, cost, mode, source);
+
+        AE2Enhanced.LOGGER.warn("[AE2E] Unknown virtual cost stack type: {}", className);
+        return cost;
     }
 
     @SuppressWarnings("unchecked")
@@ -97,30 +131,19 @@ public class VirtualCostExtractor {
             Class<?> channelClass = Class.forName(channelClassName);
             IStorageChannel<?> channel = (IStorageChannel<?>) AEApi.instance().storage().getStorageChannel((Class) channelClass);
             if (channel == null) return cost;
-            Object monitor = channelClass.getMethod("getInventory").invoke(channel);
-            return (IAEStack) monitor.getClass().getMethod("extractItems", cost.getClass(), Actionable.class, IActionSource.class)
+
+            Object monitor = IStorageGrid.class
+                    .getMethod("getInventory", IStorageChannel.class)
+                    .invoke(storage, channel);
+            if (monitor == null) return cost;
+
+            return (IAEStack) monitor.getClass()
+                    .getMethod("extractItems", IAEStack.class, Actionable.class, IActionSource.class)
                     .invoke(monitor, cost, mode, source);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to extract via channel {}: {}", channelClassName, e.getMessage());
             return cost;
         }
-    }
-
-    private static IAEStack extractScalar(IStorageGrid storage, IAEStack cost, Actionable mode, IActionSource source) {
-        String className = cost.getClass().getName();
-        String channelClassName = null;
-        if (className.contains("AEEnergyStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IEnergyStorageChannel";
-        } else if (className.contains("AEManaStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IManaStorageChannel";
-        } else if (className.contains("AEStarlightStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IStarlightStorageChannel";
-        }
-        if (channelClassName == null) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Unknown scalar stack type: {}", className);
-            return cost;
-        }
-        return extractViaChannel(storage, cost, mode, source, channelClassName, true);
     }
 
     private static void rollback(IStorageGrid storage, List<IAEStack> extracted, IActionSource source) {
@@ -130,7 +153,6 @@ public class VirtualCostExtractor {
     }
 
     private static void injectOne(IStorageGrid storage, IAEStack stack, IActionSource source) {
-        String className = stack.getClass().getName();
         if (stack instanceof IAEItemStack) {
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             storage.getInventory(channel).injectItems((IAEItemStack) stack, Actionable.MODULATE, source);
@@ -141,26 +163,29 @@ public class VirtualCostExtractor {
             storage.getInventory(channel).injectItems((IAEFluidStack) stack, Actionable.MODULATE, source);
             return;
         }
+
+        String className = stack.getClass().getName();
+        if (className.contains("AEEnergyStack")) {
+            injectViaChannel(storage, stack, source, "com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel");
+            return;
+        }
+        if (className.contains("AEManaStack")) {
+            injectViaChannel(storage, stack, source, "com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel");
+            return;
+        }
+        if (className.contains("AEStarlightStack")) {
+            injectViaChannel(storage, stack, source, "com.github.aeddddd.ae2enhanced.storage.starlight.IStarlightStorageChannel");
+            return;
+        }
         if (className.contains("GasStack")) {
-            injectViaChannel(storage, stack, source, "appeng.api.storage.channels.IGasStorageChannel");
+            injectViaChannel(storage, stack, source, "com.mekeng.github.common.me.storage.IGasStorageChannel");
             return;
         }
         if (className.contains("EssentiaStack")) {
-            injectViaChannel(storage, stack, source, "appeng.api.storage.channels.IEssentiaStorageChannel");
+            injectViaChannel(storage, stack, source, "thaumicenergistics.api.storage.IEssentiaStorageChannel");
             return;
         }
-        // RF / Mana / Starlight rollback
-        String channelClassName = null;
-        if (className.contains("AEEnergyStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IEnergyStorageChannel";
-        } else if (className.contains("AEManaStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IManaStorageChannel";
-        } else if (className.contains("AEStarlightStack")) {
-            channelClassName = "com.github.aeddddd.ae2enhanced.storage.IStarlightStorageChannel";
-        }
-        if (channelClassName != null) {
-            injectViaChannel(storage, stack, source, channelClassName);
-        }
+        AE2Enhanced.LOGGER.warn("[AE2E] Cannot rollback unknown stack type: {}", className);
     }
 
     @SuppressWarnings("unchecked")
@@ -169,8 +194,14 @@ public class VirtualCostExtractor {
             Class<?> channelClass = Class.forName(channelClassName);
             IStorageChannel<?> channel = (IStorageChannel<?>) AEApi.instance().storage().getStorageChannel((Class) channelClass);
             if (channel == null) return;
-            Object monitor = channelClass.getMethod("getInventory").invoke(channel);
-            monitor.getClass().getMethod("injectItems", stack.getClass(), Actionable.class, IActionSource.class)
+
+            Object monitor = IStorageGrid.class
+                    .getMethod("getInventory", IStorageChannel.class)
+                    .invoke(storage, channel);
+            if (monitor == null) return;
+
+            monitor.getClass()
+                    .getMethod("injectItems", IAEStack.class, Actionable.class, IActionSource.class)
                     .invoke(monitor, stack, Actionable.MODULATE, source);
         } catch (Exception ignored) {
         }
