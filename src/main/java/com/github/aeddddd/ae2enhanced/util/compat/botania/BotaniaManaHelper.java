@@ -70,7 +70,8 @@ public final class BotaniaManaHelper {
             isFullMethod = imanaReceiverClass.getMethod("isFull");
             receiveManaMethod = imanaReceiverClass.getMethod("recieveMana", int.class);
 
-            subTileField = tileSpecialFlowerClass.getField("subTile");
+            subTileField = tileSpecialFlowerClass.getDeclaredField("subTile");
+            subTileField.setAccessible(true);
 
             Class<?> botaniaStatePropsClass = Class.forName(BOTANIA_STATE_PROPS);
             poolVariantPropertyField = botaniaStatePropsClass.getField("POOL_VARIANT");
