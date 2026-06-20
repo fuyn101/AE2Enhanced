@@ -82,6 +82,10 @@ public interface IRemoteHandler {
     /**
      * 将合成配方所需的全部材料推送到目标方块输入端.
      *
+     * <p><b>原子性要求</b>：返回 {@code true} 时，{@code ingredients} 中所有非空物品必须全部进入
+     * 目标机器的可跟踪位置；返回 {@code false} 时，handler 必须先把已经插入的部分回退到与调用前
+     * 一致的状态。调用方仍会再调用 {@link #revertMaterials} 作为安全网。</p>
+     *
      * @param world       世界实例
      * @param pos         方块位置
      * @param ingredients 配方输入物品
@@ -116,15 +120,12 @@ public interface IRemoteHandler {
     List<ItemStack> collectProducts(World world, BlockPos pos, IAEItemStack[] expectedOutputs, List<ItemStack> inputs, IActionSource source);
 
     /**
-     * 判断目标当前是否有产物可以收集.
+     * 判断目标当前是否可以安全收集产物.
      *
-     * <p>当此方法返回 {@code true} 时,{@link DualityCentralInterface}
-     * 会调用 {@link #collectProducts} 尝试收集产物.</p>
-     *
-     * <p>此方法采用宽松语义：只要机器不处于活跃处理状态且输出槽/tank
-     * 中有可收集产物,即可返回 {@code true}.即使输入槽还有未处理完的材料,
-     * 也应返回 {@code true},以便 DualityCentralInterface 以流水线方式
-     * 及时回收产物,避免输出槽满导致机器停滞.</p>
+     * <p>返回 {@code true} 时，{@link DualityCentralInterface} 会调用
+     * {@link #collectProducts} 取走产物/残余。对于条件启动型或进度型机器，
+     * 不能仅因为 {@code progress == 0} 或 {@code burnTime == 0} 就返回 true，
+     * 必须确认机器已收到材料并至少开始处理，或已经过了推料保护期。</p>
      *
      * @param world  世界实例
      * @param pos    方块位置
@@ -175,5 +176,17 @@ public interface IRemoteHandler {
      */
     default List<ItemStack> clearOutputs(World world, BlockPos pos, IActionSource source) {
         return java.util.Collections.emptyList();
+    }
+
+    /**
+     * 当目标从中枢接口解绑时调用，用于清理 handler 侧可能存在的 per-target 缓存。
+     *
+     * <p>默认实现为空。若 handler 内部保存了按坐标索引的状态（如推料时间戳、
+     * 配方缓存等），应覆盖此方法并在目标解绑时清除，避免内存泄漏。</p>
+     *
+     * @param world 世界实例
+     * @param pos   方块位置
+     */
+    default void onBindingRemoved(World world, BlockPos pos) {
     }
 }

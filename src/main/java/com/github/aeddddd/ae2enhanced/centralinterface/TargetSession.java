@@ -30,6 +30,12 @@ public class TargetSession {
     private List<FluidStack> pushedFluids;
     private List<FluidStack> inputFluids;
 
+    // 物理发配运行时的上下文，供 dispatcher 与 handler 判断 grace 期，
+    // 避免 handler 实例保存 per-target 的 map 造成并行隔离问题。
+    private long pushTick = -1;
+    private long lastStartProcessTick = -1;
+    private int startProcessAttempts = 0;
+
     public TargetSession(TargetBinding binding, DualityCentralInterface owner) {
         this.binding = binding;
         this.owner = owner;
@@ -80,6 +86,44 @@ public class TargetSession {
         return inputFluids != null ? inputFluids : Collections.emptyList();
     }
 
+    public long getPushTick() {
+        return pushTick;
+    }
+
+    public void setPushTick(long pushTick) {
+        this.pushTick = pushTick;
+    }
+
+    public long getLastStartProcessTick() {
+        return lastStartProcessTick;
+    }
+
+    public void setLastStartProcessTick(long lastStartProcessTick) {
+        this.lastStartProcessTick = lastStartProcessTick;
+    }
+
+    public int getStartProcessAttempts() {
+        return startProcessAttempts;
+    }
+
+    public void incrementStartProcessAttempts() {
+        this.startProcessAttempts++;
+    }
+
+    public void resetStartProcessAttempts() {
+        this.startProcessAttempts = 0;
+    }
+
+    /**
+     * 判断自推料以来是否已过指定 grace tick。
+     */
+    public boolean isPushGraceElapsed(long currentWorldTime, int graceTicks) {
+        if (pushTick < 0) {
+            return true;
+        }
+        return currentWorldTime > pushTick + graceTicks;
+    }
+
     /**
      * 开始一次物理推送。
      *
@@ -106,6 +150,9 @@ public class TargetSession {
         this.inputs = inputs != null ? new ArrayList<>(inputs) : null;
         this.inputFluids = inputFluids != null ? new ArrayList<>(inputFluids) : null;
         this.startTime = startTime;
+        this.pushTick = startTime;
+        this.lastStartProcessTick = -1;
+        this.startProcessAttempts = 0;
         this.pushedFluids = null;
     }
 
@@ -146,6 +193,9 @@ public class TargetSession {
         this.inputs = null;
         this.pushedFluids = null;
         this.inputFluids = null;
+        this.pushTick = -1;
+        this.lastStartProcessTick = -1;
+        this.startProcessAttempts = 0;
     }
 
     /**

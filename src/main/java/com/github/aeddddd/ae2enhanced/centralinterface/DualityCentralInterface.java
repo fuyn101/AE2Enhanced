@@ -870,6 +870,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             tryEmergencyCollect(binding);
             session.reset();
         }
+
+        // 通知 handler 清理 per-target 缓存
+        notifyBindingRemoved(binding);
+
         this.bindings.remove(binding);
         this.sessions.remove(binding);
         if (this.bindings.isEmpty()) {
@@ -885,6 +889,10 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 tryEmergencyCollect(session.getBinding());
                 session.reset();
             }
+        }
+        // 通知所有 handler 清理 per-target 缓存
+        for (TargetBinding binding : new ArrayList<>(this.bindings)) {
+            notifyBindingRemoved(binding);
         }
         this.bindings.clear();
         this.sessions.clear();
@@ -906,6 +914,22 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /** 紧急收集指定目标的产物(用于移除绑定前清理),收集失败则暂存到 storage slots */
     private void tryEmergencyCollect(TargetBinding binding) {
         this.physicalDispatcher.emergencyCollect(binding);
+    }
+
+    /** 通知 handler 目标已解绑，并捕获 handler 异常避免扩散 */
+    private void notifyBindingRemoved(TargetBinding binding) {
+        try {
+            World world = this.host.getTileEntity().getWorld();
+            if (world == null || world.provider.getDimension() != binding.dimension) return;
+            if (!world.isBlockLoaded(binding.pos)) return;
+            IRemoteHandler handler = HandlerRegistry.findHandler(binding.blockId);
+            if (handler != null) {
+                handler.onBindingRemoved(world, binding.pos);
+            }
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] onBindingRemoved threw for {} at {}: {}",
+                    binding.blockId, binding.pos, e.toString());
+        }
     }
 
     private void postPatternChangeEvent() {
