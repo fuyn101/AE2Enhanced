@@ -2,8 +2,12 @@ package com.github.aeddddd.ae2enhanced.centralinterface.handler.botania;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.IRemoteHandler;
+import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
+import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.Item;
@@ -31,8 +35,10 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import net.minecraftforge.items.IItemHandlerModifiable;
+import net.minecraft.util.EnumParticleTypes;
 
 /**
  * Botania 远程处理器.
@@ -46,7 +52,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
  *   <li>花药台 (botania:altar) — 放入材料后手动触发配方合成</li>
  * </ul>
  */
-public class BotaniaHandler implements IRemoteHandler {
+public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHandler {
 
     private static final String TAG_PORTAL_FLAG = "_elvenPortal";
     /** 中枢推送的输入物品标记,用于 revertMaterials 区分未消耗输入与产物 */
@@ -224,6 +230,71 @@ public class BotaniaHandler implements IRemoteHandler {
             return isIdleAltar(world, pos, (TileAltar) te);
         }
         return true;
+    }
+
+    // ---- IVirtualCraftingHandler / IVirtualBatchCraftingHandler ----
+
+    @Override
+    public boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TilePool) {
+            return canCraftVirtuallyPool(world, pos, ingredients, outputs);
+        } else if (te instanceof TileAlfPortal) {
+            return canCraftVirtuallyAlfPortal(world, pos, ingredients, outputs);
+        } else if (te instanceof TileTerraPlate) {
+            return canCraftVirtuallyTerraPlate(world, pos, ingredients, outputs);
+        } else if (te instanceof TileRuneAltar) {
+            return canCraftVirtuallyRuneAltar(world, pos, ingredients, outputs);
+        } else if (te instanceof TileAltar) {
+            return canCraftVirtuallyAltar(world, pos, ingredients, outputs);
+        }
+        return false;
+    }
+
+    @Override
+    public List<ItemStack> virtualCraft(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, IActionSource source) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, 1, source);
+    }
+
+    @Override
+    public List<EnumParticleTypes> getVirtualCraftingParticles(World world, BlockPos pos) {
+        return Arrays.asList(
+                EnumParticleTypes.SPELL_WITCH,
+                EnumParticleTypes.PORTAL,
+                EnumParticleTypes.ENCHANTMENT_TABLE,
+                EnumParticleTypes.END_ROD
+        );
+    }
+
+    @Override
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TilePool) {
+            return getVirtualCostPool(world, pos, ingredients, outputs, count);
+        } else if (te instanceof TileAlfPortal) {
+            return getVirtualCostAlfPortal(world, pos, ingredients, outputs, count);
+        } else if (te instanceof TileTerraPlate) {
+            return getVirtualCostTerraPlate(world, pos, ingredients, outputs, count);
+        } else if (te instanceof TileRuneAltar) {
+            return getVirtualCostRuneAltar(world, pos, ingredients, outputs, count);
+        } else if (te instanceof TileAltar) {
+            return getVirtualCostAltar(world, pos, ingredients, outputs, count);
+        }
+        return new ArrayList<>();
+    }
+
+    @Override
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+        List<ItemStack> products = new ArrayList<>();
+        if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
+        for (int c = 0; c < count; c++) {
+            for (IAEItemStack output : outputs) {
+                if (output != null) {
+                    products.add(output.createItemStack().copy());
+                }
+            }
+        }
+        return products;
     }
 
     // ==================== Pool ====================
@@ -731,6 +802,288 @@ public class BotaniaHandler implements IRemoteHandler {
             }
         }
         return null;
+    }
+
+    // ---- 批量虚拟合成辅助方法 ----
+
+    // -------------------- Pool --------------------
+
+    private boolean canCraftVirtuallyPool(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        RecipeManaInfusion recipe = findManaInfusionRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return false;
+        Object inputObj = recipe.getInput();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty() && matchesRecipeObject(inputObj, stack)) return true;
+        }
+        return false;
+    }
+
+    private List<IAEStack> getVirtualCostPool(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
+        RecipeManaInfusion recipe = findManaInfusionRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+        Object inputObj = recipe.getInput();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty() && matchesRecipeObject(inputObj, stack)) {
+                ItemStack cost = stack.copy();
+                cost.setCount(count);
+                costs.add(AEItemStack.fromItemStack(cost));
+                break;
+            }
+        }
+        costs.add(AEManaStack.create((long) recipe.getManaToConsume() * count));
+        return costs;
+    }
+
+    private RecipeManaInfusion findManaInfusionRecipeByOutput(ItemStack output) {
+        if (output.isEmpty()) return null;
+        for (RecipeManaInfusion recipe : BotaniaAPI.manaInfusionRecipes) {
+            ItemStack recipeOutput = recipe.getOutput();
+            if (!recipeOutput.isEmpty()
+                    && recipeOutput.getItem() == output.getItem()
+                    && recipeOutput.getMetadata() == output.getMetadata()) {
+                return recipe;
+            }
+        }
+        return null;
+    }
+
+    // -------------------- Alf Portal --------------------
+
+    private boolean canCraftVirtuallyAlfPortal(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        RecipeElvenTrade recipe = findElvenTradeRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return false;
+        return matchRecipeInputs(recipe.getInputs(), collectNonEmpty(ingredients));
+    }
+
+    private List<IAEStack> getVirtualCostAlfPortal(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
+        RecipeElvenTrade recipe = findElvenTradeRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+        List<ItemStack> available = collectNonEmpty(ingredients);
+        for (Object req : recipe.getInputs()) {
+            for (int i = 0; i < available.size(); i++) {
+                if (matchesRecipeObject(req, available.get(i))) {
+                    ItemStack cost = available.remove(i).copy();
+                    cost.setCount(count);
+                    costs.add(AEItemStack.fromItemStack(cost));
+                    break;
+                }
+            }
+        }
+        return costs;
+    }
+
+    private RecipeElvenTrade findElvenTradeRecipeByOutput(ItemStack output) {
+        if (output.isEmpty()) return null;
+        for (RecipeElvenTrade recipe : BotaniaAPI.elvenTradeRecipes) {
+            for (ItemStack recipeOutput : recipe.getOutputs()) {
+                if (!recipeOutput.isEmpty()
+                        && recipeOutput.getItem() == output.getItem()
+                        && recipeOutput.getMetadata() == output.getMetadata()) {
+                    return recipe;
+                }
+            }
+        }
+        return null;
+    }
+
+    // -------------------- Terra Plate --------------------
+
+    private static final long TERRA_PLATE_MANA_COST = 500000L;
+
+    private boolean canCraftVirtuallyTerraPlate(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        ItemStack expected = outputs[0].createItemStack();
+        if (expected.getItem() != ModItems.manaResource || expected.getMetadata() != 4) return false;
+        boolean hasSteel = false, hasPearl = false, hasDiamond = false;
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (stack.isEmpty() || stack.getItem() != ModItems.manaResource) continue;
+            int meta = stack.getMetadata();
+            if (meta == 0) hasSteel = true;
+            else if (meta == 1) hasPearl = true;
+            else if (meta == 2) hasDiamond = true;
+        }
+        return hasSteel && hasPearl && hasDiamond;
+    }
+
+    private List<IAEStack> getVirtualCostTerraPlate(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (stack.isEmpty() || stack.getItem() != ModItems.manaResource) continue;
+            int meta = stack.getMetadata();
+            if (meta == 0 || meta == 1 || meta == 2) {
+                ItemStack cost = stack.copy();
+                cost.setCount(count);
+                costs.add(AEItemStack.fromItemStack(cost));
+            }
+        }
+        costs.add(AEManaStack.create(TERRA_PLATE_MANA_COST * count));
+        return costs;
+    }
+
+    // -------------------- Rune Altar --------------------
+
+    private boolean canCraftVirtuallyRuneAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        RecipeRuneAltar recipe = findRuneAltarRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return false;
+        List<ItemStack> available = collectNonEmpty(ingredients);
+        boolean hasLivingrock = false;
+        for (int i = available.size() - 1; i >= 0; i--) {
+            ItemStack stack = available.get(i);
+            if (stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0) {
+                hasLivingrock = true;
+                available.remove(i);
+                break;
+            }
+        }
+        return hasLivingrock && matchRecipeInputs(recipe.getInputs(), available);
+    }
+
+    private List<IAEStack> getVirtualCostRuneAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
+        RecipeRuneAltar recipe = findRuneAltarRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+
+        List<ItemStack> available = collectNonEmpty(ingredients);
+        // 先扣活石
+        for (int i = 0; i < available.size(); i++) {
+            ItemStack stack = available.get(i);
+            if (stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0) {
+                ItemStack cost = stack.copy();
+                cost.setCount(count);
+                costs.add(AEItemStack.fromItemStack(cost));
+                available.remove(i);
+                break;
+            }
+        }
+
+        // 再扣配方输入
+        for (Object req : recipe.getInputs()) {
+            for (int i = 0; i < available.size(); i++) {
+                if (matchesRecipeObject(req, available.get(i))) {
+                    ItemStack cost = available.remove(i).copy();
+                    cost.setCount(count);
+                    costs.add(AEItemStack.fromItemStack(cost));
+                    break;
+                }
+            }
+        }
+
+        costs.add(AEManaStack.create((long) recipe.getManaUsage() * count));
+        return costs;
+    }
+
+    private RecipeRuneAltar findRuneAltarRecipeByOutput(ItemStack output) {
+        if (output.isEmpty()) return null;
+        for (RecipeRuneAltar recipe : BotaniaAPI.runeAltarRecipes) {
+            ItemStack recipeOutput = recipe.getOutput();
+            if (!recipeOutput.isEmpty()
+                    && recipeOutput.getItem() == output.getItem()
+                    && recipeOutput.getMetadata() == output.getMetadata()) {
+                return recipe;
+            }
+        }
+        return null;
+    }
+
+    // -------------------- Petal Apothecary --------------------
+
+    private boolean canCraftVirtuallyAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs) {
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return false;
+        RecipePetals recipe = findPetalRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return false;
+        List<ItemStack> available = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty() && !isSeed(stack)) available.add(stack.copy());
+        }
+        return matchRecipeInputs(recipe.getInputs(), available);
+    }
+
+    private List<IAEStack> getVirtualCostAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+        List<IAEStack> costs = new ArrayList<>();
+        if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
+        RecipePetals recipe = findPetalRecipeByOutput(outputs[0].createItemStack());
+        if (recipe == null) return costs;
+        List<ItemStack> available = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty() && !isSeed(stack)) available.add(stack.copy());
+        }
+        for (Object req : recipe.getInputs()) {
+            for (int i = 0; i < available.size(); i++) {
+                if (matchesRecipeObject(req, available.get(i))) {
+                    ItemStack cost = available.remove(i).copy();
+                    cost.setCount(count);
+                    costs.add(AEItemStack.fromItemStack(cost));
+                    break;
+                }
+            }
+        }
+        return costs;
+    }
+
+    private RecipePetals findPetalRecipeByOutput(ItemStack output) {
+        if (output.isEmpty()) return null;
+        for (RecipePetals recipe : BotaniaAPI.petalRecipes) {
+            ItemStack recipeOutput = recipe.getOutput();
+            if (!recipeOutput.isEmpty()
+                    && recipeOutput.getItem() == output.getItem()
+                    && recipeOutput.getMetadata() == output.getMetadata()) {
+                return recipe;
+            }
+        }
+        return null;
+    }
+
+    // -------------------- Common virtual helpers --------------------
+
+    private List<ItemStack> collectNonEmpty(InventoryCrafting ingredients) {
+        List<ItemStack> list = new ArrayList<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) list.add(stack.copy());
+        }
+        return list;
+    }
+
+    private boolean matchRecipeInputs(List<Object> required, List<ItemStack> available) {
+        for (Object req : required) {
+            boolean found = false;
+            for (int i = 0; i < available.size(); i++) {
+                if (matchesRecipeObject(req, available.get(i))) {
+                    available.remove(i);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return available.isEmpty();
+    }
+
+    private boolean matchesRecipeObject(Object obj, ItemStack stack) {
+        if (obj instanceof String) {
+            for (ItemStack ore : OreDictionary.getOres((String) obj)) {
+                if (OreDictionary.itemMatches(ore, stack, false)) return true;
+            }
+            return false;
+        } else if (obj instanceof ItemStack) {
+            ItemStack target = (ItemStack) obj;
+            return stack.getItem() == target.getItem() && stack.getMetadata() == target.getMetadata();
+        }
+        return false;
     }
 
     // ==================== Common Helpers ====================
