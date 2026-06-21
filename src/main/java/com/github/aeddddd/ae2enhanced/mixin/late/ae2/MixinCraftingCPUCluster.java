@@ -13,8 +13,10 @@ import appeng.me.helpers.MachineSource;
 import appeng.tile.crafting.TileCraftingMonitorTile;
 import appeng.tile.crafting.TileCraftingTile;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyMeInterface;
+import com.github.aeddddd.ae2enhanced.tile.TileCentralMEInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -24,6 +26,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -642,5 +646,96 @@ public class MixinCraftingCPUCluster {
 
             }
         }
+    }
+
+    // ==================== Central Interface Virtual Batch Correction ====================
+
+    /**
+     * 包装 CraftingCPUCluster 对 ICraftingMedium.pushPattern 的调用。
+     *
+     * <p>当中枢 ME 接口的虚拟批量合成一次处理了 N 份产物时，AE2 CPU 仍然只把这次 push
+     * 当作 1 个操作。这里在 pushPattern 成功后，把额外的 (N-1) 份输出加入 waitingFor，
+     * 并同步减少 taskProgress / remainingItemCount，使 CPU 任务计数与实际产出一致。</p>
+     */
+    @WrapOperation(
+        method = "executeCrafting",
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/api/networking/crafting/ICraftingMedium;pushPattern(Lappeng/api/networking/crafting/ICraftingPatternDetails;Lnet/minecraft/inventory/InventoryCrafting;)Z"
+        )
+    )
+    private boolean ae2enhanced$wrapPushPatternForVirtualBatch(
+            ICraftingMedium medium,
+            ICraftingPatternDetails details,
+            InventoryCrafting table,
+            Operation<Boolean> original) {
+        boolean result = original.call(medium, details, table);
+        if (!result || !(medium instanceof TileCentralMEInterface)) {
+            return result;
+        }
+
+        DualityCentralInterface duality = ((TileCentralMEInterface) medium).getInterfaceDuality();
+        int batchSize = duality.getLastVirtualBatchSize();
+        if (batchSize <= 1) {
+            return true;
+        }
+
+        try {
+            tryInitReflection();
+            if (!reflectionReady) {
+                return true;
+            }
+
+            CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
+            @SuppressWarnings("unchecked")
+            Map<ICraftingPatternDetails, Object> tasks = (Map<ICraftingPatternDetails, Object>) tasksField.get(cpu);
+            Object progress = tasks == null ? null : tasks.get(details);
+            if (progress == null) {
+                return true;
+            }
+
+            long remaining = taskProgressValueField.getLong(progress);
+            long extra = Math.min(batchSize - 1, remaining - 1);
+            if (extra <= 0) {
+                return true;
+            }
+
+            // 减少任务剩余数（原方法还会再减 1，因此这里只减 extra）
+            taskProgressValueField.setLong(progress, remaining - extra);
+
+            // 同步减少 remainingItemCount
+            if (remItemCountField != null) {
+                long oldRemItemCount = remItemCountField.getLong(cpu);
+                long totalOutputCount = 0;
+                for (IAEItemStack out : details.getCondensedOutputs()) {
+                    if (out != null) {
+                        totalOutputCount += out.getStackSize() * extra;
+                    }
+                }
+                remItemCountField.setLong(cpu, oldRemItemCount - totalOutputCount);
+            }
+
+            // 把额外的预期产出加入 waitingFor，使 CPU 认为这些产物也已经被发出
+            if (waitingForField != null && postCraftingStatusChange != null) {
+                IItemList<IAEItemStack> waitingFor = (IItemList<IAEItemStack>) waitingForField.get(cpu);
+                if (waitingFor != null) {
+                    for (IAEItemStack out : details.getCondensedOutputs()) {
+                        if (out == null || out.getStackSize() <= 0) {
+                            continue;
+                        }
+                        IAEItemStack extraOut = out.copy();
+                        extraOut.setStackSize(out.getStackSize() * extra);
+                        waitingFor.add(extraOut);
+                        postCraftingStatusChange.invoke(cpu, extraOut.copy());
+                    }
+                }
+            }
+
+            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] CPU batch correction: batchSize={} extra={} taskRemaining={}",
+                    batchSize, extra, remaining - extra);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Virtual batch CPU correction failed: {}", e.toString(), e);
+        }
+        return true;
     }
 }

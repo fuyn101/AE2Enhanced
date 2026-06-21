@@ -94,6 +94,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 诊断日志节流
     private long lastVirtualParallelLogTick = -1000;
 
+    // 上一次虚拟批量合成的实际并行数，供 CraftingCPUCluster Mixin 修正任务计数
+    private int lastVirtualBatchSize = 0;
+
     private final PhysicalDispatcher physicalDispatcher;
     private final VirtualBatchEngine virtualBatchEngine;
 
@@ -223,6 +226,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
+        this.lastVirtualBatchSize = 0;
         AENetworkProxy proxy = this.host.getProxy();
         if (!proxy.isActive() || this.craftingList == null
                 || !this.craftingList.contains(patternDetails)) {
@@ -248,7 +252,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     && handler instanceof IVirtualBatchCraftingHandler) {
                 attemptedVirtual = true;
                 IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
-                if (this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel)) {
+                int actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
+                if (actualParallel > 0) {
+                    this.lastVirtualBatchSize = actualParallel;
                     this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
                     tryWakeTickDevice();
                     return true;
@@ -259,6 +265,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             // 否则尝试物理发配
             if (handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
                 if (this.physicalDispatcher.dispatch(proxy, patternDetails, table, target, handler)) {
+                    this.lastVirtualBatchSize = 1;
                     return true;
                 }
             }
@@ -270,6 +277,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             tryWakeTickDevice();
         }
         return false;
+    }
+
+    /**
+     * 返回上一次 pushPattern 中虚拟批量合成的实际并行数。
+     * 供 MixinCraftingCPUCluster 修正 AE2 CPU 的任务计数。
+     */
+    public int getLastVirtualBatchSize() {
+        return this.lastVirtualBatchSize;
     }
 
     /**

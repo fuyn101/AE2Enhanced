@@ -53,44 +53,44 @@ public class VirtualBatchEngine {
      * @param target      目标绑定
      * @param handler     批量虚拟合成 handler
      * @param maxParallel 卡片 tier 提供的最大并行数
-     * @return true 表示成功完成至少 1 份虚拟合成
+     * @return 实际完成的并行数，0 表示失败
      */
-    public boolean execute(AENetworkProxy proxy,
-                           ICraftingPatternDetails patternDetails,
-                           InventoryCrafting originalTable,
-                           TargetBinding target,
-                           IVirtualBatchCraftingHandler handler,
-                           int maxParallel) {
+    public int execute(AENetworkProxy proxy,
+                       ICraftingPatternDetails patternDetails,
+                       InventoryCrafting originalTable,
+                       TargetBinding target,
+                       IVirtualBatchCraftingHandler handler,
+                       int maxParallel) {
         World world = owner.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
             logFail(world, target, "dimension mismatch");
-            return false;
+            return 0;
         }
 
         // 防御性冷却/所有权检查
         if (owner.isOnGlobalVirtualCooldown()) {
             logFail(world, target, "on global virtual cooldown");
-            return false;
+            return 0;
         }
         if (owner.isOnVirtualCooldown(target)) {
             logFail(world, target, "on target virtual cooldown");
-            return false;
+            return 0;
         }
         TargetSession session = owner.getOrCreateSession(target);
         if (!session.isIdle()) {
             logFail(world, target, "session not idle (" + session.getState() + ")");
-            return false;
+            return 0;
         }
 
         if (!handler.isValidTarget(world, target.pos)) {
             session.setUnavailable();
             logFail(world, target, "invalid target");
-            return false;
+            return 0;
         }
 
         if (!TargetOwnershipTracker.instance().tryAcquire(target, owner)) {
             logFail(world, target, "ownership already held");
-            return false;
+            return 0;
         }
 
         boolean ownershipAcquired = true;
@@ -100,7 +100,7 @@ public class VirtualBatchEngine {
 
             if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
                 logFail(world, target, "canCraftVirtually returned false");
-                return false;
+                return 0;
             }
 
             IStorageGrid storage;
@@ -110,7 +110,7 @@ public class VirtualBatchEngine {
                 energy = proxy.getEnergy();
             } catch (GridAccessException e) {
                 logFail(world, target, "grid access exception: " + e.getMessage());
-                return false;
+                return 0;
             }
 
             // 先计算 parallel=1 时的 netCosts，用于失败诊断；实际执行时再按 actualParallel 重新计算。
@@ -119,7 +119,7 @@ public class VirtualBatchEngine {
             int actualParallel = computeActualParallel(storage, handler, world, target, virtualTable, outputs, maxParallel);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0 for netCosts=[" + formatCosts(netCosts) + "]");
-                return false;
+                return 0;
             }
 
             IActionSource source = new MachineSource(owner.host);
@@ -130,27 +130,27 @@ public class VirtualBatchEngine {
             netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
-                return false;
+                return 0;
             }
 
             // 模拟提取
             if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source)) {
                 logFail(world, target, "simulateExtract failed for parallel=" + actualParallel + " netCosts=" + netCosts.size());
-                return false;
+                return 0;
             }
 
             // 模拟能量
             double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * actualParallel;
             if (!VirtualCostExtractor.simulateExtractEnergy(energy, energyCost)) {
                 logFail(world, target, "simulateExtractEnergy failed (need " + energyCost + " AE)");
-                return false;
+                return 0;
             }
 
             // 实际提取资源（仅 extra 物品 + secondary 资源）
             List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source);
             if (extracted == null) {
                 logFail(world, target, "extractAll failed");
-                return false;
+                return 0;
             }
 
             // 扣除能量
@@ -158,7 +158,7 @@ public class VirtualBatchEngine {
                 // 资源已扣但能量不足：理论上前面已模拟，出现竞态时回滚资源
                 VirtualCostExtractor.rollbackExtracted(storage, extracted, source);
                 logFail(world, target, "extractEnergy failed after resources extracted");
-                return false;
+                return 0;
             }
 
             // 执行虚拟合成
@@ -166,7 +166,7 @@ public class VirtualBatchEngine {
             if (products == null || products.isEmpty()) {
                 // 产物为空视为已消耗，不回滚
                 logFail(world, target, "virtualCraftBatch returned no products");
-                return false;
+                return 0;
             }
 
             int totalProductCount = 0;
@@ -191,7 +191,7 @@ public class VirtualBatchEngine {
             owner.tryWakeTickDevice();
             AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] SUCCESS {} at {} parallel={} productStacks={} totalItems={}",
                     target.blockId, target.pos, actualParallel, products.size(), totalProductCount);
-            return true;
+            return actualParallel;
         } finally {
             if (ownershipAcquired) {
                 TargetOwnershipTracker.instance().release(target, owner);
