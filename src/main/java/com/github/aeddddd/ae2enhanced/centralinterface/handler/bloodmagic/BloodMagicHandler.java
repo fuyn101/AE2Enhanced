@@ -165,7 +165,7 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileAlchemyTable) {
             return getVirtualCostAlchemyTable(ingredients, outputs, count);
@@ -176,17 +176,10 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ---- 批量虚拟合成辅助 ----
@@ -198,7 +191,7 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
         return matchIngredients(recipe.getInput(), collectNonEmpty(ingredients));
     }
 
-    private List<IAEStack> getVirtualCostAlchemyTable(InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostAlchemyTable(InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipeAlchemyTable recipe = findAlchemyRecipeByOutput(outputs[0].createItemStack());
@@ -209,9 +202,9 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
             if (ing == null || ing == Ingredient.EMPTY) continue;
             for (int i = 0; i < available.size(); i++) {
                 if (ing.apply(available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }
@@ -236,7 +229,7 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
         return false;
     }
 
-    private List<IAEStack> getVirtualCostAltar(InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostAltar(InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipeBloodAltar recipe = findAltarRecipeByOutput(outputs[0].createItemStack());
@@ -246,9 +239,9 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty() && input.apply(stack)) {
-                ItemStack cost = stack.copy();
-                cost.setCount(count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize(count);
+                costs.add(cost);
                 break;
             }
         }
@@ -287,7 +280,7 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
         return null;
     }
 
-    private IAEStack createLPCost(int syphon, int count) {
+    private IAEStack createLPCost(int syphon, long count) {
         Fluid fluid = FluidRegistry.getFluid("lifeessence");
         if (fluid == null) {
             // 部分魔改版使用不同注册名，尝试反射获取
@@ -299,7 +292,7 @@ public class BloodMagicHandler implements IRemoteHandler, IVirtualBatchCraftingH
             }
         }
         if (fluid == null) return null;
-        return AEFluidStack.fromFluidStack(new FluidStack(fluid, syphon * count));
+        return AEFluidStack.fromFluidStack(new FluidStack(fluid, (int) ((long) syphon * count)));
     }
 
     private List<ItemStack> collectNonEmpty(InventoryCrafting ingredients) {

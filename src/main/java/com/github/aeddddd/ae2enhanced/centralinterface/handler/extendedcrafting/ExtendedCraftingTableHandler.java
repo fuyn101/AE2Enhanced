@@ -156,21 +156,21 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                ItemStack cost = stack.copy();
-                cost.setCount(cost.getCount() * count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize((long) stack.getCount() * count);
+                costs.add(cost);
             }
         }
         return costs;
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         initReflection();
         List<ItemStack> products = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
@@ -186,15 +186,7 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
-                // 使用 pattern 定义的精确输出(确保 NBT 与 waitingFor 匹配)
-                for (int c = 0; c < count; c++) {
-                    for (IAEItemStack output : outputs) {
-                        if (output != null) {
-                            products.add(output.createItemStack());
-                        }
-                    }
-                }
-                return products;
+                return scaleOutputsByCount(outputs, count);
             }
         }
         return products;

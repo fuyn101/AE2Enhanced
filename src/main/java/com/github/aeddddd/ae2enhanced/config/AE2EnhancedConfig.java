@@ -596,14 +596,6 @@ public class AE2EnhancedConfig {
         public int virtualCooldownGlobalTicks = 20;
 
         @Config.Comment({
-            "Hard cap on the number of parallel crafts executed in a single virtual batch.",
-            "Limits memory usage when high-tier virtual parallel cards are installed.",
-            "Range: 1 ~ 2147483647, Default: 10000"
-        })
-        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
-        public int virtualParallelMaxCap = 10000;
-
-        @Config.Comment({
             "AE energy consumed per virtual parallel crafting operation.",
             "Total cost = actualVirtualParallel × this value.",
             "Range: 0.0 ~ 1000000.0, Default: 16.0"
@@ -611,12 +603,6 @@ public class AE2EnhancedConfig {
         @Config.RangeDouble(min = 0.0, max = 1000000.0)
         public double virtualParallelEnergyCost = 16.0;
 
-        @Config.Comment({
-            "If true, virtual parallel crafting will execute the largest possible batch",
-            "when network resources are insufficient for the full parallel count.",
-            "Default: true"
-        })
-        public boolean virtualParallelPartialExecution = true;
 
         @Config.Comment({
             "Maximum number of virtual crafting targets that can simultaneously emit particles",

@@ -93,6 +93,27 @@ public class VirtualCostExtractor {
         return energy.extractAEPower(amount, Actionable.MODULATE, PowerMultiplier.CONFIG) >= amount - ENERGY_EPSILON;
     }
 
+    /**
+     * 查询网络中指定 AE 堆叠的可用数量。
+     *
+     * <p>通过模拟提取 {@code Long.MAX_VALUE} 并返回实际可取到的数量实现，
+     * 避免 binary search 中多次部分提取。</p>
+     */
+    public static long queryAvailable(IStorageGrid storage, IAEStack cost, IActionSource source) {
+        if (isEmpty(cost)) return 0;
+        IAEStack request = cost.copy();
+        request.setStackSize(Long.MAX_VALUE);
+        IAEStack extracted = extractOne(storage, request, Actionable.SIMULATE, source);
+        return extracted != null ? extracted.getStackSize() : 0;
+    }
+
+    /**
+     * 查询网络可用 AE 能量。
+     */
+    public static double queryAvailableEnergy(IEnergySource energy) {
+        return energy.extractAEPower(Double.MAX_VALUE, Actionable.SIMULATE, PowerMultiplier.CONFIG);
+    }
+
     private static boolean isEmpty(IAEStack stack) {
         return stack == null || stack.getStackSize() <= 0;
     }
@@ -111,23 +132,11 @@ public class VirtualCostExtractor {
                                        Actionable mode, IActionSource source) {
         if (cost instanceof IAEItemStack) {
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            IAEStack result = storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
-            if (!isSufficient(result, cost)) {
-                long got = result == null ? 0 : result.getStackSize();
-                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL item requested={} got={}",
-                        cost.getStackSize(), got);
-            }
-            return result;
+            return storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
         }
         if (cost instanceof IAEFluidStack) {
             IStorageChannel<IAEFluidStack> channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-            IAEStack result = storage.getInventory(channel).extractItems((IAEFluidStack) cost, mode, source);
-            if (!isSufficient(result, cost)) {
-                long got = result == null ? 0 : result.getStackSize();
-                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL fluid requested={} got={}",
-                        cost.getStackSize(), got);
-            }
-            return result;
+            return storage.getInventory(channel).extractItems((IAEFluidStack) cost, mode, source);
         }
 
         String className = cost.getClass().getName();
@@ -178,15 +187,9 @@ public class VirtualCostExtractor {
                 return null;
             }
 
-            IAEStack result = (IAEStack) monitor.getClass()
+            return (IAEStack) monitor.getClass()
                     .getMethod("extractItems", IAEStack.class, Actionable.class, IActionSource.class)
                     .invoke(monitor, cost, mode, source);
-            if (!isSufficient(result, cost)) {
-                long got = result == null ? 0 : result.getStackSize();
-                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL {} requested={} got={} monitor={}",
-                        channelClassName, cost.getStackSize(), got, monitor.getClass().getSimpleName());
-            }
-            return result;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to extract via channel {}: {}", channelClassName, e.toString(), e);
             return null;

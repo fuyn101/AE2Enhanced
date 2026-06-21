@@ -91,14 +91,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 全局虚拟批间冷却：每个 pushPattern 调用最多触发一次虚拟批处理，成功/失败后均进入冷却
     int globalVirtualCooldown = 0;
 
-    // 诊断日志节流
-    private long lastVirtualParallelLogTick = -1000;
-
     // 上一次虚拟批量合成的实际并行数，供 CraftingCPUCluster Mixin 修正任务计数
-    private int lastVirtualBatchSize = 0;
+    private long lastVirtualBatchSize = 0;
 
     // Mixin 传入的下一次虚拟批量上限（通常为 CPU 任务剩余数），0 表示未设置
-    private int nextVirtualBatchLimit = 0;
+    private long nextVirtualBatchLimit = 0;
 
     private final PhysicalDispatcher physicalDispatcher;
     private final VirtualBatchEngine virtualBatchEngine;
@@ -230,7 +227,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         this.lastVirtualBatchSize = 0;
-        int pendingLimit = this.nextVirtualBatchLimit;
+        long pendingLimit = this.nextVirtualBatchLimit;
         this.nextVirtualBatchLimit = 0;
         AENetworkProxy proxy = this.host.getProxy();
         if (!proxy.isActive() || this.craftingList == null
@@ -238,7 +235,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        int virtualParallel = getVirtualParallel();
+        long virtualParallel = getVirtualParallel();
         if (pendingLimit > 0) {
             virtualParallel = Math.min(virtualParallel, pendingLimit);
         }
@@ -260,7 +257,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     && handler instanceof IVirtualBatchCraftingHandler) {
                 attemptedVirtual = true;
                 IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
-                int actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
+                long actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
                 if (actualParallel > 0) {
                     this.lastVirtualBatchSize = actualParallel;
                     this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
@@ -291,7 +288,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 返回上一次 pushPattern 中虚拟批量合成的实际并行数。
      * 供 MixinCraftingCPUCluster 修正 AE2 CPU 的任务计数。
      */
-    public int getLastVirtualBatchSize() {
+    public long getLastVirtualBatchSize() {
         return this.lastVirtualBatchSize;
     }
 
@@ -299,7 +296,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 设置下一次虚拟批量合成的上限，防止实际并行数超过 CPU 任务剩余数。
      * 由 MixinCraftingCPUCluster 在调用 pushPattern 前设置。
      */
-    public void setNextVirtualBatchLimit(int limit) {
+    public void setNextVirtualBatchLimit(long limit) {
         this.nextVirtualBatchLimit = Math.max(0, limit);
     }
 
@@ -307,8 +304,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      * 从 Central Interface 升级槽中读取虚拟并行卡，返回最高 tier 对应的并行数。
      * 未安装卡时返回 1。
      */
-    int getVirtualParallel() {
-        int maxParallel = 1;
+    long getVirtualParallel() {
+        long maxParallel = 1;
         IItemHandler upgrades = null;
         try {
             upgrades = ((appeng.api.implementations.IUpgradeableHost) this.host).getInventoryByName("upgrades");
@@ -327,15 +324,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        World world = this.host.getTileEntity().getWorld();
-        if (world != null) {
-            long tick = world.getTotalWorldTime();
-            if (tick - this.lastVirtualParallelLogTick > 100) {
-                this.lastVirtualParallelLogTick = tick;
-                AE2Enhanced.LOGGER.info("[AE2E-VirtualParallel] cardFound={} maxParallel={} upgradeSlots={}",
-                        foundCard, maxParallel, upgrades.getSlots());
-            }
-        }
         return maxParallel;
     }
 

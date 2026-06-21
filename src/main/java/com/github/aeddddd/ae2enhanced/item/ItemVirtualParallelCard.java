@@ -29,17 +29,17 @@ public class ItemVirtualParallelCard extends Item {
     public static final String NBT_TIER = "Tier";
 
     /**
-     * 8 个等级对应的并行数：8 / 32 / 128 / 512 / 32768 / 2097152 / 134217728 / Integer.MAX_VALUE
+     * 8 个等级对应的并行数：8 / 32 / 128 / 512 / 32768 / 2097152 / 134217728 / Long.MAX_VALUE
      */
-    public static final int[] PARALLEL_VALUES = {
-            8,
-            32,
-            128,
-            512,
-            32768,
-            2097152,
-            134217728,
-            Integer.MAX_VALUE
+    public static final long[] PARALLEL_VALUES = {
+            8L,
+            32L,
+            128L,
+            512L,
+            32768L,
+            2097152L,
+            134217728L,
+            Long.MAX_VALUE
     };
 
     public static final int MAX_TIER = PARALLEL_VALUES.length;
@@ -67,7 +67,7 @@ public class ItemVirtualParallelCard extends Item {
         stack.setTagCompound(tag);
     }
 
-    public static int getParallel(ItemStack stack) {
+    public static long getParallel(ItemStack stack) {
         int tier = getTier(stack);
         if (tier < 0 || tier >= PARALLEL_VALUES.length) {
             return 1;
@@ -131,8 +131,8 @@ public class ItemVirtualParallelCard extends Item {
     @Override
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         int tier = getTier(stack);
-        int parallel = getParallel(stack);
-        String parallelText = parallel == Integer.MAX_VALUE ? "∞" : String.valueOf(parallel);
+        long parallel = getParallel(stack);
+        String parallelText = parallel == Long.MAX_VALUE ? "∞" : String.valueOf(parallel);
 
         String phraseKey = "item.ae2enhanced.virtual_parallel_card.tooltip.tier" + (tier + 1);
         String phrase = I18n.format(phraseKey);

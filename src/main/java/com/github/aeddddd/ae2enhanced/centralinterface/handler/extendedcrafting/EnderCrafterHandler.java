@@ -347,14 +347,14 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     public List<IAEStack> getVirtualCost(World world, BlockPos pos,
-                                         InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+                                         InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                ItemStack cost = stack.copy();
-                cost.setCount(cost.getCount() * count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize((long) stack.getCount() * count);
+                costs.add(cost);
             }
         }
         return costs;
@@ -362,18 +362,10 @@ public class EnderCrafterHandler implements IRemoteHandler, IVirtualBatchCraftin
 
     @Override
     public List<ItemStack> virtualCraftBatch(World world, BlockPos pos,
-                                             InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+                                             InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ---- 配方查找与匹配 ----

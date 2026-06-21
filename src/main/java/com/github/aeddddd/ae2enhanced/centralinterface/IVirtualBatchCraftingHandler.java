@@ -62,7 +62,7 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
     List<IAEStack> getVirtualCost(World world, BlockPos pos,
                                   InventoryCrafting ingredients,
                                   IAEItemStack[] outputs,
-                                  int count);
+                                  long count);
 
     /**
      * 执行 {@code count} 次虚拟合成.
@@ -80,7 +80,7 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
     List<ItemStack> virtualCraftBatch(World world, BlockPos pos,
                                       InventoryCrafting ingredients,
                                       IAEItemStack[] outputs,
-                                      int count,
+                                      long count,
                                       IActionSource source);
 
     /**
@@ -103,19 +103,24 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
      * @param count   份数
      * @return 合并后的产物列表
      */
-    default List<ItemStack> scaleOutputsByCount(IAEItemStack[] outputs, int count) {
+    default List<ItemStack> scaleOutputsByCount(IAEItemStack[] outputs, long count) {
         if (outputs == null || outputs.length == 0 || count <= 0) {
             return Collections.emptyList();
         }
         List<ItemStack> products = new ArrayList<>();
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    ItemStack copy = output.createItemStack().copy();
-                    if (!copy.isEmpty()) {
-                        products.add(copy);
-                    }
-                }
+        for (IAEItemStack output : outputs) {
+            if (output == null || output.getStackSize() <= 0) continue;
+            long total = output.getStackSize() * count;
+            if (total <= 0) continue;
+            ItemStack template = output.createItemStack();
+            if (template.isEmpty()) continue;
+            int maxSize = template.getMaxStackSize();
+            while (total > 0) {
+                int slice = (int) Math.min(total, maxSize);
+                ItemStack copy = template.copy();
+                copy.setCount(slice);
+                products.add(copy);
+                total -= slice;
             }
         }
         return products;

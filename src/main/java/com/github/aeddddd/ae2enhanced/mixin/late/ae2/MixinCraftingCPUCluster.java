@@ -697,7 +697,7 @@ public class MixinCraftingCPUCluster {
         }
 
         DualityCentralInterface duality = ((TileCentralMEInterface) medium).getInterfaceDuality();
-        int batchSize = duality.getLastVirtualBatchSize();
+        long batchSize = duality.getLastVirtualBatchSize();
         if (batchSize <= 1) {
             return true;
         }
@@ -753,8 +753,6 @@ public class MixinCraftingCPUCluster {
                 }
             }
 
-            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] CPU batch correction: batchSize={} extra={} taskRemaining={}",
-                    batchSize, extra, remaining - extra);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Virtual batch CPU correction failed: {}", e.toString(), e);
         }

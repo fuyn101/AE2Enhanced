@@ -265,7 +265,7 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         initReflection();
 
@@ -281,18 +281,18 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
         // 主材料：按配方 inputCount * count 扣除
         ItemStack mainStack = findFirstMatchingStack(ingredients, inputIngredient);
         if (!mainStack.isEmpty()) {
-            ItemStack mainCost = mainStack.copy();
-            mainCost.setCount(inputCount * count);
-            costs.add(AEItemStack.fromItemStack(mainCost));
+            IAEItemStack mainCost = AEItemStack.fromItemStack(mainStack.copy());
+            mainCost.setStackSize((long) inputCount * count);
+            costs.add(mainCost);
         }
 
         // 催化剂：仅在消耗催化剂时扣除
         if (consumeCatalyst && catalystIngredient != null) {
             ItemStack catalystStack = findFirstMatchingStack(ingredients, catalystIngredient);
             if (!catalystStack.isEmpty()) {
-                ItemStack catalystCost = catalystStack.copy();
-                catalystCost.setCount(count);
-                costs.add(AEItemStack.fromItemStack(catalystCost));
+                IAEItemStack catalystCost = AEItemStack.fromItemStack(catalystStack.copy());
+                catalystCost.setStackSize(count);
+                costs.add(catalystCost);
             }
         }
 
@@ -305,18 +305,10 @@ public class CompressorHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ---- 配方查找与匹配 ----

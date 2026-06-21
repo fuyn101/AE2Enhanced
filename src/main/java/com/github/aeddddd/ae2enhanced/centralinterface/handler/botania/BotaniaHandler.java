@@ -248,7 +248,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TilePool) {
             return getVirtualCostPool(world, pos, ingredients, outputs, count);
@@ -265,17 +265,10 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ==================== Pool ====================
@@ -796,7 +789,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return false;
     }
 
-    private List<IAEStack> getVirtualCostPool(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostPool(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipeManaInfusion recipe = findManaInfusionRecipeByOutput(outputs[0].createItemStack());
@@ -805,9 +798,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (!stack.isEmpty() && matchesRecipeObject(inputObj, stack)) {
-                ItemStack cost = stack.copy();
-                cost.setCount(count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize(count);
+                costs.add(cost);
                 break;
             }
         }
@@ -837,7 +830,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return matchRecipeInputs(recipe.getInputs(), collectNonEmpty(ingredients));
     }
 
-    private List<IAEStack> getVirtualCostAlfPortal(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostAlfPortal(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipeElvenTrade recipe = findElvenTradeRecipeByOutput(outputs[0].createItemStack());
@@ -846,9 +839,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         for (Object req : recipe.getInputs()) {
             for (int i = 0; i < available.size(); i++) {
                 if (matchesRecipeObject(req, available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }
@@ -890,16 +883,16 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return hasSteel && hasPearl && hasDiamond;
     }
 
-    private List<IAEStack> getVirtualCostTerraPlate(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostTerraPlate(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
             ItemStack stack = ingredients.getStackInSlot(i);
             if (stack.isEmpty() || stack.getItem() != ModItems.manaResource) continue;
             int meta = stack.getMetadata();
             if (meta == 0 || meta == 1 || meta == 2) {
-                ItemStack cost = stack.copy();
-                cost.setCount(count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize(count);
+                costs.add(cost);
             }
         }
         costs.add(AEManaStack.create(TERRA_PLATE_MANA_COST * count));
@@ -925,7 +918,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return hasLivingrock && matchRecipeInputs(recipe.getInputs(), available);
     }
 
-    private List<IAEStack> getVirtualCostRuneAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostRuneAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipeRuneAltar recipe = findRuneAltarRecipeByOutput(outputs[0].createItemStack());
@@ -936,9 +929,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         for (int i = 0; i < available.size(); i++) {
             ItemStack stack = available.get(i);
             if (stack.getItem() == Item.getItemFromBlock(ModBlocks.livingrock) && stack.getMetadata() == 0) {
-                ItemStack cost = stack.copy();
-                cost.setCount(count);
-                costs.add(AEItemStack.fromItemStack(cost));
+                IAEItemStack cost = AEItemStack.fromItemStack(stack.copy());
+                cost.setStackSize(count);
+                costs.add(cost);
                 available.remove(i);
                 break;
             }
@@ -948,9 +941,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         for (Object req : recipe.getInputs()) {
             for (int i = 0; i < available.size(); i++) {
                 if (matchesRecipeObject(req, available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }
@@ -987,7 +980,7 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         return matchRecipeInputs(recipe.getInputs(), available);
     }
 
-    private List<IAEStack> getVirtualCostAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    private List<IAEStack> getVirtualCostAltar(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         RecipePetals recipe = findPetalRecipeByOutput(outputs[0].createItemStack());
@@ -1000,9 +993,9 @@ public class BotaniaHandler implements IRemoteHandler, IVirtualBatchCraftingHand
         for (Object req : recipe.getInputs()) {
             for (int i = 0; i < available.size(); i++) {
                 if (matchesRecipeObject(req, available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }

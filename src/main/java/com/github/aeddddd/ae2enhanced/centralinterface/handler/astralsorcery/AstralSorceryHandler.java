@@ -332,7 +332,7 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         initReflection();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
@@ -346,9 +346,9 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
             if (ing == null || ing == Ingredient.EMPTY) continue;
             for (int i = 0; i < available.size(); i++) {
                 if (ing.apply(available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }
@@ -363,17 +363,10 @@ public class AstralSorceryHandler implements IRemoteHandler, IVirtualBatchCrafti
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ---- 批量虚拟合成辅助 ----

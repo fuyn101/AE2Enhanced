@@ -358,7 +358,7 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count) {
+    public List<IAEStack> getVirtualCost(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count) {
         List<IAEStack> costs = new ArrayList<>();
         if (outputs == null || outputs.length == 0 || outputs[0] == null) return costs;
         InfusionRecipe recipe = ThaumcraftApi.getInfusionRecipe(outputs[0].createItemStack());
@@ -371,9 +371,9 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
         if (mainInput != null) {
             for (int i = 0; i < available.size(); i++) {
                 if (mainInput.apply(available.get(i))) {
-                    ItemStack cost = available.remove(i).copy();
-                    cost.setCount(count);
-                    costs.add(AEItemStack.fromItemStack(cost));
+                    IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                    cost.setStackSize(count);
+                    costs.add(cost);
                     break;
                 }
             }
@@ -386,9 +386,9 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
                 if (ing == null || ing == Ingredient.EMPTY) continue;
                 for (int i = 0; i < available.size(); i++) {
                     if (ing.apply(available.get(i))) {
-                        ItemStack cost = available.remove(i).copy();
-                        cost.setCount(count);
-                        costs.add(AEItemStack.fromItemStack(cost));
+                        IAEItemStack cost = AEItemStack.fromItemStack(available.remove(i).copy());
+                        cost.setStackSize(count);
+                        costs.add(cost);
                         break;
                     }
                 }
@@ -409,17 +409,10 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
     }
 
     @Override
-    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, int count, IActionSource source) {
+    public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs, long count, IActionSource source) {
         List<ItemStack> products = new ArrayList<>();
         if (!canCraftVirtually(world, pos, ingredients, outputs)) return products;
-        for (int c = 0; c < count; c++) {
-            for (IAEItemStack output : outputs) {
-                if (output != null) {
-                    products.add(output.createItemStack().copy());
-                }
-            }
-        }
-        return products;
+        return scaleOutputsByCount(outputs, count);
     }
 
     // ---- 批量虚拟合成辅助 ----
@@ -470,7 +463,7 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
      *
      * @return 源质消耗列表；若 ThaumicEnergistics 缺失或任意源质栈无法创建则返回 null
      */
-    private List<IAEStack> createEssentiaCosts(AspectList aspects, int count) {
+    private List<IAEStack> createEssentiaCosts(AspectList aspects, long count) {
         List<IAEStack> costs = new ArrayList<>();
         try {
             Class<?> essentiaStackClass = Class.forName("thaumicenergistics.api.EssentiaStack");
@@ -482,7 +475,7 @@ public class ThaumcraftHandler implements IRemoteHandler, IVirtualBatchCraftingH
                 if (aspect == null) continue;
                 int amount = aspects.getAmount(aspect);
                 if (amount <= 0) continue;
-                Object essStack = ctor.newInstance(aspect, amount * count);
+                Object essStack = ctor.newInstance(aspect, (int) ((long) amount * count));
                 Object aeStack = fromEssentiaStack.invoke(null, essStack);
                 if (aeStack == null) {
                     return null;
