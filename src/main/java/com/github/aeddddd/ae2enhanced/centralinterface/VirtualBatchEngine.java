@@ -19,8 +19,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 虚拟批量合成引擎.
@@ -30,9 +32,12 @@ import java.util.List;
  */
 public class VirtualBatchEngine {
 
-
-
     private final DualityCentralInterface owner;
+
+    /**
+     * 失败日志节流：每个目标每 100 tick 最多输出一次，避免日志刷屏。
+     */
+    private final Map<TargetBinding, Long> lastFailLogTicks = new HashMap<>();
 
     public VirtualBatchEngine(DualityCentralInterface owner) {
         this.owner = owner;
@@ -57,24 +62,33 @@ public class VirtualBatchEngine {
                            int maxParallel) {
         World world = owner.host.getTileEntity().getWorld();
         if (world.provider.getDimension() != target.dimension) {
+            logFail(world, target, "dimension mismatch");
             return false;
         }
 
         // 防御性冷却/所有权检查
-        if (owner.isOnGlobalVirtualCooldown() || owner.isOnVirtualCooldown(target)) {
+        if (owner.isOnGlobalVirtualCooldown()) {
+            logFail(world, target, "on global virtual cooldown");
+            return false;
+        }
+        if (owner.isOnVirtualCooldown(target)) {
+            logFail(world, target, "on target virtual cooldown");
             return false;
         }
         TargetSession session = owner.getOrCreateSession(target);
         if (!session.isIdle()) {
+            logFail(world, target, "session not idle (" + session.getState() + ")");
             return false;
         }
 
         if (!handler.isValidTarget(world, target.pos)) {
             session.setUnavailable();
+            logFail(world, target, "invalid target");
             return false;
         }
 
         if (!TargetOwnershipTracker.instance().tryAcquire(target, owner)) {
+            logFail(world, target, "ownership already held");
             return false;
         }
 
@@ -84,6 +98,7 @@ public class VirtualBatchEngine {
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
             if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
+                logFail(world, target, "canCraftVirtually returned false");
                 return false;
             }
 
@@ -93,11 +108,13 @@ public class VirtualBatchEngine {
                 storage = proxy.getStorage();
                 energy = proxy.getEnergy();
             } catch (GridAccessException e) {
+                logFail(world, target, "grid access exception: " + e.getMessage());
                 return false;
             }
 
             int actualParallel = computeActualParallel(storage, handler, world, target, virtualTable, outputs, maxParallel);
             if (actualParallel <= 0) {
+                logFail(world, target, "computeActualParallel returned 0 (insufficient resources?)");
                 return false;
             }
 
@@ -105,23 +122,27 @@ public class VirtualBatchEngine {
 
             List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, actualParallel);
             if (costs == null || costs.isEmpty()) {
+                logFail(world, target, "getVirtualCost returned empty for parallel=" + actualParallel);
                 return false;
             }
 
             // 模拟提取
             if (!VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+                logFail(world, target, "simulateExtract failed for parallel=" + actualParallel);
                 return false;
             }
 
             // 模拟能量
             double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * actualParallel;
             if (!VirtualCostExtractor.simulateExtractEnergy(energy, energyCost)) {
+                logFail(world, target, "simulateExtractEnergy failed (need " + energyCost + " AE)");
                 return false;
             }
 
             // 实际提取资源
             List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, costs, source);
             if (extracted == null) {
+                logFail(world, target, "extractAll failed");
                 return false;
             }
 
@@ -129,6 +150,7 @@ public class VirtualBatchEngine {
             if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
                 // 资源已扣但能量不足：理论上前面已模拟，出现竞态时回滚资源
                 VirtualCostExtractor.rollbackExtracted(storage, extracted, source);
+                logFail(world, target, "extractEnergy failed after resources extracted");
                 return false;
             }
 
@@ -136,6 +158,7 @@ public class VirtualBatchEngine {
             List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, virtualTable, outputs, actualParallel, source);
             if (products == null || products.isEmpty()) {
                 // 产物为空视为已消耗，不回滚
+                logFail(world, target, "virtualCraftBatch returned no products");
                 return false;
             }
 
@@ -152,6 +175,7 @@ public class VirtualBatchEngine {
             // 进入冷却
             owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
             owner.tryWakeTickDevice();
+            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] SUCCESS {} at {} parallel={}", target.blockId, target.pos, actualParallel);
             return true;
         } finally {
             if (ownershipAcquired) {
@@ -256,6 +280,19 @@ public class VirtualBatchEngine {
             }
         }
         return merged;
+    }
+
+    /**
+     * 记录虚拟合成失败原因，按目标节流，避免高频日志刷屏。
+     */
+    private void logFail(World world, TargetBinding target, String reason) {
+        long tick = world.getTotalWorldTime();
+        Long last = lastFailLogTicks.get(target);
+        if (last != null && tick - last < 100) {
+            return;
+        }
+        lastFailLogTicks.put(target, tick);
+        AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] FAIL {} at {}: {}", target.blockId, target.pos, reason);
     }
 
     private void addParticleTarget(BlockPos pos, int particleType) {
