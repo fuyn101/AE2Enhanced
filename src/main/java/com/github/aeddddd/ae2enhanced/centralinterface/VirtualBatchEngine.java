@@ -19,6 +19,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -120,15 +121,18 @@ public class VirtualBatchEngine {
 
             IActionSource source = new MachineSource(owner.host);
 
-            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, actualParallel);
-            if (costs == null || costs.isEmpty()) {
-                logFail(world, target, "getVirtualCost returned empty for parallel=" + actualParallel);
+            // AE2 CPU 已经把第一份物品材料从网络提取到 table 中传入 pushPattern，
+            // 因此虚拟合成不应再向网络索取这一份物品；只对额外的 (parallel-1) 份物品
+            // 以及全部 secondary 资源（RF/Mana/Starlight/流体等）进行网络提取。
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
+            if (netCosts == null) {
+                logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return false;
             }
 
             // 模拟提取
-            if (!VirtualCostExtractor.simulateExtract(storage, costs, source)) {
-                logFail(world, target, "simulateExtract failed for parallel=" + actualParallel);
+            if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source)) {
+                logFail(world, target, "simulateExtract failed for parallel=" + actualParallel + " netCosts=" + netCosts.size());
                 return false;
             }
 
@@ -139,8 +143,8 @@ public class VirtualBatchEngine {
                 return false;
             }
 
-            // 实际提取资源
-            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, costs, source);
+            // 实际提取资源（仅 extra 物品 + secondary 资源）
+            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source);
             if (extracted == null) {
                 logFail(world, target, "extractAll failed");
                 return false;
@@ -214,6 +218,9 @@ public class VirtualBatchEngine {
 
     /**
      * 计算当前网络资源可支撑的最大虚拟并行数。
+     *
+     * <p>注意：AE2 CPU 已经把第一份物品材料从网络提取并传入 pushPattern 的 table，
+     * 因此这里只对额外的 (parallel-1) 份物品以及全部 secondary 资源进行模拟提取。</p>
      */
     private int computeActualParallel(IStorageGrid storage,
                                       IVirtualBatchCraftingHandler handler,
@@ -227,8 +234,8 @@ public class VirtualBatchEngine {
         if (cap <= 0) return 0;
 
         if (!AE2EnhancedConfig.centralInterface.virtualParallelPartialExecution) {
-            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, cap);
-            return VirtualCostExtractor.simulateExtract(storage, costs, source) ? cap : 0;
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, cap);
+            return VirtualCostExtractor.simulateExtract(storage, netCosts, source) ? cap : 0;
         }
 
         int low = 1;
@@ -236,12 +243,8 @@ public class VirtualBatchEngine {
         int best = 0;
         while (low <= high) {
             int mid = low + (high - low) / 2;
-            List<IAEStack> costs = handler.getVirtualCost(world, target.pos, virtualTable, outputs, mid);
-            if (costs == null || costs.isEmpty()) {
-                high = mid - 1;
-                continue;
-            }
-            if (VirtualCostExtractor.simulateExtract(storage, costs, source)) {
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, mid);
+            if (VirtualCostExtractor.simulateExtract(storage, netCosts, source)) {
                 best = mid;
                 low = mid + 1;
             } else {
@@ -249,6 +252,62 @@ public class VirtualBatchEngine {
             }
         }
         return best;
+    }
+
+    /**
+     * 获取需要从网络额外提取的资源清单。
+     *
+     * <p>策略：
+     * <ul>
+     *   <li>物品（IAEItemStack）: 只提取 (parallel-1) 份，因为第 1 份已由 CPU 提供。</li>
+     *   <li>Secondary 资源（Mana/Starlight/RF/流体/气体/源质等）: 提取 parallel 份。</li>
+     * </ul></p>
+     */
+    private List<IAEStack> getNetCosts(IVirtualBatchCraftingHandler handler,
+                                       World world,
+                                       TargetBinding target,
+                                       InventoryCrafting virtualTable,
+                                       IAEItemStack[] outputs,
+                                       int parallel) {
+        if (parallel <= 0) {
+            return Collections.emptyList();
+        }
+
+        List<IAEStack> secondaryCosts = new ArrayList<>();
+        List<IAEStack> fullCosts = handler.getVirtualCost(world, target.pos, virtualTable, outputs, parallel);
+        if (fullCosts != null) {
+            for (IAEStack cost : fullCosts) {
+                if (cost == null) continue;
+                if (!(cost instanceof IAEItemStack)) {
+                    secondaryCosts.add(cost);
+                }
+            }
+        }
+
+        List<IAEStack> itemCosts = Collections.emptyList();
+        if (parallel > 1) {
+            itemCosts = new ArrayList<>();
+            List<IAEStack> costsForExtra = handler.getVirtualCost(world, target.pos, virtualTable, outputs, parallel - 1);
+            if (costsForExtra != null) {
+                for (IAEStack cost : costsForExtra) {
+                    if (cost instanceof IAEItemStack) {
+                        itemCosts.add(cost);
+                    }
+                }
+            }
+        }
+
+        if (secondaryCosts.isEmpty()) {
+            return itemCosts;
+        }
+        if (itemCosts.isEmpty()) {
+            return secondaryCosts;
+        }
+
+        List<IAEStack> combined = new ArrayList<>(secondaryCosts.size() + itemCosts.size());
+        combined.addAll(secondaryCosts);
+        combined.addAll(itemCosts);
+        return combined;
     }
 
     /**
