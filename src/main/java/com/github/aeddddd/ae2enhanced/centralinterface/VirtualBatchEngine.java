@@ -113,9 +113,12 @@ public class VirtualBatchEngine {
                 return false;
             }
 
+            // 先计算 parallel=1 时的 netCosts，用于失败诊断；实际执行时再按 actualParallel 重新计算。
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, 1);
+
             int actualParallel = computeActualParallel(storage, handler, world, target, virtualTable, outputs, maxParallel);
             if (actualParallel <= 0) {
-                logFail(world, target, "computeActualParallel returned 0 (insufficient resources?)");
+                logFail(world, target, "computeActualParallel returned 0 for netCosts=[" + formatCosts(netCosts) + "]");
                 return false;
             }
 
@@ -124,7 +127,7 @@ public class VirtualBatchEngine {
             // AE2 CPU 已经把第一份物品材料从网络提取到 table 中传入 pushPattern，
             // 因此虚拟合成不应再向网络索取这一份物品；只对额外的 (parallel-1) 份物品
             // 以及全部 secondary 资源（RF/Mana/Starlight/流体等）进行网络提取。
-            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
+            netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return false;
@@ -352,6 +355,25 @@ public class VirtualBatchEngine {
         }
         lastFailLogTicks.put(target, tick);
         AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] FAIL {} at {}: {}", target.blockId, target.pos, reason);
+    }
+
+    private String formatCosts(List<IAEStack> costs) {
+        if (costs == null || costs.isEmpty()) {
+            return "empty";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (IAEStack cost : costs) {
+            if (cost == null) continue;
+            if (sb.length() > 0) sb.append(", ");
+            String cls = cost.getClass().getSimpleName();
+            if (cost instanceof appeng.api.storage.data.IAEItemStack) {
+                appeng.api.storage.data.IAEItemStack is = (appeng.api.storage.data.IAEItemStack) cost;
+                sb.append(cls).append("(").append(is.getItem().getRegistryName()).append(" x").append(is.getStackSize()).append(")");
+            } else {
+                sb.append(cls).append("(x").append(cost.getStackSize()).append(")");
+            }
+        }
+        return sb.toString();
     }
 
     private void addParticleTarget(BlockPos pos, int particleType) {

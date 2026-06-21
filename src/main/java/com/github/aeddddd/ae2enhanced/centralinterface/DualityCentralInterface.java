@@ -91,6 +91,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 全局虚拟批间冷却：每个 pushPattern 调用最多触发一次虚拟批处理，成功/失败后均进入冷却
     int globalVirtualCooldown = 0;
 
+    // 诊断日志节流
+    private long lastVirtualParallelLogTick = -1000;
+
     private final PhysicalDispatcher physicalDispatcher;
     private final VirtualBatchEngine virtualBatchEngine;
 
@@ -284,10 +287,22 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (upgrades == null) {
             return maxParallel;
         }
+        boolean foundCard = false;
         for (int i = 0; i < upgrades.getSlots(); i++) {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (!stack.isEmpty() && stack.getItem() instanceof ItemVirtualParallelCard) {
+                foundCard = true;
                 maxParallel = Math.max(maxParallel, ItemVirtualParallelCard.getParallel(stack));
+            }
+        }
+
+        World world = this.host.getTileEntity().getWorld();
+        if (world != null) {
+            long tick = world.getTotalWorldTime();
+            if (tick - this.lastVirtualParallelLogTick > 100) {
+                this.lastVirtualParallelLogTick = tick;
+                AE2Enhanced.LOGGER.info("[AE2E-VirtualParallel] cardFound={} maxParallel={} upgradeSlots={}",
+                        foundCard, maxParallel, upgrades.getSlots());
             }
         }
         return maxParallel;
