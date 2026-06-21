@@ -98,11 +98,21 @@ public class VirtualCostExtractor {
                                        Actionable mode, IActionSource source) {
         if (cost instanceof IAEItemStack) {
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            return storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
+            IAEStack result = storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
+            if (!isEmpty(result)) {
+                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL item requested={} returned={}",
+                        cost.getStackSize(), result.getStackSize());
+            }
+            return result;
         }
         if (cost instanceof IAEFluidStack) {
             IStorageChannel<IAEFluidStack> channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-            return storage.getInventory(channel).extractItems((IAEFluidStack) cost, mode, source);
+            IAEStack result = storage.getInventory(channel).extractItems((IAEFluidStack) cost, mode, source);
+            if (!isEmpty(result)) {
+                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL fluid requested={} returned={}",
+                        cost.getStackSize(), result.getStackSize());
+            }
+            return result;
         }
 
         String className = cost.getClass().getName();
@@ -140,18 +150,29 @@ public class VirtualCostExtractor {
         try {
             Class<?> channelClass = Class.forName(channelClassName);
             IStorageChannel<?> channel = (IStorageChannel<?>) AEApi.instance().storage().getStorageChannel((Class) channelClass);
-            if (channel == null) return cost;
+            if (channel == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E-CostExtract] channel {} not registered", channelClassName);
+                return cost;
+            }
 
             Object monitor = IStorageGrid.class
                     .getMethod("getInventory", IStorageChannel.class)
                     .invoke(storage, channel);
-            if (monitor == null) return cost;
+            if (monitor == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E-CostExtract] monitor for {} is null", channelClassName);
+                return cost;
+            }
 
-            return (IAEStack) monitor.getClass()
+            IAEStack result = (IAEStack) monitor.getClass()
                     .getMethod("extractItems", IAEStack.class, Actionable.class, IActionSource.class)
                     .invoke(monitor, cost, mode, source);
+            if (!isEmpty(result)) {
+                AE2Enhanced.LOGGER.info("[AE2E-CostExtract] FAIL {} requested={} returned={} monitor={}",
+                        channelClassName, cost.getStackSize(), result.getStackSize(), monitor.getClass().getSimpleName());
+            }
+            return result;
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to extract via channel {}: {}", channelClassName, e.getMessage());
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to extract via channel {}: {}", channelClassName, e.toString(), e);
             return cost;
         }
     }
