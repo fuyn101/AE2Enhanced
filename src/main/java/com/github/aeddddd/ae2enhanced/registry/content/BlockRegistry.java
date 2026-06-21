@@ -39,10 +39,8 @@ public final class BlockRegistry {
     // 智能样板接口
     public static BlockSmartPatternInterface SMART_PATTERN_INTERFACE;
 
-    // RF 访问节点(通用 ME-RF 桥接器,独立于平台系统)
-    public static BlockRFAccessNode RF_ACCESS_NODE;
-    public static BlockManaAccessNode MANA_ACCESS_NODE;
-    public static BlockStarlightAccessNode STARLIGHT_ACCESS_NODE;
+    // 通用网络访问节点(合并 RF / Mana / Starlight 桥接)
+    public static BlockNetworkAccessNode NETWORK_ACCESS_NODE;
 
     // 区块供电节点(从 ME 网络向本区块设备供能)
     public static BlockChunkPowerNode CHUNK_POWER_NODE;

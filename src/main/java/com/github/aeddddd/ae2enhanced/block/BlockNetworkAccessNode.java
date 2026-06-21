@@ -1,7 +1,7 @@
 package com.github.aeddddd.ae2enhanced.block;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.tile.TileRFAccessNode;
+import com.github.aeddddd.ae2enhanced.tile.TileNetworkAccessNode;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -16,15 +16,15 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 
 /**
- * RF 访问节点方块.
- * 作为 ME 网络与外部 RF 能量网络之间的通用桥梁,独立于先进中枢平台系统.
+ * 通用网络访问节点方块.
+ * 同时桥接 RF / Mana / Starlight,根据相邻方块类型自动工作.
  */
-public class BlockRFAccessNode extends Block {
+public class BlockNetworkAccessNode extends Block {
 
-    public BlockRFAccessNode() {
+    public BlockNetworkAccessNode() {
         super(Material.IRON);
-        setRegistryName(AE2Enhanced.MOD_ID, "rf_access_node");
-        setTranslationKey(AE2Enhanced.MOD_ID + ".rf_access_node");
+        setRegistryName(AE2Enhanced.MOD_ID, "network_access_node");
+        setTranslationKey(AE2Enhanced.MOD_ID + ".network_access_node");
         setHardness(3.0F);
         setResistance(8.0F);
         setHarvestLevel("pickaxe", 1);
@@ -39,14 +39,14 @@ public class BlockRFAccessNode extends Block {
     @Nullable
     @Override
     public TileEntity createTileEntity(World world, IBlockState state) {
-        return new TileRFAccessNode();
+        return new TileNetworkAccessNode();
     }
 
     @Override
     public void breakBlock(World world, BlockPos pos, IBlockState state) {
         TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileRFAccessNode) {
-            ((TileRFAccessNode) te).onBreak();
+        if (te instanceof TileNetworkAccessNode) {
+            ((TileNetworkAccessNode) te).onBreak();
         }
         super.breakBlock(world, pos, state);
     }
@@ -66,12 +66,12 @@ public class BlockRFAccessNode extends Block {
         if (hand != EnumHand.MAIN_HAND) return false;
         if (player.isSneaking() && !world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
-            if (te instanceof TileRFAccessNode) {
-                TileRFAccessNode node = (TileRFAccessNode) te;
+            if (te instanceof TileNetworkAccessNode) {
+                TileNetworkAccessNode node = (TileNetworkAccessNode) te;
                 node.cycleMode();
                 String key = node.isInputMode()
-                        ? "message.ae2enhanced.rf_access_node.mode.input"
-                        : "message.ae2enhanced.rf_access_node.mode.output";
+                        ? "message.ae2enhanced.network_access_node.mode.input"
+                        : "message.ae2enhanced.network_access_node.mode.output";
                 player.sendMessage(new TextComponentTranslation(key));
                 return true;
             }

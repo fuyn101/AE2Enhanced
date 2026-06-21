@@ -97,9 +97,7 @@ public final class GameRegistryManager {
             BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER = new BlockWirelessChannelTransmitter(),
             BlockRegistry.CENTRAL_ME_INTERFACE = new BlockCentralMEInterface(),
             BlockRegistry.SMART_PATTERN_INTERFACE = new BlockSmartPatternInterface(),
-            BlockRegistry.RF_ACCESS_NODE = new BlockRFAccessNode(),
-            BlockRegistry.MANA_ACCESS_NODE = new BlockManaAccessNode(),
-            BlockRegistry.STARLIGHT_ACCESS_NODE = new BlockStarlightAccessNode(),
+            BlockRegistry.NETWORK_ACCESS_NODE = new BlockNetworkAccessNode(),
             BlockRegistry.CHUNK_POWER_NODE = new BlockChunkPowerNode(),
             BlockRegistry.COMPRESSED_CHUNK_POWER_NODE = new BlockCompressedChunkPowerNode(),
             BlockRegistry.ADVANCED_PLATFORM_CONTROLLER = new BlockAdvancedPlatformController(),
@@ -121,9 +119,7 @@ public final class GameRegistryManager {
         GameRegistry.registerTileEntity(TileWirelessChannelTransmitter.class, AE2Enhanced.MOD_ID + ":wireless_channel_transmitter");
         GameRegistry.registerTileEntity(TileCentralMEInterface.class, AE2Enhanced.MOD_ID + ":central_me_interface");
         GameRegistry.registerTileEntity(TileSmartPatternInterface.class, AE2Enhanced.MOD_ID + ":smart_pattern_interface");
-        GameRegistry.registerTileEntity(TileRFAccessNode.class, AE2Enhanced.MOD_ID + ":rf_access_node");
-        GameRegistry.registerTileEntity(TileManaAccessNode.class, AE2Enhanced.MOD_ID + ":mana_access_node");
-        GameRegistry.registerTileEntity(TileStarlightAccessNode.class, AE2Enhanced.MOD_ID + ":starlight_access_node");
+        GameRegistry.registerTileEntity(TileNetworkAccessNode.class, AE2Enhanced.MOD_ID + ":network_access_node");
         GameRegistry.registerTileEntity(TileChunkPowerNode.class, AE2Enhanced.MOD_ID + ":chunk_power_node");
         GameRegistry.registerTileEntity(TileCompressedChunkPowerNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_power_node");
         if (Loader.isModLoaded("botania")) {
@@ -166,9 +162,7 @@ public final class GameRegistryManager {
             new ItemBlock(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER).setRegistryName(BlockRegistry.WIRELESS_CHANNEL_TRANSMITTER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CENTRAL_ME_INTERFACE).setRegistryName(BlockRegistry.CENTRAL_ME_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.SMART_PATTERN_INTERFACE).setRegistryName(BlockRegistry.SMART_PATTERN_INTERFACE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.RF_ACCESS_NODE).setRegistryName(BlockRegistry.RF_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.MANA_ACCESS_NODE).setRegistryName(BlockRegistry.MANA_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
-            new ItemBlock(BlockRegistry.STARLIGHT_ACCESS_NODE).setRegistryName(BlockRegistry.STARLIGHT_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
+            new ItemBlock(BlockRegistry.NETWORK_ACCESS_NODE).setRegistryName(BlockRegistry.NETWORK_ACCESS_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.CHUNK_POWER_NODE).setRegistryName(BlockRegistry.CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE).setRegistryName(BlockRegistry.COMPRESSED_CHUNK_POWER_NODE.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
             new ItemBlock(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER).setRegistryName(BlockRegistry.ADVANCED_PLATFORM_CONTROLLER.getRegistryName()).setCreativeTab(AE2Enhanced.CREATIVE_TAB),
@@ -259,6 +253,34 @@ public final class GameRegistryManager {
                         new ItemStack(ItemRegistry.ME_OMNI_TOOL),
                         new ItemStack(bedrockItem)
                 ).setRegistryName(AE2Enhanced.MOD_ID, "omni_tool_bedrock_upgrade"));
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMissingBlockMappings(RegistryEvent.MissingMappings<Block> event) {
+        Block target = BlockRegistry.NETWORK_ACCESS_NODE;
+        if (target == null) return;
+        for (RegistryEvent.MissingMappings.Mapping<Block> mapping : event.getAllMappings()) {
+            ResourceLocation key = mapping.key;
+            if (!AE2Enhanced.MOD_ID.equals(key.getNamespace())) continue;
+            String path = key.getPath();
+            if ("rf_access_node".equals(path) || "mana_access_node".equals(path) || "starlight_access_node".equals(path)) {
+                mapping.remap(target);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMissingItemMappings(RegistryEvent.MissingMappings<Item> event) {
+        Item target = Item.getItemFromBlock(BlockRegistry.NETWORK_ACCESS_NODE);
+        if (target == null || target == Items.AIR) return;
+        for (RegistryEvent.MissingMappings.Mapping<Item> mapping : event.getAllMappings()) {
+            ResourceLocation key = mapping.key;
+            if (!AE2Enhanced.MOD_ID.equals(key.getNamespace())) continue;
+            String path = key.getPath();
+            if ("rf_access_node".equals(path) || "mana_access_node".equals(path) || "starlight_access_node".equals(path)) {
+                mapping.remap(target);
             }
         }
     }

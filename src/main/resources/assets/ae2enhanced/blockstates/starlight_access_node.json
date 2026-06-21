@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "normal": { "model": "ae2enhanced:starlight_access_node" },
-    "inventory": { "model": "ae2enhanced:starlight_access_node" }
-  }
-}

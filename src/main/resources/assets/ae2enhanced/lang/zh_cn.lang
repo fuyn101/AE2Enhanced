@@ -305,7 +305,7 @@ message.ae2enhanced.magnet.inventory=§a磁引卡：背包模式
 message.ae2enhanced.magnet.network=§b磁引卡：网络模式
 
 # 先进中枢平台
-tile.ae2enhanced.rf_access_node.name=RF访问节点
+tile.ae2enhanced.network_access_node.name=网络访问节点
 item.ae2enhanced.energy_drop.name=RF
 item.ae2enhanced.mana_drop.name=Mana
 item.ae2enhanced.starlight_drop.name=星能
@@ -314,15 +314,8 @@ item.ae2enhanced.starlight_drop.name=星能
 tile.ae2enhanced.advanced_platform_controller.name=先进中枢平台控制器
 item.ae2enhanced.platform_development_license.name=平台开发许可
 message.ae2enhanced.platform.conflict=§c平台生成失败：检测到 %d 处冲突.
-message.ae2enhanced.rf_access_node.mode.input=§b[RF节点] §a模式: 输入
-message.ae2enhanced.rf_access_node.mode.output=§b[RF节点] §c模式: 输出
-
-tile.ae2enhanced.mana_access_node.name=魔力访问节点
-tile.ae2enhanced.starlight_access_node.name=星能访问节点
-message.ae2enhanced.mana_access_node.mode.input=§b[魔力节点] §a模式: 输入
-message.ae2enhanced.mana_access_node.mode.output=§b[魔力节点] §c模式: 输出
-message.ae2enhanced.starlight_access_node.mode.input=§b[星能节点] §a模式: 输入
-message.ae2enhanced.starlight_access_node.mode.output=§b[星能节点] §c模式: 输出
+message.ae2enhanced.network_access_node.mode.input=§b[网络节点] §a模式: 输入
+message.ae2enhanced.network_access_node.mode.output=§b[网络节点] §c模式: 输出
 
 key.ae2enhanced.rtsToggle=进入/退出 RTS 模式
 
