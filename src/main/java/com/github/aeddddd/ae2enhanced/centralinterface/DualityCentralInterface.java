@@ -250,6 +250,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     tryWakeTickDevice();
                     return true;
                 }
+                // 虚拟合成失败时回退到物理发配（如果该目标支持），避免虚拟卡导致完全无法开工
+                if (handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
+                    if (this.physicalDispatcher.dispatch(proxy, patternDetails, table, target, handler)) {
+                        return true;
+                    }
+                }
                 continue;
             }
 
@@ -261,9 +267,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        // 有虚拟卡且尝试了虚拟但未成功，进入全局冷却防止 CPU 同 tick 反复重试
+        // 仅当虚拟合成成功后才进入全局冷却；失败时已尝试物理回退，不再额外冷却
         if (virtualCardInstalled && attemptedVirtual) {
-            this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
             tryWakeTickDevice();
         }
         return false;
