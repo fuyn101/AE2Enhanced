@@ -669,6 +669,28 @@ public class MixinCraftingCPUCluster {
             ICraftingPatternDetails details,
             InventoryCrafting table,
             Operation<Boolean> original) {
+        // 在调用 pushPattern 前把 CPU 任务剩余数传给中枢接口，防止实际并行超过订单需求
+        if (medium instanceof TileCentralMEInterface) {
+            DualityCentralInterface duality = ((TileCentralMEInterface) medium).getInterfaceDuality();
+            long pending = -1;
+            try {
+                tryInitReflection();
+                if (reflectionReady) {
+                    CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
+                    @SuppressWarnings("unchecked")
+                    Map<ICraftingPatternDetails, Object> tasks = (Map<ICraftingPatternDetails, Object>) tasksField.get(cpu);
+                    Object progress = tasks == null ? null : tasks.get(details);
+                    if (progress != null) {
+                        pending = taskProgressValueField.getLong(progress);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            if (pending > 0) {
+                duality.setNextVirtualBatchLimit((int) Math.min(pending, Integer.MAX_VALUE));
+            }
+        }
+
         boolean result = original.call(medium, details, table);
         if (!result || !(medium instanceof TileCentralMEInterface)) {
             return result;

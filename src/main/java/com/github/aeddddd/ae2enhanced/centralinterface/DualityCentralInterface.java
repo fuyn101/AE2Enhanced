@@ -97,6 +97,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // 上一次虚拟批量合成的实际并行数，供 CraftingCPUCluster Mixin 修正任务计数
     private int lastVirtualBatchSize = 0;
 
+    // Mixin 传入的下一次虚拟批量上限（通常为 CPU 任务剩余数），0 表示未设置
+    private int nextVirtualBatchLimit = 0;
+
     private final PhysicalDispatcher physicalDispatcher;
     private final VirtualBatchEngine virtualBatchEngine;
 
@@ -227,6 +230,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         this.lastVirtualBatchSize = 0;
+        int pendingLimit = this.nextVirtualBatchLimit;
+        this.nextVirtualBatchLimit = 0;
         AENetworkProxy proxy = this.host.getProxy();
         if (!proxy.isActive() || this.craftingList == null
                 || !this.craftingList.contains(patternDetails)) {
@@ -234,6 +239,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
 
         int virtualParallel = getVirtualParallel();
+        if (pendingLimit > 0) {
+            virtualParallel = Math.min(virtualParallel, pendingLimit);
+        }
         boolean virtualCardInstalled = virtualParallel > 1;
         boolean globalVirtualCooling = virtualCardInstalled && isOnGlobalVirtualCooldown();
         List<TargetBinding> candidates = findIdleTargets();
@@ -285,6 +293,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      */
     public int getLastVirtualBatchSize() {
         return this.lastVirtualBatchSize;
+    }
+
+    /**
+     * 设置下一次虚拟批量合成的上限，防止实际并行数超过 CPU 任务剩余数。
+     * 由 MixinCraftingCPUCluster 在调用 pushPattern 前设置。
+     */
+    public void setNextVirtualBatchLimit(int limit) {
+        this.nextVirtualBatchLimit = Math.max(0, limit);
     }
 
     /**
