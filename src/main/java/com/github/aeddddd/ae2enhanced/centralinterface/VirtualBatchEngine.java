@@ -169,6 +169,13 @@ public class VirtualBatchEngine {
                 return false;
             }
 
+            int totalProductCount = 0;
+            for (ItemStack p : products) {
+                if (!p.isEmpty()) totalProductCount += p.getCount();
+            }
+            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] products {} at {} parallel={} productStacks={} totalItems={}",
+                    target.blockId, target.pos, actualParallel, products.size(), totalProductCount);
+
             products = mergeProducts(products);
             owner.pendingVirtualProducts.addAll(products);
 
@@ -182,7 +189,8 @@ public class VirtualBatchEngine {
             // 进入冷却
             owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
             owner.tryWakeTickDevice();
-            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] SUCCESS {} at {} parallel={}", target.blockId, target.pos, actualParallel);
+            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] SUCCESS {} at {} parallel={} productStacks={} totalItems={}",
+                    target.blockId, target.pos, actualParallel, products.size(), totalProductCount);
             return true;
         } finally {
             if (ownershipAcquired) {
@@ -204,9 +212,16 @@ public class VirtualBatchEngine {
         if (!owner.pendingVirtualProducts.isEmpty()) {
             List<ItemStack> toInject = new ArrayList<>(owner.pendingVirtualProducts);
             owner.pendingVirtualProducts.clear();
+            int stacks = toInject.size();
+            long total = 0;
+            for (ItemStack s : toInject) {
+                if (!s.isEmpty()) total += s.getCount();
+            }
+            AE2Enhanced.LOGGER.info("[AE2E-VirtualBatch] injecting {} stacks / {} items", stacks, total);
             if (owner.injectItemsToNetwork(proxy, world, toInject)) {
                 didWork = true;
             } else {
+                AE2Enhanced.LOGGER.warn("[AE2E-VirtualBatch] injectItemsToNetwork failed, stashing {} stacks", stacks);
                 owner.stashItemsToStorage(world, toInject);
             }
         }
