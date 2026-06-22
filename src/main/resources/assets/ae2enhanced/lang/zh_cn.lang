@@ -509,6 +509,23 @@ item.ae2enhanced.virtual_parallel_card.tier5.name=虚拟并行卡（等级 5）
 item.ae2enhanced.virtual_parallel_card.tier6.name=虚拟并行卡（等级 6）
 item.ae2enhanced.virtual_parallel_card.tier7.name=虚拟并行卡（等级 7）
 item.ae2enhanced.virtual_parallel_card.tier8.name=虚拟并行卡（等级 8）
+
+# 个人维度
+item.ae2enhanced.personal_dimension.name=个人维度核心
+tile.ae2enhanced.yellow_stripes_block_b.name=黄色条纹方块 B
+gui.ae2enhanced.personal_dimension.title=个人维度规则
+gui.ae2enhanced.personal_dimension.spawn_mobs=生物生成
+gui.ae2enhanced.personal_dimension.lock_weather=锁定天气
+gui.ae2enhanced.personal_dimension.lock_time=锁定时间
+gui.ae2enhanced.personal_dimension.daylight_cycle=昼夜循环
+gui.ae2enhanced.personal_dimension.time_value=时间
+gui.ae2enhanced.personal_dimension.on=开启
+gui.ae2enhanced.personal_dimension.off=关闭
+gui.ae2enhanced.personal_dimension.save=保存
+chat.ae2enhanced.personal_dimension.bound=进入点已绑定到 [%d, %d, %d]
+chat.ae2enhanced.personal_dimension.bind_only_in_dim=只能在个人维度内绑定进入点。
+chat.ae2enhanced.personal_dimension.create_failed=创建个人维度失败。
+
 item.ae2enhanced.virtual_parallel_card.tooltip.parallel=§7虚拟并行：§r%s
 item.ae2enhanced.virtual_parallel_card.tooltip.detail=§7每次虚拟合成消耗 §r%.0f AE
 item.ae2enhanced.virtual_parallel_card.tooltip.tier1=§8“一次微不足道的走神，却足以让两个世界并行。”

@@ -220,6 +220,7 @@ public class ClientProxy extends CommonProxy {
         registerBlockItemModel(BlockRegistry.NETWORK_ACCESS_NODE);
         registerBlockItemModel(BlockRegistry.ADVANCED_ME_COLLECTOR);
         registerBlockItemModel(BlockRegistry.ME_NETWORK_RECYCLER);
+        registerBlockItemModel(BlockRegistry.YELLOW_STRIPES_BLOCK_B);
         if (BlockRegistry.EMC_INTERFACE != null) {
             registerBlockItemModel(BlockRegistry.EMC_INTERFACE);
         }
@@ -301,6 +302,9 @@ public class ClientProxy extends CommonProxy {
         // 虚拟并行卡：单模型，名称颜色按 tier 变化
         if (ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
             registerItemModel(ItemRegistry.VIRTUAL_PARALLEL_CARD);
+        }
+        if (ItemRegistry.PERSONAL_DIMENSION != null) {
+            registerItemModel(ItemRegistry.PERSONAL_DIMENSION);
         }
 
         // 先进ME工具：4模式使用 ItemMeshDefinition 动态切换模型

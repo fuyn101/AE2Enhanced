@@ -65,4 +65,7 @@ public final class BlockRegistry {
 
     // EMC 接口
     public static BlockEMCInterface EMC_INTERFACE;
+
+    // 个人维度地板替代方块（GTCEu yellow_stripes_block_b）
+    public static BlockYellowStripesBlockB YELLOW_STRIPES_BLOCK_B;
 }

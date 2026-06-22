@@ -10,6 +10,7 @@ import com.github.aeddddd.ae2enhanced.registry.ModContent;
 import com.github.aeddddd.ae2enhanced.registry.ModNetwork;
 import com.github.aeddddd.ae2enhanced.registry.ModRecipes;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
 import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageChannel;
 import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 import com.github.aeddddd.ae2enhanced.storage.mana.ManaStorageChannel;
@@ -64,6 +65,7 @@ public class AE2Enhanced {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         ConfigManager.sync(MOD_ID, net.minecraftforge.common.config.Config.Type.INSTANCE);
+        PersonalDimensionManager.registerDimensionType();
         GameRegistryManager.initItems();
         ModContent.preInit();
         ModNetwork.init();

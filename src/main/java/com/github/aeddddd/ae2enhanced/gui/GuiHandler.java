@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.GuiAdvancedMECollector;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiOmniToolConfig;
+import com.github.aeddddd.ae2enhanced.client.gui.GuiPersonalDimensionConfig;
 import com.github.aeddddd.ae2enhanced.client.gui.GuiEMCInterface;
 
 import com.github.aeddddd.ae2enhanced.client.gui.platform.GuiAdvancedPlatformController;
@@ -35,6 +36,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerEMCInterface;
 import com.github.aeddddd.ae2enhanced.container.ContainerMENetworkRecycler;
 import com.github.aeddddd.ae2enhanced.container.ContainerWirelessChannelTransmitter;
 import com.github.aeddddd.ae2enhanced.container.ContainerOmniToolConfig;
+import com.github.aeddddd.ae2enhanced.container.ContainerPersonalDimensionConfig;
 
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalExportBus;
 import com.github.aeddddd.ae2enhanced.container.ContainerUniversalImportBus;
@@ -85,6 +87,7 @@ public class GuiHandler implements IGuiHandler {
     public static final int GUI_ADVANCED_ME_COLLECTOR = 27;
     public static final int GUI_ME_NETWORK_RECYCLER = 28;
     public static final int GUI_EMC_INTERFACE = 29;
+    public static final int GUI_PERSONAL_DIMENSION_CONFIG = 30;
 
     /** 编码二级菜单 GUI ID：低8位为 base ID,bit8-31为子网 ID */
     public static int encodeSubmenuId(int subnetId) {
@@ -252,6 +255,9 @@ public class GuiHandler implements IGuiHandler {
         if (ID == GUI_OMNI_TOOL_CONFIG) {
             return new ContainerOmniToolConfig();
         }
+        if (ID == GUI_PERSONAL_DIMENSION_CONFIG) {
+            return new ContainerPersonalDimensionConfig(player.getUniqueID());
+        }
         return null;
     }
 
@@ -382,6 +388,9 @@ public class GuiHandler implements IGuiHandler {
         }
         if (ID == GUI_OMNI_TOOL_CONFIG) {
             return new GuiOmniToolConfig(player, new ContainerOmniToolConfig());
+        }
+        if (ID == GUI_PERSONAL_DIMENSION_CONFIG) {
+            return new GuiPersonalDimensionConfig(player, new ContainerPersonalDimensionConfig(player.getUniqueID()));
         }
         return null;
     }

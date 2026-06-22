@@ -121,6 +121,33 @@ public class AE2EnhancedConfig {
     @Config.Comment("ProjectE EMC Interface settings.")
     public static EMCInterface emcInterface = new EMCInterface();
 
+    @Config.Name("PersonalDimension")
+    @Config.Comment("Personal dimension settings.")
+    public static PersonalDimension personalDimension = new PersonalDimension();
+
+    public static class PersonalDimension {
+        @Config.Comment({
+            "Path to the floor preset file.",
+            "Can be an absolute file path, a path relative to the config folder,",
+            "or an asset path like assets/ae2enhanced/presets/personal_dimension_floor.json."
+        })
+        public String presetPath = "assets/ae2enhanced/presets/personal_dimension_floor.json";
+
+        @Config.Comment({
+            "Y level of the floor in the personal dimension.",
+            "Range: 1 ~ 250, Default: 64"
+        })
+        @Config.RangeInt(min = 1, max = 250)
+        public int floorY = 64;
+
+        @Config.Comment({
+            "Y level where players enter the personal dimension.",
+            "Range: 2 ~ 255, Default: 65"
+        })
+        @Config.RangeInt(min = 2, max = 255)
+        public int entryY = 65;
+    }
+
     public static class Storage {
         @Config.Comment({
             "Auto-flush interval for the external .dat storage file (seconds).",

@@ -44,4 +44,7 @@ public final class ItemRegistry {
 
     // 中枢接口虚拟并行卡
     public static ItemVirtualParallelCard VIRTUAL_PARALLEL_CARD;
+
+    // 个人维度核心
+    public static ItemPersonalDimension PERSONAL_DIMENSION;
 }
