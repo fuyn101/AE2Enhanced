@@ -103,13 +103,24 @@ public final class ModRecipes {
                     new ItemStack(ItemRegistry.SMART_BLANK_PATTERN, 1)));
         }
 
-        // 虚拟并行卡（Tier 1）：512 个 AE2 加速卡
+        // 虚拟并行卡（Tier 1）：1024 加速卡 + 1024 容量卡 + 64 奇点
         if (ae2Material != null && ItemRegistry.VIRTUAL_PARALLEL_CARD != null) {
             Map<String, Integer> vpcInputs = new HashMap<>();
-            vpcInputs.put("appliedenergistics2:material:30", 512);
+            vpcInputs.put("appliedenergistics2:material:30", 1024);
+            vpcInputs.put("appliedenergistics2:material:27", 1024);
+            vpcInputs.put("appliedenergistics2:material:47", 64);
             BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
                     "virtual_parallel_card_tier1", vpcInputs,
                     ItemVirtualParallelCard.createStack(0)));
+
+            // Tier 2~6：16 张低一级卡片合成一张高一级卡片
+            for (int tier = 1; tier <= 5; tier++) {
+                Map<String, Integer> upgradeInputs = new HashMap<>();
+                upgradeInputs.put(BlackHoleRecipe.keyOf(ItemVirtualParallelCard.createStack(tier - 1)), 16);
+                BlackHoleRecipeRegistry.register(new BlackHoleRecipe(
+                        "virtual_parallel_card_tier" + (tier + 1), upgradeInputs,
+                        ItemVirtualParallelCard.createStack(tier)));
+            }
         }
     }
 }

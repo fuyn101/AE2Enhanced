@@ -514,7 +514,7 @@ item.ae2enhanced.virtual_parallel_card.tier8.name=Virtual Parallel Card (Tier 8)
 
 # Personal Dimension
 item.ae2enhanced.personal_dimension.name=Personal Dimension Core
-tile.ae2enhanced.yellow_stripes_block_b.name=Yellow Stripes Block B
+tile.ae2enhanced.yellow_stripes_block_b.name=Caution Block
 gui.ae2enhanced.personal_dimension.title=Personal Dimension Rules
 gui.ae2enhanced.personal_dimension.spawn_mobs=Mob Spawning
 gui.ae2enhanced.personal_dimension.lock_weather=Lock Weather

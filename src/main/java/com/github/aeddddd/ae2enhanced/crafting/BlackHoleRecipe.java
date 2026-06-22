@@ -48,10 +48,14 @@ public class BlackHoleRecipe {
     }
 
     /**
-     * 生成 ItemStack 的 key："registryName:meta"
+     * 生成 ItemStack 的 key："registryName:meta"，若存在 NBT 则追加 NBT 字符串以区分同 meta 的不同物品。
      */
     public static String keyOf(ItemStack stack) {
         if (stack.isEmpty() || stack.getItem().getRegistryName() == null) return "";
-        return stack.getItem().getRegistryName().toString() + ":" + stack.getMetadata();
+        String key = stack.getItem().getRegistryName().toString() + ":" + stack.getMetadata();
+        if (stack.hasTagCompound()) {
+            key += stack.getTagCompound().toString();
+        }
+        return key;
     }
 }

@@ -512,7 +512,7 @@ item.ae2enhanced.virtual_parallel_card.tier8.name=虚拟并行卡（等级 8）
 
 # 个人维度
 item.ae2enhanced.personal_dimension.name=个人维度核心
-tile.ae2enhanced.yellow_stripes_block_b.name=黄色条纹方块 B
+tile.ae2enhanced.yellow_stripes_block_b.name=警示方块
 gui.ae2enhanced.personal_dimension.title=个人维度规则
 gui.ae2enhanced.personal_dimension.spawn_mobs=生物生成
 gui.ae2enhanced.personal_dimension.lock_weather=锁定天气
