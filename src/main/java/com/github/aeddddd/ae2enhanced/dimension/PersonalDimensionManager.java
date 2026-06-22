@@ -6,8 +6,10 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.DimensionType;
+import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ITeleporter;
@@ -140,7 +142,51 @@ public final class PersonalDimensionManager {
     public static void teleportToDimension(EntityPlayerMP player, int dimId) {
         PlayerDimEntry entry = getEntry(player.getUniqueID());
         BlockPos entryPos = entry != null ? entry.entryPoint : new BlockPos(0, AE2EnhancedConfig.personalDimension.entryY, 0);
-        teleportTo(player, dimId, entryPos.getX() + 0.5, entryPos.getY() + 0.1, entryPos.getZ() + 0.5, player.rotationYaw, player.rotationPitch);
+        double tx = entryPos.getX() + 0.5;
+        double ty = entryPos.getY() + 0.1;
+        double tz = entryPos.getZ() + 0.5;
+        teleportTo(player, dimId, tx, ty, tz, player.rotationYaw, player.rotationPitch);
+        scheduleRelight(player.getServerWorld().getMinecraftServer(), dimId, new BlockPos(tx, ty, tz));
+    }
+
+    private static void scheduleRelight(@Nullable MinecraftServer server, int dimId, BlockPos center) {
+        if (server == null) return;
+        server.addScheduledTask(() -> relightDimensionChunks(dimId, center));
+        server.addScheduledTask(() -> server.addScheduledTask(() -> {
+            // 延迟一tick后再做一次，确保区块已完全加载并同步到客户端
+            relightDimensionChunks(dimId, center);
+            WorldServer target = server.getWorld(dimId);
+            if (target != null) {
+                refreshSkyLight(target, center);
+            }
+        }));
+    }
+
+    private static void relightDimensionChunks(int dimId, BlockPos center) {
+        WorldServer world = DimensionManager.getWorld(dimId);
+        if (world == null) return;
+        int cx = center.getX() >> 4;
+        int cz = center.getZ() >> 4;
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                Chunk chunk = world.getChunkProvider().getLoadedChunk(cx + dx, cz + dz);
+                if (chunk == null) continue;
+                chunk.checkLight();
+                chunk.setLightPopulated(true);
+                chunk.markDirty();
+            }
+        }
+    }
+
+    private static void refreshSkyLight(WorldServer world, BlockPos center) {
+        int floorY = AE2EnhancedConfig.personalDimension.floorY;
+        int startY = Math.min(center.getY(), floorY + 2);
+        for (int dx = -32; dx <= 32; dx += 4) {
+            for (int dz = -32; dz <= 32; dz += 4) {
+                BlockPos pos = new BlockPos(center.getX() + dx, startY, center.getZ() + dz);
+                world.checkLightFor(EnumSkyBlock.SKY, pos);
+            }
+        }
     }
 
     public static void teleportTo(EntityPlayerMP player, int dimId, double x, double y, double z, float yaw, float pitch) {

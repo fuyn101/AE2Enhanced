@@ -47,6 +47,8 @@ public class ChunkGeneratorPersonalDim implements IChunkGenerator {
         }
         Chunk chunk = new Chunk(world, primer, x, z);
         chunk.generateSkylightMap();
+        chunk.checkLight();
+        chunk.setLightPopulated(true);
         return chunk;
     }
 
