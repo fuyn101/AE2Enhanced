@@ -81,6 +81,11 @@ public class AE2Enhanced {
         // 注册存储通道：根据外部通道存在性决定是否注册 AE2E 自有通道
         ChannelRegistrationManager.registerChannels();
 
+        // 注册 TII 资源提供者(仅在 TII 存在时加载注册器类,避免无条件引用 TII 类)
+        if (com.github.aeddddd.ae2enhanced.integration.terminal.tii.TiiCompat.isLoaded()) {
+            MinecraftForge.EVENT_BUS.register(new com.github.aeddddd.ae2enhanced.integration.terminal.TiiResourceRegistration());
+        }
+
         ModContent.init();
         ModRecipes.init();
         ModEventHandler.register();
