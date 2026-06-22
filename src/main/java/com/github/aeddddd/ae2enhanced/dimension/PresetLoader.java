@@ -34,6 +34,26 @@ public final class PresetLoader {
         return cached;
     }
 
+    /**
+     * 将默认预设从 jar 内 assets 复制到 config 目录，方便用户修改。
+     */
+    public static void copyDefaultPresetToConfigIfMissing() {
+        File configDir = net.minecraftforge.fml.common.Loader.instance().getConfigDir();
+        File target = new File(configDir, AE2EnhancedConfig.personalDimension.presetPath);
+        if (target.isFile()) return;
+        target.getParentFile().mkdirs();
+        try (InputStream in = AE2Enhanced.class.getResourceAsStream("/assets/ae2enhanced/presets/personal_dimension_floor.json")) {
+            if (in == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Default personal dimension preset not found in jar assets.");
+                return;
+            }
+            java.nio.file.Files.copy(in, target.toPath());
+            AE2Enhanced.LOGGER.info("[AE2E] Copied default personal dimension preset to {}", target.getAbsolutePath());
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to copy default preset to config", e);
+        }
+    }
+
     public static void reload() {
         cached = null;
     }

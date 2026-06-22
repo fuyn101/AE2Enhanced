@@ -25,6 +25,7 @@ import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
@@ -66,6 +67,7 @@ public class AE2Enhanced {
     public void preInit(FMLPreInitializationEvent event) {
         ConfigManager.sync(MOD_ID, net.minecraftforge.common.config.Config.Type.INSTANCE);
         PersonalDimensionManager.registerDimensionType();
+        com.github.aeddddd.ae2enhanced.dimension.PresetLoader.copyDefaultPresetToConfigIfMissing();
         GameRegistryManager.initItems();
         ModContent.preInit();
         ModNetwork.init();
@@ -118,6 +120,11 @@ public class AE2Enhanced {
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new com.github.aeddddd.ae2enhanced.command.CommandAE2Enhanced());
         event.registerServerCommand(new com.github.aeddddd.ae2enhanced.command.CommandAE2E());
+    }
+
+    @Mod.EventHandler
+    public void serverStarted(FMLServerStartedEvent event) {
+        PersonalDimensionManager.onServerStarted(event);
     }
 
     private void checkMixinEnvironment() {

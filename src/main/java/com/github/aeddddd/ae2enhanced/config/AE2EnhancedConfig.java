@@ -131,7 +131,7 @@ public class AE2EnhancedConfig {
             "Can be an absolute file path, a path relative to the config folder,",
             "or an asset path like assets/ae2enhanced/presets/personal_dimension_floor.json."
         })
-        public String presetPath = "assets/ae2enhanced/presets/personal_dimension_floor.json";
+        public String presetPath = "ae2enhanced/personal_dimension_floor.json";
 
         @Config.Comment({
             "Y level of the floor in the personal dimension.",

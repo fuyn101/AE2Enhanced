@@ -166,8 +166,8 @@ public final class PersonalDimensionManager {
 
     /**
      * 服务端启动时重新注册已保存的个人维度。
+     * 注意：FML 生命周期事件不在 MinecraftForge.EVENT_BUS 上，需要由 @Mod 主类调用。
      */
-    @SubscribeEvent
     public static void onServerStarted(FMLServerStartedEvent event) {
         if (PERSONAL_DIM_TYPE == null) return;
         WorldServer overworld = getOverworld();
