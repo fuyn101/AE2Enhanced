@@ -20,10 +20,8 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 虚拟批量合成引擎.
@@ -34,11 +32,6 @@ import java.util.Map;
 public class VirtualBatchEngine {
 
     private final DualityCentralInterface owner;
-
-    /**
-     * 失败日志节流：每个目标每 100 tick 最多输出一次，避免日志刷屏。
-     */
-    private final Map<TargetBinding, Long> lastFailLogTicks = new HashMap<>();
 
     public VirtualBatchEngine(DualityCentralInterface owner) {
         this.owner = owner;
@@ -354,17 +347,9 @@ public class VirtualBatchEngine {
     }
 
     /**
-     * 记录虚拟合成失败原因，按目标节流，避免高频日志刷屏。
+     * 记录虚拟合成失败原因（无操作占位，避免日志刷屏）。
      */
     private void logFail(World world, TargetBinding target, String reason) {
-        if (world == null) return;
-        long tick = world.getTotalWorldTime();
-        Long last = lastFailLogTicks.get(target);
-        if (last != null && tick - last < 100) {
-            return;
-        }
-        lastFailLogTicks.put(target, tick);
-        AE2Enhanced.LOGGER.warn("[AE2E-VirtualBatch] {} dim={}: {}", target.blockId, target.pos, reason);
     }
 
     private void addParticleTarget(BlockPos pos, int particleType) {
