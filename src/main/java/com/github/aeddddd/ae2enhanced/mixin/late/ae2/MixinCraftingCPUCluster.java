@@ -687,7 +687,7 @@ public class MixinCraftingCPUCluster {
             } catch (Exception ignored) {
             }
             if (pending > 0) {
-                duality.setNextVirtualBatchLimit((int) Math.min(pending, Integer.MAX_VALUE));
+                duality.setNextVirtualBatchLimit(pending);
             }
         }
 

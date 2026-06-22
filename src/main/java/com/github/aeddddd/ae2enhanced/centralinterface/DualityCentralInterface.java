@@ -264,6 +264,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     tryWakeTickDevice();
                     return true;
                 }
+
+                // 虚拟合成失败时，若该目标同时支持物理发配，则回退到同目标物理发配
+                if (handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
+                    if (this.physicalDispatcher.dispatch(proxy, patternDetails, table, target, handler)) {
+                        this.lastVirtualBatchSize = 1;
+                        return true;
+                    }
+                }
                 continue;
             }
 
