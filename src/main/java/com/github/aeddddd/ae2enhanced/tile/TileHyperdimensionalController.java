@@ -298,7 +298,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             ExternalStorageAdapter<EnergyDescriptor> adapter = new ExternalStorageAdapter<>(
                     storageFile,
                     FluxAppliedCompat.getFluxStorageChannelInstance(),
-                    "Count",
+                    "fe",
                     EnergyDescriptor.INSTANCE
             );
             storageFile.loadEnergy((java.util.Map<EnergyDescriptor, java.math.BigInteger>) (java.util.Map<?, ?>) adapter.getStorageMap());
@@ -321,7 +321,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             ExternalStorageAdapter<ManaDescriptor> adapter = new ExternalStorageAdapter<>(
                     storageFile,
                     BotaniaApplieCompat.getManaStorageChannelInstance(),
-                    "Count",
+                    "mana",
                     ManaDescriptor.INSTANCE
             );
             storageFile.loadMana((java.util.Map<ManaDescriptor, java.math.BigInteger>) (java.util.Map<?, ?>) adapter.getStorageMap());

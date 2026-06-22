@@ -9,6 +9,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemEnergyDrop;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
 import com.github.aeddddd.ae2enhanced.storage.external.ExternalStackFactory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.text.TextFormatting;
 import nyonio.terminal_interaction_integration.api.IPacketType;
 
@@ -91,11 +92,15 @@ public class EnergyPacketType implements IPacketType {
         return ItemEnergyDrop.createStack(amount);
     }
 
+    private static final String NBT_KEY_FE = "fe";
+
     @SuppressWarnings("unchecked")
     @Override
     public IAEStack<?> createResourceStack(long amount) {
-        if (FluxAppliedCompat.isLoaded() && channel != null) {
-            IAEStack external = ExternalStackFactory.createStack(channel, amount);
+        if (FluxAppliedCompat.isFluxStorageChannelAvailable() && channel != null) {
+            NBTTagCompound nbt = new NBTTagCompound();
+            nbt.setLong(NBT_KEY_FE, amount);
+            IAEStack external = ExternalStackFactory.createFromNBT(channel, nbt);
             if (external != null) {
                 return external;
             }

@@ -9,6 +9,7 @@ import com.github.aeddddd.ae2enhanced.item.ItemManaDrop;
 import com.github.aeddddd.ae2enhanced.storage.external.ExternalStackFactory;
 import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.text.TextFormatting;
 import nyonio.terminal_interaction_integration.api.IPacketType;
 
@@ -91,11 +92,15 @@ public class ManaPacketType implements IPacketType {
         return ItemManaDrop.createStack(amount);
     }
 
+    private static final String NBT_KEY_MANA = "mana";
+
     @SuppressWarnings("unchecked")
     @Override
     public IAEStack<?> createResourceStack(long amount) {
-        if (BotaniaApplieCompat.isLoaded() && channel != null) {
-            IAEStack external = ExternalStackFactory.createStack(channel, amount);
+        if (BotaniaApplieCompat.isManaStorageChannelAvailable() && channel != null) {
+            NBTTagCompound nbt = new NBTTagCompound();
+            nbt.setLong(NBT_KEY_MANA, amount);
+            IAEStack external = ExternalStackFactory.createFromNBT(channel, nbt);
             if (external != null) {
                 return external;
             }
