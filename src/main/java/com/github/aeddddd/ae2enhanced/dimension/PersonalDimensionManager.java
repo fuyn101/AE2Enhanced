@@ -37,17 +37,14 @@ public final class PersonalDimensionManager {
      */
     public static void registerDimensionType() {
         if (typeRegistered) return;
-        // 找一个未使用的 DimensionType id
-        int typeId = -1;
-        for (int i = 2; i < 1000; i++) {
-            if (DimensionType.getById(i) == null) {
-                typeId = i;
-                break;
-            }
+        // 从 5290 开始找一个未使用的 DimensionType id，避免与常见模组冲突
+        int typeId = 5290;
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (DimensionType dt : DimensionType.values()) {
+            used.add(dt.getId());
         }
-        if (typeId < 0) {
-            AE2Enhanced.LOGGER.error("[AE2E] No free DimensionType id found for personal dimension!");
-            return;
+        while (used.contains(typeId)) {
+            typeId++;
         }
         PERSONAL_DIM_TYPE = DimensionType.register(
                 AE2Enhanced.MOD_ID + ":personal_dim",
