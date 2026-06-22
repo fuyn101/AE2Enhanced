@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEnergies;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeEssentias;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
@@ -22,10 +23,12 @@ public final class ModContent {
     private ModContent() {}
 
     public static void preInit() {
-        FakeFluids.init();
+        if (!Ae2fcCompat.AE2FC_LOADED) {
+            FakeFluids.init();
+        }
         FakeEnergies.init();
 
-        if (Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
+        if (!Ae2fcCompat.AE2FC_LOADED && Loader.isModLoaded("mekanism") && Loader.isModLoaded("mekeng")) {
             FakeGases.init();
         }
         if (Loader.isModLoaded("thaumcraft") && Loader.isModLoaded("thaumicenergistics")) {

@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.integration.jei;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.registry.content.PartRegistry;
 import com.github.aeddddd.ae2enhanced.item.ItemEssentiaDrop;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import mekanism.api.gas.GasStack;
 import net.minecraft.item.ItemStack;
@@ -29,19 +30,21 @@ public class JeiIngredientHelper {
             return obj;
         }
 
-        // 流体假物品 -> FluidStack
-        if (stack.getItem() == ItemRegistry.FLUID_DROP) {
-            FluidStack fluid = FakeItemRegister.getStack(stack);
-            if (fluid != null) {
-                return fluid;
+        if (!Ae2fcCompat.AE2FC_LOADED) {
+            // 流体假物品 -> FluidStack
+            if (stack.getItem() == ItemRegistry.FLUID_DROP) {
+                FluidStack fluid = FakeItemRegister.getStack(stack);
+                if (fluid != null) {
+                    return fluid;
+                }
             }
-        }
 
-        // 气体假物品 -> GasStack
-        if (ItemRegistry.GAS_DROP != null && stack.getItem() == ItemRegistry.GAS_DROP) {
-            GasStack gas = FakeItemRegister.getStack(stack);
-            if (gas != null) {
-                return gas;
+            // 气体假物品 -> GasStack
+            if (ItemRegistry.GAS_DROP != null && stack.getItem() == ItemRegistry.GAS_DROP) {
+                GasStack gas = FakeItemRegister.getStack(stack);
+                if (gas != null) {
+                    return gas;
+                }
             }
         }
 

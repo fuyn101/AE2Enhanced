@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import net.minecraftforge.fml.common.Loader;
 import zone.rong.mixinbooter.ILateMixinLoader;
 
@@ -23,6 +24,9 @@ public class LateMixinLoader implements ILateMixinLoader {
                 "mixins.ae2enhanced.late.thaumic.json",
                 "mixins.ae2enhanced.late.gas.json"
         ));
+        if (!Ae2fcCompat.AE2FC_LOADED) {
+            configs.add("mixins.ae2enhanced.late.fluid.json");
+        }
         if (Loader.isModLoaded("functionalstoragelegacy")) {
             configs.add("mixins.ae2enhanced.late.fsl.json");
         }

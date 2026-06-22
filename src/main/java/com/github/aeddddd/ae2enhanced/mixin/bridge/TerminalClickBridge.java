@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import net.minecraft.client.gui.GuiScreen;
@@ -65,19 +66,21 @@ public final class TerminalClickBridge {
 
         // 手持物品左键点击
         if (!mouseItem.isEmpty() && mouseButton == 0) {
-            boolean isFluid = s.getAEStack() != null && s.getAEStack().getItem() == ItemRegistry.FLUID_DROP;
-            boolean hasFluidCap = mouseItem.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
-            boolean hasFluidInHand = hasFluidCap && getFluidFromItem(mouseItem) != null;
+            if (!Ae2fcCompat.AE2FC_LOADED) {
+                boolean isFluid = s.getAEStack() != null && s.getAEStack().getItem() == ItemRegistry.FLUID_DROP;
+                boolean hasFluidCap = mouseItem.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
+                boolean hasFluidInHand = hasFluidCap && getFluidFromItem(mouseItem) != null;
 
-            if (hasFluidCap && (isFluid || hasFluidInHand)) {
-                FluidStack fluid = isFluid ? FakeItemRegister.getStack(s.getAEStack()) : null;
-                NBTTagCompound nbt = fluid != null ? fluid.writeToNBT(new NBTTagCompound()) : new NBTTagCompound();
-                AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.FLUID_WORK, nbt));
-                return true;
-            }
+                if (hasFluidCap && (isFluid || hasFluidInHand)) {
+                    FluidStack fluid = isFluid ? FakeItemRegister.getStack(s.getAEStack()) : null;
+                    NBTTagCompound nbt = fluid != null ? fluid.writeToNBT(new NBTTagCompound()) : new NBTTagCompound();
+                    AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.FLUID_WORK, nbt));
+                    return true;
+                }
 
-            if (ItemRegistry.GAS_DROP != null && handleGasMouseClick(s, mouseItem)) {
-                return true;
+                if (ItemRegistry.GAS_DROP != null && handleGasMouseClick(s, mouseItem)) {
+                    return true;
+                }
             }
 
             if (ItemRegistry.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
@@ -90,26 +93,32 @@ public final class TerminalClickBridge {
         }
 
         // 空手持假物品点击
-        if (s.getAEStack() != null
-                && (s.getAEStack().getItem() == ItemRegistry.FLUID_DROP
-                    || (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP)
-                    || (ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP)
-                    || (ItemRegistry.ENERGY_DROP != null && s.getAEStack().getItem() == ItemRegistry.ENERGY_DROP))
-                && mouseButton != 2
-                && (!s.getAEStack().isCraftable()
-                    || mouseButton != 0
-                    || (s.getAEStack().getStackSize() != 0L && !GuiScreen.isCtrlKeyDown()))) {
-
-            if (s.getAEStack().getItem() == ItemRegistry.FLUID_DROP) {
-                NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
-                nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
-                AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.FLUID_OPERATE, nbt));
-            } else if (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP) {
-                NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
-                nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
-                AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_OPERATE, nbt));
+        if (s.getAEStack() != null) {
+            boolean isFluidOrGas = false;
+            if (!Ae2fcCompat.AE2FC_LOADED) {
+                isFluidOrGas = s.getAEStack().getItem() == ItemRegistry.FLUID_DROP
+                        || (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP);
             }
-            return true;
+            boolean isEssentia = ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP;
+            boolean isEnergy = ItemRegistry.ENERGY_DROP != null && s.getAEStack().getItem() == ItemRegistry.ENERGY_DROP;
+
+            if ((isFluidOrGas || isEssentia || isEnergy)
+                    && mouseButton != 2
+                    && (!s.getAEStack().isCraftable()
+                        || mouseButton != 0
+                        || (s.getAEStack().getStackSize() != 0L && !GuiScreen.isCtrlKeyDown()))) {
+
+                if (!Ae2fcCompat.AE2FC_LOADED && s.getAEStack().getItem() == ItemRegistry.FLUID_DROP) {
+                    NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
+                    nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
+                    AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.FLUID_OPERATE, nbt));
+                } else if (!Ae2fcCompat.AE2FC_LOADED && ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP) {
+                    NBTTagCompound nbt = s.getAEStack().getDefinition().writeToNBT(new NBTTagCompound());
+                    nbt.setBoolean("shift", GuiScreen.isShiftKeyDown());
+                    AE2Enhanced.network.sendToServer(new PacketMEMonitorableAction(PacketMEMonitorableAction.GAS_OPERATE, nbt));
+                }
+                return true;
+            }
         }
 
         return false;

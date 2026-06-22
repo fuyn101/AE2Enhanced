@@ -5,6 +5,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
 import net.minecraft.client.gui.GuiScreen;
@@ -49,11 +50,13 @@ public final class TerminalTooltipBridge {
             return false;
         }
 
-        if (aeStack.getItem() == ItemRegistry.FLUID_DROP) {
-            return renderFluidToolTip(gui, aeStack, mouseX, mouseY);
-        }
-        if (ItemRegistry.GAS_DROP != null && aeStack.getItem() == ItemRegistry.GAS_DROP) {
-            return renderGasToolTip(gui, aeStack, mouseX, mouseY);
+        if (!Ae2fcCompat.AE2FC_LOADED) {
+            if (aeStack.getItem() == ItemRegistry.FLUID_DROP) {
+                return renderFluidToolTip(gui, aeStack, mouseX, mouseY);
+            }
+            if (ItemRegistry.GAS_DROP != null && aeStack.getItem() == ItemRegistry.GAS_DROP) {
+                return renderGasToolTip(gui, aeStack, mouseX, mouseY);
+            }
         }
         if (ItemRegistry.ESSENTIA_DROP != null && aeStack.getItem() == ItemRegistry.ESSENTIA_DROP) {
             return renderEssentiaToolTip(gui, aeStack, mouseX, mouseY);
@@ -153,6 +156,9 @@ public final class TerminalTooltipBridge {
     /* ========================= Container (held item) ========================= */
 
     private static boolean renderContainerToolTip(GuiContainer gui, int mouseX, int mouseY) {
+        if (Ae2fcCompat.AE2FC_LOADED) {
+            return false;
+        }
         ItemStack mouseItem = gui.mc.player.inventory.getItemStack();
         if (mouseItem.isEmpty()) return false;
 
