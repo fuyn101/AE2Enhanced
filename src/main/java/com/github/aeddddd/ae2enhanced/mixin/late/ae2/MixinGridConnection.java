@@ -23,6 +23,9 @@ public abstract class MixinGridConnection implements IEnhancedPathItem {
     private int usedChannels;
 
     @Shadow
+    private int lastUsedChannels;
+
+    @Shadow
     private GridNode sideA;
 
     @Shadow
@@ -31,6 +34,7 @@ public abstract class MixinGridConnection implements IEnhancedPathItem {
     @Override
     public void ae2enhanced$setAdHocChannels(int channels) {
         this.usedChannels = channels;
+        this.lastUsedChannels = channels;
     }
 
     @Override
@@ -47,12 +51,14 @@ public abstract class MixinGridConnection implements IEnhancedPathItem {
     public int ae2enhanced$propagateChannelsUpwards(boolean consumesChannel) {
         // 对 GridConnection 忽略 consumesChannel 参数，使用无参语义。
         // sideA 总是朝向 Controller 的一侧（setControllerRoute 会翻转）。
+        // 必须写入 lastUsedChannels，让原版 finalizeChannels() 把值同步到 usedChannels，
+        // 否则 TheOneProbe / WAILA 等读取 usedChannels 的模组会显示 0。
         if (this.sideB.getControllerRoute() == (IPathItem) this) {
-            this.usedChannels = ((IEnhancedPathItem) this.sideB).ae2enhanced$getUsedChannels();
+            this.lastUsedChannels = ((IEnhancedPathItem) this.sideB).ae2enhanced$getUsedChannels();
         } else {
-            this.usedChannels = 0;
+            this.lastUsedChannels = 0;
         }
-        return this.usedChannels;
+        return this.lastUsedChannels;
     }
 
     @Override
@@ -69,7 +75,7 @@ public abstract class MixinGridConnection implements IEnhancedPathItem {
 
     @Override
     public int ae2enhanced$getUsedChannels() {
-        return this.usedChannels;
+        return this.lastUsedChannels;
     }
 
     /**
@@ -79,6 +85,7 @@ public abstract class MixinGridConnection implements IEnhancedPathItem {
     private void ae2enhanced$onSetControllerRoute(IPathItem fast, boolean zeroOut, CallbackInfo ci) {
         if (zeroOut) {
             this.usedChannels = 0;
+            this.lastUsedChannels = 0;
         }
     }
 }

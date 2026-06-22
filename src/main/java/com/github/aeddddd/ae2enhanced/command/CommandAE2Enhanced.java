@@ -33,6 +33,7 @@ import net.minecraft.item.ItemSword;
 import net.minecraft.item.ItemTool;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
@@ -44,6 +45,7 @@ import net.minecraftforge.common.config.Config;
 import appeng.util.item.AEItemStack;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
@@ -78,6 +80,62 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     public int getRequiredPermissionLevel() {
         return 2;
+    }
+
+    private static final String[] SUBCOMMANDS = {
+            "spgc", "channels", "fastpathing", "recoverhd", "testhd", "migratefluids", "help"
+    };
+    private static final String[] TOGGLE_OPTIONS = {"enable", "disable", "status"};
+
+    @Override
+    @Nonnull
+    public List<String> getTabCompletions(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender,
+                                           @Nonnull String[] args, @Nullable BlockPos targetPos) {
+        if (args.length == 1) {
+            return CommandBase.getListOfStringsMatchingLastWord(args, SUBCOMMANDS);
+        }
+        String sub = args[0].toLowerCase();
+        if (args.length == 2) {
+            if ("channels".equals(sub) || "fastpathing".equals(sub)) {
+                return CommandBase.getListOfStringsMatchingLastWord(args, TOGGLE_OPTIONS);
+            }
+            if ("recoverhd".equals(sub)) {
+                List<String> list = new ArrayList<>();
+                list.add("list");
+                list.addAll(collectHdUuids(server));
+                return CommandBase.getListOfStringsMatchingLastWord(args, list);
+            }
+            if ("testhd".equals(sub)) {
+                return CommandBase.getListOfStringsMatchingLastWord(args, collectHdUuids(server));
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    private static List<String> collectHdUuids(@Nonnull MinecraftServer server) {
+        List<String> result = new ArrayList<>();
+        WorldServer world = server.getWorld(0);
+        if (world == null) {
+            return result;
+        }
+        File worldDir = world.getSaveHandler().getWorldDirectory();
+        File storageDir = new File(worldDir, "ae2enhanced/storage");
+        if (!storageDir.exists()) {
+            return result;
+        }
+        File[] entries = storageDir.listFiles((dir, name) -> {
+            if (name.startsWith("smartpattern_")) return false;
+            File f = new File(dir, name);
+            return f.isDirectory() || name.endsWith(".dat");
+        });
+        if (entries == null) {
+            return result;
+        }
+        for (File entry : entries) {
+            String name = entry.getName();
+            result.add(entry.isDirectory() ? name : name.substring(0, name.length() - 4));
+        }
+        return result;
     }
 
     @Override

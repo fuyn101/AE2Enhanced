@@ -39,6 +39,7 @@ public class EnergyAdapterRegistry {
         tryLoad("mekanism", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.MekanismEnergyAdapter");
         tryLoad("techreborn", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.TechRebornEnergyAdapter");
         tryLoad("rftools", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.McJtyEnergyAdapter");
+        tryLoad("modularmachinery", "com.github.aeddddd.ae2enhanced.platform.energy.adapter.MMCEEnergyAdapter");
     }
 
     private static void tryLoad(String modId, String className) {
