@@ -43,12 +43,11 @@ public class ChunkGeneratorPersonalDim implements IChunkGenerator {
                     state = Blocks.BEDROCK.getDefaultState();
                 }
                 primer.setBlockState(lx, floorY, lz, state);
-                for (int y = 0; y < floorY; y++) {
-                    primer.setBlockState(lx, y, lz, Blocks.BEDROCK.getDefaultState());
-                }
             }
         }
-        return new Chunk(world, primer, x, z);
+        Chunk chunk = new Chunk(world, primer, x, z);
+        chunk.generateSkylightMap();
+        return chunk;
     }
 
     @Override
