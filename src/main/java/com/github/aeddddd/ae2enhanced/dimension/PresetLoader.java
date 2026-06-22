@@ -114,11 +114,43 @@ public final class PresetLoader {
         }
     }
 
+    private static final java.util.Map<String, Integer> CONCRETE_COLORS = new java.util.HashMap<>();
+    static {
+        CONCRETE_COLORS.put("white", 0);
+        CONCRETE_COLORS.put("orange", 1);
+        CONCRETE_COLORS.put("magenta", 2);
+        CONCRETE_COLORS.put("light_blue", 3);
+        CONCRETE_COLORS.put("yellow", 4);
+        CONCRETE_COLORS.put("lime", 5);
+        CONCRETE_COLORS.put("pink", 6);
+        CONCRETE_COLORS.put("gray", 7);
+        CONCRETE_COLORS.put("silver", 8);
+        CONCRETE_COLORS.put("light_gray", 8);
+        CONCRETE_COLORS.put("cyan", 9);
+        CONCRETE_COLORS.put("purple", 10);
+        CONCRETE_COLORS.put("blue", 11);
+        CONCRETE_COLORS.put("brown", 12);
+        CONCRETE_COLORS.put("green", 13);
+        CONCRETE_COLORS.put("red", 14);
+        CONCRETE_COLORS.put("black", 15);
+    }
+
     private static IBlockState resolveState(String name) {
         // GTCEu 未加载时映射到本 Mod 的替代方块
         if ("gtceu:yellow_stripes_block_b".equals(name)) {
             if (BlockRegistry.YELLOW_STRIPES_BLOCK_B != null) {
                 return BlockRegistry.YELLOW_STRIPES_BLOCK_B.getDefaultState();
+            }
+        }
+        // 1.13+ 的彩色混凝土名称在 1.12 中对应 minecraft:concrete 的 metadata
+        if (name.startsWith("minecraft:") && name.endsWith("_concrete")) {
+            String color = name.substring("minecraft:".length(), name.length() - "_concrete".length());
+            Integer meta = CONCRETE_COLORS.get(color);
+            if (meta != null) {
+                Block concrete = Block.REGISTRY.getObject(new ResourceLocation("minecraft:concrete"));
+                if (concrete != null) {
+                    return concrete.getStateFromMeta(meta);
+                }
             }
         }
         ResourceLocation rl = new ResourceLocation(name);
