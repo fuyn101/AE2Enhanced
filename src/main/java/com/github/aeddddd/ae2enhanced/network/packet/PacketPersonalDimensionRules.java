@@ -13,6 +13,9 @@ public class PacketPersonalDimensionRules implements IMessage {
     private boolean lockTime;
     private boolean daylightCycle;
     private long timeValue;
+    private boolean flightEnabled;
+    private float movementSpeed;
+    private boolean noFlightInertia;
 
     public PacketPersonalDimensionRules() {
     }
@@ -23,6 +26,9 @@ public class PacketPersonalDimensionRules implements IMessage {
         this.lockTime = rules.lockTime;
         this.daylightCycle = rules.daylightCycle;
         this.timeValue = rules.timeValue;
+        this.flightEnabled = rules.flightEnabled;
+        this.movementSpeed = rules.movementSpeed;
+        this.noFlightInertia = rules.noFlightInertia;
     }
 
     public boolean isDisableMobSpawning() { return disableMobSpawning; }
@@ -30,6 +36,9 @@ public class PacketPersonalDimensionRules implements IMessage {
     public boolean isLockTime() { return lockTime; }
     public boolean isDaylightCycle() { return daylightCycle; }
     public long getTimeValue() { return timeValue; }
+    public boolean isFlightEnabled() { return flightEnabled; }
+    public float getMovementSpeed() { return movementSpeed; }
+    public boolean isNoFlightInertia() { return noFlightInertia; }
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -38,7 +47,10 @@ public class PacketPersonalDimensionRules implements IMessage {
         lockWeather = (flags & 2) != 0;
         lockTime = (flags & 4) != 0;
         daylightCycle = (flags & 8) != 0;
+        flightEnabled = (flags & 16) != 0;
+        noFlightInertia = (flags & 32) != 0;
         timeValue = buf.readLong();
+        movementSpeed = buf.readFloat();
     }
 
     @Override
@@ -48,7 +60,10 @@ public class PacketPersonalDimensionRules implements IMessage {
         if (lockWeather) flags |= 2;
         if (lockTime) flags |= 4;
         if (daylightCycle) flags |= 8;
+        if (flightEnabled) flags |= 16;
+        if (noFlightInertia) flags |= 32;
         buf.writeByte(flags);
         buf.writeLong(timeValue);
+        buf.writeFloat(movementSpeed);
     }
 }

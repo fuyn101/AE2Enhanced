@@ -130,9 +130,11 @@ public final class PersonalDimensionManager {
             if (target == null) return;
             BlockPos spawn = target.getSpawnPoint();
             teleportTo(player, 0, spawn.getX() + 0.5, spawn.getY() + 0.1, spawn.getZ() + 0.5, player.rotationYaw, player.rotationPitch);
+            resetAbilities(player);
             return;
         }
         teleportTo(player, entry.returnDim, entry.returnX, entry.returnY, entry.returnZ, entry.returnYaw, entry.returnPitch);
+        resetAbilities(player);
     }
 
     public static void teleportToDimension(EntityPlayerMP player, int dimId) {
@@ -209,6 +211,56 @@ public final class PersonalDimensionManager {
         }
         if (rules.lockTime || !rules.daylightCycle) {
             world.setWorldTime(rules.timeValue);
+        }
+        for (net.minecraft.entity.player.EntityPlayer player : world.playerEntities) {
+            if (player instanceof EntityPlayerMP) {
+                applyFlightRules((EntityPlayerMP) player, rules);
+            }
+        }
+    }
+
+    private static void applyFlightRules(EntityPlayerMP player, PersonalDimensionRules rules) {
+        net.minecraft.entity.player.PlayerCapabilities cap = player.capabilities;
+        boolean shouldFly = player.isCreative() || rules.flightEnabled;
+        if (cap.allowFlying != shouldFly) {
+            cap.allowFlying = shouldFly;
+            if (!shouldFly) {
+                cap.isFlying = false;
+            }
+            player.sendPlayerAbilities();
+        }
+        float speed = rules.movementSpeed;
+        if (Math.abs(cap.getFlySpeed() - speed) > 1e-4f || Math.abs(cap.getWalkSpeed() - speed) > 1e-4f) {
+            cap.setFlySpeed(speed);
+            cap.setPlayerWalkSpeed(speed);
+            player.sendPlayerAbilities();
+        }
+        if (rules.noFlightInertia && cap.isFlying) {
+            if (player.moveForward == 0.0f && player.moveStrafing == 0.0f) {
+                player.motionX = 0.0;
+                player.motionZ = 0.0;
+            }
+        }
+    }
+
+    private static void resetAbilities(EntityPlayerMP player) {
+        if (player.isCreative()) return;
+        net.minecraft.entity.player.PlayerCapabilities cap = player.capabilities;
+        cap.allowFlying = false;
+        cap.isFlying = false;
+        cap.setPlayerWalkSpeed(0.1f);
+        cap.setFlySpeed(0.05f);
+        player.sendPlayerAbilities();
+    }
+
+    /**
+     * 玩家在个人维度死亡并重生后恢复默认能力。
+     */
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.player.world.isRemote) return;
+        if (event.player instanceof EntityPlayerMP) {
+            resetAbilities((EntityPlayerMP) event.player);
         }
     }
 

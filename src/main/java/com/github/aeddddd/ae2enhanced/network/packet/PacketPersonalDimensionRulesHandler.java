@@ -17,6 +17,9 @@ public class PacketPersonalDimensionRulesHandler implements IMessageHandler<Pack
             rules.lockTime = message.isLockTime();
             rules.daylightCycle = message.isDaylightCycle();
             rules.timeValue = message.getTimeValue();
+            rules.flightEnabled = message.isFlightEnabled();
+            rules.movementSpeed = message.getMovementSpeed();
+            rules.noFlightInertia = message.isNoFlightInertia();
             PersonalDimensionManager.setRules(ctx.getServerHandler().player.getUniqueID(), rules);
         });
         return null;

@@ -13,6 +13,10 @@ public class PersonalDimensionRules {
     public boolean daylightCycle = true;
     public long timeValue = 6000L;
 
+    public boolean flightEnabled = false;
+    public float movementSpeed = 0.1f;
+    public boolean noFlightInertia = false;
+
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setBoolean("disableMobSpawning", disableMobSpawning);
@@ -20,6 +24,9 @@ public class PersonalDimensionRules {
         tag.setBoolean("lockTime", lockTime);
         tag.setBoolean("daylightCycle", daylightCycle);
         tag.setLong("timeValue", timeValue);
+        tag.setBoolean("flightEnabled", flightEnabled);
+        tag.setFloat("movementSpeed", movementSpeed);
+        tag.setBoolean("noFlightInertia", noFlightInertia);
         return tag;
     }
 
@@ -29,6 +36,9 @@ public class PersonalDimensionRules {
         lockTime = tag.getBoolean("lockTime");
         daylightCycle = tag.getBoolean("daylightCycle");
         timeValue = tag.getLong("timeValue");
+        flightEnabled = tag.getBoolean("flightEnabled");
+        movementSpeed = tag.getFloat("movementSpeed");
+        noFlightInertia = tag.getBoolean("noFlightInertia");
     }
 
     public PersonalDimensionRules copy() {
@@ -38,6 +48,9 @@ public class PersonalDimensionRules {
         copy.lockTime = this.lockTime;
         copy.daylightCycle = this.daylightCycle;
         copy.timeValue = this.timeValue;
+        copy.flightEnabled = this.flightEnabled;
+        copy.movementSpeed = this.movementSpeed;
+        copy.noFlightInertia = this.noFlightInertia;
         return copy;
     }
 }
