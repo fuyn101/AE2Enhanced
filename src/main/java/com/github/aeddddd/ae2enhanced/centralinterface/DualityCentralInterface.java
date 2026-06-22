@@ -749,6 +749,12 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 return true;
             }
         }
+        // 没有任何合成任务时，storage slots 中的残留物品也应被推回网络。
+        for (int s = 0; s < this.storage.getSlots(); s++) {
+            if (!this.storage.getStackInSlot(s).isEmpty()) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -768,6 +774,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             this.host.saveChanges();
         } else if (inv == this.storage) {
             this.host.saveChanges();
+            // storage 进入新物品时唤醒 tick，避免设备 sleeping 导致物品滞留。
+            tryWakeTickDevice();
         }
     }
 

@@ -38,17 +38,8 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
         IItemHandler patterns = this.duality.getPatterns();
         IItemHandler storage = this.duality.getStorage();
 
-        // Config slots (ghost/filter slots) - y = 35
-        for (int i = 0; i < DualityCentralInterface.NUMBER_OF_CONFIG_SLOTS; i++) {
-            this.addSlotToContainer(new SlotFake(config, i, 8 + 18 * i, 35));
-        }
-
-        // Storage slots (oversized) - y = 53
-        for (int i = 0; i < DualityCentralInterface.NUMBER_OF_STORAGE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotOversized(storage, i, 8 + 18 * i, 53));
-        }
-
         // Pattern slots (optional, unlocked by upgrades) - y = 97 + 18*row
+        // 必须放在 Storage/Config 之前，否则 Shift+点击样板会先落入 Storage 槽。
         for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
                 int slotIndex = row * 9 + col;
@@ -65,6 +56,16 @@ public class ContainerCentralInterface extends ContainerUpgradeable implements I
                     ).setStackLimit(1)
                 );
             }
+        }
+
+        // Config slots (ghost/filter slots) - y = 35
+        for (int i = 0; i < DualityCentralInterface.NUMBER_OF_CONFIG_SLOTS; i++) {
+            this.addSlotToContainer(new SlotFake(config, i, 8 + 18 * i, 35));
+        }
+
+        // Storage slots (oversized) - y = 53
+        for (int i = 0; i < DualityCentralInterface.NUMBER_OF_STORAGE_SLOTS; i++) {
+            this.addSlotToContainer(new SlotOversized(storage, i, 8 + 18 * i, 53));
         }
     }
 

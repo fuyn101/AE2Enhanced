@@ -25,7 +25,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nonnull;
@@ -47,7 +46,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     public static final int WHITELIST_PAGES = 20;
     public static final int WHITELIST_SLOTS_PER_PAGE = 102; // 17×6，与 3.png 顶部网格一致
     public static final int WHITELIST_SIZE = WHITELIST_PAGES * WHITELIST_SLOTS_PER_PAGE; // 2040
-    private static final int WARNING_INTERVAL = 1200; // 60 秒警告冷却
+
 
     private final EMCInventoryHandler handler = new EMCInventoryHandler(this);
     private final AppEngInternalAEInventory config;
@@ -67,8 +66,7 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
     public void invalidateEmcCache() {
         handler.invalidateEmcCache();
     }
-    private int tickCounter = 0;
-    private long lastWarningTick = -WARNING_INTERVAL;
+
 
     public TileEMCInterface() {
         this.config = new AppEngInternalAEInventory(this, WHITELIST_SIZE);
@@ -239,11 +237,6 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
             getProxy().setIdlePowerUsage(AE2EnhancedConfig.emcInterface.idlePower);
             getProxy().onReady();
         }
-
-        tickCounter++;
-        if (tickCounter % 40 == 0) {
-            checkDuplicateInterfaces();
-        }
     }
 
     @Override
@@ -353,36 +346,6 @@ public class TileEMCInterface extends TileAENetworkBase implements ICellContaine
             clazz.getMethod("unregisterTile", TileEMCInterface.class).invoke(null, this);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to unregister ProjectE event tile", e);
-        }
-    }
-
-    private void checkDuplicateInterfaces() {
-        if (!isBound()) return;
-        long now = world.getTotalWorldTime();
-        if (now - lastWarningTick < WARNING_INTERVAL) return;
-        try {
-            IGrid grid = getProxy().getGrid();
-            if (grid == null) return;
-            Set<TileEMCInterface> duplicates = new HashSet<>();
-            for (IGridNode node : grid.getNodes()) {
-                Object host = node.getMachine();
-                if (host instanceof TileEMCInterface && host != this) {
-                    TileEMCInterface other = (TileEMCInterface) host;
-                    if (other.isBound() && ownerUUID.equals(other.ownerUUID)) {
-                        duplicates.add(other);
-                    }
-                }
-            }
-            if (!duplicates.isEmpty()) {
-                lastWarningTick = now;
-                for (EntityPlayer player : world.playerEntities) {
-                    if (player.getUniqueID().equals(ownerUUID)) {
-                        player.sendMessage(new TextComponentTranslation("chat.ae2enhanced.emc_interface.duplicate", ownerName));
-                    }
-                }
-            }
-        } catch (GridAccessException e) {
-            // ignore
         }
     }
 

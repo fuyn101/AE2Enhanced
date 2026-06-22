@@ -56,6 +56,7 @@ public class MixinPatternEncoder {
             if (player == null) return;
 
             if (player.world.isRemote) return;
+            if (player.isSneaking()) return;
 
             appeng.api.networking.IGridNode node = ((appeng.container.implementations.ContainerMEMonitorable) container).getNetworkNode();
             appeng.api.networking.IGrid grid = (node != null) ? node.getGrid() : null;

@@ -1,10 +1,14 @@
 package com.github.aeddddd.ae2enhanced.tile;
 
 import appeng.api.config.Upgrades;
+import appeng.api.networking.GridFlags;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.IConfigManager;
 import appeng.util.inv.IInventoryDestination;
@@ -16,7 +20,9 @@ import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.centralinterface.ICentralInterfaceHost;
 import com.github.aeddddd.ae2enhanced.centralinterface.TargetBinding;
+import com.github.aeddddd.ae2enhanced.item.ItemChannelReceiverCard;
 import com.github.aeddddd.ae2enhanced.util.network.WirelessChannelConnectionHelper;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -43,6 +49,9 @@ public class TileCentralMEInterface extends TileAENetworkBase
 
     private DualityCentralInterface duality;
     private StackUpgradeInventory upgrades;
+
+    private int channelCardTickCounter = 0;
+    private boolean lastChannelCardState = false;
 
     private static final Set<TileCentralMEInterface> ACTIVE_INTERFACES = Collections.newSetFromMap(new WeakHashMap<>());
 
@@ -174,6 +183,9 @@ public class TileCentralMEInterface extends TileAENetworkBase
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, appeng.util.inv.InvOperation mc, ItemStack removed, ItemStack added) {
         getInterfaceDuality().onChangeInventory(inv, slot, mc, removed, added);
+        if (inv == getUpgrades()) {
+            updateChannelCardState();
+        }
     }
 
     // ---- IInventoryDestination ----
@@ -221,11 +233,50 @@ public class TileCentralMEInterface extends TileAENetworkBase
         return this.upgrades;
     }
 
+    private boolean hasChannelReceiverCard() {
+        IItemHandler upgrades = getUpgrades();
+        for (int i = 0; i < upgrades.getSlots(); i++) {
+            ItemStack stack = upgrades.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemChannelReceiverCard) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateChannelCardState() {
+        boolean hasCard = hasChannelReceiverCard();
+        if (hasCard == this.lastChannelCardState) {
+            return;
+        }
+        this.lastChannelCardState = hasCard;
+        if (hasCard) {
+            getProxy().setFlags(GridFlags.REQUIRE_CHANNEL, GridFlags.DENSE_CAPACITY);
+        } else {
+            getProxy().setFlags(GridFlags.REQUIRE_CHANNEL);
+        }
+        IGridNode node = getProxy().getNode();
+        if (node != null) {
+            node.updateState();
+            IGrid grid = node.getGrid();
+            if (grid != null) {
+                IPathingGrid pathing = grid.getCache(IPathingGrid.class);
+                if (pathing != null) {
+                    pathing.repath();
+                }
+            }
+        }
+        if (this.world != null) {
+            IBlockState state = this.world.getBlockState(this.pos);
+            this.world.notifyBlockUpdate(this.pos, state, state, 2);
+        }
+    }
+
     // ---- ITickable (Minecraft native tick) ----
 
     @Override
-    public appeng.api.util.AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
-        return appeng.api.util.AECableType.SMART;
+    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
+        return hasChannelReceiverCard() ? AECableType.DENSE_SMART : AECableType.SMART;
     }
 
     @Override
@@ -270,10 +321,20 @@ public class TileCentralMEInterface extends TileAENetworkBase
         if (world == null || world.isRemote) return;
         if (needsReady()) {
             clearNeedsReady();
-            getProxy().setFlags(appeng.api.networking.GridFlags.REQUIRE_CHANNEL);
+            getProxy().setFlags(GridFlags.REQUIRE_CHANNEL);
             getProxy().onReady();
             getInterfaceDuality().initialize();
+            updateChannelCardState();
             WirelessChannelConnectionHelper.tryConnect(this);
+        }
+        if (++this.channelCardTickCounter >= 20) {
+            this.channelCardTickCounter = 0;
+            if (hasChannelReceiverCard()) {
+                updateChannelCardState();
+                WirelessChannelConnectionHelper.tryConnect(this);
+            } else {
+                WirelessChannelConnectionHelper.destroyConnection(this);
+            }
         }
     }
 
