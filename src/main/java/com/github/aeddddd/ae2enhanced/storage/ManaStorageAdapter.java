@@ -4,7 +4,7 @@ import appeng.api.AEApi;
 import appeng.api.storage.IStorageChannel;
 import com.github.aeddddd.ae2enhanced.storage.mana.AEManaStack;
 import com.github.aeddddd.ae2enhanced.storage.mana.IAEManaStack;
-import com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.mana.ManaChannelResolver;
 
 import java.math.BigInteger;
 
@@ -16,7 +16,7 @@ public class ManaStorageAdapter extends AbstractStorageAdapter<IAEManaStack, Man
 
     public ManaStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
-        this.channel = AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class);
+        this.channel = (IStorageChannel<IAEManaStack>) ManaChannelResolver.getChannel();
         file.loadMana(storage);
         recalcTotal();
     }

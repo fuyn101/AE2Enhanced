@@ -52,6 +52,7 @@ dependencies {
     compileOnly files('libs/thaumic-energistics-extended-life-1.12.2-2.3.5.jar')
     compileOnly files('libs/Baubles-1.12-1.5.2.jar')
     compileOnly files('libs/Botania r1.10-364.4.jar')
+    compileOnly files('libs/terminal_interaction_integration-1.0.jar')
     compileOnly files('libs/BloodMagic-1.12.2-2.4.3-105.jar')
     compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
     compileOnly files('libs/CoFHCore-1.12.2-4.6.6.1-universal.jar')

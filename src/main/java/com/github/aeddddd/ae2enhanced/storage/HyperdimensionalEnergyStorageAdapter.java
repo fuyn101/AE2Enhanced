@@ -3,8 +3,8 @@ package com.github.aeddddd.ae2enhanced.storage;
 import appeng.api.AEApi;
 import appeng.api.storage.IStorageChannel;
 import com.github.aeddddd.ae2enhanced.storage.energy.AEEnergyStack;
+import com.github.aeddddd.ae2enhanced.storage.energy.EnergyChannelResolver;
 import com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack;
-import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
 
 import java.math.BigInteger;
 
@@ -16,7 +16,7 @@ public class HyperdimensionalEnergyStorageAdapter extends AbstractStorageAdapter
 
     public HyperdimensionalEnergyStorageAdapter(HyperdimensionalStorageFile file) {
         super(file);
-        this.channel = AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class);
+        this.channel = (IStorageChannel<IAEEnergyStack>) EnergyChannelResolver.getChannel();
         file.loadEnergy(storage);
         recalcTotal();
     }

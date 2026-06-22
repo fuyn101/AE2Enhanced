@@ -11,12 +11,7 @@ import com.github.aeddddd.ae2enhanced.registry.ModNetwork;
 import com.github.aeddddd.ae2enhanced.registry.ModRecipes;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
 import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
-import com.github.aeddddd.ae2enhanced.storage.energy.EnergyStorageChannel;
-import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
-import com.github.aeddddd.ae2enhanced.storage.mana.ManaStorageChannel;
-import com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel;
-import com.github.aeddddd.ae2enhanced.storage.starlight.StarlightStorageChannel;
-import com.github.aeddddd.ae2enhanced.storage.starlight.IStarlightStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.channel.ChannelRegistrationManager;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.ConfigManager;
@@ -36,7 +31,7 @@ import org.apache.logging.log4j.Logger;
     modid = AE2Enhanced.MOD_ID,
     name = AE2Enhanced.MOD_NAME,
     version = AE2Enhanced.VERSION,
-    dependencies = "required-after:appliedenergistics2"
+    dependencies = "required-after:appliedenergistics2;after:terminal_interaction_integration"
 )
 public class AE2Enhanced {
 
@@ -83,27 +78,8 @@ public class AE2Enhanced {
 
         checkMixinEnvironment();
 
-        // 注册 RF 能量存储通道
-        appeng.api.AEApi.instance().storage().registerStorageChannel(
-                IEnergyStorageChannel.class,
-                new EnergyStorageChannel()
-        );
-
-        // 注册 Botania Mana 存储通道
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
-            appeng.api.AEApi.instance().storage().registerStorageChannel(
-                    IManaStorageChannel.class,
-                    new ManaStorageChannel()
-            );
-        }
-
-        // 注册 Astral Sorcery Starlight 存储通道
-        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
-            appeng.api.AEApi.instance().storage().registerStorageChannel(
-                    IStarlightStorageChannel.class,
-                    new StarlightStorageChannel()
-            );
-        }
+        // 注册存储通道：根据外部通道存在性决定是否注册 AE2E 自有通道
+        ChannelRegistrationManager.registerChannels();
 
         ModContent.init();
         ModRecipes.init();

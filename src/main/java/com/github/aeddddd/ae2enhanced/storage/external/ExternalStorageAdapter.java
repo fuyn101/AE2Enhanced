@@ -1,4 +1,4 @@
-package com.github.aeddddd.ae2enhanced.storage;
+package com.github.aeddddd.ae2enhanced.storage.external;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
@@ -9,6 +9,15 @@ import appeng.api.storage.IMEMonitorHandlerReceiver;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.storage.Descriptor;
+import com.github.aeddddd.ae2enhanced.storage.EnergyDescriptor;
+import com.github.aeddddd.ae2enhanced.storage.IStorageAdapter;
+import com.github.aeddddd.ae2enhanced.storage.HyperdimensionalStorageFile;
+import com.github.aeddddd.ae2enhanced.storage.ManaDescriptor;
+import com.github.aeddddd.ae2enhanced.storage.StorageConstants;
+import com.github.aeddddd.ae2enhanced.storage.StorageSection;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.math.BigInteger;
 import java.util.Iterator;
@@ -20,76 +29,106 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- * 超维度仓储中枢的泛型存储适配器基类.
+ * 外部存储通道适配器.
+ * <p>
+ * 当 Flux_Applied / Botania_Applie 等外部模组已注册对应资源的存储通道时,
+ * 本适配器将超维度仓储中枢的 BigInteger 数量通过外部通道的 {@code createFromNBT} 转换为外部 AE 堆叠,
+ * 从而参与到外部通道的 ME 网络存储体系中.
+ * </p>
+ * <p>
+ * 由于外部通道的具体堆叠类型在编译期不可见,本类直接以原始类型实现
+ * {@link IMEMonitor} 与 {@link IMEInventoryHandler},避免 AE2 泛型 API 对
+ * {@code IAEStack<T extends IAEStack<T>>} 的自引用约束.
+ * </p>
  *
- * 统一物品/流体/气体/源质四种存储类型的公共逻辑：
- * - injectItems / extractItems 的 SIMULATE/MODULATE 事务
- * - getAvailableItems / getStorageList 的遍历与数量转换
- * - recalcTotal / getTotalCount / isSafeMode 等状态查询
- * - Listener 管理与 postChange 通知
- *
- * 子类只需实现：
- * - {@link #createDescriptor(T)}：从 AE 堆叠构造描述符
- * - {@link #createResult(T, BigInteger)}：从请求堆叠 + 提取量构造结果
- * - {@link #getAETemplate(D)}：从描述符获取 AE 模板(stackSize=1)
- * - {@link #getChannel()}：返回对应的 IStorageChannel
- *
- * @param <T> AE 堆叠类型,如 IAEItemStack / IAEFluidStack / IAEGasStack / IAEEssentiaStack
- * @param <D> 描述符类型,如 ItemDescriptor / FluidDescriptor / GasDescriptor / EssentiaDescriptor
+ * @param <D> 描述符类型,如 {@link com.github.aeddddd.ae2enhanced.storage.EnergyDescriptor}
  */
-public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends Descriptor>
-        implements IMEMonitor<T>, IMEInventoryHandler<T>, IStorageAdapter {
+@SuppressWarnings({"rawtypes", "unchecked"})
+public class ExternalStorageAdapter<D extends Descriptor> implements IMEMonitor, IMEInventoryHandler, IStorageAdapter {
 
     protected final Map<D, BigInteger> storage = new ConcurrentHashMap<>();
-    protected IStorageChannel<T> channel;
+    protected final IStorageChannel<?> channel;
     protected final HyperdimensionalStorageFile file;
-    protected final List<IMEMonitorHandlerReceiver<T>> listeners = new CopyOnWriteArrayList<>();
+    protected final List<IMEMonitorHandlerReceiver> listeners = new CopyOnWriteArrayList<>();
     protected final AtomicReference<BigInteger> totalCount = new AtomicReference<>(BigInteger.ZERO);
+    protected final D descriptor;
+    protected final String nbtKey;
+
     protected Runnable onChangeCallback = null;
-    protected BiConsumer<T, IActionSource> postChangeCallback = null;
+    protected BiConsumer<IAEStack, IActionSource> postChangeCallback = null;
 
-    protected AbstractStorageAdapter(HyperdimensionalStorageFile file) {
+    /**
+     * 构造外部存储通道适配器.
+     *
+     * @param file       超维度仓储中枢持久化文件
+     * @param channel    外部存储通道实例
+     * @param nbtKey     用于 {@code createFromNBT} 的数量 NBT 键
+     * @param descriptor 该资源类型的单例描述符
+     */
+    public ExternalStorageAdapter(HyperdimensionalStorageFile file, IStorageChannel<?> channel, String nbtKey, D descriptor) {
         this.file = file;
+        this.channel = channel;
+        this.nbtKey = nbtKey;
+        this.descriptor = descriptor;
     }
-
-    // ---- 子类必须实现 ----
-
-    /**
-     * 从输入 AE 堆叠构造描述符,用于 Map 的 Key.
-     */
-    protected abstract D createDescriptor(T input);
-
-    /**
-     * 从请求堆叠和实际提取量构造结果堆叠.
-     * 实现方式因类型而异：
-     * - 物品/流体：通常通过 channel.createStack(...) 创建后设置 size
-     * - 气体/源质：通常直接 request.copy() 后设置 size
-     */
-    protected abstract T createResult(T request, BigInteger amount);
-
-    /**
-     * 从描述符获取缓存的 AE 模板(stackSize=1).
-     */
-    protected abstract T getAETemplate(D descriptor);
-
-    @Override
-    public abstract IStorageChannel<T> getChannel();
 
     /**
      * 返回本适配器对应的存储分区，用于 section 级脏标记。
      */
-    protected abstract StorageSection getStorageSection();
+    protected StorageSection getStorageSection() {
+        if (descriptor instanceof EnergyDescriptor) {
+            return StorageSection.ENERGY;
+        }
+        if (descriptor instanceof ManaDescriptor) {
+            return StorageSection.MANA;
+        }
+        return StorageSection.ENERGY;
+    }
 
-    // ---- 核心存储操作(通用实现) ----
+    protected D createDescriptor(IAEStack input) {
+        return descriptor;
+    }
+
+    protected IAEStack createResult(IAEStack request, BigInteger amount) {
+        long size = amount.compareTo(StorageConstants.LONG_MAX) > 0 ? Long.MAX_VALUE : amount.longValue();
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setLong(nbtKey, size);
+
+        IAEStack result = ExternalStackFactory.createFromNBT(channel, nbt);
+        if (result == null) {
+            result = ExternalStackFactory.createStack(channel, size);
+        }
+        if (result != null) {
+            result.setStackSize(size);
+        }
+        return result;
+    }
+
+    protected IAEStack getAETemplate(D descriptor) {
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setLong(nbtKey, 1L);
+
+        IAEStack template = ExternalStackFactory.createFromNBT(channel, nbt);
+        if (template == null) {
+            template = ExternalStackFactory.createStack(channel, 1L);
+        }
+        if (template != null) {
+            template.setStackSize(1L);
+        }
+        return template;
+    }
 
     @Override
-    public T injectItems(T input, Actionable type, IActionSource src) {
+    public IStorageChannel getChannel() {
+        return channel;
+    }
+
+    @Override
+    public IAEStack injectItems(IAEStack input, Actionable type, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) return null;
         if (file != null && file.isSafeMode()) {
-            return input; // 安全模式：拒绝写入
+            return input;
         }
-        // SIMULATE 分支不修改 storage，直接返回 null（全部接受）。
-        // 跳过 createDescriptor 可避免大量合成预演时的描述符分配。
         if (type != Actionable.MODULATE) {
             return null;
         }
@@ -102,22 +141,20 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         BigInteger old = storage.get(key);
         if (old == null) {
             storage.put(key, amount);
-            onDescriptorAdded(key);
         } else {
             storage.put(key, old.add(amount));
         }
         addToTotal(amount);
         if (file != null) file.markDirty(getStorageSection());
 
-        // 只在真正有监听器时才构造 change 与通知
         if (hasChangeConsumers()) {
             notifyPostChange(input.copy(), src);
         }
-        return null; // 无限容量,全部接受
+        return null;
     }
 
     @Override
-    public T extractItems(T request, Actionable type, IActionSource src) {
+    public IAEStack extractItems(IAEStack request, Actionable type, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
         D key = createDescriptor(request);
         if (key == null) {
@@ -137,7 +174,6 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             BigInteger remaining = available.subtract(toExtract);
             if (remaining.signum() <= 0) {
                 storage.remove(key);
-                onDescriptorRemoved(key);
             } else {
                 storage.put(key, remaining);
             }
@@ -145,8 +181,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             if (file != null) file.markDirty(getStorageSection());
 
             if (hasChangeConsumers()) {
-                T change = request.copy();
-                // 绝大部分提取量都在 long 范围内,避免 min() 分配
+                IAEStack change = request.copy();
                 long changeSize;
                 if (toExtract.bitLength() < 63) {
                     changeSize = -toExtract.longValue();
@@ -162,14 +197,14 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     }
 
     @Override
-    public IItemList<T> getAvailableItems(IItemList<T> out) {
+    public IItemList getAvailableItems(IItemList out) {
         for (Map.Entry<D, BigInteger> entry : storage.entrySet()) {
             D desc = entry.getKey();
-            T aeStack = getAETemplate(desc);
+            IAEStack aeStack = getAETemplate(desc);
             if (aeStack == null) continue;
 
             BigInteger count = entry.getValue();
-            T copy = aeStack.copy();
+            IAEStack copy = aeStack.copy();
             if (count.compareTo(StorageConstants.LONG_MAX) > 0) {
                 copy.setStackSize(Long.MAX_VALUE);
             } else {
@@ -180,47 +215,18 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         return out;
     }
 
-    // ---- 状态查询(通用实现) ----
-
-    public void recalcTotal() {
-        BigInteger sum = BigInteger.ZERO;
-        for (BigInteger v : storage.values()) {
-            sum = sum.add(v);
-        }
-        totalCount.set(sum);
-    }
-
-    @Override
-    public Map<D, BigInteger> getStorageMap() {
-        return storage;
-    }
-
-    @Override
-    public BigInteger getTotalCount() {
-        return totalCount.get();
-    }
-
-    @Override
-    public boolean isSafeMode() {
-        return file != null && file.isSafeMode();
-    }
-
-    public HyperdimensionalStorageFile getFile() {
-        return file;
-    }
-
     @Override
     public AccessRestriction getAccess() {
         return AccessRestriction.READ_WRITE;
     }
 
     @Override
-    public boolean isPrioritized(T input) {
+    public boolean isPrioritized(IAEStack input) {
         return false;
     }
 
     @Override
-    public boolean canAccept(T input) {
+    public boolean canAccept(IAEStack input) {
         return true;
     }
 
@@ -240,19 +246,43 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     }
 
     @Override
-    public IItemList<T> getStorageList() {
-        IItemList<T> list = channel.createList();
+    public IItemList getStorageList() {
+        IItemList list = channel.createList();
         return getAvailableItems(list);
     }
 
     @Override
-    public void addListener(IMEMonitorHandlerReceiver<T> l, Object verificationToken) {
+    public void addListener(IMEMonitorHandlerReceiver l, Object verificationToken) {
         listeners.add(l);
     }
 
     @Override
-    public void removeListener(IMEMonitorHandlerReceiver<T> l) {
+    public void removeListener(IMEMonitorHandlerReceiver l) {
         listeners.remove(l);
+    }
+
+    public void recalcTotal() {
+        BigInteger sum = BigInteger.ZERO;
+        for (BigInteger v : storage.values()) {
+            sum = sum.add(v);
+        }
+        totalCount.set(sum);
+    }
+
+    public Map<D, BigInteger> getStorageMap() {
+        return storage;
+    }
+
+    public BigInteger getTotalCount() {
+        return totalCount.get();
+    }
+
+    public boolean isSafeMode() {
+        return file != null && file.isSafeMode();
+    }
+
+    public HyperdimensionalStorageFile getFile() {
+        return file;
     }
 
     @Override
@@ -260,19 +290,9 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         this.onChangeCallback = callback;
     }
 
-    public void setPostChangeCallback(BiConsumer<T, IActionSource> callback) {
+    public void setPostChangeCallback(BiConsumer<IAEStack, IActionSource> callback) {
         this.postChangeCallback = callback;
     }
-
-    // ---- 索引 Hook（子类可覆盖） ----
-
-    protected void onDescriptorAdded(D descriptor) {
-    }
-
-    protected void onDescriptorRemoved(D descriptor) {
-    }
-
-    // ---- 内部辅助 ----
 
     private boolean hasChangeConsumers() {
         return !listeners.isEmpty() || onChangeCallback != null || postChangeCallback != null;
@@ -294,9 +314,9 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
         } while (!totalCount.compareAndSet(prev, next));
     }
 
-    protected void notifyPostChange(T change, IActionSource src) {
+    protected void notifyPostChange(IAEStack change, IActionSource src) {
         if (!listeners.isEmpty()) {
-            for (IMEMonitorHandlerReceiver<T> listener : listeners) {
+            for (IMEMonitorHandlerReceiver listener : listeners) {
                 listener.postChange(this, SingleItemIterable.of(change), src);
             }
         }
@@ -309,8 +329,7 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
     }
 
     /**
-     * 单元素不可变 Iterable，替代 {@link java.util.Collections#singletonList(Object)}，
-     * 避免每次通知都创建 List 与 Iterator 对象。
+     * 单元素不可变 Iterable.
      */
     private static final class SingleItemIterable<E> implements Iterable<E> {
         private final E item;
@@ -319,7 +338,6 @@ public abstract class AbstractStorageAdapter<T extends IAEStack<T>, D extends De
             this.item = item;
         }
 
-        @SuppressWarnings("unchecked")
         static <E> SingleItemIterable<E> of(E item) {
             return new SingleItemIterable<>(item);
         }

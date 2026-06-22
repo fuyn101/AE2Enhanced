@@ -11,15 +11,23 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.block.BlockHyperdimensionalController;
+import com.github.aeddddd.ae2enhanced.integration.botaniaapplie.BotaniaApplieCompat;
+import com.github.aeddddd.ae2enhanced.integration.fluxapplied.FluxAppliedCompat;
+import com.github.aeddddd.ae2enhanced.storage.EnergyDescriptor;
 import com.github.aeddddd.ae2enhanced.storage.FluidStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.HyperdimensionalEnergyStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.HyperdimensionalStorageFile;
+import com.github.aeddddd.ae2enhanced.storage.ManaDescriptor;
 import com.github.aeddddd.ae2enhanced.storage.ManaStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.StarlightStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
+import com.github.aeddddd.ae2enhanced.storage.IStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.OptionalStorageManager;
 import com.github.aeddddd.ae2enhanced.storage.SimpleMEMonitor;
-import com.github.aeddddd.ae2enhanced.storage.energy.IEnergyStorageChannel;
+import com.github.aeddddd.ae2enhanced.storage.channel.ChannelRegistrationManager;
+import com.github.aeddddd.ae2enhanced.storage.energy.EnergyChannelResolver;
+import com.github.aeddddd.ae2enhanced.storage.external.ExternalStorageAdapter;
+import com.github.aeddddd.ae2enhanced.storage.mana.ManaChannelResolver;
 import appeng.api.AEApi;
 import appeng.api.storage.IMEInventoryHandler;
 import net.minecraft.block.state.IBlockState;
@@ -49,8 +57,8 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
     private HyperdimensionalStorageFile storageFile;
     private ItemStorageAdapter itemAdapter;
     private FluidStorageAdapter fluidAdapter;
-    private HyperdimensionalEnergyStorageAdapter energyAdapter;
-    private ManaStorageAdapter manaAdapter;
+    private IStorageAdapter energyAdapter;
+    private IStorageAdapter manaAdapter;
     private StarlightStorageAdapter starlightAdapter;
     private OptionalStorageManager optionalStorage;
     private SimpleMEMonitor itemMonitor;
@@ -135,13 +143,13 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         if (channel instanceof appeng.api.storage.channels.IFluidStorageChannel && fluidAdapter != null) {
             return Collections.singletonList(fluidAdapter);
         }
-        if (channel instanceof IEnergyStorageChannel && energyAdapter != null) {
-            return Collections.singletonList(energyAdapter);
+        if (ChannelRegistrationManager.isEnergyChannel(channel) && energyAdapter != null) {
+            return Collections.singletonList((IMEInventoryHandler) energyAdapter);
         }
-        if (channel instanceof com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel && manaAdapter != null) {
-            return Collections.singletonList(manaAdapter);
+        if (ChannelRegistrationManager.isManaChannel(channel) && manaAdapter != null) {
+            return Collections.singletonList((IMEInventoryHandler) manaAdapter);
         }
-        if (channel instanceof com.github.aeddddd.ae2enhanced.storage.starlight.IStarlightStorageChannel && starlightAdapter != null) {
+        if (ChannelRegistrationManager.isStarlightChannel(channel) && starlightAdapter != null) {
             return Collections.singletonList(starlightAdapter);
         }
         if (optionalStorage != null) {
@@ -237,16 +245,12 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             fluidAdapter.setOnChangeCallback(null);
             fluidAdapter.setPostChangeCallback(this::postFluidAlteration);
 
-            energyAdapter = new HyperdimensionalEnergyStorageAdapter(storageFile);
-            storageFile.setEnergyStorageRef(energyAdapter.getStorageMap());
-            energyAdapter.setOnChangeCallback(null);
-            energyAdapter.setPostChangeCallback(this::postEnergyAlteration);
+            energyAdapter = createEnergyAdapter();
+            storageFile.setEnergyStorageRef((java.util.Map<EnergyDescriptor, java.math.BigInteger>) (java.util.Map<?, ?>) energyAdapter.getStorageMap());
 
-            if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
-                manaAdapter = new ManaStorageAdapter(storageFile);
+            manaAdapter = createManaAdapter();
+            if (manaAdapter != null) {
                 storageFile.setManaStorageRef(manaAdapter.getStorageMap());
-                manaAdapter.setOnChangeCallback(null);
-                manaAdapter.setPostChangeCallback(this::postManaAlteration);
             }
 
             if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
@@ -258,6 +262,7 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
 
             optionalStorage = new OptionalStorageManager();
             optionalStorage.init(storageFile);
+
             Object gasAdapter = optionalStorage.getGasAdapter();
             if (gasAdapter != null) {
                 try {
@@ -283,6 +288,54 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
                 }
             }
         }
+    }
+
+    /**
+     * 创建能量适配器:优先使用 Flux_Applied 外部通道,否则回退到 AE2E 自有通道.
+     */
+    private IStorageAdapter createEnergyAdapter() {
+        if (FluxAppliedCompat.isFluxStorageChannelAvailable()) {
+            ExternalStorageAdapter<EnergyDescriptor> adapter = new ExternalStorageAdapter<>(
+                    storageFile,
+                    FluxAppliedCompat.getFluxStorageChannelInstance(),
+                    "Count",
+                    EnergyDescriptor.INSTANCE
+            );
+            storageFile.loadEnergy((java.util.Map<EnergyDescriptor, java.math.BigInteger>) (java.util.Map<?, ?>) adapter.getStorageMap());
+            adapter.recalcTotal();
+            adapter.setOnChangeCallback(null);
+            adapter.setPostChangeCallback(this::postEnergyAlteration);
+            return adapter;
+        }
+        HyperdimensionalEnergyStorageAdapter adapter = new HyperdimensionalEnergyStorageAdapter(storageFile);
+        adapter.setOnChangeCallback(null);
+        adapter.setPostChangeCallback(this::postEnergyAlteration);
+        return adapter;
+    }
+
+    /**
+     * 创建 Mana 适配器:优先使用 Botania_Applie 外部通道,否则在 Botania 存在时回退到 AE2E 自有通道.
+     */
+    private IStorageAdapter createManaAdapter() {
+        if (BotaniaApplieCompat.isManaStorageChannelAvailable()) {
+            ExternalStorageAdapter<ManaDescriptor> adapter = new ExternalStorageAdapter<>(
+                    storageFile,
+                    BotaniaApplieCompat.getManaStorageChannelInstance(),
+                    "Count",
+                    ManaDescriptor.INSTANCE
+            );
+            storageFile.loadMana((java.util.Map<ManaDescriptor, java.math.BigInteger>) (java.util.Map<?, ?>) adapter.getStorageMap());
+            adapter.recalcTotal();
+            adapter.setOnChangeCallback(null);
+            adapter.setPostChangeCallback(this::postManaAlteration);
+            return adapter;
+        } else if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
+            ManaStorageAdapter adapter = new ManaStorageAdapter(storageFile);
+            adapter.setOnChangeCallback(null);
+            adapter.setPostChangeCallback(this::postManaAlteration);
+            return adapter;
+        }
+        return null;
     }
 
     // 缓存 AE2 NetworkMonitor 反射,避免高频 IO 时重复反射查找
@@ -376,13 +429,10 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
             refreshSingleMonitor(storageGrid.getInventory(
                 appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class)
             ));
-            refreshSingleMonitor(storageGrid.getInventory(
-                appeng.api.AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class)
-            ));
+            refreshSingleMonitor(storageGrid.getInventory(EnergyChannelResolver.getChannel()));
 
             if (manaAdapter != null) {
-                refreshOptionalMonitor(storageGrid, manaAdapter,
-                        "com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel", "mana");
+                refreshSingleMonitor(storageGrid.getInventory(ManaChannelResolver.getChannel()));
             }
             if (starlightAdapter != null) {
                 refreshOptionalMonitor(storageGrid, starlightAdapter,
@@ -449,14 +499,14 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
     }
 
-    private void postEnergyAlteration(com.github.aeddddd.ae2enhanced.storage.energy.IAEEnergyStack change, appeng.api.networking.security.IActionSource src) {
+    private void postEnergyAlteration(appeng.api.storage.data.IAEStack<?> change, appeng.api.networking.security.IActionSource src) {
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
             storageGrid.postAlterationOfStoredItems(
-                AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class),
+                EnergyChannelResolver.getChannel(),
                 java.util.Collections.singletonList(change), machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn(
@@ -464,14 +514,14 @@ public class TileHyperdimensionalController extends TileAENetworkBase implements
         }
     }
 
-    private void postManaAlteration(com.github.aeddddd.ae2enhanced.storage.mana.IAEManaStack change, appeng.api.networking.security.IActionSource src) {
+    private void postManaAlteration(appeng.api.storage.data.IAEStack<?> change, appeng.api.networking.security.IActionSource src) {
         try {
             appeng.api.networking.IGrid grid = getProxy().getGrid();
             if (grid == null) return;
             appeng.api.networking.storage.IStorageGrid storageGrid = grid.getCache(appeng.api.networking.storage.IStorageGrid.class);
             if (storageGrid == null) return;
             storageGrid.postAlterationOfStoredItems(
-                AEApi.instance().storage().getStorageChannel(com.github.aeddddd.ae2enhanced.storage.mana.IManaStorageChannel.class),
+                ManaChannelResolver.getChannel(),
                 java.util.Collections.singletonList(change), machineSource);
         } catch (Exception e) {
             com.github.aeddddd.ae2enhanced.AE2Enhanced.LOGGER.warn("[AE2E] Failed to post mana alteration", e);
