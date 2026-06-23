@@ -21,6 +21,7 @@ public class LateMixinLoader implements ILateMixinLoader {
     public List<String> getMixinConfigs() {
         List<String> configs = new ArrayList<>(Arrays.asList(
                 "mixins.ae2enhanced.late.json",
+                "mixins.ae2enhanced.late.tii.json",
                 "mixins.ae2enhanced.late.thaumic.json",
                 "mixins.ae2enhanced.late.gas.json"
         ));
