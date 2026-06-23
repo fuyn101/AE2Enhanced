@@ -20,6 +20,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import javax.annotation.Nonnull;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,7 +42,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
     // 缓存
     private List<IAEItemStack> availableCache = Collections.emptyList();
     private long availableCacheTick = -100;
-    private long emcBalanceCache = 0;
+    private BigInteger emcBalanceCache = BigInteger.ZERO;
     private long emcBalanceCacheTick = -100;
 
     // 物品 EMC 值缓存,避免每次刷新都对每个物品做反射
@@ -73,11 +74,12 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         if (provider == null) return null;
 
         // 提取时强制刷新余额缓存
-        long balance = getEmcBalance(provider, true);
-        long maxAffordable = balance / itemEmc;
-        if (maxAffordable <= 0) return null;
+        BigInteger balance = getEmcBalance(provider, true);
+        BigInteger itemEmcBI = BigInteger.valueOf(itemEmc);
+        BigInteger maxAffordable = balance.divide(itemEmcBI);
+        if (maxAffordable.signum() <= 0) return null;
 
-        long extractCount = Math.min(request.getStackSize(), maxAffordable);
+        long extractCount = Math.min(request.getStackSize(), maxAffordable.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
         if (extractCount <= 0) return null;
 
         if (type == Actionable.SIMULATE) {
@@ -88,9 +90,8 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
 
         // MODULATE: 扣减 EMC
         long cost = extractCount * itemEmc;
-        long newBalance = balance - cost;
-        ProjectEHelper.setEmc(provider, newBalance);
-        refreshEmcCache(newBalance);
+        ProjectEHelper.subtractEmc(provider, cost);
+        refreshEmcCache(balance.subtract(BigInteger.valueOf(cost)));
 
         // 同步在线玩家
         syncOwnerIfOnline();
@@ -110,7 +111,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         Object provider = tile.getKnowledgeProvider();
         if (provider == null) return out;
 
-        long balance = getEmcBalance(provider, false);
+        BigInteger balance = getEmcBalance(provider, false);
         List<IAEItemStack> cached = getAvailableCache(provider, balance);
         for (IAEItemStack stack : cached) {
             out.add(stack.copy());
@@ -177,22 +178,22 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         emcValueCache.clear();
     }
 
-    private long getEmcBalance(Object provider, boolean forceRefresh) {
+    private BigInteger getEmcBalance(Object provider, boolean forceRefresh) {
         long now = tile.getWorld().getTotalWorldTime();
         if (forceRefresh || now - emcBalanceCacheTick >= 20) {
-            emcBalanceCache = ProjectEHelper.getEmc(provider);
+            emcBalanceCache = ProjectEHelper.getEmcBig(provider);
             emcBalanceCacheTick = now;
         }
         return emcBalanceCache;
     }
 
-    private void refreshEmcCache(long balance) {
+    private void refreshEmcCache(BigInteger balance) {
         emcBalanceCache = balance;
         emcBalanceCacheTick = tile.getWorld().getTotalWorldTime();
     }
 
     @Nonnull
-    private List<IAEItemStack> getAvailableCache(Object provider, long balance) {
+    private List<IAEItemStack> getAvailableCache(Object provider, BigInteger balance) {
         long now = tile.getWorld().getTotalWorldTime();
         if (now - availableCacheTick < 5 && !availableCache.isEmpty()) {
             return availableCache;
@@ -220,12 +221,13 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
             if (!knownSet.contains(desc)) continue;
             long itemEmc = getCachedEmcValue(whitelistItem);
             if (itemEmc <= 0) continue;
-            long maxCount = balance / itemEmc;
-            if (maxCount <= 0) continue;
+            BigInteger itemEmcBI = BigInteger.valueOf(itemEmc);
+            BigInteger maxCount = balance.divide(itemEmcBI);
+            if (maxCount.signum() <= 0) continue;
 
             IAEItemStack ae = AEItemStack.fromItemStack(whitelistItem);
             if (ae == null) continue;
-            ae.setStackSize(Math.min(maxCount, Long.MAX_VALUE));
+            ae.setStackSize(maxCount.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
             list.add(ae);
         }
         availableCache = list;

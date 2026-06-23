@@ -55,6 +55,9 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (Loader.isModLoaded("nuclearcraft")) {
             configs.add("mixins.ae2enhanced.late.nuclearcraft.json");
         }
+        if (Loader.isModLoaded("projecte")) {
+            configs.add("mixins.ae2enhanced.late.projecte.json");
+        }
         return configs;
     }
 }

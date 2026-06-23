@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.Loader;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -179,6 +180,59 @@ public final class ProjectEHelper {
             setEmcMethod.invoke(provider, emc);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to set player EMC", e);
+        }
+    }
+
+    /**
+     * 获取玩家 BigInteger EMC 余额（若 Mixin 未生效则回退到 long）。
+     */
+    @Nonnull
+    public static BigInteger getEmcBig(@Nullable Object provider) {
+        if (!isAvailable() || provider == null) return BigInteger.ZERO;
+        if (ProjectEBigEmcHelper.isBigEmcProvider(provider)) {
+            return ProjectEBigEmcHelper.getEmcBig(provider);
+        }
+        return BigInteger.valueOf(getEmc(provider));
+    }
+
+    /**
+     * 设置玩家 BigInteger EMC 余额。
+     */
+    public static void setEmcBig(@Nullable Object provider, @Nullable BigInteger emc) {
+        if (!isAvailable() || provider == null) return;
+        if (ProjectEBigEmcHelper.isBigEmcProvider(provider)) {
+            try {
+                Method m = provider.getClass().getMethod("ae2e$setEmcBig", BigInteger.class);
+                m.invoke(provider, emc == null ? BigInteger.ZERO : emc);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to set BigInteger EMC", e);
+            }
+        } else {
+            setEmc(provider, emc == null ? 0L : emc.longValue());
+        }
+    }
+
+    /**
+     * 增加玩家 BigInteger EMC。
+     */
+    public static void addEmc(@Nullable Object provider, long value) {
+        if (!isAvailable() || provider == null || value <= 0) return;
+        if (ProjectEBigEmcHelper.isBigEmcProvider(provider)) {
+            ProjectEBigEmcHelper.addEmc(provider, value);
+        } else {
+            setEmc(provider, getEmc(provider) + value);
+        }
+    }
+
+    /**
+     * 减少玩家 BigInteger EMC。
+     */
+    public static void subtractEmc(@Nullable Object provider, long value) {
+        if (!isAvailable() || provider == null || value <= 0) return;
+        if (ProjectEBigEmcHelper.isBigEmcProvider(provider)) {
+            ProjectEBigEmcHelper.subtractEmc(provider, value);
+        } else {
+            setEmc(provider, getEmc(provider) - value);
         }
     }
 
