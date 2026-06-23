@@ -199,6 +199,16 @@ public final class PersonalDimensionManager {
         }
     }
 
+    private static void preloadChunks(WorldServer world, BlockPos center) {
+        int cx = center.getX() >> 4;
+        int cz = center.getZ() >> 4;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                world.getChunkProvider().provideChunk(cx + dx, cz + dz);
+            }
+        }
+    }
+
     public static void teleportTo(EntityPlayerMP player, int dimId, double x, double y, double z, float yaw, float pitch) {
         if (player.dimension == dimId) {
             player.setPositionAndUpdate(x, y, z);
@@ -256,8 +266,18 @@ public final class PersonalDimensionManager {
         if (overworld == null) return;
         PersonalDimensionData data = PersonalDimensionData.get(overworld);
         for (PlayerDimEntry entry : data.getAllEntries()) {
-            if (entry.dimensionId != Integer.MIN_VALUE && !DimensionManager.isDimensionRegistered(entry.dimensionId)) {
+            if (entry.dimensionId == Integer.MIN_VALUE) continue;
+            if (!DimensionManager.isDimensionRegistered(entry.dimensionId)) {
                 DimensionManager.registerDimension(entry.dimensionId, PERSONAL_DIM_TYPE);
+            }
+            // 服务端启动时即把已存在的个人维度标记为常驻加载，避免登录/重载时世界对象被回收
+            // 导致无线连接器等跨 tick 状态丢失
+            try {
+                DimensionManager.initDimension(entry.dimensionId);
+                DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
+                AE2Enhanced.LOGGER.info("[AE2E] Kept personal dimension {} loaded on server start", entry.dimensionId);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded on server start", entry.dimensionId, e);
             }
         }
     }
@@ -378,6 +398,20 @@ public final class PersonalDimensionManager {
     }
 
     /**
+     * 个人维度 WorldServer 创建后立即替换 WorldInfo，避免玩家进入/登录后才隔离导致客户端不同步。
+     */
+    @SubscribeEvent
+    public static void onWorldLoad(WorldEvent.Load event) {
+        if (event.getWorld().isRemote || !(event.getWorld() instanceof WorldServer)) return;
+        int dim = event.getWorld().provider.getDimension();
+        if (!isPersonalDimension(dim)) return;
+        PlayerDimEntry entry = getEntryByDimension(dim);
+        if (entry != null) {
+            ensureIsolatedWorldInfo((WorldServer) event.getWorld(), entry);
+        }
+    }
+
+    /**
      * 玩家在个人维度死亡并重生后恢复默认能力。
      */
     @SubscribeEvent
@@ -397,26 +431,27 @@ public final class PersonalDimensionManager {
         if (!(event.player instanceof EntityPlayerMP)) return;
         EntityPlayerMP player = (EntityPlayerMP) event.player;
         PlayerDimEntry entry = getEntry(player.getUniqueID());
-        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
-            // 玩家在线期间保持其个人维度加载，方便外部区块加载器正常工作
-            DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
+        if (entry.dimensionId != Integer.MIN_VALUE) {
+            // 玩家个人维度一旦加载就保持常驻，避免登录/重载时世界对象被回收
+            // 导致区块、无线连接器等跨 tick 状态丢失
+            try {
+                DimensionManager.initDimension(entry.dimensionId);
+                DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded for player {}", entry.dimensionId, player.getName(), e);
+            }
         }
-        if (isPersonalDimension(event.player.dimension)) {
-            DimensionManager.initDimension(event.player.dimension);
-            sendRulesToPlayer(event.player.getUniqueID());
-        }
-    }
-
-    /**
-     * 玩家下线后取消 keep-loaded 标记；如果外部区块加载器仍有强制加载区块，
-     * Forge 会根据 persistent chunks 继续保留该维度。
-     */
-    @SubscribeEvent
-    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.player.world.isRemote) return;
-        PlayerDimEntry entry = getEntry(event.player.getUniqueID());
-        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
-            DimensionManager.keepDimensionLoaded(entry.dimensionId, false);
+        if (isPersonalDimension(player.dimension)) {
+            WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
+            if (dimWorld != null) {
+                ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
+                BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
+                preloadChunks(dimWorld, pos);
+                relightDimensionChunks(player.dimension, pos);
+                refreshSkyLight(dimWorld, pos);
+                AE2Enhanced.LOGGER.info("[AE2E] Preloaded personal dimension {} chunks around {}", player.dimension, pos);
+            }
+            sendRulesToPlayer(player.getUniqueID());
         }
     }
 
