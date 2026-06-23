@@ -15,6 +15,7 @@ public final class ProjectEBigEmcHelper {
     private static final String METHOD_ADD_EMC = "ae2e$addEmc";
     private static final String METHOD_SUBTRACT_EMC = "ae2e$subtractEmc";
 
+    private static Class<?> cachedProviderClass;
     private static Method getEmcBigMethod;
     private static Method addEmcMethod;
     private static Method subtractEmcMethod;
@@ -22,17 +23,24 @@ public final class ProjectEBigEmcHelper {
     private ProjectEBigEmcHelper() {}
 
     private static void ensureMethods(Class<?> clazz) {
-        if (getEmcBigMethod != null) return;
+        if (getEmcBigMethod != null && cachedProviderClass != null && cachedProviderClass.isAssignableFrom(clazz)) {
+            return;
+        }
         try {
             getEmcBigMethod = clazz.getMethod(METHOD_GET_EMC_BIG);
             addEmcMethod = clazz.getMethod(METHOD_ADD_EMC, long.class);
             subtractEmcMethod = clazz.getMethod(METHOD_SUBTRACT_EMC, long.class);
+            cachedProviderClass = clazz;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to locate ProjectE BigInteger EMC methods on {}", clazz, e);
+            getEmcBigMethod = null;
+            addEmcMethod = null;
+            subtractEmcMethod = null;
+            cachedProviderClass = null;
         }
     }
 
-    public static boolean isBigEmcProvider(@Nonnull Object provider) {
+    public static boolean isBigEmcProvider(Object provider) {
         if (provider == null) return false;
         ensureMethods(provider.getClass());
         return getEmcBigMethod != null;

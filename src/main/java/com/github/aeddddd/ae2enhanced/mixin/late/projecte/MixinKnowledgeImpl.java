@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.mixin.late.projecte;
 
 import net.minecraft.nbt.NBTTagCompound;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -24,6 +25,14 @@ public class MixinKnowledgeImpl {
     @Unique
     private BigInteger ae2e$emcBig = BigInteger.ZERO;
 
+    @Shadow
+    private long emc;
+
+    @Unique
+    private void ae2e$syncEmcField() {
+        this.emc = ae2e$emcBig.compareTo(LONG_MAX) >= 0 ? Long.MAX_VALUE : ae2e$emcBig.longValue();
+    }
+
     @Inject(method = "getEmc()J", at = @At("HEAD"), cancellable = true, remap = false)
     private void ae2e$onGetEmc(CallbackInfoReturnable<Long> cir) {
         if (ae2e$emcBig.compareTo(LONG_MAX) >= 0) {
@@ -36,6 +45,7 @@ public class MixinKnowledgeImpl {
     @Inject(method = "setEmc(J)V", at = @At("HEAD"), cancellable = true, remap = false)
     private void ae2e$onSetEmc(long emc, CallbackInfo ci) {
         ae2e$emcBig = emc < 0 ? BigInteger.ZERO : BigInteger.valueOf(emc);
+        ae2e$syncEmcField();
         ci.cancel();
     }
 
@@ -56,6 +66,7 @@ public class MixinKnowledgeImpl {
         } else {
             ae2e$emcBig = BigInteger.ZERO;
         }
+        ae2e$syncEmcField();
     }
 
     /**
@@ -72,6 +83,7 @@ public class MixinKnowledgeImpl {
     @SuppressWarnings("unused")
     public void ae2e$setEmcBig(BigInteger emc) {
         ae2e$emcBig = emc == null ? BigInteger.ZERO : emc;
+        ae2e$syncEmcField();
     }
 
     /**
@@ -81,6 +93,7 @@ public class MixinKnowledgeImpl {
     public void ae2e$addEmc(long value) {
         if (value > 0) {
             ae2e$emcBig = ae2e$emcBig.add(BigInteger.valueOf(value));
+            ae2e$syncEmcField();
         }
     }
 
@@ -94,6 +107,7 @@ public class MixinKnowledgeImpl {
             if (ae2e$emcBig.signum() < 0) {
                 ae2e$emcBig = BigInteger.ZERO;
             }
+            ae2e$syncEmcField();
         }
     }
 }
