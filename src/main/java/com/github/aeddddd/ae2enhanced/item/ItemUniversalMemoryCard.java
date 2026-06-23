@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.item;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketUMCAction;
-import com.github.aeddddd.ae2enhanced.platform.zone.ZonePositionData;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCCopyService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCPasteService;
 import com.github.aeddddd.ae2enhanced.util.memorycard.core.UMCSelectionService;
@@ -247,13 +246,6 @@ public class ItemUniversalMemoryCard extends Item {
                     boolean isAlt = org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
                             || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU);
 
-                    // 控制器方块不拦截,让 onBlockActivated 处理
-                    boolean isPlatformController = event.getWorld().getBlockState(event.getPos()).getBlock()
-                            instanceof com.github.aeddddd.ae2enhanced.block.BlockAdvancedPlatformController;
-                    if (isPlatformController && !isCtrl && !isSneaking && !isAlt) {
-                        return; // 不取消事件,让控制器打开 GUI
-                    }
-
                     // 智能样板接口绑定：客户端查询 JEI 后直接发送 PacketSmartPatternBind
                     if (isSmartPatternInterface && !isSneaking && !isCtrl && !isAlt) {
                         handleSmartPatternBindClient(player, stack, event.getPos(), event.getWorld());
@@ -414,19 +406,6 @@ public class ItemUniversalMemoryCard extends Item {
     // ============================================================
     // Server-side fallback
     // ============================================================
-
-    @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
-        ItemStack stack = player.getHeldItem(hand);
-        if (stack.getItem() instanceof ItemUniversalMemoryCard) {
-            // 控制器方块让 onBlockActivated 处理
-            if (world.getBlockState(pos).getBlock() instanceof com.github.aeddddd.ae2enhanced.block.BlockAdvancedPlatformController) {
-                return EnumActionResult.PASS;
-            }
-            return EnumActionResult.FAIL;
-        }
-        return EnumActionResult.PASS;
-    }
 
     // ============================================================
     // Tooltip

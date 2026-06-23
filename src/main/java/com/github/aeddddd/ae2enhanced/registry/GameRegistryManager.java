@@ -70,7 +70,6 @@ public final class GameRegistryManager {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
             ItemRegistry.STARLIGHT_DROP = new com.github.aeddddd.ae2enhanced.item.ItemStarlightDrop();
         }
-        ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE = new ItemPlatformDevelopmentLicense();
         ItemRegistry.ME_OMNI_TOOL = new ItemAdvancedMEOmniTool();
         ItemRegistry.ME_PLACEMENT_TOOL = new ItemMEPlacementTool();
         ItemRegistry.VIRTUAL_PARALLEL_CARD = new ItemVirtualParallelCard();
@@ -134,7 +133,6 @@ public final class GameRegistryManager {
             GameRegistry.registerTileEntity(TileChunkManaNode.class, AE2Enhanced.MOD_ID + ":chunk_mana_node");
             GameRegistry.registerTileEntity(TileCompressedChunkManaNode.class, AE2Enhanced.MOD_ID + ":compressed_chunk_mana_node");
         }
-        GameRegistry.registerTileEntity(TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAdvancedMECollector.class, AE2Enhanced.MOD_ID + ":advanced_me_collector");
         GameRegistry.registerTileEntity(TileMENetworkRecycler.class, AE2Enhanced.MOD_ID + ":me_network_recycler");
         if (BlockRegistry.EMC_INTERFACE != null) {
@@ -214,7 +212,6 @@ public final class GameRegistryManager {
         if (ItemRegistry.STARLIGHT_DROP != null) {
             event.getRegistry().register(ItemRegistry.STARLIGHT_DROP);
         }
-        event.getRegistry().register(ItemRegistry.PLATFORM_DEVELOPMENT_LICENSE);
         event.getRegistry().register(ItemRegistry.ME_OMNI_TOOL);
         event.getRegistry().register(ItemRegistry.ME_PLACEMENT_TOOL);
         event.getRegistry().register(ItemRegistry.VIRTUAL_PARALLEL_CARD);

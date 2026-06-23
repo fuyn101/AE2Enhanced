@@ -14,7 +14,6 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.MachineSource;
 import appeng.util.Platform;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
-import com.github.aeddddd.ae2enhanced.platform.EnergyFacility;
 import com.github.aeddddd.ae2enhanced.platform.energy.EnergyAdapterRegistry;
 import com.github.aeddddd.ae2enhanced.platform.energy.IEnergyAdapter;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
