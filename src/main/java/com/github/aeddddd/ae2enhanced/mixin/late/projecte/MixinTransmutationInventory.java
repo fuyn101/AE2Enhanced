@@ -40,9 +40,6 @@ public abstract class MixinTransmutationInventory {
     public abstract void handleKnowledge(ItemStack stack);
 
     /**
-     * 用 BigInteger 重写的 addEmc：先充满 inputLocks 里的 IItemEmc 物品，再把剩余加到玩家账户。
-     */
-    /**
      * @author AE2Enhanced
      * @reason 改用 BigInteger 支持超过 Long.MAX_VALUE 的 EMC。
      */
@@ -79,9 +76,6 @@ public abstract class MixinTransmutationInventory {
         }
     }
 
-    /**
-     * 用 BigInteger 重写的 removeEmc：优先扣除玩家账户，不足时从 inputLocks 的 IItemEmc 物品补充。
-     */
     /**
      * @author AE2Enhanced
      * @reason 改用 BigInteger 支持超过 Long.MAX_VALUE 的 EMC。
@@ -133,13 +127,26 @@ public abstract class MixinTransmutationInventory {
 
         if (!this.player.world.isRemote) {
             PlayerHelper.updateScore((EntityPlayerMP) this.player, PlayerHelper.SCOREBOARD_EMC,
-                    MathHelper.floor((float) this.provider.getEmc()));
+                    ae2e$scoreboardEmc());
         }
     }
 
+    @Unique
+    private int ae2e$scoreboardEmc() {
+        BigInteger emc = ProjectEBigEmcHelper.getEmcBig(this.provider);
+        BigInteger max = BigInteger.valueOf(Integer.MAX_VALUE);
+        return emc.compareTo(max) >= 0 ? Integer.MAX_VALUE : emc.intValue();
+    }
+
     /**
-     * 返回可用 EMC 的 long  Clamp 值；用于原版逻辑比较。
+     * @author AE2Enhanced
+     * @reason BigInteger 账户不再有上限，永远返回 false。
      */
+    @Overwrite(remap = false)
+    public boolean hasMaxedEmc() {
+        return false;
+    }
+
     /**
      * @author AE2Enhanced
      * @reason 按 BigInteger 计算后 clamp 到 long 返回值。
