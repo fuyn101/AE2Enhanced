@@ -5,6 +5,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.client.me.SlotME;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.terminal.UnifiedResourceTerminalBridge;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
@@ -42,6 +43,9 @@ public final class TerminalTooltipBridge {
 
         ItemStack mouseItem = gui.mc.player.inventory.getItemStack();
         if (!mouseItem.isEmpty()) {
+            if (UnifiedResourceTerminalBridge.onRenderHoveredToolTip(gui, slot, mouseX, mouseY)) {
+                return true;
+            }
             return renderContainerToolTip(gui, mouseX, mouseY);
         }
 
@@ -60,6 +64,10 @@ public final class TerminalTooltipBridge {
         }
         if (ItemRegistry.ESSENTIA_DROP != null && aeStack.getItem() == ItemRegistry.ESSENTIA_DROP) {
             return renderEssentiaToolTip(gui, aeStack, mouseX, mouseY);
+        }
+
+        if (UnifiedResourceTerminalBridge.onRenderHoveredToolTip(gui, slot, mouseX, mouseY)) {
+            return true;
         }
 
         return false;

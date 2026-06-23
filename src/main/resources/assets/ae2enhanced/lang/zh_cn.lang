@@ -542,3 +542,11 @@ item.ae2enhanced.virtual_parallel_card.tooltip.tier5=§a“数以万计的可能
 item.ae2enhanced.virtual_parallel_card.tooltip.tier6=§b“每一秒都有百万个未来被演算、被剔除、被实现。”
 item.ae2enhanced.virtual_parallel_card.tooltip.tier7=§d“因果律在此成了柔软的织物，任人经纬。”
 item.ae2enhanced.virtual_parallel_card.tooltip.tier8=§c“一念之间，万象俱兴；一息之后，万法归一。”
+
+tooltip.ae2enhanced.energy=能量
+tooltip.ae2enhanced.mana=Mana
+tooltip.ae2enhanced.starlight=星能
+tooltip.ae2enhanced.stored=存储
+tooltip.ae2enhanced.energy.container=%s / %s FE
+tooltip.ae2enhanced.mana.container=%s / %s Mana
+tooltip.ae2enhanced.left_click_network=左键与 ME 网络交换

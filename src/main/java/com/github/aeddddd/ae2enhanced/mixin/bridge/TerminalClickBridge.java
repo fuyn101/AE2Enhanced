@@ -11,6 +11,7 @@ import com.github.aeddddd.ae2enhanced.container.ContainerOmniTerm;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketMEMonitorableAction;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPickerAction;
 import com.github.aeddddd.ae2enhanced.registry.content.ItemRegistry;
+import com.github.aeddddd.ae2enhanced.terminal.UnifiedResourceTerminalBridge;
 import com.github.aeddddd.ae2enhanced.util.compat.Ae2fcCompat;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.EssentiaFakeItemChecks;
 import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeItemRegister;
@@ -64,6 +65,11 @@ public final class TerminalClickBridge {
             }
         }
 
+        // 统一资源终端桥接（RF/Mana/Starlight）
+        if (UnifiedResourceTerminalBridge.onHandleMouseClick(gui, slot, slotId, mouseButton, clickType)) {
+            return true;
+        }
+
         // 手持物品左键点击
         if (!mouseItem.isEmpty() && mouseButton == 0) {
             if (!Ae2fcCompat.AE2FC_LOADED) {
@@ -86,10 +92,6 @@ public final class TerminalClickBridge {
             if (ItemRegistry.ESSENTIA_DROP != null && EssentiaFakeItemChecks.isEssentiaFakeItem(mouseItem)) {
                 return true;
             }
-
-            if (ItemRegistry.ENERGY_DROP != null && mouseItem.getItem() == ItemRegistry.ENERGY_DROP) {
-                return true;
-            }
         }
 
         // 空手持假物品点击
@@ -100,9 +102,8 @@ public final class TerminalClickBridge {
                         || (ItemRegistry.GAS_DROP != null && s.getAEStack().getItem() == ItemRegistry.GAS_DROP);
             }
             boolean isEssentia = ItemRegistry.ESSENTIA_DROP != null && s.getAEStack().getItem() == ItemRegistry.ESSENTIA_DROP;
-            boolean isEnergy = ItemRegistry.ENERGY_DROP != null && s.getAEStack().getItem() == ItemRegistry.ENERGY_DROP;
 
-            if ((isFluidOrGas || isEssentia || isEnergy)
+            if ((isFluidOrGas || isEssentia)
                     && mouseButton != 2
                     && (!s.getAEStack().isCraftable()
                         || mouseButton != 0

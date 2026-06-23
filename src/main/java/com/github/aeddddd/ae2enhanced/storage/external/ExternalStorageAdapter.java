@@ -91,6 +91,17 @@ public class ExternalStorageAdapter<D extends Descriptor> implements IMEMonitor,
 
     protected IAEStack createResult(IAEStack request, BigInteger amount) {
         long size = amount.compareTo(StorageConstants.LONG_MAX) > 0 ? Long.MAX_VALUE : amount.longValue();
+        return createChannelStack(size);
+    }
+
+    protected IAEStack getAETemplate(D descriptor) {
+        return createChannelStack(1L);
+    }
+
+    /**
+     * 创建当前外部通道类型的 AE 堆叠，数量使用 nbtKey 编码.
+     */
+    protected IAEStack createChannelStack(long size) {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setLong(nbtKey, size);
 
@@ -104,18 +115,16 @@ public class ExternalStorageAdapter<D extends Descriptor> implements IMEMonitor,
         return result;
     }
 
-    protected IAEStack getAETemplate(D descriptor) {
-        NBTTagCompound nbt = new NBTTagCompound();
-        nbt.setLong(nbtKey, 1L);
-
-        IAEStack template = ExternalStackFactory.createFromNBT(channel, nbt);
-        if (template == null) {
-            template = ExternalStackFactory.createStack(channel, 1L);
+    /**
+     * 为变更通知创建带符号数量的通道堆叠.
+     */
+    protected IAEStack createChangeStack(BigInteger amount, boolean isInjection) {
+        long size = amount.compareTo(StorageConstants.LONG_MAX) > 0 ? Long.MAX_VALUE : amount.longValue();
+        IAEStack stack = createChannelStack(size);
+        if (stack != null) {
+            stack.setStackSize(isInjection ? size : -size);
         }
-        if (template != null) {
-            template.setStackSize(1L);
-        }
-        return template;
+        return stack;
     }
 
     @Override
@@ -148,7 +157,10 @@ public class ExternalStorageAdapter<D extends Descriptor> implements IMEMonitor,
         if (file != null) file.markDirty(getStorageSection());
 
         if (hasChangeConsumers()) {
-            notifyPostChange(input.copy(), src);
+            IAEStack change = createChangeStack(BigInteger.valueOf(input.getStackSize()), true);
+            if (change != null) {
+                notifyPostChange(change, src);
+            }
         }
         return null;
     }
@@ -181,15 +193,10 @@ public class ExternalStorageAdapter<D extends Descriptor> implements IMEMonitor,
             if (file != null) file.markDirty(getStorageSection());
 
             if (hasChangeConsumers()) {
-                IAEStack change = request.copy();
-                long changeSize;
-                if (toExtract.bitLength() < 63) {
-                    changeSize = -toExtract.longValue();
-                } else {
-                    changeSize = -toExtract.min(StorageConstants.LONG_MAX).longValue();
+                IAEStack change = createChangeStack(toExtract, false);
+                if (change != null) {
+                    notifyPostChange(change, src);
                 }
-                change.setStackSize(changeSize);
-                notifyPostChange(change, src);
             }
         }
 

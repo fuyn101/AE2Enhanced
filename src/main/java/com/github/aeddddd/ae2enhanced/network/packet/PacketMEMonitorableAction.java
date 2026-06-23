@@ -46,6 +46,7 @@ public class PacketMEMonitorableAction implements IMessage {
     public static final byte GAS_WORK = 1;         // 手持气体容器点击槽位(填充/排空)
     public static final byte FLUID_OPERATE = 2;    // 空手点击流体槽位(获取装满的桶)
     public static final byte GAS_OPERATE = 3;      // 空手点击气体槽位(获取装满的气体容器)
+    public static final byte RESOURCE_ACTION = 4;  // RF/Mana/Starlight 统一资源动作（无 TII fallback）
 
     private byte type;
     private NBTTagCompound nbt;
@@ -123,6 +124,10 @@ public class PacketMEMonitorableAction implements IMessage {
                         if (held.isEmpty()) {
                             gasOperateWorkReflect(message, grid, source, player);
                         }
+                        break;
+                    case RESOURCE_ACTION:
+                        com.github.aeddddd.ae2enhanced.terminal.UnifiedResourceTerminalServer.handle(
+                                player, cme, grid, source, message.getNbt());
                         break;
                 }
             });
