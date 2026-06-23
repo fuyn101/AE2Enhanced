@@ -20,6 +20,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
 
 import javax.annotation.Nullable;
@@ -364,6 +365,19 @@ public final class PersonalDimensionManager {
     }
 
     /**
+     * 世界卸载时清理 worldInfo 隔离标记，确保下次加载（例如外部区块加载器重新加载）
+     * 能够重新替换为隔离 WorldInfo。
+     */
+    @SubscribeEvent
+    public static void onWorldUnload(WorldEvent.Unload event) {
+        if (event.getWorld().isRemote) return;
+        int dim = event.getWorld().provider.getDimension();
+        if (isPersonalDimension(dim)) {
+            ISOLATED_WORLD_INFOS.remove(dim);
+        }
+    }
+
+    /**
      * 玩家在个人维度死亡并重生后恢复默认能力。
      */
     @SubscribeEvent
@@ -380,11 +394,29 @@ public final class PersonalDimensionManager {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player.world.isRemote) return;
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.player;
+        PlayerDimEntry entry = getEntry(player.getUniqueID());
+        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+            // 玩家在线期间保持其个人维度加载，方便外部区块加载器正常工作
+            DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
+        }
         if (isPersonalDimension(event.player.dimension)) {
             DimensionManager.initDimension(event.player.dimension);
-            if (event.player instanceof EntityPlayerMP) {
-                sendRulesToPlayer(event.player.getUniqueID());
-            }
+            sendRulesToPlayer(event.player.getUniqueID());
+        }
+    }
+
+    /**
+     * 玩家下线后取消 keep-loaded 标记；如果外部区块加载器仍有强制加载区块，
+     * Forge 会根据 persistent chunks 继续保留该维度。
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player.world.isRemote) return;
+        PlayerDimEntry entry = getEntry(event.player.getUniqueID());
+        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+            DimensionManager.keepDimensionLoaded(entry.dimensionId, false);
         }
     }
 
