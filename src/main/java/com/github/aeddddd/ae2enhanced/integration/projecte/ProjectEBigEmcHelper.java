@@ -28,8 +28,11 @@ public final class ProjectEBigEmcHelper {
         }
         try {
             getEmcBigMethod = clazz.getMethod(METHOD_GET_EMC_BIG);
+            getEmcBigMethod.setAccessible(true);
             addEmcMethod = clazz.getMethod(METHOD_ADD_EMC, long.class);
+            addEmcMethod.setAccessible(true);
             subtractEmcMethod = clazz.getMethod(METHOD_SUBTRACT_EMC, long.class);
+            subtractEmcMethod.setAccessible(true);
             cachedProviderClass = clazz;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to locate ProjectE BigInteger EMC methods on {}", clazz, e);
