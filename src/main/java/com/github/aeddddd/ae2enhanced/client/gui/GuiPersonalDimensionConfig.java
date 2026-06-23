@@ -1,10 +1,9 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.client.ClientPersonalDimensionRules;
 import com.github.aeddddd.ae2enhanced.container.ContainerPersonalDimensionConfig;
-import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
 import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionRules;
-import com.github.aeddddd.ae2enhanced.dimension.PlayerDimEntry;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRules;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -135,8 +134,7 @@ public class GuiPersonalDimensionConfig extends GuiContainer {
         this.player = player;
         this.xSize = GUI_W;
         this.ySize = GUI_H;
-        PlayerDimEntry entry = PersonalDimensionManager.getEntry(player.getUniqueID());
-        this.rules = entry != null ? entry.rules.copy() : new PersonalDimensionRules();
+        this.rules = ClientPersonalDimensionRules.get().copy();
     }
 
     @Override

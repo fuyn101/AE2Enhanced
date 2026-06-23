@@ -470,7 +470,7 @@ public class AE2EnhancedConfig {
             "Range: 1 ~ 2147483647, Default: 1000000"
         })
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
-        public int rfAccessNodeMaxTransfer = 1_000_000;
+        public int rfAccessNodeMaxTransfer = Integer.MAX_VALUE;
     }
 
     public static class Mana {

@@ -293,7 +293,29 @@ public class DraconicEvolutionHandler implements IRemoteHandler {
                 }
             } catch (Exception ignored) {}
         }
+
+        // 龙研聚合产物 NBT 可能与样板预期不一致，按 item+meta 匹配后回写预期 NBT，
+        // 使 AE2 CPU 的 waitingFor 精确匹配能够完成合成。
+        normalizeToExpectedOutputs(result, expectedOutputs);
         return result;
+    }
+
+    private static void normalizeToExpectedOutputs(List<ItemStack> products, IAEItemStack[] expectedOutputs) {
+        if (expectedOutputs == null || products == null) {
+            return;
+        }
+        for (ItemStack product : products) {
+            if (product.isEmpty()) continue;
+            for (IAEItemStack expected : expectedOutputs) {
+                if (expected == null || expected.getStackSize() <= 0) continue;
+                ItemStack expectedStack = expected.createItemStack();
+                if (expectedStack.isEmpty()) continue;
+                if (ItemStack.areItemsEqual(product, expectedStack) && expectedStack.hasTagCompound()) {
+                    product.setTagCompound(expectedStack.getTagCompound().copy());
+                    break;
+                }
+            }
+        }
     }
 
     @Override

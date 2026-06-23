@@ -88,6 +88,11 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         return HandlerCapabilities.virtualOnly();
     }
 
+    @Override
+    public long getDefaultParallel() {
+        return 8;
+    }
+
     // ---- IRemoteHandler 物理模式(虚拟合成不占用设备,这些方法均为空实现) ----
 
     @Override

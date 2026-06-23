@@ -95,6 +95,17 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
     }
 
     /**
+     * 未安装虚拟并行卡时，该 handler 是否仍应以多少并行进入虚拟批量模式.
+     * <p>
+     * 返回大于 1 的值可使该 handler 在无虚拟并行卡时也走虚拟批量路径。
+     * 默认值 1 表示必须由虚拟并行卡触发。
+     * </p>
+     */
+    default long getDefaultParallel() {
+        return 1;
+    }
+
+    /**
      * 默认实现：按 count 缩放单份产物，避免每个 handler 都手写循环。
      *
      * <p>若产物有随机副产物或 count 不能简单缩放，handler 应覆盖此方法。</p>

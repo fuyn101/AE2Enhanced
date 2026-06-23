@@ -235,12 +235,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
-        long virtualParallel = getVirtualParallel();
+        long baseVirtualParallel = getVirtualParallel();
         if (pendingLimit > 0) {
-            virtualParallel = Math.min(virtualParallel, pendingLimit);
+            baseVirtualParallel = Math.min(baseVirtualParallel, pendingLimit);
         }
-        boolean virtualCardInstalled = virtualParallel > 1;
-        boolean globalVirtualCooling = virtualCardInstalled && isOnGlobalVirtualCooldown();
+        boolean globalVirtualCooling = isOnGlobalVirtualCooldown();
         List<TargetBinding> candidates = findIdleTargets();
         boolean attemptedVirtual = false;
 
@@ -250,7 +249,17 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 continue;
             }
 
-            // 优先尝试虚拟批量合成（仅当安装了虚拟并行卡且 handler 支持）
+            long handlerDefaultParallel = 1;
+            if (handler instanceof IVirtualBatchCraftingHandler) {
+                handlerDefaultParallel = ((IVirtualBatchCraftingHandler) handler).getDefaultParallel();
+            }
+            long virtualParallel = Math.max(baseVirtualParallel, handlerDefaultParallel);
+            if (pendingLimit > 0) {
+                virtualParallel = Math.min(virtualParallel, pendingLimit);
+            }
+            boolean virtualCardInstalled = virtualParallel > 1;
+
+            // 优先尝试虚拟批量合成（handler 默认并行或已安装虚拟并行卡）
             if (virtualCardInstalled
                     && !globalVirtualCooling
                     && handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
@@ -284,8 +293,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        // 有虚拟卡且尝试了虚拟但未成功，进入全局冷却防止 CPU 同 tick 反复重试
-        if (virtualCardInstalled && attemptedVirtual) {
+        // 尝试了虚拟批量但未成功，进入全局冷却防止 CPU 同 tick 反复重试
+        if (attemptedVirtual) {
             this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
             tryWakeTickDevice();
         }

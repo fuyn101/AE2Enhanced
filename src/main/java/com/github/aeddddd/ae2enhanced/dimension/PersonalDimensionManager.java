@@ -10,6 +10,7 @@ import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.storage.WorldInfo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ITeleporter;
@@ -19,8 +20,12 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,6 +38,10 @@ public final class PersonalDimensionManager {
 
     private static DimensionType PERSONAL_DIM_TYPE;
     private static boolean typeRegistered = false;
+
+    private static final Set<Integer> ISOLATED_WORLD_INFOS = new HashSet<>();
+    private static final Field WORLD_INFO_FIELD = ReflectionHelper.findField(
+            net.minecraft.world.World.class, "worldInfo", "field_72986_A");
 
     /**
      * 在 preInit 阶段注册维度类型。
@@ -201,7 +210,34 @@ public final class PersonalDimensionManager {
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
         WorldServer overworld = getOverworld();
         if (overworld == null) return;
-        PersonalDimensionData.get(overworld).setRules(playerId, rules);
+        PersonalDimensionData data = PersonalDimensionData.get(overworld);
+        data.setRules(playerId, rules);
+        // 规则变更后立即同步给玩家，确保客户端 GUI 与维度状态一致
+        sendRulesToPlayer(playerId);
+
+        // 如果玩家当前在其个人维度内，立即重新隔离 worldInfo（规则如 lockWeather 可能变化）
+        PlayerDimEntry entry = data.getEntry(playerId);
+        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+            WorldServer dimWorld = DimensionManager.getWorld(entry.dimensionId);
+            if (dimWorld != null) {
+                ISOLATED_WORLD_INFOS.remove(entry.dimensionId);
+                ensureIsolatedWorldInfo(dimWorld, entry);
+            }
+        }
+    }
+
+    private static void sendRulesToPlayer(UUID playerId) {
+        if (AE2Enhanced.network == null) return;
+        PlayerDimEntry entry = getEntry(playerId);
+        if (entry == null) return;
+        MinecraftServer server = net.minecraftforge.common.DimensionManager.getWorld(0) != null
+                ? net.minecraftforge.common.DimensionManager.getWorld(0).getMinecraftServer()
+                : null;
+        if (server == null) return;
+        EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
+        if (player != null) {
+            AE2Enhanced.network.sendTo(new com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRulesSync(entry.rules), player);
+        }
     }
 
     @Nullable
@@ -249,6 +285,12 @@ public final class PersonalDimensionManager {
         if (!isPersonalDimension(dim)) return;
         PlayerDimEntry entry = getEntryByDimension(dim);
         if (entry == null) return;
+
+        // 将个人维度的 worldInfo 替换为隔离版本，防止时间/天气委托给主世界
+        if (event.world instanceof WorldServer) {
+            ensureIsolatedWorldInfo((WorldServer) event.world, entry);
+        }
+
         World world = event.world;
         PersonalDimensionRules rules = entry.rules;
         if (rules.lockWeather) {
@@ -262,6 +304,28 @@ public final class PersonalDimensionManager {
             if (player instanceof EntityPlayerMP) {
                 applyFlightRules((EntityPlayerMP) player, rules);
             }
+        }
+    }
+
+    private static void ensureIsolatedWorldInfo(WorldServer world, PlayerDimEntry entry) {
+        int dim = world.provider.getDimension();
+        if (ISOLATED_WORLD_INFOS.contains(dim)) return;
+        if (world.getWorldInfo() instanceof PersonalDimensionWorldInfo) {
+            ISOLATED_WORLD_INFOS.add(dim);
+            return;
+        }
+        try {
+            WorldInfo parent = world.getWorldInfo();
+            PersonalDimensionWorldInfo isolated = new PersonalDimensionWorldInfo(
+                    parent,
+                    entry.rules,
+                    () -> PersonalDimensionData.get(world).markDirty()
+            );
+            WORLD_INFO_FIELD.set(world, isolated);
+            ISOLATED_WORLD_INFOS.add(dim);
+            AE2Enhanced.LOGGER.info("[AE2E] Isolated world info for personal dimension {}", dim);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to isolate world info for personal dimension {}", dim, e);
         }
     }
 
@@ -311,13 +375,49 @@ public final class PersonalDimensionManager {
     }
 
     /**
-     * 玩家进入个人维度时预加载区块。
+     * 玩家进入个人维度时预加载区块，并同步规则到客户端。
      */
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player.world.isRemote) return;
         if (isPersonalDimension(event.player.dimension)) {
             DimensionManager.initDimension(event.player.dimension);
+            if (event.player instanceof EntityPlayerMP) {
+                sendRulesToPlayer(event.player.getUniqueID());
+            }
+        }
+    }
+
+    /**
+     * 玩家切换维度时应用/重置个人维度能力，并同步规则。
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.player.world.isRemote) return;
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.player;
+        if (isPersonalDimension(event.toDim)) {
+            PlayerDimEntry entry = getEntry(player.getUniqueID());
+            if (entry != null) {
+                applyFlightRules(player, entry.rules);
+                sendRulesToPlayer(player.getUniqueID());
+            }
+        } else if (isPersonalDimension(event.fromDim)) {
+            resetAbilities(player);
+        }
+    }
+
+    /**
+     * 玩家 tick 中持续应用个人维度能力，防止进出维度时状态不同步。
+     */
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || event.player.world.isRemote) return;
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        if (!isPersonalDimension(event.player.dimension)) return;
+        PlayerDimEntry entry = getEntry(event.player.getUniqueID());
+        if (entry != null) {
+            applyFlightRules((EntityPlayerMP) event.player, entry.rules);
         }
     }
 
