@@ -44,7 +44,6 @@ public class AE2EnhancedConfig {
     })
     public static Crafting crafting = new Crafting();
 
-
     @Config.Name("WirelessChannel")
     @Config.Comment({
         "Wireless Channel System settings.",
@@ -80,19 +79,27 @@ public class AE2EnhancedConfig {
     public static SmartPattern smartPattern = new SmartPattern();
 
     @Config.Name("CentralInterface")
-    @Config.Comment("Central ME Interface settings.")
+    @Config.Comment({
+        "Central ME Interface settings."
+    })
     public static CentralInterface centralInterface = new CentralInterface();
 
     @Config.Name("Thaumcraft")
-    @Config.Comment("Thaumcraft automation settings for Central ME Interface")
+    @Config.Comment({
+        "Thaumcraft automation settings for the Central ME Interface."
+    })
     public static Thaumcraft thaumcraft = new Thaumcraft();
 
     @Config.Name("Collector")
-    @Config.Comment("Advanced ME Collector settings.")
+    @Config.Comment({
+        "Advanced ME Collector settings."
+    })
     public static Collector collector = new Collector();
 
     @Config.Name("Recycler")
-    @Config.Comment("ME Network Recycler settings.")
+    @Config.Comment({
+        "ME Network Recycler settings."
+    })
     public static Recycler recycler = new Recycler();
 
     @Config.Name("Energy")
@@ -103,19 +110,27 @@ public class AE2EnhancedConfig {
     public static Energy energy = new Energy();
 
     @Config.Name("Mana")
-    @Config.Comment("Botania Mana bridge settings for Mana Access Node.")
+    @Config.Comment({
+        "Botania Mana bridge settings for Mana Access Node."
+    })
     public static Mana mana = new Mana();
 
     @Config.Name("Starlight")
-    @Config.Comment("Astral Sorcery Starlight bridge settings for Starlight Access Node.")
+    @Config.Comment({
+        "Astral Sorcery Starlight bridge settings for Starlight Access Node."
+    })
     public static Starlight starlight = new Starlight();
 
     @Config.Name("EMCInterface")
-    @Config.Comment("ProjectE EMC Interface settings.")
+    @Config.Comment({
+        "ProjectE EMC Interface settings."
+    })
     public static EMCInterface emcInterface = new EMCInterface();
 
     @Config.Name("PersonalDimension")
-    @Config.Comment("Personal dimension settings.")
+    @Config.Comment({
+        "Personal dimension settings."
+    })
     public static PersonalDimension personalDimension = new PersonalDimension();
 
     public static class PersonalDimension {
@@ -215,14 +230,6 @@ public class AE2EnhancedConfig {
     }
 
     public static class Terminal {
-        @Config.Comment({
-            "Max stack size for right-side pattern storage and upgrade slots in the Omni Terminal.",
-            "This allows storing more than 64 items per slot in the terminal's internal buffers.",
-            "Default: 4096"
-        })
-        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
-        public int rightStorageMaxStackSize = 4096;
-
         @Config.Comment({
             "Maximum number of stored item types before disabling fuzzy @ mod search.",
             "When the network stores more than this many distinct item types,",
@@ -414,6 +421,7 @@ public class AE2EnhancedConfig {
                 return DamageMode.ALL;
             }
         }
+
         @Config.Comment({
             "Damage dealt by the Micro Singularity event horizon.",
             "  ALL          - All living entities are instantly killed, including creative-mode players.",
@@ -421,7 +429,6 @@ public class AE2EnhancedConfig {
             "  NONE         - No damage is dealt; the black hole only decays after its lifetime expires.",
             "Default: ALL"
         })
-        @Config.Name("damageMode")
         public String damageMode = "ALL";
 
         public DamageMode getDamageMode() {
@@ -454,7 +461,6 @@ public class AE2EnhancedConfig {
             } catch (NumberFormatException e) {
                 return 1_000_000_000_000L;
             }
-
         }
 
         @Config.Comment({
@@ -535,12 +541,11 @@ public class AE2EnhancedConfig {
 
         @Config.Comment({
             "AE energy consumed per virtual parallel crafting operation.",
-            "Total cost = actualVirtualParallel × this value.",
+            "Total cost = actualVirtualParallel x this value.",
             "Range: 0.0 ~ 1000000.0, Default: 16.0"
         })
         @Config.RangeDouble(min = 0.0, max = 1000000.0)
         public double virtualParallelEnergyCost = 16.0;
-
 
         @Config.Comment({
             "Maximum number of virtual crafting targets that can simultaneously emit particles",
@@ -597,13 +602,6 @@ public class AE2EnhancedConfig {
         public int maxRange = 7;
 
         @Config.Comment({
-            "AE energy consumed per item collected.",
-            "Default: 8.0"
-        })
-        @Config.RangeDouble(min = 0.0, max = 1000000.0)
-        public double energyPerItem = 8.0;
-
-        @Config.Comment({
             "Idle power draw (AE/t) for an active Advanced ME Collector.",
             "Default: 16.0"
         })
@@ -642,38 +640,11 @@ public class AE2EnhancedConfig {
         public int maxTargets = 1024;
 
         @Config.Comment({
-            "Batch post threshold: number of item changes before forcing a network post.",
-            "Range: 1 ~ 10000, Default: 64"
-        })
-        @Config.RangeInt(min = 1, max = 10000)
-        public int batchThreshold = 64;
-
-        @Config.Comment({
-            "Maximum ticks between forced network posts, even if batchThreshold is not reached.",
-            "Range: 1 ~ 200, Default: 1"
-        })
-        @Config.RangeInt(min = 1, max = 200)
-        public int batchIntervalTicks = 1;
-
-        @Config.Comment({
             "Heartbeat interval in ticks for scanning bound targets when no immediate events occur.",
             "Range: 1 ~ 1200, Default: 20"
         })
         @Config.RangeInt(min = 1, max = 1200)
         public int heartbeatIntervalTicks = 20;
-
-        @Config.Comment({
-            "Enable mod-specific target adapters for better performance.",
-            "Default: true"
-        })
-        public boolean enableModSpecificAdapters = true;
-
-        @Config.Comment({
-            "Force-load chunks containing bound targets to allow cross-dimension recycling while unloaded.",
-            "WARNING: This may have significant server-side impact. Use with caution.",
-            "Default: false"
-        })
-        public boolean forceChunkLoad = false;
 
         @Config.Comment({
             "Idle power draw (AE/t) for an active ME Network Recycler.",
