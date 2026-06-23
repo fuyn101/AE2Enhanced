@@ -12,7 +12,8 @@
   ],
   "client": [
     "MixinGUITransmutation",
-    "MixinTransmutationEMCFormatter"
+    "MixinTransmutationEMCFormatter",
+    "MixinGuiIngame"
   ],
   "server": []
 }
