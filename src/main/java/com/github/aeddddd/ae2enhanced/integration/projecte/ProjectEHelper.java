@@ -237,6 +237,26 @@ public final class ProjectEHelper {
     }
 
     /**
+     * 减少玩家 BigInteger EMC，支持超过 Long.MAX_VALUE 的数量。
+     */
+    public static void subtractEmcBig(@Nullable Object provider, @Nullable BigInteger value) {
+        if (!isAvailable() || provider == null || value == null || value.signum() <= 0) return;
+        if (ProjectEBigEmcHelper.isBigEmcProvider(provider)) {
+            ProjectEBigEmcHelper.subtractEmc(provider, value);
+        } else {
+            BigInteger remaining = value;
+            long current = getEmc(provider);
+            BigInteger chunk = BigInteger.valueOf(Long.MAX_VALUE);
+            while (remaining.compareTo(chunk) > 0) {
+                current -= Long.MAX_VALUE;
+                remaining = remaining.subtract(chunk);
+            }
+            current -= remaining.longValue();
+            setEmc(provider, current);
+        }
+    }
+
+    /**
      * 同步知识提供者到在线玩家.
      */
     public static void sync(@Nullable Object provider, @Nullable net.minecraft.entity.player.EntityPlayerMP player) {

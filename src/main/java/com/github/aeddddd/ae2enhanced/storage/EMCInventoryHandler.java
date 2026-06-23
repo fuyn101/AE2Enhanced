@@ -37,6 +37,12 @@ import java.util.UUID;
  */
 public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, IMEMonitor<IAEItemStack> {
 
+    /**
+     * 终端/存储列表中单种物品的最大显示数量。
+     * 使用 Long.MAX_VALUE / 2 是为了避免 AE2 内部或终端渲染时发生 long 溢出。
+     */
+    private static final long MAX_TERMINAL_STACK = Long.MAX_VALUE / 2;
+
     private final TileEMCInterface tile;
 
     // 缓存
@@ -79,7 +85,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
         BigInteger maxAffordable = balance.divide(itemEmcBI);
         if (maxAffordable.signum() <= 0) return null;
 
-        long extractCount = Math.min(request.getStackSize(), maxAffordable.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
+        long extractCount = Math.min(request.getStackSize(), maxAffordable.min(BigInteger.valueOf(MAX_TERMINAL_STACK)).longValue());
         if (extractCount <= 0) return null;
 
         if (type == Actionable.SIMULATE) {
@@ -88,10 +94,10 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
             return result;
         }
 
-        // MODULATE: 扣减 EMC
-        long cost = extractCount * itemEmc;
-        ProjectEHelper.subtractEmc(provider, cost);
-        refreshEmcCache(balance.subtract(BigInteger.valueOf(cost)));
+        // MODULATE: 扣减 EMC（使用 BigInteger 避免 extractCount * itemEmc 溢出）
+        BigInteger cost = BigInteger.valueOf(extractCount).multiply(itemEmcBI);
+        ProjectEHelper.subtractEmcBig(provider, cost);
+        refreshEmcCache(balance.subtract(cost));
 
         // 同步在线玩家
         syncOwnerIfOnline();
@@ -227,7 +233,7 @@ public class EMCInventoryHandler implements IMEInventoryHandler<IAEItemStack>, I
 
             IAEItemStack ae = AEItemStack.fromItemStack(whitelistItem);
             if (ae == null) continue;
-            ae.setStackSize(maxCount.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue());
+            ae.setStackSize(maxCount.min(BigInteger.valueOf(MAX_TERMINAL_STACK)).longValue());
             list.add(ae);
         }
         availableCache = list;

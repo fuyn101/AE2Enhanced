@@ -83,4 +83,23 @@ public final class ProjectEBigEmcHelper {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to subtract BigInteger EMC {}", value, e);
         }
     }
+
+    /**
+     * 减少玩家 BigInteger EMC，支持超过 Long.MAX_VALUE 的数量。
+     */
+    public static void subtractEmc(@Nonnull Object provider, @Nonnull BigInteger value) {
+        if (value.signum() <= 0) return;
+        ensureMethods(provider.getClass());
+        if (subtractEmcMethod == null) return;
+        BigInteger chunk = BigInteger.valueOf(Long.MAX_VALUE);
+        try {
+            while (value.compareTo(chunk) > 0) {
+                subtractEmcMethod.invoke(provider, Long.MAX_VALUE);
+                value = value.subtract(chunk);
+            }
+            subtractEmcMethod.invoke(provider, value.longValue());
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to subtract BigInteger EMC {}", value, e);
+        }
+    }
 }
