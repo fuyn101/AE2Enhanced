@@ -53,19 +53,20 @@ public class MixinWorldServerLoadEntities {
         if (world.isRemote) return;
         if (!PersonalDimensionManager.isPersonalDimension(world.provider.getDimension())) return;
 
-        bumpEntityIdCounter(world);
+        bumpEntityIdCounter(world, 0);
     }
 
     /**
      * 将当前世界的 entityId 计数器提升到所有已加载实体最大 ID 之后。
-     * 公开给 PersonalDimensionManager 在玩家进入个人维度前调用，确保计数器
-     * 也高于玩家自身的固定 entityId。
+     * 公开给 PersonalDimensionManager 在玩家进入个人维度前调用。
+     *
+     * @param minEntityId 计数器必须不低于该值，用于确保高于玩家自身的固定 entityId
      */
-    public static void bumpEntityIdCounter(WorldServer world) {
+    public static void bumpEntityIdCounter(WorldServer world, int minEntityId) {
         if (ENTITY_ID_FIELD == null) return;
         if (world.isRemote) return;
 
-        int maxId = 0;
+        int maxId = minEntityId;
         for (Entity e : world.loadedEntityList) {
             int id = e.getEntityId();
             if (id > maxId) maxId = id;

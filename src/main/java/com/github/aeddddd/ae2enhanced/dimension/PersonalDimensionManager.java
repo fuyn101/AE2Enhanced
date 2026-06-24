@@ -207,7 +207,7 @@ public final class PersonalDimensionManager {
         // 个人维度 WorldServer 重建后 entityId 计数器会从 0 开始，而玩家固定 ID 可能很低，
         // 后续目标世界生成新实体时容易与之冲突并触发 "Entity is already tracked!"。
         // 在传送前把计数器抬升到当前所有已加载实体（包括玩家）最大 ID 之后，避免冲突。
-        com.github.aeddddd.ae2enhanced.mixin.late.world.MixinWorldServerLoadEntities.bumpEntityIdCounter(targetWorld);
+        com.github.aeddddd.ae2enhanced.mixin.late.world.MixinWorldServerLoadEntities.bumpEntityIdCounter(targetWorld, player.getEntityId());
 
         // 多次进出后，源/目标世界可能残留同 ID 的实体或旧的 tracker 记录，
         // 导致 transferPlayerToDimension 在 spawnEntity 阶段触发 "Entity is already tracked!"。
