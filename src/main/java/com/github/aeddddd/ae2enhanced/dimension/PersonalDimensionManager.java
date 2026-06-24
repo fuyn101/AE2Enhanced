@@ -344,25 +344,20 @@ public final class PersonalDimensionManager {
 
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
-        // 个人维度由 DimensionManager.keepDimensionLoaded 常驻，正常不会走到这里。
-        // 保留事件占位，以便未来需要时在卸载前做状态持久化。
+        // 个人维度不再强制 keep-loaded，玩家离开后世界会自然走到这里。
+        // 保留事件占位，以便未来需要在卸载前做状态持久化。
     }
 
     /**
-     * 个人维度 WorldServer 创建后保持常驻加载。
+     * 个人维度 WorldServer 创建后不再强制 keep-loaded。
+     * 需要常驻运行的区块请使用 FTB Utilities、ChickenChunks 等外部 chunk loader。
      */
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
-        if (event.getWorld().isRemote || !(event.getWorld() instanceof WorldServer)) return;
-        int dim = event.getWorld().provider.getDimension();
-        if (!isPersonalDimension(dim)) return;
-        // 个人维度 WorldServer 一旦创建（无论是核心、指令还是其他 mod 传送触发的）就保持常驻，
-        // 避免出去后世界对象被回收导致无线连接器等状态丢失
-        try {
-            DimensionManager.keepDimensionLoaded(dim, true);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded on world load", dim, e);
-        }
+        // 强制 keep-loaded 已被移除，原因：
+        // 1) 玩家离开时同步 saveAllChunks(true) 会导致 MSPT 飙升、明显卡顿；
+        // 2) 强制 keep-loaded 与 FTB Utilities 等外部 chunk loader 冲突，导致 claim 后仍不工作。
+        // 玩家离开后世界自然卸载，Minecraft 会正常保存 chunk；需要机器继续运行的区块请外部 claim。
     }
 
     /**
@@ -396,25 +391,6 @@ public final class PersonalDimensionManager {
     }
 
     /**
-     * 玩家在个人维度内直接退出服务器/存档时，强制保存该维度数据，
-     * 防止 keep-loaded 状态下 chunk 未落盘。
-     */
-    @SubscribeEvent
-    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.player.world.isRemote) return;
-        if (!(event.player instanceof EntityPlayerMP)) return;
-        EntityPlayerMP player = (EntityPlayerMP) event.player;
-        if (!isPersonalDimension(player.dimension)) return;
-        WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
-        if (dimWorld == null) return;
-        try {
-            dimWorld.saveAllChunks(true, null);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension {} on player logout", player.dimension, e);
-        }
-    }
-
-    /**
      * 玩家切换维度时应用/重置个人维度能力，并同步规则。
      */
     @SubscribeEvent
@@ -437,16 +413,8 @@ public final class PersonalDimensionManager {
             }
         } else if (isPersonalDimension(event.fromDim)) {
             resetAbilities(player);
-            // 个人维度 keep-loaded 状态下 chunk 不会随玩家离开自动进入完整的保存/卸载周期，
-            // 强制保存一次，避免重新进入时因磁盘数据缺失而重新生成、覆盖玩家建筑。
-            WorldServer dimWorld = DimensionManager.getWorld(event.fromDim);
-            if (dimWorld != null) {
-                try {
-                    dimWorld.saveAllChunks(true, null);
-                } catch (Exception e) {
-                    AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension {} on player leave", event.fromDim, e);
-                }
-            }
+            // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载并保存，
+            // 因此不需要在这里同步 flush 所有 chunk（这正是导致离开维度时 MSPT 飙升的原因）。
         }
     }
 
