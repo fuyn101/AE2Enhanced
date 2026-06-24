@@ -204,6 +204,11 @@ public final class PersonalDimensionManager {
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
 
+        // 个人维度 WorldServer 重建后 entityId 计数器会从 0 开始，而玩家固定 ID 可能很低，
+        // 后续目标世界生成新实体时容易与之冲突并触发 "Entity is already tracked!"。
+        // 在传送前把计数器抬升到当前所有已加载实体（包括玩家）最大 ID 之后，避免冲突。
+        com.github.aeddddd.ae2enhanced.mixin.late.world.MixinWorldServerLoadEntities.bumpEntityIdCounter(targetWorld);
+
         // 多次进出后，源/目标世界可能残留同 ID 的实体或旧的 tracker 记录，
         // 导致 transferPlayerToDimension 在 spawnEntity 阶段触发 "Entity is already tracked!"。
         // 在 transfer 前强制清理：untrack 当前玩家 + 移除同 ID 残留实体。
@@ -352,8 +357,15 @@ public final class PersonalDimensionManager {
 
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
-        // 个人维度不再强制 keep-loaded，玩家离开后世界会自然走到这里。
-        // 保留事件占位，以便未来需要在卸载前做状态持久化。
+        if (event.getWorld().isRemote) return;
+        if (!isPersonalDimension(event.getWorld().provider.getDimension())) return;
+        // 世界卸载前 flush 已加载的脏 chunk，防止世界重建后读取到未保存的修改。
+        WorldServer world = (WorldServer) event.getWorld();
+        try {
+            world.saveAllChunks(false, null);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on unload", e);
+        }
     }
 
     /**
@@ -382,6 +394,21 @@ public final class PersonalDimensionManager {
     /**
      * 玩家进入个人维度时预加载区块，并同步规则到客户端。
      */
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player.world.isRemote) return;
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.player;
+        if (!isPersonalDimension(player.dimension)) return;
+        WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
+        if (dimWorld == null) return;
+        try {
+            dimWorld.saveAllChunks(false, null);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on logout", e);
+        }
+    }
+
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player.world.isRemote) return;
@@ -421,8 +448,17 @@ public final class PersonalDimensionManager {
             }
         } else if (isPersonalDimension(event.fromDim)) {
             resetAbilities(player);
-            // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载并保存，
-            // 因此不需要在这里同步 flush 所有 chunk（这正是导致离开维度时 MSPT 飙升的原因）。
+            // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载。
+            // 为避免玩家高频进出时部分 chunk 尚未写入磁盘，先异步 flush 已加载的脏 chunk
+            //（all=false 仅保存 dirty 的已加载 chunk，远低于 saveAllChunks(true) 的卡顿）。
+            WorldServer dimWorld = DimensionManager.getWorld(event.fromDim);
+            if (dimWorld != null) {
+                try {
+                    dimWorld.saveAllChunks(false, null);
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on leave", e);
+                }
+            }
         }
     }
 

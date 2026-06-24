@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.world;
 
+import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityTracker;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -16,11 +17,10 @@ import java.lang.reflect.Field;
  * 修复玩家跨维度传送时目标世界已存在相同 entityId 的实体导致的
  * "Entity is already tracked!" 错误。
  *
- * <p>个人维度等动态维度与世界间频繁传送后，目标世界的 entityId 计数器可能递增到与
- * 玩家固定 entityId 相同的值；同时 EntityTracker.trackedEntities 里也可能残留旧记录。
- * World.spawnEntity 对已有非零 ID 的实体不会重新分配 ID，从而触发 IllegalStateException。
- * 此 mixin 在玩家实体加入世界前：先清理 EntityTracker 中可能残留的记录，再检查
- * World.entitiesById 是否冲突，若冲突则通过反射递增 World.entityId 字段分配新的唯一 ID。</p>
+ * <p>作为 {@link MixinWorldServerLoadEntities} 的兜底：如果由于某些边界情况，
+ * 玩家进入个人维度时 entityId 仍与已存在实体冲突，则在 {@link World#spawnEntity}
+ * 正式加入世界前为玩家重新分配一个大于当前计数器的唯一 ID，避免触发
+ * EntityTracker 的重复 key 异常。</p>
  */
 @Mixin(value = World.class, remap = true)
 public class MixinEntitySpawnIdFix {
@@ -28,14 +28,19 @@ public class MixinEntitySpawnIdFix {
     private static final Field ENTITY_ID_FIELD;
 
     static {
-        Field f;
-        try {
-            f = World.class.getDeclaredField("entityId");
-            f.setAccessible(true);
-        } catch (Exception e) {
-            f = null;
+        ENTITY_ID_FIELD = resolveField(World.class, "entityId", "field_72993_J");
+    }
+
+    private static Field resolveField(Class<?> clazz, String... names) {
+        for (String name : names) {
+            try {
+                Field f = clazz.getDeclaredField(name);
+                f.setAccessible(true);
+                return f;
+            } catch (Exception ignored) {
+            }
         }
-        ENTITY_ID_FIELD = f;
+        return null;
     }
 
     @Inject(method = "spawnEntity", at = @At("HEAD"))
@@ -45,8 +50,9 @@ public class MixinEntitySpawnIdFix {
         if (ENTITY_ID_FIELD == null) return;
 
         World world = (World) (Object) this;
+        if (!PersonalDimensionManager.isPersonalDimension(world.provider.getDimension())) return;
 
-        // 清理 EntityTracker 中可能残留的同名记录
+        // 清理 EntityTracker 中可能残留的玩家旧记录
         if (world instanceof WorldServer) {
             try {
                 EntityTracker tracker = ((WorldServer) world).getEntityTracker();
@@ -57,7 +63,7 @@ public class MixinEntitySpawnIdFix {
             }
         }
 
-        // 检查 World.entitiesById 是否冲突；冲突则重新分配唯一 ID
+        // 若仍有实体占用玩家 ID，给玩家分配一个高于计数器的全新 ID
         for (int i = 0; i < 10000; i++) {
             Entity existing = world.getEntityByID(entity.getEntityId());
             if (existing == null || existing == entity) {
