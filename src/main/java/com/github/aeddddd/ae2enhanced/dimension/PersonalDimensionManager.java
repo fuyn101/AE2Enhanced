@@ -203,6 +203,21 @@ public final class PersonalDimensionManager {
         }
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
+
+        // 多次进出 keep-loaded 维度后，玩家实体可能在源/目标世界的 EntityTracker 中残留，
+        // 导致后续 chunk 加载时触发 "Entity is already tracked!"。在 transfer 前强制清理两端 tracker。
+        WorldServer sourceWorld = server.getWorld(player.dimension);
+        if (sourceWorld != null) {
+            try {
+                sourceWorld.getEntityTracker().untrack(player);
+            } catch (Exception ignored) {
+            }
+        }
+        try {
+            targetWorld.getEntityTracker().untrack(player);
+        } catch (Exception ignored) {
+        }
+
         server.getPlayerList().transferPlayerToDimension(player, dimId,
                 new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
     }
