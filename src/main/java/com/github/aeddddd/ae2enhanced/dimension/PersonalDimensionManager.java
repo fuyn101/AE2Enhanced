@@ -204,22 +204,30 @@ public final class PersonalDimensionManager {
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
 
-        // 多次进出 keep-loaded 维度后，玩家实体可能在源/目标世界的 EntityTracker 中残留，
-        // 导致后续 chunk 加载时触发 "Entity is already tracked!"。在 transfer 前强制清理两端 tracker。
+        // 多次进出后，源/目标世界可能残留同 ID 的实体或旧的 tracker 记录，
+        // 导致 transferPlayerToDimension 在 spawnEntity 阶段触发 "Entity is already tracked!"。
+        // 在 transfer 前强制清理：untrack 当前玩家 + 移除同 ID 残留实体。
         WorldServer sourceWorld = server.getWorld(player.dimension);
-        if (sourceWorld != null) {
-            try {
-                sourceWorld.getEntityTracker().untrack(player);
-            } catch (Exception ignored) {
-            }
-        }
-        try {
-            targetWorld.getEntityTracker().untrack(player);
-        } catch (Exception ignored) {
-        }
+        cleanupEntityTracker(sourceWorld, player);
+        cleanupEntityTracker(targetWorld, player);
 
         server.getPlayerList().transferPlayerToDimension(player, dimId,
                 new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
+    }
+
+    private static void cleanupEntityTracker(@Nullable WorldServer world, EntityPlayerMP player) {
+        if (world == null) return;
+        try {
+            world.getEntityTracker().untrack(player);
+        } catch (Exception ignored) {
+        }
+        try {
+            net.minecraft.entity.Entity existing = world.getEntityByID(player.getEntityId());
+            if (existing != null && existing != player) {
+                world.removeEntityDangerously(existing);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
@@ -455,9 +463,8 @@ public final class PersonalDimensionManager {
             entity.motionX = 0;
             entity.motionY = 0;
             entity.motionZ = 0;
-            if (entity instanceof EntityPlayerMP) {
-                ((EntityPlayerMP) entity).setPositionAndUpdate(x, y, z);
-            }
+            // 不再调用 setPositionAndUpdate，避免额外触发 chunk 加载/同步；
+            // PlayerList.transferPlayerToDimension 后续会调用 setPlayerLocation 完成最终定位。
         }
     }
 }
