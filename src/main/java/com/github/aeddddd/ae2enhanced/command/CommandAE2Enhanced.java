@@ -14,6 +14,9 @@ import appeng.me.helpers.MachineSource;
 import appeng.me.helpers.PlayerSource;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.dimension.PersonalDimPermission;
+import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
+import com.github.aeddddd.ae2enhanced.dimension.PlayerDimEntry;
 import com.github.aeddddd.ae2enhanced.registry.content.BlockRegistry;
 import com.github.aeddddd.ae2enhanced.crafting.smartpattern.SmartPatternGarbageCollector;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
@@ -74,7 +77,7 @@ public class CommandAE2Enhanced extends CommandBase {
     @Override
     @Nonnull
     public String getUsage(@Nonnull ICommandSender sender) {
-        return "/ae2e <spgc|channels|fastpathing|recoverhd|testhd|migratefluids|help>";
+        return "/ae2e <spgc|channels|fastpathing|recoverhd|testhd|migratefluids|pd|help>";
     }
 
     @Override
@@ -83,9 +86,20 @@ public class CommandAE2Enhanced extends CommandBase {
     }
 
     private static final String[] SUBCOMMANDS = {
-            "spgc", "channels", "fastpathing", "recoverhd", "testhd", "migratefluids", "help"
+            "spgc", "channels", "fastpathing", "recoverhd", "testhd", "migratefluids", "pd", "help"
     };
     private static final String[] TOGGLE_OPTIONS = {"enable", "disable", "status"};
+    private static final String[] PD_SUBCOMMANDS = {
+            "list", "info", "delete", "tp", "invite", "kick", "setperm"
+    };
+    private static final String[] PD_PERMISSIONS;
+    static {
+        PersonalDimPermission[] values = PersonalDimPermission.values();
+        PD_PERMISSIONS = new String[values.length];
+        for (int i = 0; i < values.length; i++) {
+            PD_PERMISSIONS[i] = values[i].name().toLowerCase();
+        }
+    }
 
     @Override
     @Nonnull
@@ -108,6 +122,22 @@ public class CommandAE2Enhanced extends CommandBase {
             if ("testhd".equals(sub)) {
                 return CommandBase.getListOfStringsMatchingLastWord(args, collectHdUuids(server));
             }
+            if ("pd".equals(sub)) {
+                return CommandBase.getListOfStringsMatchingLastWord(args, PD_SUBCOMMANDS);
+            }
+        }
+        if (args.length == 3 && "pd".equals(sub)) {
+            String pdSub = args[1].toLowerCase();
+            if ("setperm".equals(pdSub)) {
+                return CommandBase.getListOfStringsMatchingLastWord(args, PD_PERMISSIONS);
+            }
+            if ("tp".equals(pdSub) || "info".equals(pdSub) || "delete".equals(pdSub)
+                    || "invite".equals(pdSub) || "kick".equals(pdSub)) {
+                return CommandBase.getListOfStringsMatchingLastWord(args, server.getOnlinePlayerNames());
+            }
+        }
+        if (args.length == 4 && "pd".equals(sub) && "setperm".equals(args[1].toLowerCase())) {
+            return CommandBase.getListOfStringsMatchingLastWord(args, "true", "false");
         }
         return Collections.emptyList();
     }
@@ -164,6 +194,9 @@ public class CommandAE2Enhanced extends CommandBase {
             case "migratefluids":
                 executeMigrateFluids(sender);
                 break;
+            case "pd":
+                executePersonalDimension(server, sender, args);
+                break;
             case "help":
                 executeHelp(sender);
                 break;
@@ -196,9 +229,244 @@ public class CommandAE2Enhanced extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e migratefluids"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Convert AE2E ItemFluidDrop in all ME networks to ae2fc format."));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Requires ae2fc to be loaded and OP permission."));
+        sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e pd list|info|delete|tp|invite|kick|setperm"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Manage personal dimensions."));
         sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "/ae2e help"));
         sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Display this help message."));
         sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "=============================================="));
+    }
+
+    // ---- personal dimension ----
+
+    private void executePersonalDimension(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd <list|info|delete|tp|invite|kick|setperm>"));
+            return;
+        }
+        String pdSub = args[1].toLowerCase();
+        switch (pdSub) {
+            case "list":
+                executePdList(server, sender);
+                break;
+            case "info":
+                executePdInfo(server, sender, args);
+                break;
+            case "delete":
+                executePdDelete(server, sender, args);
+                break;
+            case "tp":
+                executePdTp(server, sender, args);
+                break;
+            case "invite":
+                executePdInvite(server, sender, args);
+                break;
+            case "kick":
+                executePdKick(server, sender, args);
+                break;
+            case "setperm":
+                executePdSetPerm(server, sender, args);
+                break;
+            default:
+                sender.sendMessage(new TextComponentString(TextFormatting.RED + "Unknown personal dimension subcommand: " + pdSub));
+                sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "Usage: /ae2e pd <list|info|delete|tp|invite|kick|setperm>"));
+        }
+    }
+
+    private void executePdList(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender) {
+        WorldServer world = server.getWorld(0);
+        if (world == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Cannot access the overworld."));
+            return;
+        }
+        com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionData data =
+                com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionData.get(world);
+        java.util.Collection<PlayerDimEntry> entries = data.getAllEntries();
+        if (entries.isEmpty()) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] No personal dimensions found."));
+            return;
+        }
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Personal dimensions (" + entries.size() + "):"));
+        for (PlayerDimEntry entry : entries) {
+            String playerName = resolvePlayerName(server, entry.playerId);
+            boolean online = server.getPlayerList().getPlayerByUUID(entry.playerId) != null;
+            String line = String.format("  - %s (%s) dim=%d %s",
+                    playerName,
+                    entry.playerId,
+                    entry.dimensionId == Integer.MIN_VALUE ? -1 : entry.dimensionId,
+                    online ? TextFormatting.GREEN + "[online]" : TextFormatting.GRAY + "[offline]");
+            sender.sendMessage(new TextComponentString(line));
+        }
+    }
+
+    private void executePdInfo(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd info <player>"));
+            return;
+        }
+        UUID targetId = PlayerArgumentUtil.parseUuid(server, args[2]);
+        if (targetId == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        PlayerDimEntry entry = PersonalDimensionManager.getEntry(targetId);
+        if (entry == null || entry.dimensionId == Integer.MIN_VALUE) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Player has no personal dimension."));
+            return;
+        }
+        String playerName = resolvePlayerName(server, entry.playerId);
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[AE2E] Personal dimension info for " + playerName + ":"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Dimension ID: " + entry.dimensionId));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Entry point: " + formatBlockPos(entry.entryPoint)));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Mob spawning: " + (entry.rules.disableMobSpawning ? "disabled" : "enabled")));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Lock weather: " + entry.rules.lockWeather));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Lock time: " + entry.rules.lockTime + " (daylightCycle=" + entry.rules.daylightCycle + ", time=" + entry.rules.timeValue + ")"));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Flight: " + entry.rules.flightEnabled + ", Speed: " + entry.rules.movementSpeed));
+        sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  Allowed players: " + entry.allowedPlayers.size()));
+        for (UUID id : entry.allowedPlayers) {
+            String name = resolvePlayerName(server, id);
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "    - " + name + ": " + formatPermissions(entry.getPermissions(id))));
+        }
+    }
+
+    private void executePdDelete(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd delete <player>"));
+            return;
+        }
+        UUID targetId = PlayerArgumentUtil.parseUuid(server, args[2]);
+        if (targetId == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        String name = resolvePlayerName(server, targetId);
+        if (PersonalDimensionManager.deleteDimension(targetId)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Deleted personal dimension of " + name + ". It will be recreated on next entry."));
+        } else {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] Player " + name + " has no personal dimension to delete."));
+        }
+    }
+
+    private void executePdTp(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd tp <player>"));
+            return;
+        }
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command can only be executed by a player."));
+            return;
+        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        UUID targetId = PlayerArgumentUtil.parseUuid(server, args[2]);
+        if (targetId == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        if (PersonalDimensionManager.teleportPlayerToDimension(player, targetId)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Teleported to " + resolvePlayerName(server, targetId) + "'s personal dimension."));
+        } else {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Failed to teleport. The player has no personal dimension or you don't have permission to enter."));
+        }
+    }
+
+    private void executePdInvite(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command can only be executed by a player."));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd invite <player>"));
+            return;
+        }
+        EntityPlayerMP owner = (EntityPlayerMP) sender;
+        EntityPlayerMP target = PlayerArgumentUtil.parseOnlinePlayer(server, sender, args[2]);
+        if (target == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        if (target.getUniqueID().equals(owner.getUniqueID())) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] You don't need to invite yourself."));
+            return;
+        }
+        PersonalDimensionManager.invitePlayer(owner.getUniqueID(), target.getUniqueID());
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Invited " + target.getName() + " to your personal dimension."));
+    }
+
+    private void executePdKick(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command can only be executed by a player."));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd kick <player>"));
+            return;
+        }
+        EntityPlayerMP owner = (EntityPlayerMP) sender;
+        UUID targetId = PlayerArgumentUtil.parseUuid(server, args[2]);
+        if (targetId == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        if (targetId.equals(owner.getUniqueID())) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] You cannot kick yourself."));
+            return;
+        }
+        PlayerDimEntry entry = PersonalDimensionManager.getEntry(owner.getUniqueID());
+        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+            EntityPlayerMP target = server.getPlayerList().getPlayerByUUID(targetId);
+            if (target != null && target.dimension == entry.dimensionId) {
+                PersonalDimensionManager.teleportToReturnPoint(target);
+            }
+        }
+        PersonalDimensionManager.kickPlayer(owner.getUniqueID(), targetId);
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Kicked " + resolvePlayerName(server, targetId) + " from your personal dimension."));
+    }
+
+    private void executePdSetPerm(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender, @Nonnull String[] args) {
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] This command can only be executed by a player."));
+            return;
+        }
+        if (args.length < 5) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "Usage: /ae2e pd setperm <player> <enter|build|interact|manage_rules> <true|false>"));
+            return;
+        }
+        EntityPlayerMP owner = (EntityPlayerMP) sender;
+        UUID targetId = PlayerArgumentUtil.parseUuid(server, args[2]);
+        if (targetId == null) {
+            PlayerArgumentUtil.sendPlayerNotFound(sender, args[2]);
+            return;
+        }
+        PersonalDimPermission perm;
+        try {
+            perm = PersonalDimPermission.valueOf(args[3].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Unknown permission: " + args[3]));
+            return;
+        }
+        boolean value = Boolean.parseBoolean(args[4]);
+        PersonalDimensionManager.setPermission(owner.getUniqueID(), targetId, perm, value);
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Set permission " + perm.name().toLowerCase() + " for " + resolvePlayerName(server, targetId) + " to " + value + "."));
+    }
+
+    private static String resolvePlayerName(@Nonnull MinecraftServer server, @Nonnull UUID playerId) {
+        EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
+        if (player != null) return player.getName();
+        // 尝试从 usercache.json 解析（若存在）
+        return playerId.toString();
+    }
+
+    private static String formatBlockPos(net.minecraft.util.math.BlockPos pos) {
+        return "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
+    }
+
+    private static String formatPermissions(java.util.Set<PersonalDimPermission> perms) {
+        if (perms.isEmpty()) return "none";
+        StringBuilder sb = new StringBuilder();
+        for (PersonalDimPermission p : perms) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(p.name().toLowerCase());
+        }
+        return sb.toString();
     }
 
     // ---- migrate fluids ----

@@ -2,14 +2,15 @@ package com.github.aeddddd.ae2enhanced.dimension;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.dimension.lighting.DimensionLightingFixer;
+import com.github.aeddddd.ae2enhanced.dimension.rules.PlayerAbilityApplier;
+import com.github.aeddddd.ae2enhanced.dimension.teleport.PersonalTeleporter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.DimensionType;
-import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.chunk.Chunk;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.fml.common.Mod;
@@ -21,10 +22,15 @@ import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.world.WorldEvent;
 
 import javax.annotation.Nullable;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * 个人维度管理器：维度类型注册、ID 分配、传送、规则应用。
+ * 个人维度管理器：维度类型注册、ID 分配、传送、规则同步与事件分发。
+ *
+ * <p>具体能力应用与光照修复已拆分到 {@link PlayerAbilityApplier} 与
+ * {@link DimensionLightingFixer}，避免本类过度膨胀。</p>
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID)
 public final class PersonalDimensionManager {
@@ -132,11 +138,11 @@ public final class PersonalDimensionManager {
             if (target == null) return;
             BlockPos spawn = target.getSpawnPoint();
             teleportTo(player, 0, spawn.getX() + 0.5, spawn.getY() + 0.1, spawn.getZ() + 0.5, player.rotationYaw, player.rotationPitch);
-            resetAbilities(player);
+            PlayerAbilityApplier.resetAbilities(player);
             return;
         }
         teleportTo(player, entry.returnDim, entry.returnX, entry.returnY, entry.returnZ, entry.returnYaw, entry.returnPitch);
-        resetAbilities(player);
+        PlayerAbilityApplier.resetAbilities(player);
     }
 
     public static void teleportToDimension(EntityPlayerMP player, int dimId) {
@@ -146,47 +152,110 @@ public final class PersonalDimensionManager {
         double ty = entryPos.getY() + 0.1;
         double tz = entryPos.getZ() + 0.5;
         teleportTo(player, dimId, tx, ty, tz, player.rotationYaw, player.rotationPitch);
-        scheduleRelight(player.getServerWorld().getMinecraftServer(), dimId, new BlockPos(tx, ty, tz));
+        DimensionLightingFixer.scheduleRelight(player.getServerWorld().getMinecraftServer(), dimId, new BlockPos(tx, ty, tz));
     }
 
-    private static void scheduleRelight(@Nullable MinecraftServer server, int dimId, BlockPos center) {
-        if (server == null) return;
-        server.addScheduledTask(() -> relightDimensionChunks(dimId, center));
-        server.addScheduledTask(() -> server.addScheduledTask(() -> {
-            // 延迟一tick后再做一次，确保区块已完全加载并同步到客户端
-            relightDimensionChunks(dimId, center);
-            WorldServer target = server.getWorld(dimId);
-            if (target != null) {
-                refreshSkyLight(target, center);
+    /**
+     * 将指定玩家传送到目标所有者的个人维度，并校验访问权限。
+     *
+     * @param player  要传送的玩家
+     * @param ownerId 维度所有者
+     * @return 是否成功传送
+     */
+    public static boolean teleportPlayerToDimension(EntityPlayerMP player, UUID ownerId) {
+        if (player.getUniqueID().equals(ownerId)) {
+            int dimId = getOrCreateDimension(player);
+            if (dimId != Integer.MIN_VALUE) {
+                teleportToDimension(player, dimId);
+                return true;
             }
-        }));
-    }
-
-    private static void relightDimensionChunks(int dimId, BlockPos center) {
-        WorldServer world = DimensionManager.getWorld(dimId);
-        if (world == null) return;
-        int cx = center.getX() >> 4;
-        int cz = center.getZ() >> 4;
-        for (int dx = -4; dx <= 4; dx++) {
-            for (int dz = -4; dz <= 4; dz++) {
-                Chunk chunk = world.getChunkProvider().getLoadedChunk(cx + dx, cz + dz);
-                if (chunk == null) continue;
-                chunk.checkLight();
-                chunk.setLightPopulated(true);
-                chunk.markDirty();
-            }
+            return false;
         }
+
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return false;
+        PlayerDimEntry entry = PersonalDimensionData.get(overworld).getEntry(ownerId);
+        if (entry == null || entry.dimensionId == Integer.MIN_VALUE) {
+            return false;
+        }
+        if (!entry.allowedPlayers.contains(player.getUniqueID())
+                || !entry.hasPermission(player.getUniqueID(), PersonalDimPermission.ENTER)) {
+            return false;
+        }
+        int dimId = entry.dimensionId;
+        DimensionManager.initDimension(dimId);
+        BlockPos entryPos = entry.entryPoint;
+        double tx = entryPos.getX() + 0.5;
+        double ty = entryPos.getY() + 0.1;
+        double tz = entryPos.getZ() + 0.5;
+        teleportTo(player, dimId, tx, ty, tz, player.rotationYaw, player.rotationPitch);
+        DimensionLightingFixer.scheduleRelight(player.getServerWorld().getMinecraftServer(), dimId, new BlockPos(tx, ty, tz));
+        return true;
     }
 
-    private static void refreshSkyLight(WorldServer world, BlockPos center) {
-        int floorY = AE2EnhancedConfig.personalDimension.floorY;
-        int startY = Math.min(center.getY(), floorY + 2);
-        for (int dx = -32; dx <= 32; dx += 4) {
-            for (int dz = -32; dz <= 32; dz += 4) {
-                BlockPos pos = new BlockPos(center.getX() + dx, startY, center.getZ() + dz);
-                world.checkLightFor(EnumSkyBlock.SKY, pos);
-            }
+    /**
+     * 邀请玩家进入指定所有者的个人维度。
+     */
+    public static boolean invitePlayer(UUID ownerId, UUID targetId) {
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return false;
+        PlayerDimEntry entry = PersonalDimensionData.get(overworld).getEntry(ownerId);
+        if (entry == null) return false;
+        entry.allowedPlayers.add(targetId);
+        Set<PersonalDimPermission> perms = entry.permissions.computeIfAbsent(targetId, k -> EnumSet.noneOf(PersonalDimPermission.class));
+        perms.add(PersonalDimPermission.ENTER);
+        perms.add(PersonalDimPermission.BUILD);
+        perms.add(PersonalDimPermission.INTERACT);
+        PersonalDimensionData.get(overworld).markDirty();
+        return true;
+    }
+
+    /**
+     * 将玩家从指定所有者的个人维度白名单移除。
+     */
+    public static boolean kickPlayer(UUID ownerId, UUID targetId) {
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return false;
+        PlayerDimEntry entry = PersonalDimensionData.get(overworld).getEntry(ownerId);
+        if (entry == null) return false;
+        entry.removePlayer(targetId);
+        PersonalDimensionData.get(overworld).markDirty();
+        return true;
+    }
+
+    /**
+     * 设置某玩家对指定所有者维度的某项权限。
+     */
+    public static boolean setPermission(UUID ownerId, UUID targetId, PersonalDimPermission permission, boolean value) {
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return false;
+        PlayerDimEntry entry = PersonalDimensionData.get(overworld).getEntry(ownerId);
+        if (entry == null) return false;
+        if (value) {
+            entry.grantPermission(targetId, permission);
+        } else {
+            entry.revokePermission(targetId, permission);
         }
+        PersonalDimensionData.get(overworld).markDirty();
+        return true;
+    }
+
+    /**
+     * 删除指定玩家的个人维度数据，下次进入时会重新创建。
+     */
+    public static boolean deleteDimension(UUID playerId) {
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return false;
+        PlayerDimEntry entry = PersonalDimensionData.get(overworld).getEntry(playerId);
+        if (entry == null || entry.dimensionId == Integer.MIN_VALUE) {
+            return false;
+        }
+        int dimId = entry.dimensionId;
+        if (DimensionManager.isDimensionRegistered(dimId)) {
+            DimensionManager.unregisterDimension(dimId);
+        }
+        PersonalDimensionData.get(overworld).removeEntry(playerId);
+        return true;
     }
 
     public static void teleportTo(EntityPlayerMP player, int dimId, double x, double y, double z, float yaw, float pitch) {
@@ -248,9 +317,7 @@ public final class PersonalDimensionManager {
         if (AE2Enhanced.network == null) return;
         PlayerDimEntry entry = getEntry(playerId);
         if (entry == null) return;
-        MinecraftServer server = net.minecraftforge.common.DimensionManager.getWorld(0) != null
-                ? net.minecraftforge.common.DimensionManager.getWorld(0).getMinecraftServer()
-                : null;
+        MinecraftServer server = getOverworld() != null ? getOverworld().getMinecraftServer() : null;
         if (server == null) return;
         EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
         if (player != null) {
@@ -314,45 +381,6 @@ public final class PersonalDimensionManager {
         if (rules.lockTime || !rules.daylightCycle) {
             world.setWorldTime(rules.timeValue);
         }
-        for (net.minecraft.entity.player.EntityPlayer player : world.playerEntities) {
-            if (player instanceof EntityPlayerMP) {
-                applyFlightRules((EntityPlayerMP) player, rules);
-            }
-        }
-    }
-
-    private static void applyFlightRules(EntityPlayerMP player, PersonalDimensionRules rules) {
-        net.minecraft.entity.player.PlayerCapabilities cap = player.capabilities;
-        boolean shouldFly = player.isCreative() || rules.flightEnabled;
-        if (cap.allowFlying != shouldFly) {
-            cap.allowFlying = shouldFly;
-            if (!shouldFly) {
-                cap.isFlying = false;
-            }
-            player.sendPlayerAbilities();
-        }
-        float speed = rules.movementSpeed;
-        if (Math.abs(cap.getFlySpeed() - speed) > 1e-4f || Math.abs(cap.getWalkSpeed() - speed) > 1e-4f) {
-            cap.setFlySpeed(speed);
-            cap.setPlayerWalkSpeed(speed);
-            player.sendPlayerAbilities();
-        }
-        if (rules.noFlightInertia && cap.isFlying) {
-            if (player.moveForward == 0.0f && player.moveStrafing == 0.0f) {
-                player.motionX = 0.0;
-                player.motionZ = 0.0;
-            }
-        }
-    }
-
-    private static void resetAbilities(EntityPlayerMP player) {
-        if (player.isCreative()) return;
-        net.minecraft.entity.player.PlayerCapabilities cap = player.capabilities;
-        cap.allowFlying = false;
-        cap.isFlying = false;
-        cap.setPlayerWalkSpeed(0.1f);
-        cap.setFlySpeed(0.05f);
-        player.sendPlayerAbilities();
     }
 
     @SubscribeEvent
@@ -386,13 +414,16 @@ public final class PersonalDimensionManager {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.player.world.isRemote) return;
-        if (event.player instanceof EntityPlayerMP) {
-            resetAbilities((EntityPlayerMP) event.player);
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.player;
+        // 只有重生前位于个人维度时才重置能力，避免误清其他模组的永久飞行/速度加成
+        if (isPersonalDimension(event.player.dimension)) {
+            PlayerAbilityApplier.resetAbilities(player);
         }
     }
 
     /**
-     * 玩家进入个人维度时预加载区块，并同步规则到客户端。
+     * 玩家在个人维度下线时保存 chunk。
      */
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
@@ -418,8 +449,8 @@ public final class PersonalDimensionManager {
             WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
             if (dimWorld != null) {
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                relightDimensionChunks(player.dimension, pos);
-                refreshSkyLight(dimWorld, pos);
+                DimensionLightingFixer.relightDimensionChunks(player.dimension, pos);
+                DimensionLightingFixer.refreshSkyLight(dimWorld, pos);
             }
             sendRulesToPlayer(player.getUniqueID());
         }
@@ -436,18 +467,18 @@ public final class PersonalDimensionManager {
         if (isPersonalDimension(event.toDim)) {
             PlayerDimEntry entry = getEntry(player.getUniqueID());
             if (entry != null) {
-                applyFlightRules(player, entry.rules);
+                PlayerAbilityApplier.applyFlightRules(player, entry.rules);
                 sendRulesToPlayer(player.getUniqueID());
             }
             // 通过指令或其他 mod 进入个人维度时，校正光照
             WorldServer dimWorld = player.getServerWorld();
             if (dimWorld != null) {
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                relightDimensionChunks(event.toDim, pos);
-                refreshSkyLight(dimWorld, pos);
+                DimensionLightingFixer.relightDimensionChunks(event.toDim, pos);
+                DimensionLightingFixer.refreshSkyLight(dimWorld, pos);
             }
         } else if (isPersonalDimension(event.fromDim)) {
-            resetAbilities(player);
+            PlayerAbilityApplier.resetAbilities(player);
             // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载。
             // 为避免玩家高频进出时部分 chunk 尚未写入磁盘，先异步 flush 已加载的脏 chunk
             //（all=false 仅保存 dirty 的已加载 chunk，远低于 saveAllChunks(true) 的卡顿）。
@@ -472,35 +503,7 @@ public final class PersonalDimensionManager {
         if (!isPersonalDimension(event.player.dimension)) return;
         PlayerDimEntry entry = getEntry(event.player.getUniqueID());
         if (entry != null) {
-            applyFlightRules((EntityPlayerMP) event.player, entry.rules);
-        }
-    }
-
-    /**
-     * 简单的定点传送器，避免生成传送门。
-     * 继承原版 Teleporter 以获得 Forge 最稳定的跨维度实体放置支持。
-     */
-    private static class PersonalTeleporter extends net.minecraft.world.Teleporter {
-        private final double x, y, z;
-        private final float yaw, pitch;
-
-        PersonalTeleporter(WorldServer world, double x, double y, double z, float yaw, float pitch) {
-            super(world);
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.yaw = yaw;
-            this.pitch = pitch;
-        }
-
-        @Override
-        public void placeInPortal(net.minecraft.entity.Entity entity, float rotationYaw) {
-            entity.setLocationAndAngles(x, y, z, this.yaw, this.pitch);
-            entity.motionX = 0;
-            entity.motionY = 0;
-            entity.motionZ = 0;
-            // 不再调用 setPositionAndUpdate，避免额外触发 chunk 加载/同步；
-            // PlayerList.transferPlayerToDimension 后续会调用 setPlayerLocation 完成最终定位。
+            PlayerAbilityApplier.applyFlightRules((EntityPlayerMP) event.player, entry.rules);
         }
     }
 }

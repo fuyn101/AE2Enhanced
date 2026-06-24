@@ -18,6 +18,7 @@ import java.util.UUID;
 public class PersonalDimensionData extends WorldSavedData {
 
     private static final String DATA_NAME = AE2Enhanced.MOD_ID + ":personal_dimensions";
+    private static final int CURRENT_VERSION = 1;
 
     private final Map<UUID, PlayerDimEntry> entries = new HashMap<>();
     private final Map<Integer, UUID> dimToPlayer = new HashMap<>();
@@ -81,10 +82,22 @@ public class PersonalDimensionData extends WorldSavedData {
         markDirty();
     }
 
+    /**
+     * 删除指定玩家的维度数据。用于管理员命令删除/重建维度。
+     */
+    public void removeEntry(UUID playerId) {
+        PlayerDimEntry entry = entries.remove(playerId);
+        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+            dimToPlayer.remove(entry.dimensionId);
+        }
+        markDirty();
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
         entries.clear();
         dimToPlayer.clear();
+        int version = nbt.hasKey("version", 99) ? nbt.getInteger("version") : 0;
         NBTTagList list = nbt.getTagList("entries", 10);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound tag = list.getCompoundTagAt(i);
@@ -95,7 +108,7 @@ public class PersonalDimensionData extends WorldSavedData {
                 continue;
             }
             PlayerDimEntry entry = new PlayerDimEntry(id);
-            entry.readFromNBT(tag);
+            entry.readFromNBT(tag, version);
             entries.put(id, entry);
             if (entry.dimensionId != Integer.MIN_VALUE) {
                 dimToPlayer.put(entry.dimensionId, id);
@@ -105,6 +118,7 @@ public class PersonalDimensionData extends WorldSavedData {
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
+        compound.setInteger("version", CURRENT_VERSION);
         NBTTagList list = new NBTTagList();
         for (PlayerDimEntry entry : entries.values()) {
             list.appendTag(entry.writeToNBT());

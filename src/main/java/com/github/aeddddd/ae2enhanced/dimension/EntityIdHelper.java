@@ -23,6 +23,13 @@ public final class EntityIdHelper {
 
     private EntityIdHelper() {}
 
+    /**
+     * 获取反射得到的 World.entityId 字段，供 Mixin 复用。
+     */
+    public static Field getEntityIdField() {
+        return ENTITY_ID_FIELD;
+    }
+
     private static Field resolveField(Class<?> clazz, String... names) {
         for (String name : names) {
             try {

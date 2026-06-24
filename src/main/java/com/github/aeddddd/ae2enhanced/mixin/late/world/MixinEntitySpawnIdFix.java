@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.world;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.dimension.EntityIdHelper;
 import com.github.aeddddd.ae2enhanced.dimension.PersonalDimensionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityTracker;
@@ -25,23 +27,7 @@ import java.lang.reflect.Field;
 @Mixin(value = World.class, remap = true)
 public class MixinEntitySpawnIdFix {
 
-    private static final Field ENTITY_ID_FIELD;
-
-    static {
-        ENTITY_ID_FIELD = resolveField(World.class, "entityId", "field_72993_J");
-    }
-
-    private static Field resolveField(Class<?> clazz, String... names) {
-        for (String name : names) {
-            try {
-                Field f = clazz.getDeclaredField(name);
-                f.setAccessible(true);
-                return f;
-            } catch (Exception ignored) {
-            }
-        }
-        return null;
-    }
+    private static final Field ENTITY_ID_FIELD = EntityIdHelper.getEntityIdField();
 
     @Inject(method = "spawnEntity", at = @At("HEAD"))
     private void ae2e$fixPlayerEntityIdConflict(Entity entity, CallbackInfoReturnable<Boolean> cir) {
@@ -73,7 +59,8 @@ public class MixinEntitySpawnIdFix {
                 int newId = ENTITY_ID_FIELD.getInt(world);
                 ENTITY_ID_FIELD.setInt(world, newId + 1);
                 entity.setEntityId(newId);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to bump entity id for player {}", entity.getName(), e);
                 break;
             }
         }

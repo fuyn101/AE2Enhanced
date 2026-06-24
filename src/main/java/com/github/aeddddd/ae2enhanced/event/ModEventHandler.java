@@ -7,6 +7,7 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.dimension.PresetLoader;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.item.ItemConformalCharge;
 import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
@@ -39,6 +40,7 @@ import net.minecraftforge.event.entity.player.PlayerDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -67,6 +69,16 @@ public final class ModEventHandler {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new ModEventHandler());
+    }
+
+    /**
+     * 配置变更时重载个人维度地板预设缓存。
+     */
+    @SubscribeEvent
+    public void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
+        if (AE2Enhanced.MOD_ID.equals(event.getModID())) {
+            PresetLoader.reload();
+        }
     }
 
     /**
