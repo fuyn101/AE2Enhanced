@@ -204,10 +204,19 @@ public final class PersonalDimensionManager {
             player.setPositionAndUpdate(x, y, z);
             return;
         }
-        DimensionManager.initDimension(dimId);
-        if (isPersonalDimension(dimId)) {
-            // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载
-            DimensionManager.keepDimensionLoaded(dimId, true);
+        if (DimensionManager.isDimensionRegistered(dimId)) {
+            DimensionManager.initDimension(dimId);
+            if (isPersonalDimension(dimId)) {
+                // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载
+                DimensionManager.keepDimensionLoaded(dimId, true);
+            }
+            // 在某些 mod 组合或世界反复加载/卸载后，目标世界的 EntityTracker 中可能残留
+            // 该玩家的追踪条目；直接 changeDimension 会导致 "Entity is already tracked!"。
+            // 在切换前先显式 untrack，可避免该崩溃并防止后续 chunk 加载连锁出错。
+            WorldServer targetWorld = DimensionManager.getWorld(dimId);
+            if (targetWorld != null) {
+                targetWorld.getEntityTracker().untrack(player);
+            }
         }
         player.changeDimension(dimId, new PersonalTeleporter(x, y, z, yaw, pitch));
     }
