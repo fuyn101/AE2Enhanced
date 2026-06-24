@@ -199,16 +199,6 @@ public final class PersonalDimensionManager {
         }
     }
 
-    private static void preloadChunks(WorldServer world, BlockPos center) {
-        int cx = center.getX() >> 4;
-        int cz = center.getZ() >> 4;
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                world.getChunkProvider().provideChunk(cx + dx, cz + dz);
-            }
-        }
-    }
-
     public static void teleportTo(EntityPlayerMP player, int dimId, double x, double y, double z, float yaw, float pitch) {
         if (player.dimension == dimId) {
             player.setPositionAndUpdate(x, y, z);
@@ -216,12 +206,8 @@ public final class PersonalDimensionManager {
         }
         DimensionManager.initDimension(dimId);
         if (isPersonalDimension(dimId)) {
-            // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载并预生成目标区块
+            // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载
             DimensionManager.keepDimensionLoaded(dimId, true);
-            WorldServer target = DimensionManager.getWorld(dimId);
-            if (target != null) {
-                preloadChunks(target, new BlockPos(x, y, z));
-            }
         }
         player.changeDimension(dimId, new PersonalTeleporter(x, y, z, yaw, pitch));
     }
@@ -461,10 +447,8 @@ public final class PersonalDimensionManager {
             if (dimWorld != null) {
                 ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                preloadChunks(dimWorld, pos);
                 relightDimensionChunks(player.dimension, pos);
                 refreshSkyLight(dimWorld, pos);
-                AE2Enhanced.LOGGER.info("[AE2E] Preloaded personal dimension {} chunks around {}", player.dimension, pos);
             }
             sendRulesToPlayer(player.getUniqueID());
         }
@@ -484,15 +468,13 @@ public final class PersonalDimensionManager {
                 applyFlightRules(player, entry.rules);
                 sendRulesToPlayer(player.getUniqueID());
             }
-            // 通过指令或其他 mod 进入个人维度时，确保目标区块已加载，防止落地虚空/无法移动
+            // 通过指令或其他 mod 进入个人维度时，确保 WorldInfo 已隔离并校正光照
             WorldServer dimWorld = player.getServerWorld();
             if (dimWorld != null) {
                 ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                preloadChunks(dimWorld, pos);
                 relightDimensionChunks(event.toDim, pos);
                 refreshSkyLight(dimWorld, pos);
-                AE2Enhanced.LOGGER.info("[AE2E] Preloaded personal dimension {} chunks around {} after dimension change", event.toDim, pos);
             }
         } else if (isPersonalDimension(event.fromDim)) {
             resetAbilities(player);
