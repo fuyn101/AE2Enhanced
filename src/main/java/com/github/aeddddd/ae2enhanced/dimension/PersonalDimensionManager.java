@@ -215,6 +215,14 @@ public final class PersonalDimensionManager {
             return;
         }
         DimensionManager.initDimension(dimId);
+        if (isPersonalDimension(dimId)) {
+            // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载并预生成目标区块
+            DimensionManager.keepDimensionLoaded(dimId, true);
+            WorldServer target = DimensionManager.getWorld(dimId);
+            if (target != null) {
+                preloadChunks(target, new BlockPos(x, y, z));
+            }
+        }
         player.changeDimension(dimId, new PersonalTeleporter(x, y, z, yaw, pitch));
     }
 
@@ -405,6 +413,13 @@ public final class PersonalDimensionManager {
         if (event.getWorld().isRemote || !(event.getWorld() instanceof WorldServer)) return;
         int dim = event.getWorld().provider.getDimension();
         if (!isPersonalDimension(dim)) return;
+        // 个人维度 WorldServer 一旦创建（无论是核心、指令还是其他 mod 传送触发的）就保持常驻，
+        // 避免出去后世界对象被回收导致无线连接器等状态丢失
+        try {
+            DimensionManager.keepDimensionLoaded(dim, true);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded on world load", dim, e);
+        }
         PlayerDimEntry entry = getEntryByDimension(dim);
         if (entry != null) {
             ensureIsolatedWorldInfo((WorldServer) event.getWorld(), entry);
@@ -468,6 +483,16 @@ public final class PersonalDimensionManager {
             if (entry != null) {
                 applyFlightRules(player, entry.rules);
                 sendRulesToPlayer(player.getUniqueID());
+            }
+            // 通过指令或其他 mod 进入个人维度时，确保目标区块已加载，防止落地虚空/无法移动
+            WorldServer dimWorld = player.getServerWorld();
+            if (dimWorld != null) {
+                ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
+                BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
+                preloadChunks(dimWorld, pos);
+                relightDimensionChunks(event.toDim, pos);
+                refreshSkyLight(dimWorld, pos);
+                AE2Enhanced.LOGGER.info("[AE2E] Preloaded personal dimension {} chunks around {} after dimension change", event.toDim, pos);
             }
         } else if (isPersonalDimension(event.fromDim)) {
             resetAbilities(player);
