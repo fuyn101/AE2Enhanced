@@ -10,10 +10,8 @@ import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.storage.WorldInfo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
-import net.minecraftforge.common.util.ITeleporter;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -21,12 +19,8 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.relauncher.ReflectionHelper;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,10 +33,6 @@ public final class PersonalDimensionManager {
 
     private static DimensionType PERSONAL_DIM_TYPE;
     private static boolean typeRegistered = false;
-
-    private static final Set<Integer> ISOLATED_WORLD_INFOS = new HashSet<>();
-    private static final Field WORLD_INFO_FIELD = ReflectionHelper.findField(
-            net.minecraft.world.World.class, "worldInfo", "field_72986_A");
 
     /**
      * 在 preInit 阶段注册维度类型。
@@ -204,21 +194,17 @@ public final class PersonalDimensionManager {
             player.setPositionAndUpdate(x, y, z);
             return;
         }
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+        // 与 SimpleVoidWorld 一致：直接走 PlayerList.transferPlayerToDimension，
+        // 由 Forge 负责跨维度实体迁移。先 init 目标世界避免未加载时为空。
         if (DimensionManager.isDimensionRegistered(dimId)) {
             DimensionManager.initDimension(dimId);
-            if (isPersonalDimension(dimId)) {
-                // 通过核心或其他 mod 调用本方法进入个人维度时，立即保持加载
-                DimensionManager.keepDimensionLoaded(dimId, true);
-            }
-            // 在某些 mod 组合或世界反复加载/卸载后，目标世界的 EntityTracker 中可能残留
-            // 该玩家的追踪条目；直接 changeDimension 会导致 "Entity is already tracked!"。
-            // 在切换前先显式 untrack，可避免该崩溃并防止后续 chunk 加载连锁出错。
-            WorldServer targetWorld = DimensionManager.getWorld(dimId);
-            if (targetWorld != null) {
-                targetWorld.getEntityTracker().untrack(player);
-            }
         }
-        player.changeDimension(dimId, new PersonalTeleporter(x, y, z, yaw, pitch));
+        WorldServer targetWorld = server.getWorld(dimId);
+        if (targetWorld == null) return;
+        server.getPlayerList().transferPlayerToDimension(player, dimId,
+                new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
@@ -228,16 +214,6 @@ public final class PersonalDimensionManager {
         data.setRules(playerId, rules);
         // 规则变更后立即同步给玩家，确保客户端 GUI 与维度状态一致
         sendRulesToPlayer(playerId);
-
-        // 如果玩家当前在其个人维度内，立即重新隔离 worldInfo（规则如 lockWeather 可能变化）
-        PlayerDimEntry entry = data.getEntry(playerId);
-        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
-            WorldServer dimWorld = DimensionManager.getWorld(entry.dimensionId);
-            if (dimWorld != null) {
-                ISOLATED_WORLD_INFOS.remove(entry.dimensionId);
-                ensureIsolatedWorldInfo(dimWorld, entry);
-            }
-        }
     }
 
     private static void sendRulesToPlayer(UUID playerId) {
@@ -273,15 +249,6 @@ public final class PersonalDimensionManager {
             if (!DimensionManager.isDimensionRegistered(entry.dimensionId)) {
                 DimensionManager.registerDimension(entry.dimensionId, PERSONAL_DIM_TYPE);
             }
-            // 服务端启动时即把已存在的个人维度标记为常驻加载，避免登录/重载时世界对象被回收
-            // 导致无线连接器等跨 tick 状态丢失
-            try {
-                DimensionManager.initDimension(entry.dimensionId);
-                DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
-                AE2Enhanced.LOGGER.info("[AE2E] Kept personal dimension {} loaded on server start", entry.dimensionId);
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded on server start", entry.dimensionId, e);
-            }
         }
     }
 
@@ -310,11 +277,6 @@ public final class PersonalDimensionManager {
         PlayerDimEntry entry = getEntryByDimension(dim);
         if (entry == null) return;
 
-        // 将个人维度的 worldInfo 替换为隔离版本，防止时间/天气委托给主世界
-        if (event.world instanceof WorldServer) {
-            ensureIsolatedWorldInfo((WorldServer) event.world, entry);
-        }
-
         World world = event.world;
         PersonalDimensionRules rules = entry.rules;
         if (rules.lockWeather) {
@@ -328,28 +290,6 @@ public final class PersonalDimensionManager {
             if (player instanceof EntityPlayerMP) {
                 applyFlightRules((EntityPlayerMP) player, rules);
             }
-        }
-    }
-
-    private static void ensureIsolatedWorldInfo(WorldServer world, PlayerDimEntry entry) {
-        int dim = world.provider.getDimension();
-        if (ISOLATED_WORLD_INFOS.contains(dim)) return;
-        if (world.getWorldInfo() instanceof PersonalDimensionWorldInfo) {
-            ISOLATED_WORLD_INFOS.add(dim);
-            return;
-        }
-        try {
-            WorldInfo parent = world.getWorldInfo();
-            PersonalDimensionWorldInfo isolated = new PersonalDimensionWorldInfo(
-                    parent,
-                    entry.rules,
-                    () -> PersonalDimensionData.get(world).markDirty()
-            );
-            WORLD_INFO_FIELD.set(world, isolated);
-            ISOLATED_WORLD_INFOS.add(dim);
-            AE2Enhanced.LOGGER.info("[AE2E] Isolated world info for personal dimension {}", dim);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to isolate world info for personal dimension {}", dim, e);
         }
     }
 
@@ -387,21 +327,14 @@ public final class PersonalDimensionManager {
         player.sendPlayerAbilities();
     }
 
-    /**
-     * 世界卸载时清理 worldInfo 隔离标记，确保下次加载（例如外部区块加载器重新加载）
-     * 能够重新替换为隔离 WorldInfo。
-     */
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
-        if (event.getWorld().isRemote) return;
-        int dim = event.getWorld().provider.getDimension();
-        if (isPersonalDimension(dim)) {
-            ISOLATED_WORLD_INFOS.remove(dim);
-        }
+        // 个人维度由 DimensionManager.keepDimensionLoaded 常驻，正常不会走到这里。
+        // 保留事件占位，以便未来需要时在卸载前做状态持久化。
     }
 
     /**
-     * 个人维度 WorldServer 创建后立即替换 WorldInfo，避免玩家进入/登录后才隔离导致客户端不同步。
+     * 个人维度 WorldServer 创建后保持常驻加载。
      */
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
@@ -414,10 +347,6 @@ public final class PersonalDimensionManager {
             DimensionManager.keepDimensionLoaded(dim, true);
         } catch (Exception e) {
             AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded on world load", dim, e);
-        }
-        PlayerDimEntry entry = getEntryByDimension(dim);
-        if (entry != null) {
-            ensureIsolatedWorldInfo((WorldServer) event.getWorld(), entry);
         }
     }
 
@@ -440,21 +369,9 @@ public final class PersonalDimensionManager {
         if (event.player.world.isRemote) return;
         if (!(event.player instanceof EntityPlayerMP)) return;
         EntityPlayerMP player = (EntityPlayerMP) event.player;
-        PlayerDimEntry entry = getEntry(player.getUniqueID());
-        if (entry.dimensionId != Integer.MIN_VALUE) {
-            // 玩家个人维度一旦加载就保持常驻，避免登录/重载时世界对象被回收
-            // 导致区块、无线连接器等跨 tick 状态丢失
-            try {
-                DimensionManager.initDimension(entry.dimensionId);
-                DimensionManager.keepDimensionLoaded(entry.dimensionId, true);
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.error("[AE2E] Failed to keep personal dimension {} loaded for player {}", entry.dimensionId, player.getName(), e);
-            }
-        }
         if (isPersonalDimension(player.dimension)) {
             WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
             if (dimWorld != null) {
-                ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
                 relightDimensionChunks(player.dimension, pos);
                 refreshSkyLight(dimWorld, pos);
@@ -477,10 +394,9 @@ public final class PersonalDimensionManager {
                 applyFlightRules(player, entry.rules);
                 sendRulesToPlayer(player.getUniqueID());
             }
-            // 通过指令或其他 mod 进入个人维度时，确保 WorldInfo 已隔离并校正光照
+            // 通过指令或其他 mod 进入个人维度时，校正光照
             WorldServer dimWorld = player.getServerWorld();
             if (dimWorld != null) {
-                ensureIsolatedWorldInfo(dimWorld, getEntry(player.getUniqueID()));
                 BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
                 relightDimensionChunks(event.toDim, pos);
                 refreshSkyLight(dimWorld, pos);
@@ -506,12 +422,14 @@ public final class PersonalDimensionManager {
 
     /**
      * 简单的定点传送器，避免生成传送门。
+     * 继承原版 Teleporter 以获得 Forge 最稳定的跨维度实体放置支持。
      */
-    private static class PersonalTeleporter implements ITeleporter {
+    private static class PersonalTeleporter extends net.minecraft.world.Teleporter {
         private final double x, y, z;
         private final float yaw, pitch;
 
-        PersonalTeleporter(double x, double y, double z, float yaw, float pitch) {
+        PersonalTeleporter(WorldServer world, double x, double y, double z, float yaw, float pitch) {
+            super(world);
             this.x = x;
             this.y = y;
             this.z = z;
@@ -520,7 +438,7 @@ public final class PersonalDimensionManager {
         }
 
         @Override
-        public void placeEntity(World world, net.minecraft.entity.Entity entity, float yaw) {
+        public void placeInPortal(net.minecraft.entity.Entity entity, float rotationYaw) {
             entity.setLocationAndAngles(x, y, z, this.yaw, this.pitch);
             entity.motionX = 0;
             entity.motionY = 0;
@@ -528,11 +446,6 @@ public final class PersonalDimensionManager {
             if (entity instanceof EntityPlayerMP) {
                 ((EntityPlayerMP) entity).setPositionAndUpdate(x, y, z);
             }
-        }
-
-        @Override
-        public boolean isVanilla() {
-            return false;
         }
     }
 }
