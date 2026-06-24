@@ -111,6 +111,8 @@ public final class GameRegistryManager {
         }
 
         GameRegistry.registerTileEntity(TileAssemblyController.class, AE2Enhanced.MOD_ID + ":assembly_controller");
+        // 占位：旧存档中的 advanced_platform_controller TileEntity 会被替换为空实现
+        GameRegistry.registerTileEntity(com.github.aeddddd.ae2enhanced.tile.TileAdvancedPlatformController.class, AE2Enhanced.MOD_ID + ":advanced_platform_controller");
         GameRegistry.registerTileEntity(TileAssemblyMeInterface.class, AE2Enhanced.MOD_ID + ":assembly_me_interface");
         GameRegistry.registerTileEntity(TileMicroSingularity.class, AE2Enhanced.MOD_ID + ":micro_singularity");
         GameRegistry.registerTileEntity(TileHyperdimensionalController.class, AE2Enhanced.MOD_ID + ":hyperdimensional_controller");
