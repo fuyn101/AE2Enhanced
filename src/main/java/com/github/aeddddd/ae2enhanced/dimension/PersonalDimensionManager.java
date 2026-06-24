@@ -381,6 +381,25 @@ public final class PersonalDimensionManager {
     }
 
     /**
+     * 玩家在个人维度内直接退出服务器/存档时，强制保存该维度数据，
+     * 防止 keep-loaded 状态下 chunk 未落盘。
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player.world.isRemote) return;
+        if (!(event.player instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.player;
+        if (!isPersonalDimension(player.dimension)) return;
+        WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
+        if (dimWorld == null) return;
+        try {
+            dimWorld.saveAllChunks(true, null);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension {} on player logout", player.dimension, e);
+        }
+    }
+
+    /**
      * 玩家切换维度时应用/重置个人维度能力，并同步规则。
      */
     @SubscribeEvent
@@ -403,6 +422,16 @@ public final class PersonalDimensionManager {
             }
         } else if (isPersonalDimension(event.fromDim)) {
             resetAbilities(player);
+            // 个人维度 keep-loaded 状态下 chunk 不会随玩家离开自动进入完整的保存/卸载周期，
+            // 强制保存一次，避免重新进入时因磁盘数据缺失而重新生成、覆盖玩家建筑。
+            WorldServer dimWorld = DimensionManager.getWorld(event.fromDim);
+            if (dimWorld != null) {
+                try {
+                    dimWorld.saveAllChunks(true, null);
+                } catch (Exception e) {
+                    AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension {} on player leave", event.fromDim, e);
+                }
+            }
         }
     }
 
