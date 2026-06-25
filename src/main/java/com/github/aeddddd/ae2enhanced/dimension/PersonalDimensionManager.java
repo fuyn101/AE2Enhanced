@@ -273,43 +273,18 @@ public final class PersonalDimensionManager {
         }
         MinecraftServer server = player.getServer();
         if (server == null) return;
-        // 与 SimpleVoidWorld 一致：直接走 PlayerList.transferPlayerToDimension，
-        // 由 Forge 负责跨维度实体迁移。先 init 目标世界避免未加载时为空。
+        // 与 SimpleVoidWorld / McJtyLib 一致：先 init 目标世界避免未加载时为空，
+        // 然后直接由 Forge 的 PlayerList.transferPlayerToDimension 负责跨维度实体迁移。
+        // 实体 ID 冲突与 tracker 残留已由 MixinWorldServerLoadEntities / MixinEntitySpawnIdFix 兜底处理，
+        // 此处不再做重复的手动清理和计数器提升。
         if (DimensionManager.isDimensionRegistered(dimId)) {
             DimensionManager.initDimension(dimId);
         }
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
 
-        // 个人维度 WorldServer 重建后 entityId 计数器会从 0 开始，而玩家固定 ID 可能很低，
-        // 后续目标世界生成新实体时容易与之冲突并触发 "Entity is already tracked!"。
-        // 在传送前把计数器抬升到当前所有已加载实体（包括玩家）最大 ID 之后，避免冲突。
-        EntityIdHelper.bumpEntityIdCounter(targetWorld, player.getEntityId());
-
-        // 多次进出后，源/目标世界可能残留同 ID 的实体或旧的 tracker 记录，
-        // 导致 transferPlayerToDimension 在 spawnEntity 阶段触发 "Entity is already tracked!"。
-        // 在 transfer 前强制清理：untrack 当前玩家 + 移除同 ID 残留实体。
-        WorldServer sourceWorld = server.getWorld(player.dimension);
-        cleanupEntityTracker(sourceWorld, player);
-        cleanupEntityTracker(targetWorld, player);
-
         server.getPlayerList().transferPlayerToDimension(player, dimId,
                 new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
-    }
-
-    private static void cleanupEntityTracker(@Nullable WorldServer world, EntityPlayerMP player) {
-        if (world == null) return;
-        try {
-            world.getEntityTracker().untrack(player);
-        } catch (Exception ignored) {
-        }
-        try {
-            net.minecraft.entity.Entity existing = world.getEntityByID(player.getEntityId());
-            if (existing != null && existing != player) {
-                world.removeEntityDangerously(existing);
-            }
-        } catch (Exception ignored) {
-        }
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
@@ -439,18 +414,6 @@ public final class PersonalDimensionManager {
     }
 
     /**
-     * 个人维度 WorldServer 创建后不再强制 keep-loaded。
-     * 需要常驻运行的区块请使用 FTB Utilities、ChickenChunks 等外部 chunk loader。
-     */
-    @SubscribeEvent
-    public static void onWorldLoad(WorldEvent.Load event) {
-        // 强制 keep-loaded 已被移除，原因：
-        // 1) 玩家离开时同步 saveAllChunks(true) 会导致 MSPT 飙升、明显卡顿；
-        // 2) 强制 keep-loaded 与 FTB Utilities 等外部 chunk loader 冲突，导致 claim 后仍不工作。
-        // 玩家离开后世界自然卸载，Minecraft 会正常保存 chunk；需要机器继续运行的区块请外部 claim。
-    }
-
-    /**
      * 玩家在个人维度死亡并重生后恢复默认能力。
      */
     @SubscribeEvent
@@ -490,11 +453,11 @@ public final class PersonalDimensionManager {
         // 同步个人维度注册表到客户端，防止进入维度时客户端未注册而崩溃
         sendRegistrySync(player);
         if (isPersonalDimension(player.dimension)) {
-            WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
-            if (dimWorld != null) {
-                BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                DimensionLightingFixer.relightDimensionChunks(player.dimension, pos);
-                DimensionLightingFixer.refreshSkyLight(dimWorld, pos);
+            BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
+            DimensionLightingFixer.relightDimensionChunks(player.dimension, pos);
+            PlayerDimEntry entry = getEntry(player.getUniqueID());
+            if (entry != null) {
+                PlayerAbilityApplier.applyCapabilities(player, entry.rules);
             }
             sendRulesToPlayer(player.getUniqueID());
         }
@@ -525,16 +488,12 @@ public final class PersonalDimensionManager {
         if (isPersonalDimension(event.toDim)) {
             PlayerDimEntry entry = getEntry(player.getUniqueID());
             if (entry != null) {
-                PlayerAbilityApplier.applyFlightRules(player, entry.rules);
+                PlayerAbilityApplier.applyCapabilities(player, entry.rules);
                 sendRulesToPlayer(player.getUniqueID());
             }
             // 通过指令或其他 mod 进入个人维度时，校正光照
-            WorldServer dimWorld = player.getServerWorld();
-            if (dimWorld != null) {
-                BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
-                DimensionLightingFixer.relightDimensionChunks(event.toDim, pos);
-                DimensionLightingFixer.refreshSkyLight(dimWorld, pos);
-            }
+            BlockPos pos = new BlockPos(player.posX, player.posY, player.posZ);
+            DimensionLightingFixer.relightDimensionChunks(event.toDim, pos);
         } else if (isPersonalDimension(event.fromDim)) {
             PlayerAbilityApplier.resetAbilities(player);
             // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载。
@@ -561,7 +520,7 @@ public final class PersonalDimensionManager {
         if (!isPersonalDimension(event.player.dimension)) return;
         PlayerDimEntry entry = getEntry(event.player.getUniqueID());
         if (entry != null) {
-            PlayerAbilityApplier.applyFlightRules((EntityPlayerMP) event.player, entry.rules);
+            PlayerAbilityApplier.tickNoFlightInertia((EntityPlayerMP) event.player, entry.rules);
         }
     }
 }

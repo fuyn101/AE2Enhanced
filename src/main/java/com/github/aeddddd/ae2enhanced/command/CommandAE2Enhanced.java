@@ -85,6 +85,12 @@ public class CommandAE2Enhanced extends CommandBase {
         return 2;
     }
 
+    @Override
+    @Nonnull
+    public List<String> getAliases() {
+        return java.util.Collections.singletonList("ae2e");
+    }
+
     private static final String[] SUBCOMMANDS = {
             "spgc", "channels", "fastpathing", "recoverhd", "testhd", "migratefluids", "pd", "help"
     };

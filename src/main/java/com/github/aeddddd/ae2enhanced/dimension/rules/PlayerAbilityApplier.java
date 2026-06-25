@@ -16,12 +16,13 @@ public final class PlayerAbilityApplier {
 
     /**
      * 根据个人维度规则应用飞行与移动速度。
+     * 应在玩家进入维度、登录或规则变更时调用，不要在每 tick 调用。
      *
      * @param player 目标玩家
      * @param rules  维度规则
      * @return 若能力发生变化返回 true
      */
-    public static boolean applyFlightRules(EntityPlayerMP player, PersonalDimensionRules rules) {
+    public static boolean applyCapabilities(EntityPlayerMP player, PersonalDimensionRules rules) {
         PlayerCapabilities cap = player.capabilities;
         boolean changed = false;
 
@@ -45,14 +46,20 @@ public final class PlayerAbilityApplier {
             player.sendPlayerAbilities();
         }
 
-        if (rules.noFlightInertia && cap.isFlying) {
-            if (player.moveForward == 0.0f && player.moveStrafing == 0.0f) {
-                player.motionX = 0.0;
-                player.motionZ = 0.0;
-            }
-        }
-
         return changed;
+    }
+
+    /**
+     * 处理无飞行惯性规则：玩家停止移动输入时清零水平速度。
+     * 这需要在玩家 tick 中持续调用，因为移动输入每 tick 都会变化。
+     */
+    public static void tickNoFlightInertia(EntityPlayerMP player, PersonalDimensionRules rules) {
+        if (!rules.noFlightInertia) return;
+        PlayerCapabilities cap = player.capabilities;
+        if (cap.isFlying && player.moveForward == 0.0f && player.moveStrafing == 0.0f) {
+            player.motionX = 0.0;
+            player.motionZ = 0.0;
+        }
     }
 
     /**
