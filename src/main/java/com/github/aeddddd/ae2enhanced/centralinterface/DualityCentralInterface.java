@@ -257,13 +257,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             if (pendingLimit > 0) {
                 virtualParallel = Math.min(virtualParallel, pendingLimit);
             }
-            boolean virtualCardInstalled = virtualParallel > 1;
+            boolean canUseVirtual = handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
+                    && handler instanceof IVirtualBatchCraftingHandler;
 
-            // 优先尝试虚拟批量合成（handler 默认并行或已安装虚拟并行卡）
-            if (virtualCardInstalled
-                    && !globalVirtualCooling
-                    && handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
-                    && handler instanceof IVirtualBatchCraftingHandler) {
+            // 优先尝试虚拟批量合成（handler 支持虚拟批量即可，virtualParallel 仅限制最大并行数）
+            // 注意：纯虚拟 handler（如 Extended Crafting 工作台）即使 virtualParallel=1 也必须走此路径，
+            // 否则订单剩余 1 份时会因无物理能力而直接失败。
+            if (canUseVirtual
+                    && !globalVirtualCooling) {
                 attemptedVirtual = true;
                 IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
                 long actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);

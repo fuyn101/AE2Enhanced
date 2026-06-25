@@ -48,6 +48,8 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
     private static Method METHOD_GET_LINE_SIZE;
     private static Method METHOD_GET_RECIPES;
     private static Method METHOD_GET_TIER;
+    private static Class<?> CLASS_TABLE_RECIPE_BASE;
+    private static java.lang.reflect.Field FIELD_RECIPE_TIER;
     private static Object RECIPE_MANAGER_INSTANCE;
     private static boolean reflectionReady = false;
 
@@ -62,6 +64,10 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
             METHOD_GET_RECIPES = recipeManagerClass.getMethod("getRecipes");
             Class<?> tieredRecipeClass = Class.forName("com.blakebr0.extendedcrafting.crafting.table.ITieredRecipe");
             METHOD_GET_TIER = tieredRecipeClass.getMethod("getTier");
+            // 用于区分配方的"显式 tier"与"计算 tier"，避免 tier=0 的配方被错误过滤
+            CLASS_TABLE_RECIPE_BASE = Class.forName("com.blakebr0.extendedcrafting.crafting.table.TableRecipeBase");
+            FIELD_RECIPE_TIER = CLASS_TABLE_RECIPE_BASE.getDeclaredField("tier");
+            FIELD_RECIPE_TIER.setAccessible(true);
             reflectionReady = true;
         } catch (Exception e) {
             throw new RuntimeException("[AE2E] ExtendedCraftingTable reflection init failed", e);
@@ -209,8 +215,10 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
             int gridTier = getTierFromGridSize(lineSize * lineSize);
 
             for (IRecipe recipe : recipes) {
-                int tier = getRecipeTier(recipe);
-                if (tier > 0 && tier != gridTier) continue;
+                // 只使用配方的显式 tier 字段做过滤；tier=0 表示未限制工作台等级，
+                // 此时 ITieredRecipe.getTier() 会返回按材料数/尺寸计算的值，不能用于过滤。
+                int explicitTier = getExplicitRecipeTier(recipe);
+                if (explicitTier > 0 && explicitTier != gridTier) continue;
 
                 if (outputsMatch(recipe.getRecipeOutput(), output)) {
                     matches.add(recipe);
@@ -228,6 +236,17 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    private static int getExplicitRecipeTier(IRecipe recipe) {
+        try {
+            if (FIELD_RECIPE_TIER != null) {
+                return FIELD_RECIPE_TIER.getInt(recipe);
+            }
+        } catch (Exception ignored) {
+        }
+        // fallback：无法读取字段时退回到 getTier()（可能过滤更严格，但安全）
+        return getRecipeTier(recipe);
     }
 
     private static int getTierFromGridSize(int size) {
