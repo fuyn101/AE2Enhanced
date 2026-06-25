@@ -75,6 +75,9 @@ public final class PersonalDimensionManager {
 
     public static boolean isPersonalDimension(int dimId) {
         if (PERSONAL_DIM_TYPE == null) return false;
+        // getProviderType 对未注册维度会抛 IllegalArgumentException，
+        // 先检查是否注册可避免世界 tick 阶段因其他 mod/状态异常而崩溃。
+        if (!DimensionManager.isDimensionRegistered(dimId)) return false;
         return DimensionManager.getProviderType(dimId) == PERSONAL_DIM_TYPE;
     }
 
@@ -504,6 +507,7 @@ public final class PersonalDimensionManager {
     public static void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         if (PERSONAL_DIM_TYPE == null) return;
         for (int dimId : DimensionManager.getStaticDimensionIDs()) {
+            if (!DimensionManager.isDimensionRegistered(dimId)) continue;
             if (DimensionManager.getProviderType(dimId) == PERSONAL_DIM_TYPE) {
                 try {
                     DimensionManager.unregisterDimension(dimId);
