@@ -501,20 +501,17 @@ public final class PersonalDimensionManager {
     }
 
     /**
-     * 客户端断开连接后清理已注册的个人维度，避免连接下一服务器时残留 ID 冲突。
+     * 客户端断开连接后清理客户端缓存。
+     *
+     * <p>注意：不能在此处调用 {@link DimensionManager#unregisterDimension(int)}。
+     * 在单人游戏中客户端与服务端共享 JVM 和 DimensionManager 注册表，
+     * 退出游戏时服务端可能仍在 tick；若此时注销个人维度 ID，
+     * {@link #onWorldTick} 中调用 {@link #isPersonalDimension(int)} 会读到未注册的 ID
+     * 并触发 {@code Could not get provider type for dimension X, does not exist} 崩溃。</p>
      */
     @SubscribeEvent
     public static void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        if (PERSONAL_DIM_TYPE == null) return;
-        for (int dimId : DimensionManager.getStaticDimensionIDs()) {
-            if (!DimensionManager.isDimensionRegistered(dimId)) continue;
-            if (DimensionManager.getProviderType(dimId) == PERSONAL_DIM_TYPE) {
-                try {
-                    DimensionManager.unregisterDimension(dimId);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        com.github.aeddddd.ae2enhanced.client.ClientPersonalDimensionRules.update(null);
     }
 
     /**
