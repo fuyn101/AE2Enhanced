@@ -19,35 +19,47 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.github.aeddddd.ae2enhanced.mixin.MixinReflectionHelper;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * E2a：GridStorageCache 实时联动——气体通道变化通知物品通道.
  * 本 mixin 位于 mixins.ae2enhanced.late.gas.json 中,条件加载.
+ *
+ * <p>通道集合改为懒加载,避免在 {@link GridStorageCache} 的静态初始化阶段调用
+ * {@code AEApi.instance().storage().getStorageChannel(...)} 导致初始化失败。</p>
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
 public class MixinGridStorageCacheGas {
 
-    private static final java.util.Set<IStorageChannel<?>> GAS_CHANNELS = new java.util.HashSet<>();
+    private static Set<IStorageChannel<?>> ae2enhanced$gasChannels;
 
-    static {
-        try {
-            GAS_CHANNELS.add(AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
-        } catch (Exception e) {
-            // 气体通道不可用
+    private static boolean ae2enhanced$isGasChannel(IStorageChannel<?> channel) {
+        if (ae2enhanced$gasChannels == null) {
+            ae2enhanced$gasChannels = new HashSet<>();
+            try {
+                IStorageChannel<?> gasChannel = AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
+                if (gasChannel != null) {
+                    ae2enhanced$gasChannels.add(gasChannel);
+                }
+            } catch (Exception e) {
+                // 气体通道不可用
+            }
         }
+        return ae2enhanced$gasChannels.contains(channel);
     }
 
     @Inject(method = "postAlterationOfStoredItems", at = @At("TAIL"))
     private void onPostAlterationGas(IStorageChannel<?> chan, Iterable<? extends IAEStack<?>> input, IActionSource src, CallbackInfo ci) {
-        if (!GAS_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isGasChannel(chan)) return;
         postGasChanges(input, src);
     }
 
     @Inject(method = "postChangesToNetwork", at = @At("TAIL"))
     private <T extends IAEStack<T>, C extends IStorageChannel<T>> void onPostChangesGas(C chan, int upOrDown, IItemList<T> availableItems, IActionSource src, CallbackInfo ci) {
-        if (!GAS_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isGasChannel(chan)) return;
         postGasChanges(availableItems, src);
     }
 

@@ -25,30 +25,40 @@ import java.util.Set;
 
 /**
  * GridStorageCache 实时联动——Starlight 通道变化通知物品通道.
+ *
+ * <p>通道集合改为懒加载,避免在 {@link GridStorageCache} 的静态初始化阶段调用
+ * {@code AEApi.instance().storage().getStorageChannel(...)} 导致初始化失败。</p>
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
 public class MixinGridStorageCacheStarlight {
 
-    private static final Set<IStorageChannel<?>> STARLIGHT_CHANNELS = new HashSet<>();
+    private static Set<IStorageChannel<?>> ae2enhanced$starlightChannels;
 
-    static {
-        try {
-            STARLIGHT_CHANNELS.add(AEApi.instance().storage().getStorageChannel(IStarlightStorageChannel.class));
-        } catch (Exception e) {
-            // Starlight 通道不可用
+    private static boolean ae2enhanced$isStarlightChannel(IStorageChannel<?> channel) {
+        if (ae2enhanced$starlightChannels == null) {
+            ae2enhanced$starlightChannels = new HashSet<>();
+            try {
+                IStorageChannel<?> starlightChannel = AEApi.instance().storage().getStorageChannel(IStarlightStorageChannel.class);
+                if (starlightChannel != null) {
+                    ae2enhanced$starlightChannels.add(starlightChannel);
+                }
+            } catch (Exception e) {
+                // Starlight 通道不可用
+            }
         }
+        return ae2enhanced$starlightChannels.contains(channel);
     }
 
     @Inject(method = "postAlterationOfStoredItems", at = @At("TAIL"))
     private void onPostAlteration(IStorageChannel<?> chan, Iterable<? extends IAEStack<?>> input, IActionSource src, CallbackInfo ci) {
-        if (!STARLIGHT_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isStarlightChannel(chan)) return;
         postStarlightChanges(input, src, true);
     }
 
     @Inject(method = "postChangesToNetwork", at = @At("TAIL"))
     private <T extends IAEStack<T>, C extends IStorageChannel<T>> void onPostChanges(C chan, int upOrDown, IItemList<T> availableItems, IActionSource src, CallbackInfo ci) {
-        if (!STARLIGHT_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isStarlightChannel(chan)) return;
         postStarlightChanges(availableItems, src, upOrDown > 0);
     }
 

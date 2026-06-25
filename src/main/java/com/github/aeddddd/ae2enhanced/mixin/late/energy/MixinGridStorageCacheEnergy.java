@@ -27,30 +27,40 @@ import java.util.Set;
  * E2a：GridStorageCache 实时联动——RF 能量通道变化通知物品通道.
  * 当 RF 能量网络中的存储发生实时变化时,将变化转换为假物品并 postChange 到物品 monitor,
  * 使终端自动刷新能量显示.
+ *
+ * <p>通道集合改为懒加载,避免在 {@link GridStorageCache} 的静态初始化阶段调用
+ * {@code AEApi.instance().storage().getStorageChannel(...)} 导致初始化失败。</p>
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
 public class MixinGridStorageCacheEnergy {
 
-    private static final Set<IStorageChannel<?>> ENERGY_CHANNELS = new HashSet<>();
+    private static Set<IStorageChannel<?>> ae2enhanced$energyChannels;
 
-    static {
-        try {
-            ENERGY_CHANNELS.add(AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class));
-        } catch (Exception e) {
-            // RF 能量通道不可用
+    private static boolean ae2enhanced$isEnergyChannel(IStorageChannel<?> channel) {
+        if (ae2enhanced$energyChannels == null) {
+            ae2enhanced$energyChannels = new HashSet<>();
+            try {
+                IStorageChannel<?> energyChannel = AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class);
+                if (energyChannel != null) {
+                    ae2enhanced$energyChannels.add(energyChannel);
+                }
+            } catch (Exception e) {
+                // RF 能量通道不可用
+            }
         }
+        return ae2enhanced$energyChannels.contains(channel);
     }
 
     @Inject(method = "postAlterationOfStoredItems", at = @At("TAIL"))
     private void onPostAlteration(IStorageChannel<?> chan, Iterable<? extends IAEStack<?>> input, IActionSource src, CallbackInfo ci) {
-        if (!ENERGY_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isEnergyChannel(chan)) return;
         postEnergyChanges(input, src, true);
     }
 
     @Inject(method = "postChangesToNetwork", at = @At("TAIL"))
     private <T extends IAEStack<T>, C extends IStorageChannel<T>> void onPostChanges(C chan, int upOrDown, IItemList<T> availableItems, IActionSource src, CallbackInfo ci) {
-        if (!ENERGY_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isEnergyChannel(chan)) return;
         postEnergyChanges(availableItems, src, upOrDown > 0);
     }
 

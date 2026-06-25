@@ -25,30 +25,40 @@ import java.util.Set;
 
 /**
  * GridStorageCache 实时联动——Mana 通道变化通知物品通道.
+ *
+ * <p>通道集合改为懒加载,避免在 {@link GridStorageCache} 的静态初始化阶段调用
+ * {@code AEApi.instance().storage().getStorageChannel(...)} 导致初始化失败。</p>
  */
 @SuppressWarnings("rawtypes")
 @Mixin(value = GridStorageCache.class, remap = false)
 public class MixinGridStorageCacheMana {
 
-    private static final Set<IStorageChannel<?>> MANA_CHANNELS = new HashSet<>();
+    private static Set<IStorageChannel<?>> ae2enhanced$manaChannels;
 
-    static {
-        try {
-            MANA_CHANNELS.add(AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class));
-        } catch (Exception e) {
-            // Mana 通道不可用
+    private static boolean ae2enhanced$isManaChannel(IStorageChannel<?> channel) {
+        if (ae2enhanced$manaChannels == null) {
+            ae2enhanced$manaChannels = new HashSet<>();
+            try {
+                IStorageChannel<?> manaChannel = AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class);
+                if (manaChannel != null) {
+                    ae2enhanced$manaChannels.add(manaChannel);
+                }
+            } catch (Exception e) {
+                // Mana 通道不可用
+            }
         }
+        return ae2enhanced$manaChannels.contains(channel);
     }
 
     @Inject(method = "postAlterationOfStoredItems", at = @At("TAIL"))
     private void onPostAlteration(IStorageChannel<?> chan, Iterable<? extends IAEStack<?>> input, IActionSource src, CallbackInfo ci) {
-        if (!MANA_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isManaChannel(chan)) return;
         postManaChanges(input, src, true);
     }
 
     @Inject(method = "postChangesToNetwork", at = @At("TAIL"))
     private <T extends IAEStack<T>, C extends IStorageChannel<T>> void onPostChanges(C chan, int upOrDown, IItemList<T> availableItems, IActionSource src, CallbackInfo ci) {
-        if (!MANA_CHANNELS.contains(chan)) return;
+        if (!ae2enhanced$isManaChannel(chan)) return;
         postManaChanges(availableItems, src, upOrDown > 0);
     }
 
