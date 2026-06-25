@@ -35,6 +35,7 @@
     "world.MixinWorldSpawnEntity",
     "world.MixinBlockSpawnAsEntity",
     "world.MixinEntitySpawnIdFix",
+    "world.MixinGameRegistry",
     "world.MixinWorldServerLoadEntities",
     "world.MixinEntityPlayerDropItem",
     "world.MixinInventoryHelperDropItems",

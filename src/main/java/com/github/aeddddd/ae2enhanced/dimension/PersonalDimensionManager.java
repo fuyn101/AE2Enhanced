@@ -20,9 +20,12 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -88,6 +91,7 @@ public final class PersonalDimensionManager {
             DimensionManager.registerDimension(dimId, PERSONAL_DIM_TYPE);
             data.updateDimensionMapping(player.getUniqueID(), dimId);
             AE2Enhanced.LOGGER.info("[AE2E] Created personal dimension {} for player {}", dimId, player.getName());
+            broadcastDimensionRegistrySync();
         }
         return entry.dimensionId;
     }
@@ -255,6 +259,7 @@ public final class PersonalDimensionManager {
             DimensionManager.unregisterDimension(dimId);
         }
         PersonalDimensionData.get(overworld).removeEntry(playerId);
+        broadcastDimensionRegistrySync();
         return true;
     }
 
@@ -325,6 +330,38 @@ public final class PersonalDimensionManager {
         }
     }
 
+    /**
+     * 向指定玩家同步当前所有个人维度 ID，确保客户端在进入维度前已注册。
+     */
+    public static void sendRegistrySync(EntityPlayerMP player) {
+        if (AE2Enhanced.network == null || PERSONAL_DIM_TYPE == null) return;
+        List<Integer> ids = collectPersonalDimensionIds();
+        AE2Enhanced.network.sendTo(new com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRegistrySync(ids), player);
+    }
+
+    /**
+     * 向所有在线玩家广播个人维度注册表变化。
+     */
+    private static void broadcastDimensionRegistrySync() {
+        if (AE2Enhanced.network == null) return;
+        MinecraftServer server = getOverworld() != null ? getOverworld().getMinecraftServer() : null;
+        if (server == null) return;
+        List<Integer> ids = collectPersonalDimensionIds();
+        AE2Enhanced.network.sendToAll(new com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRegistrySync(ids));
+    }
+
+    private static List<Integer> collectPersonalDimensionIds() {
+        List<Integer> ids = new ArrayList<>();
+        WorldServer overworld = getOverworld();
+        if (overworld == null) return ids;
+        for (PlayerDimEntry entry : PersonalDimensionData.get(overworld).getAllEntries()) {
+            if (entry.dimensionId != Integer.MIN_VALUE) {
+                ids.add(entry.dimensionId);
+            }
+        }
+        return ids;
+    }
+
     @Nullable
     private static WorldServer getOverworld() {
         return net.minecraftforge.common.DimensionManager.getWorld(0);
@@ -344,6 +381,8 @@ public final class PersonalDimensionManager {
             if (!DimensionManager.isDimensionRegistered(entry.dimensionId)) {
                 DimensionManager.registerDimension(entry.dimensionId, PERSONAL_DIM_TYPE);
             }
+            // 立即初始化 WorldServer，避免后续首次访问时因懒加载产生异常
+            DimensionManager.initDimension(entry.dimensionId);
         }
     }
 
@@ -445,6 +484,8 @@ public final class PersonalDimensionManager {
         if (event.player.world.isRemote) return;
         if (!(event.player instanceof EntityPlayerMP)) return;
         EntityPlayerMP player = (EntityPlayerMP) event.player;
+        // 同步个人维度注册表到客户端，防止进入维度时客户端未注册而崩溃
+        sendRegistrySync(player);
         if (isPersonalDimension(player.dimension)) {
             WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
             if (dimWorld != null) {
@@ -453,6 +494,22 @@ public final class PersonalDimensionManager {
                 DimensionLightingFixer.refreshSkyLight(dimWorld, pos);
             }
             sendRulesToPlayer(player.getUniqueID());
+        }
+    }
+
+    /**
+     * 客户端断开连接后清理已注册的个人维度，避免连接下一服务器时残留 ID 冲突。
+     */
+    @SubscribeEvent
+    public static void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        if (PERSONAL_DIM_TYPE == null) return;
+        for (int dimId : DimensionManager.getStaticDimensionIDs()) {
+            if (DimensionManager.getProviderType(dimId) == PERSONAL_DIM_TYPE) {
+                try {
+                    DimensionManager.unregisterDimension(dimId);
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 

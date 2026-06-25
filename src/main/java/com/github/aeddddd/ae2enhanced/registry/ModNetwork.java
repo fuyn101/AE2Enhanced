@@ -47,6 +47,7 @@ import com.github.aeddddd.ae2enhanced.network.packet.PacketOmniToolConfigHandler
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRules;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRulesHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRulesSync;
+import com.github.aeddddd.ae2enhanced.network.packet.PacketPersonalDimensionRegistrySync;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndo;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementUndoHandler;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketPlacementCablePlace;
@@ -113,5 +114,6 @@ public final class ModNetwork {
         nw.registerMessage(PacketOmniToolPlacementSubModeHandler.class, PacketOmniToolPlacementSubMode.class, 48, Side.SERVER);
         nw.registerMessage(PacketPersonalDimensionRulesHandler.class, PacketPersonalDimensionRules.class, 50, Side.SERVER);
         nw.registerMessage(PacketPersonalDimensionRulesSync.Handler.class, PacketPersonalDimensionRulesSync.class, 51, Side.CLIENT);
+        nw.registerMessage(PacketPersonalDimensionRegistrySync.Handler.class, PacketPersonalDimensionRegistrySync.class, 52, Side.CLIENT);
     }
 }

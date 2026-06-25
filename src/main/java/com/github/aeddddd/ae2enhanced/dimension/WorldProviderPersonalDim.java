@@ -26,7 +26,11 @@ public class WorldProviderPersonalDim extends WorldProvider {
 
     @Override
     public DimensionType getDimensionType() {
-        return PersonalDimensionManager.getDimensionType();
+        // 与 PersonalWorlds 保持一致：返回 OVERWORLD 以避免自定义 DimensionType
+        // 在客户端/服务端生命周期不同阶段出现 null 或兼容性异常。
+        // 维度身份判定以 DimensionManager 中注册的 DimensionType 为准，
+        // WorldProvider 返回什么类型不影响 isPersonalDimension 的判断。
+        return DimensionType.OVERWORLD;
     }
 
     @Override
