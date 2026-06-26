@@ -34,8 +34,6 @@
     "entity.MixinEntityDataManager",
     "world.MixinWorldSpawnEntity",
     "world.MixinBlockSpawnAsEntity",
-    "world.MixinEntitySpawnIdFix",
-    "world.MixinWorldServerLoadEntities",
     "world.MixinEntityPlayerDropItem",
     "world.MixinInventoryHelperDropItems",
     "world.MixinPlayerInteractionManager"

@@ -180,7 +180,8 @@ jar {
         attributes([
             'FMLCorePluginContainsFMLMod': true,
             'ForceLoadAsMod': true,
-            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin'
+            'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mixin.AssemblyMixinPlugin',
+            'MixinConfigs': 'mixins.ae2enhanced.early.json'
         ])
     }
 }

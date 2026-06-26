@@ -275,41 +275,15 @@ public final class PersonalDimensionManager {
         if (server == null) return;
         // 与 SimpleVoidWorld / McJtyLib 一致：先 init 目标世界避免未加载时为空，
         // 然后直接由 Forge 的 PlayerList.transferPlayerToDimension 负责跨维度实体迁移。
-        // MixinEntitySpawnIdFix 只在目标世界为个人维度时生效；当从个人维度返回普通维度
-        //（目标世界通常为 overworld）时，需要手动清理目标世界 tracker 中可能残留的玩家记录，
-        // 否则 PlayerList.transferPlayerToDimension 内部调用 spawnEntity 会触发
-        // "Entity is already tracked!" 崩溃。
+        // entityId 冲突与 tracker 残留统一由早期加载的 MixinEntitySpawnIdFix 处理。
         if (DimensionManager.isDimensionRegistered(dimId)) {
             DimensionManager.initDimension(dimId);
         }
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
 
-        if (!isPersonalDimension(dimId)) {
-            cleanupEntityTracker(targetWorld, player);
-        }
-
         server.getPlayerList().transferPlayerToDimension(player, dimId,
                 new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
-    }
-
-    /**
-     * 清理指定世界 EntityTracker 中残留的玩家记录以及同 ID 实体。
-     * 仅在目标世界不是个人维度时由 teleportTo 调用；个人维度方向由 MixinEntitySpawnIdFix 处理。
-     */
-    private static void cleanupEntityTracker(@Nullable WorldServer world, EntityPlayerMP player) {
-        if (world == null) return;
-        try {
-            world.getEntityTracker().untrack(player);
-        } catch (Exception ignored) {
-        }
-        try {
-            net.minecraft.entity.Entity existing = world.getEntityByID(player.getEntityId());
-            if (existing != null && existing != player) {
-                world.removeEntityDangerously(existing);
-            }
-        } catch (Exception ignored) {
-        }
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
