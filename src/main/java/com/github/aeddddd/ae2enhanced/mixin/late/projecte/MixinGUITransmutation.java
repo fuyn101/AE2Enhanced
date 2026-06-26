@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.mixin.late.projecte;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.client.util.BigEmcFormatter;
 import com.github.aeddddd.ae2enhanced.integration.projecte.ProjectEBigEmcHelper;
 import moze_intel.projecte.gameObjs.container.inventory.TransmutationInventory;
@@ -45,14 +46,17 @@ public class MixinGUITransmutation {
     }
 
     private BigInteger getAvailableBig() {
-        if (this.inv == null) return BigInteger.ZERO;
+        if (this.inv == null || this.inv.provider == null) return BigInteger.ZERO;
         try {
             java.lang.reflect.Method m = this.inv.getClass().getMethod("ae2e$getAvailableEMCBig");
             Object result = m.invoke(this.inv);
-            return result instanceof BigInteger ? (BigInteger) result : BigInteger.ZERO;
+            if (result instanceof BigInteger) {
+                return (BigInteger) result;
+            }
         } catch (Exception e) {
-            // Fallback：使用 ProjectE 原 long 余额
-            return BigInteger.valueOf(this.inv.getAvailableEMC());
+            AE2Enhanced.LOGGER.debug("[AE2E] Failed to reflect TransmutationInventory BigInteger EMC, falling back to provider", e);
         }
+        // 兜底：直接读取 knowledge provider 的 BigInteger EMC（兼容离线/包装提供者）
+        return ProjectEBigEmcHelper.getEmcBig(this.inv.provider);
     }
 }
