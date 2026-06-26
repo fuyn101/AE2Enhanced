@@ -273,44 +273,19 @@ public final class PersonalDimensionManager {
         }
         MinecraftServer server = player.getServer();
         if (server == null) return;
-        // 与 SimpleVoidWorld / McJtyLib 一致：先 init 目标世界避免未加载时为空，
-        // 然后直接由 Forge 的 PlayerList.transferPlayerToDimension 负责跨维度实体迁移。
-        if (DimensionManager.isDimensionRegistered(dimId)) {
-            DimensionManager.initDimension(dimId);
-        }
+
+        // 与 PersonalWorlds 一致：确保目标世界已加载，然后走原版/Forge 的
+        // EntityPlayerMP.changeDimension，不直接调用 PlayerList.transferPlayerToDimension，
+        // 也不做任何 entityId / tracker 的手动清理。
+        if (!DimensionManager.isDimensionRegistered(dimId)) return;
         WorldServer targetWorld = server.getWorld(dimId);
+        if (targetWorld == null) {
+            DimensionManager.initDimension(dimId);
+            targetWorld = server.getWorld(dimId);
+        }
         if (targetWorld == null) return;
 
-        // 动态维度 WorldServer 重建后 entityId 计数器会归零，而玩家固定 ID 可能很低，
-        // 在传送前把目标世界计数器抬升到玩家 ID 之上，避免后续生成实体时发生冲突。
-        EntityIdHelper.bumpEntityIdCounter(targetWorld, player.getEntityId());
-
-        // 多次进出后源/目标世界可能残留同 ID 实体或旧 tracker 记录，导致 spawnEntity 阶段
-        // 触发 "Entity is already tracked!"，在 transfer 前强制清理两边。
-        WorldServer sourceWorld = server.getWorld(player.dimension);
-        cleanupEntityTracker(sourceWorld, player);
-        cleanupEntityTracker(targetWorld, player);
-
-        server.getPlayerList().transferPlayerToDimension(player, dimId,
-                new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
-    }
-
-    /**
-     * 清理指定世界 EntityTracker 中残留的玩家记录以及同 ID 实体。
-     */
-    private static void cleanupEntityTracker(@Nullable WorldServer world, EntityPlayerMP player) {
-        if (world == null) return;
-        try {
-            world.getEntityTracker().untrack(player);
-        } catch (Exception ignored) {
-        }
-        try {
-            net.minecraft.entity.Entity existing = world.getEntityByID(player.getEntityId());
-            if (existing != null && existing != player) {
-                world.removeEntityDangerously(existing);
-            }
-        } catch (Exception ignored) {
-        }
+        player.changeDimension(dimId, new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
@@ -428,15 +403,7 @@ public final class PersonalDimensionManager {
 
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
-        if (event.getWorld().isRemote) return;
-        if (!isPersonalDimension(event.getWorld().provider.getDimension())) return;
-        // 世界卸载前 flush 已加载的脏 chunk，防止世界重建后读取到未保存的修改。
-        WorldServer world = (WorldServer) event.getWorld();
-        try {
-            world.saveAllChunks(false, null);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on unload", e);
-        }
+        // 与 PersonalWorlds 一致：不强制 saveAllChunks，依赖 Minecraft 正常的 chunk 保存机制。
     }
 
     /**
@@ -450,24 +417,6 @@ public final class PersonalDimensionManager {
         // 只有重生前位于个人维度时才重置能力，避免误清其他模组的永久飞行/速度加成
         if (isPersonalDimension(event.player.dimension)) {
             PlayerAbilityApplier.resetAbilities(player);
-        }
-    }
-
-    /**
-     * 玩家在个人维度下线时保存 chunk。
-     */
-    @SubscribeEvent
-    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.player.world.isRemote) return;
-        if (!(event.player instanceof EntityPlayerMP)) return;
-        EntityPlayerMP player = (EntityPlayerMP) event.player;
-        if (!isPersonalDimension(player.dimension)) return;
-        WorldServer dimWorld = DimensionManager.getWorld(player.dimension);
-        if (dimWorld == null) return;
-        try {
-            dimWorld.saveAllChunks(false, null);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on logout", e);
         }
     }
 
@@ -522,17 +471,7 @@ public final class PersonalDimensionManager {
             DimensionLightingFixer.relightDimensionChunks(event.toDim, pos);
         } else if (isPersonalDimension(event.fromDim)) {
             PlayerAbilityApplier.resetAbilities(player);
-            // 个人维度不再强制 keep-loaded，玩家离开后世界会自然卸载。
-            // 为避免玩家高频进出时部分 chunk 尚未写入磁盘，先异步 flush 已加载的脏 chunk
-            //（all=false 仅保存 dirty 的已加载 chunk，远低于 saveAllChunks(true) 的卡顿）。
-            WorldServer dimWorld = DimensionManager.getWorld(event.fromDim);
-            if (dimWorld != null) {
-                try {
-                    dimWorld.saveAllChunks(false, null);
-                } catch (Exception e) {
-                    AE2Enhanced.LOGGER.error("[AE2E] Failed to save personal dimension chunks on leave", e);
-                }
-            }
+            // 与 PersonalWorlds 一致：不强制 saveAllChunks，依赖 Minecraft 正常的 chunk 保存机制。
         }
     }
 

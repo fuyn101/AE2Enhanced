@@ -36,7 +36,8 @@
     "world.MixinBlockSpawnAsEntity",
     "world.MixinEntityPlayerDropItem",
     "world.MixinInventoryHelperDropItems",
-    "world.MixinPlayerInteractionManager"
+    "world.MixinPlayerInteractionManager",
+    "world.MixinGameRegistry"
   ],
   "client": [
     "terminal.MixinGuiCellWorkbench",
