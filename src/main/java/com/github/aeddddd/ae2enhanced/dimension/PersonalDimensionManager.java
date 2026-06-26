@@ -275,15 +275,42 @@ public final class PersonalDimensionManager {
         if (server == null) return;
         // 与 SimpleVoidWorld / McJtyLib 一致：先 init 目标世界避免未加载时为空，
         // 然后直接由 Forge 的 PlayerList.transferPlayerToDimension 负责跨维度实体迁移。
-        // entityId 冲突与 tracker 残留统一由早期加载的 MixinEntitySpawnIdFix 处理。
         if (DimensionManager.isDimensionRegistered(dimId)) {
             DimensionManager.initDimension(dimId);
         }
         WorldServer targetWorld = server.getWorld(dimId);
         if (targetWorld == null) return;
 
+        // 动态维度 WorldServer 重建后 entityId 计数器会归零，而玩家固定 ID 可能很低，
+        // 在传送前把目标世界计数器抬升到玩家 ID 之上，避免后续生成实体时发生冲突。
+        EntityIdHelper.bumpEntityIdCounter(targetWorld, player.getEntityId());
+
+        // 多次进出后源/目标世界可能残留同 ID 实体或旧 tracker 记录，导致 spawnEntity 阶段
+        // 触发 "Entity is already tracked!"，在 transfer 前强制清理两边。
+        WorldServer sourceWorld = server.getWorld(player.dimension);
+        cleanupEntityTracker(sourceWorld, player);
+        cleanupEntityTracker(targetWorld, player);
+
         server.getPlayerList().transferPlayerToDimension(player, dimId,
                 new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
+    }
+
+    /**
+     * 清理指定世界 EntityTracker 中残留的玩家记录以及同 ID 实体。
+     */
+    private static void cleanupEntityTracker(@Nullable WorldServer world, EntityPlayerMP player) {
+        if (world == null) return;
+        try {
+            world.getEntityTracker().untrack(player);
+        } catch (Exception ignored) {
+        }
+        try {
+            net.minecraft.entity.Entity existing = world.getEntityByID(player.getEntityId());
+            if (existing != null && existing != player) {
+                world.removeEntityDangerously(existing);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     public static void setRules(UUID playerId, PersonalDimensionRules rules) {
