@@ -3,6 +3,7 @@ package com.github.aeddddd.ae2enhanced.util.compat;
 import appeng.api.storage.data.IAEItemStack;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.item.ItemFluidDrop;
+import com.github.aeddddd.ae2enhanced.util.fakeitem.FakeFluids;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
@@ -23,6 +24,9 @@ public final class Ae2fcFluidCompat {
     private static Method PACK_FLUID_TO_AE_DROP;
     private static Method GET_FLUID_FROM_ITEM;
 
+    private static final String AE2FC_ITEM_FLUID_DROP = "com.glodblock.github.common.item.ItemFluidDrop";
+    private static final String AE2FC_ITEM_FLUID_PACKET = "com.glodblock.github.common.item.ItemFluidPacket";
+
     static {
         boolean loaded = false;
         if (Loader.isModLoaded("ae2fc")) {
@@ -40,6 +44,22 @@ public final class Ae2fcFluidCompat {
     }
 
     private Ae2fcFluidCompat() {
+    }
+
+    /**
+     * 判断 ItemStack 是否为 ae2fc 的流体假物品（ItemFluidDrop / ItemFluidPacket）。
+     */
+    public static boolean isAe2fcFluidFakeItem(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName();
+        return AE2FC_ITEM_FLUID_DROP.equals(name) || AE2FC_ITEM_FLUID_PACKET.equals(name);
+    }
+
+    /**
+     * 判断 ItemStack 是否为 AE2E 或 ae2fc 的流体假物品。
+     */
+    public static boolean isAnyFluidFakeItem(ItemStack stack) {
+        return ItemFluidDrop.isFluidDrop(stack) || isAe2fcFluidFakeItem(stack);
     }
 
     /**
@@ -72,30 +92,39 @@ public final class Ae2fcFluidCompat {
     /**
      * 从 ItemStack 中提取 FluidStack.
      *
-     * @param stack 可能是流体假物品的 ItemStack
-     * @return 提取出的 FluidStack；若不是流体假物品则返回 null
+     * <p>优先使用 ae2fc 的 {@code Util.getFluidFromItem} 处理流体容器；
+     * 对 ae2fc 的 {@code ItemFluidDrop}/{@code ItemFluidPacket} 使用 AE2E 的
+     * {@link FakeFluids#unpackAe2fcFluid} 解析（ae2fc 的 FluidDrop 没有
+     * {@code FLUID_HANDLER_ITEM_CAPABILITY}，且 NBT 键与 AE2E 不同）。</p>
+     *
+     * @param stack 可能是流体假物品或流体容器的 ItemStack
+     * @return 提取出的 FluidStack；若无法解析则返回 null
      */
     public static FluidStack getFluidStack(ItemStack stack) {
         if (stack.isEmpty()) return null;
-        if (!AE2FC_LOADED) {
+        if (isAe2fcFluidFakeItem(stack)) {
+            return FakeFluids.unpackAe2fcFluid(stack);
+        }
+        if (ItemFluidDrop.isFluidDrop(stack)) {
             return ItemFluidDrop.getFluidStack(stack);
         }
-        try {
-            FluidStack fluid = (FluidStack) GET_FLUID_FROM_ITEM.invoke(null, stack);
-            if (fluid != null && fluid.getFluid() != null && fluid.amount > 0) {
-                return fluid;
+        if (AE2FC_LOADED) {
+            try {
+                FluidStack fluid = (FluidStack) GET_FLUID_FROM_ITEM.invoke(null, stack);
+                if (fluid != null && fluid.getFluid() != null && fluid.amount > 0) {
+                    return fluid;
+                }
+            } catch (Exception e) {
+                AE2Enhanced.LOGGER.debug("[AE2E] Failed to get fluid from ae2fc container, falling back", e);
             }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] Failed to get fluid from ae2fc drop, falling back", e);
         }
-        return ItemFluidDrop.getFluidStack(stack);
+        return null;
     }
 
     /**
      * 判断 ItemStack 是否为流体假物品(兼容 ae2fc 与 AE2E 自己的 drop).
      */
     public static boolean isFluidDrop(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        return getFluidStack(stack) != null;
+        return isAnyFluidFakeItem(stack);
     }
 }

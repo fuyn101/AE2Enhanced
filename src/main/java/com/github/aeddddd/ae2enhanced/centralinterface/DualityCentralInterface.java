@@ -583,6 +583,11 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             ItemStack stack = table.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
+            // 只处理流体假物品（AE2E / ae2fc 的 FluidDrop / FluidPacket）。
+            // 真实的流体容器（如水桶）应作为普通物品推送给机器，由机器自行处理空容器返还；
+            // 否则这里会把容器直接抽干并清空槽位，导致空容器丢失。
+            if (!Ae2fcFluidCompat.isAnyFluidFakeItem(stack)) continue;
+
             FluidStack fluid = Ae2fcFluidCompat.getFluidStack(stack);
             if (fluid == null) {
                 // 兼容 ae2fc 的 ItemFluidPacket(旧版 fallback)
@@ -697,6 +702,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     }
 
     private FluidStack extractFluidFromItemStack(ItemStack stack) {
+        if (!Ae2fcFluidCompat.isAnyFluidFakeItem(stack)) {
+            return null;
+        }
         FluidStack fluid = Ae2fcFluidCompat.getFluidStack(stack);
         if (fluid != null) {
             return fluid;
