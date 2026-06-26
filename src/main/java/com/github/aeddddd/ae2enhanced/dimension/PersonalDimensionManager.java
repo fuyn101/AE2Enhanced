@@ -8,11 +8,13 @@ import com.github.aeddddd.ae2enhanced.dimension.teleport.PersonalTeleporter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.DimensionType;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -25,7 +27,9 @@ import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,11 +47,15 @@ public final class PersonalDimensionManager {
     private static DimensionType PERSONAL_DIM_TYPE;
     private static boolean typeRegistered = false;
 
+    // 个人维度入口区块强制加载票：维度 ID -> Ticket
+    private static final Map<Integer, ForgeChunkManager.Ticket> chunkTickets = new HashMap<>();
+
     /**
-     * 在 preInit 阶段注册维度类型。
+     * 在 preInit 阶段注册维度类型，并注册 ForgeChunkManager 回调。
      */
     public static void registerDimensionType() {
         if (typeRegistered) return;
+        ForgeChunkManager.setForcedChunkLoadingCallback(AE2Enhanced.MOD_ID, new PersonalDimChunkLoader());
         // 从 5290 开始找一个未使用的 DimensionType id，避免与常见模组冲突
         int typeId = 5290;
         java.util.Set<Integer> used = new java.util.HashSet<>();
@@ -66,6 +74,82 @@ public final class PersonalDimensionManager {
         );
         typeRegistered = true;
         AE2Enhanced.LOGGER.info("[AE2E] Registered personal dimension type with id {}", typeId);
+    }
+
+    /**
+     * ForgeChunkManager 回调：服务端加载已保存的强制加载票时恢复入口区块加载。
+     */
+    private static class PersonalDimChunkLoader implements ForgeChunkManager.LoadingCallback {
+        @Override
+        public void ticketsLoaded(List<ForgeChunkManager.Ticket> tickets, World world) {
+            if (world == null || world.isRemote || PERSONAL_DIM_TYPE == null) return;
+            if (!isPersonalDimension(world.provider.getDimension())) return;
+            for (ForgeChunkManager.Ticket ticket : tickets) {
+                if (ticket == null) continue;
+                if (!AE2Enhanced.MOD_ID.equals(ticket.getModId())) continue;
+                int dimId = world.provider.getDimension();
+                chunkTickets.put(dimId, ticket);
+                forceEntryChunkWithTicket(ticket);
+                AE2Enhanced.LOGGER.debug("[AE2E] Restored forced chunk ticket for personal dim {}", dimId);
+            }
+        }
+    }
+
+    /**
+     * 强制加载指定个人维度的入口区块，避免玩家进入时区块未生成/未加载。
+     */
+    private static void ensureEntryChunkLoaded(WorldServer world, PlayerDimEntry entry) {
+        if (world == null || world.isRemote) return;
+        int dimId = world.provider.getDimension();
+        ForgeChunkManager.Ticket ticket = chunkTickets.get(dimId);
+        if (ticket == null || !ticket.world.equals(world)) {
+            ticket = ForgeChunkManager.requestTicket(AE2Enhanced.MOD_ID, world, ForgeChunkManager.Type.NORMAL);
+            if (ticket == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Failed to request chunk loading ticket for personal dim {}", dimId);
+                return;
+            }
+            chunkTickets.put(dimId, ticket);
+        }
+        forceEntryChunkWithTicket(ticket);
+        // 同时同步触发一次 chunk 加载/生成，确保 ticket 异步生效前区块已就绪
+        preloadEntryChunk(world, entry);
+    }
+
+    private static void forceEntryChunkWithTicket(ForgeChunkManager.Ticket ticket) {
+        if (ticket == null) return;
+        WorldServer world = (WorldServer) ticket.world;
+        PlayerDimEntry entry = getEntryByDimension(world.provider.getDimension());
+        BlockPos entryPos = entry != null && entry.entryPoint != null
+                ? entry.entryPoint
+                : new BlockPos(0, AE2EnhancedConfig.personalDimension.entryY, 0);
+        ChunkPos cp = new ChunkPos(entryPos);
+        ticket.getModData().setInteger("EntryChunkX", cp.x);
+        ticket.getModData().setInteger("EntryChunkZ", cp.z);
+        ForgeChunkManager.forceChunk(ticket, cp);
+        AE2Enhanced.LOGGER.debug("[AE2E] Forced entry chunk {} for personal dim {}", cp, world.provider.getDimension());
+    }
+
+    private static void preloadEntryChunk(WorldServer world, PlayerDimEntry entry) {
+        if (world == null) return;
+        BlockPos entryPos = entry != null && entry.entryPoint != null
+                ? entry.entryPoint
+                : new BlockPos(0, AE2EnhancedConfig.personalDimension.entryY, 0);
+        int cx = entryPos.getX() >> 4;
+        int cz = entryPos.getZ() >> 4;
+        try {
+            world.getChunkProvider().provideChunk(cx, cz);
+            AE2Enhanced.LOGGER.debug("[AE2E] Preloaded entry chunk ({}, {}) for personal dim {}", cx, cz, world.provider.getDimension());
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to preload entry chunk for personal dim {}: {}", world.provider.getDimension(), e.toString());
+        }
+    }
+
+    private static void releaseEntryChunkTicket(int dimId) {
+        ForgeChunkManager.Ticket ticket = chunkTickets.remove(dimId);
+        if (ticket != null) {
+            ForgeChunkManager.releaseTicket(ticket);
+            AE2Enhanced.LOGGER.debug("[AE2E] Released forced chunk ticket for personal dim {}", dimId);
+        }
     }
 
     @Nullable
@@ -95,6 +179,12 @@ public final class PersonalDimensionManager {
             data.updateDimensionMapping(player.getUniqueID(), dimId);
             AE2Enhanced.LOGGER.info("[AE2E] Created personal dimension {} for player {}", dimId, player.getName());
             broadcastDimensionRegistrySync();
+            // 立即初始化世界并强制加载入口区块，避免首次进入时区块未就绪
+            DimensionManager.initDimension(dimId);
+            WorldServer dimWorld = player.getServer().getWorld(dimId);
+            if (dimWorld != null) {
+                ensureEntryChunkLoaded(dimWorld, entry);
+            }
         }
         return entry.dimensionId;
     }
@@ -285,6 +375,10 @@ public final class PersonalDimensionManager {
         }
         if (targetWorld == null) return;
 
+        // 在玩家实际进入前强制加载入口/目标区块，避免落进未加载的虚空
+        PlayerDimEntry entry = getEntryByDimension(dimId);
+        ensureEntryChunkLoaded(targetWorld, entry);
+
         player.changeDimension(dimId, new PersonalTeleporter(targetWorld, x, y, z, yaw, pitch));
     }
 
@@ -362,6 +456,10 @@ public final class PersonalDimensionManager {
             }
             // 立即初始化 WorldServer，避免后续首次访问时因懒加载产生异常
             DimensionManager.initDimension(entry.dimensionId);
+            WorldServer dimWorld = overworld.getMinecraftServer().getWorld(entry.dimensionId);
+            if (dimWorld != null) {
+                ensureEntryChunkLoaded(dimWorld, entry);
+            }
         }
     }
 
@@ -404,6 +502,11 @@ public final class PersonalDimensionManager {
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
         // 与 PersonalWorlds 一致：不强制 saveAllChunks，依赖 Minecraft 正常的 chunk 保存机制。
+        if (event.getWorld().isRemote) return;
+        int dimId = event.getWorld().provider.getDimension();
+        if (isPersonalDimension(dimId)) {
+            releaseEntryChunkTicket(dimId);
+        }
     }
 
     /**
