@@ -258,8 +258,12 @@ public class VirtualBatchEngine {
      * 获取需要从网络额外提取的资源清单。
      *
      * <p>策略：以 handler 返回的 {@code parallel} 份总成本为权威值，
-     * 减去已由 CPU 提取并放在 {@code virtualTable} 中的物品（第一份的一部分）。
+     * 减去 AE2 CPU 已经在 pushPattern 前提取的第一份成本。
+     * 物品按单份成本扣减（因 CPU 已提取 1 份物品到 table），
      * Secondary 资源不会进入 table，因此不扣减。</p>
+     *
+     * <p>不直接读取 {@code virtualTable} 做扣减，避免 EC 配方 ingredient
+     * 与样板输入之间 NBT 不完全一致导致少扣 1 份。</p>
      */
     private List<IAEStack> getNetCosts(IVirtualBatchCraftingHandler handler,
                                        World world,
@@ -272,32 +276,28 @@ public class VirtualBatchEngine {
             return Collections.emptyList();
         }
 
+        List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1, details);
         List<IAEStack> fullCosts = handler.getVirtualCost(world, target.pos, virtualTable, outputs, parallel, details);
         if (fullCosts == null || fullCosts.isEmpty()) {
             return Collections.emptyList();
         }
 
-        Map<ItemCostKey, Long> tableItems = new HashMap<>();
-        for (int i = 0; i < virtualTable.getSizeInventory(); i++) {
-            ItemStack stack = virtualTable.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                tableItems.merge(new ItemCostKey(stack), (long) stack.getCount(), Long::sum);
-            }
-        }
-
         List<IAEStack> net = new ArrayList<>();
-        for (IAEStack cost : fullCosts) {
-            if (cost == null) continue;
-            long have = 0;
-            if (cost instanceof IAEItemStack) {
-                ItemCostKey key = new ItemCostKey(((IAEItemStack) cost).createItemStack());
-                have = tableItems.getOrDefault(key, 0L);
-            }
-            long need = cost.getStackSize();
-            if (need > have) {
-                IAEStack extra = cost.copy();
-                extra.setStackSize(need - have);
-                net.add(extra);
+        for (int i = 0; i < fullCosts.size(); i++) {
+            IAEStack full = fullCosts.get(i);
+            if (full == null) continue;
+            if (full instanceof IAEItemStack) {
+                long perCopySize = (perCopy != null && i < perCopy.size() && perCopy.get(i) != null)
+                        ? perCopy.get(i).getStackSize()
+                        : full.getStackSize() / parallel;
+                long extra = full.getStackSize() - perCopySize;
+                if (extra > 0) {
+                    IAEItemStack itemExtra = ((IAEItemStack) full).copy();
+                    itemExtra.setStackSize(extra);
+                    net.add(itemExtra);
+                }
+            } else {
+                net.add(full);
             }
         }
         return net;
