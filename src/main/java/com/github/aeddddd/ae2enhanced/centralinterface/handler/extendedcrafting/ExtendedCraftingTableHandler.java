@@ -281,62 +281,101 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         NonNullList<Ingredient> recipeIngredients = recipe.getIngredients();
         if (recipeIngredients == null || recipeIngredients.isEmpty()) return false;
 
-        // 收集 recipe 中所有非空 ingredient(每个代表 1 个物品需求)
-        List<Ingredient> required = new ArrayList<>();
+        // 1. 过滤空 ingredient（包括只接受空 ItemStack 的占位 ingredient），
+        //    并按类型合并需求数量。
+        java.util.Map<ItemKey, Integer> requiredCounts = new java.util.HashMap<>();
+        int emptyFiltered = 0;
         for (Ingredient ing : recipeIngredients) {
-            if (ing != null && ing != Ingredient.EMPTY) {
-                required.add(ing);
+            if (ing == null || ing == Ingredient.EMPTY) {
+                emptyFiltered++;
+                continue;
             }
-        }
-
-        // 收集输入物品并按 count 拆分为单件
-        List<ItemStack> available = new ArrayList<>();
-        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
-            ItemStack stack = ingredients.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                int count = stack.getCount();
-                for (int c = 0; c < count; c++) {
-                    ItemStack single = stack.copy();
-                    single.setCount(1);
-                    available.add(single);
-                }
+            ItemStack[] matching = ing.getMatchingStacks();
+            if (matching == null || matching.length == 0) {
+                emptyFiltered++;
+                continue;
             }
-        }
-
-        // 输入物品数必须不少于配方需求数(AE2 提取时可能带入了网络中的多余物品)
-        if (available.size() < required.size()) {
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch fail available={} < required={}", available.size(), required.size());
-            return false;
-        }
-
-        // 贪心匹配
-        int matchedCount = 0;
-        for (Ingredient ing : required) {
-            boolean found = false;
-            for (int i = 0; i < available.size(); i++) {
-                ItemStack stack = available.get(i);
-                if (ing.apply(stack)) {
-                    available.remove(i);
-                    found = true;
-                    matchedCount++;
+            // 如果 ingredient 只匹配空堆叠，视为空槽位
+            boolean hasNonEmpty = false;
+            for (ItemStack stack : matching) {
+                if (stack != null && !stack.isEmpty()) {
+                    hasNonEmpty = true;
                     break;
                 }
             }
-            if (!found) {
-                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch fail at requiredIndex={} matched={}/{} availableRemaining={}",
-                        matchedCount, matchedCount, required.size(), available.size());
-                // 打印前几个未匹配的可用物品，帮助诊断 ingredient 不匹配原因
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < Math.min(available.size(), 9); i++) {
-                    if (sb.length() > 0) sb.append(", ");
-                    sb.append(available.get(i));
+            if (!hasNonEmpty) {
+                emptyFiltered++;
+                continue;
+            }
+            // 用第一个非空匹配项作为该 ingredient 的代表类型进行合并计数。
+            // 对于矿词类 ingredient，这里取第一个匹配类型做近似；若导致误匹配可再细化。
+            for (ItemStack stack : matching) {
+                if (stack != null && !stack.isEmpty()) {
+                    ItemKey key = new ItemKey(stack);
+                    requiredCounts.merge(key, 1, Integer::sum);
+                    break;
                 }
-                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch availableSamples=[{}]", sb);
+            }
+        }
+
+        // 2. 按类型合并可用物品数量
+        java.util.Map<ItemKey, Integer> availableCounts = new java.util.HashMap<>();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                ItemKey key = new ItemKey(stack);
+                availableCounts.merge(key, stack.getCount(), Integer::sum);
+            }
+        }
+
+        // 3. 比较每种类型的需求是否满足
+        for (java.util.Map.Entry<ItemKey, Integer> entry : requiredCounts.entrySet()) {
+            Integer available = availableCounts.get(entry.getKey());
+            if (available == null || available < entry.getValue()) {
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch fail type={} required={} available={} (emptyFiltered={})",
+                        entry.getKey(), entry.getValue(), available, emptyFiltered);
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * 用于合并同类型 ItemStack 的键：Item + metadata + NBT。
+     */
+    private static final class ItemKey {
+        final net.minecraft.item.Item item;
+        final int meta;
+        final net.minecraft.nbt.NBTTagCompound nbt;
+
+        ItemKey(ItemStack stack) {
+            this.item = stack.getItem();
+            this.meta = stack.getMetadata();
+            this.nbt = stack.hasTagCompound() ? stack.getTagCompound().copy() : null;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ItemKey)) return false;
+            ItemKey other = (ItemKey) o;
+            return this.item == other.item && this.meta == other.meta &&
+                    (this.nbt == null ? other.nbt == null : this.nbt.equals(other.nbt));
+        }
+
+        @Override
+        public int hashCode() {
+            int result = item.hashCode();
+            result = 31 * result + meta;
+            result = 31 * result + (nbt != null ? nbt.hashCode() : 0);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return item.getRegistryName() + "@" + meta + (nbt != null ? "+nbt" : "");
+        }
     }
 
     // ---- 辅助方法 ----
