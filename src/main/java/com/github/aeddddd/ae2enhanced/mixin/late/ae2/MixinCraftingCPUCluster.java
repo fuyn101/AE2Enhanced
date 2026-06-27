@@ -13,6 +13,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.tile.crafting.TileCraftingMonitorTile;
 import appeng.tile.crafting.TileCraftingTile;
 import appeng.container.ContainerNull;
+import net.minecraft.inventory.Container;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
@@ -26,13 +27,11 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -158,48 +157,32 @@ public class MixinCraftingCPUCluster {
     }
 
     /**
-     * 将 CraftingCPUCluster.executeCrafting 中 processing pattern 的 InventoryCrafting 尺寸
-     * 从 4×4 扩展为 10×10,以支持超过 16 个输入的 processing pattern.
-     * 使用 MixinExtras 的 @ModifyExpressionValue 修改字面量 4,避免与 ae2fc 的 @WrapOperation 在 NEW 上冲突.
+     * 重定向 CraftingCPUCluster.executeCrafting 中的 InventoryCrafting 构造：
+     * - processing pattern 统一使用 10×10；
+     * - craftable pattern 在输入数 > 9 时使用 10×10，否则保持 3×3。
+     * 直接 @Redirect 构造调用，避免 @ModifyVariable 在复杂三目表达式上 ordinal 不易命中的问题。
      */
-    @ModifyExpressionValue(
+    @Redirect(
         method = "executeCrafting",
-        at = @At(value = "CONSTANT", args = "intValue=4", ordinal = 0)
+        at = @At(value = "NEW",
+                 target = "(Lnet/minecraft/inventory/Container;II)Lnet/minecraft/inventory/InventoryCrafting;",
+                 ordinal = 0)
     )
-    private int modifyCraftingWidth(int constant) {
-        return 10;
-    }
-
-    @ModifyExpressionValue(
-        method = "executeCrafting",
-        at = @At(value = "CONSTANT", args = "intValue=4", ordinal = 1)
-    )
-    private int modifyCraftingHeight(int constant) {
-        return 10;
-    }
-
-    /**
-     * 当 craftable 样板的实际输入数超过 9 个时，把 CPU 创建的 3×3 InventoryCrafting
-     * 替换为 10×10，否则 executeCrafting 只会提取前 9 个物品，导致 Extended Crafting
-     * 等大工作台配方无法被正确发配。
-     */
-    @ModifyVariable(
-        method = "executeCrafting",
-        at = @At(value = "STORE", ordinal = 1),
-        ordinal = 0
-    )
-    private InventoryCrafting ae2enhanced$resizeInventoryCrafting(
-            InventoryCrafting original,
-            @Local ICraftingPatternDetails details) {
-        if (details != null && details.isCraftable()) {
-            IAEItemStack[] inputs = details.getInputs();
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] resizeInventoryCrafting isCraftable={} inputLength={} originalSize={}", details.isCraftable(), inputs == null ? 0 : inputs.length, original == null ? 0 : original.getSizeInventory());
-            if (inputs != null && inputs.length > 9 && original != null && original.getSizeInventory() < inputs.length) {
-                AE2Enhanced.LOGGER.info("[AE2E-Diag] resizing InventoryCrafting from {} to 100 for large craftable pattern", original.getSizeInventory());
-                return new InventoryCrafting(new ContainerNull(), 10, 10);
+    private InventoryCrafting ae2enhanced$createInventoryCrafting(Container container, int width, int height,
+                                                                  @Local ICraftingPatternDetails details) {
+        if (details != null) {
+            if (details.isCraftable()) {
+                IAEItemStack[] inputs = details.getInputs();
+                if (inputs != null && inputs.length > 9) {
+                    AE2Enhanced.LOGGER.info("[AE2E-Diag] resizing CPU craftable InventoryCrafting to 10x10 for {} inputs", inputs.length);
+                    return new InventoryCrafting(container, 10, 10);
+                }
+                return new InventoryCrafting(container, 3, 3);
             }
+            // processing pattern：保持之前 10×10 的行为
+            return new InventoryCrafting(container, 10, 10);
         }
-        return original;
+        return new InventoryCrafting(container, width, height);
     }
 
     // ==================== Batch Crafting (Assembly Hub) — retained ====================
