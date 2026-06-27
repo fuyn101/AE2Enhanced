@@ -230,18 +230,26 @@ public class VirtualBatchEngine {
 
         List<IAEStack> mergedCosts = mergeItemCosts(perCopy);
 
+        Map<ItemCostKey, Long> tableItems = new HashMap<>();
+        for (int i = 0; i < virtualTable.getSizeInventory(); i++) {
+            ItemStack stack = virtualTable.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                tableItems.merge(new ItemCostKey(stack), (long) stack.getCount(), Long::sum);
+            }
+        }
+
         long actual = maxParallel;
         for (IAEStack cost : mergedCosts) {
             if (cost == null || cost.getStackSize() <= 0) continue;
             long perCopySize = cost.getStackSize();
             long available = VirtualCostExtractor.queryAvailable(storage, cost, source, itemSource);
-            long supported;
+            long haveInTable = 0;
             if (cost instanceof IAEItemStack) {
-                long q = available / perCopySize;
-                supported = (q >= Long.MAX_VALUE - 1) ? Long.MAX_VALUE : q + 1;
-            } else {
-                supported = available / perCopySize;
+                ItemCostKey key = new ItemCostKey(((IAEItemStack) cost).createItemStack());
+                haveInTable = tableItems.getOrDefault(key, 0L);
             }
+            long totalAvailable = available + haveInTable;
+            long supported = totalAvailable / perCopySize;
             actual = Math.min(actual, supported);
             if (actual <= 0) return 0;
         }
