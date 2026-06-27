@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.centralinterface;
 
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
@@ -42,9 +43,46 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
      * @param pos         目标位置
      * @param ingredients 单份配方的输入物品
      * @param outputs     单份配方的预期产物
+     * @param details     完整的配方详情（可为 null，用于需要区分处理/合成样板的场景）
+     * @return true 表示可以执行虚拟合成
+     */
+    default boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients,
+                                      IAEItemStack[] outputs, ICraftingPatternDetails details) {
+        return canCraftVirtually(world, pos, ingredients, outputs);
+    }
+
+    /**
+     * 验证该配方是否可以通过此目标虚拟合成.
+     *
+     * @param world       目标世界
+     * @param pos         目标位置
+     * @param ingredients 单份配方的输入物品
+     * @param outputs     单份配方的预期产物
      * @return true 表示可以执行虚拟合成
      */
     boolean canCraftVirtually(World world, BlockPos pos, InventoryCrafting ingredients, IAEItemStack[] outputs);
+
+    /**
+     * 计算 {@code count} 次虚拟合成所需的全部资源.
+     *
+     * <p>返回值应包含完整 {@code count} 份所需的所有 AE 存储栈(物品、流体、RF、
+     * Mana、Starlight、源质、气体等).调用方会自行决定如何从网络提取.</p>
+     *
+     * @param world       目标世界
+     * @param pos         目标位置
+     * @param ingredients 单份配方的输入物品(来自 {@link InventoryCrafting})
+     * @param outputs     单份配方的预期产物
+     * @param count       虚拟合成份数
+     * @param details     完整的配方详情（可为 null）
+     * @return 资源清单；若无法计算则返回空列表或 null（均视为失败）
+     */
+    default List<IAEStack> getVirtualCost(World world, BlockPos pos,
+                                          InventoryCrafting ingredients,
+                                          IAEItemStack[] outputs,
+                                          long count,
+                                          ICraftingPatternDetails details) {
+        return getVirtualCost(world, pos, ingredients, outputs, count);
+    }
 
     /**
      * 计算 {@code count} 次虚拟合成所需的全部资源.
@@ -63,6 +101,29 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
                                   InventoryCrafting ingredients,
                                   IAEItemStack[] outputs,
                                   long count);
+
+    /**
+     * 执行 {@code count} 次虚拟合成.
+     *
+     * <p>调用方保证资源已扣除,handler 内部不再重复扣资源,仅负责验证配方并返回产物。</p>
+     *
+     * @param world       目标世界
+     * @param pos         目标位置
+     * @param ingredients 单份配方的输入物品
+     * @param outputs     单份配方的预期产物
+     * @param count       虚拟合成份数
+     * @param source      AE 动作源
+     * @param details     完整的配方详情（可为 null）
+     * @return 合成产物列表；失败返回空列表
+     */
+    default List<ItemStack> virtualCraftBatch(World world, BlockPos pos,
+                                              InventoryCrafting ingredients,
+                                              IAEItemStack[] outputs,
+                                              long count,
+                                              IActionSource source,
+                                              ICraftingPatternDetails details) {
+        return virtualCraftBatch(world, pos, ingredients, outputs, count, source);
+    }
 
     /**
      * 执行 {@code count} 次虚拟合成.

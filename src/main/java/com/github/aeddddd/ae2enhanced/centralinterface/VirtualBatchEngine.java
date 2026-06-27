@@ -46,7 +46,7 @@ public class VirtualBatchEngine {
      *
      * @param proxy       网络代理
      * @param patternDetails 配方详情
-     * @param originalTable 原始合成台
+     * @param originalTable 原始合成台（已包含 CPU 提取的第一份物品）
      * @param target      目标绑定
      * @param handler     批量虚拟合成 handler
      * @param maxParallel 卡片 tier 提供的最大并行数（Long.MAX_VALUE 表示无上限）
@@ -64,7 +64,6 @@ public class VirtualBatchEngine {
             return 0;
         }
 
-        // 防御性冷却/所有权检查
         if (owner.isOnGlobalVirtualCooldown()) {
             logFail(world, target, "on global virtual cooldown");
             return 0;
@@ -95,47 +94,7 @@ public class VirtualBatchEngine {
             InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
-            // 诊断：直接打印 patternDetails.getInputs()，验证样板是否真的编码了全部物品
-            StringBuilder patternInputsSb = new StringBuilder();
-            appeng.api.storage.data.IAEItemStack[] patternInputs = patternDetails.getInputs();
-            if (patternInputs != null) {
-                for (int i = 0; i < patternInputs.length; i++) {
-                    appeng.api.storage.data.IAEItemStack input = patternInputs[i];
-                    if (input != null && input.getStackSize() > 0) {
-                        if (patternInputsSb.length() > 0) patternInputsSb.append(", ");
-                        patternInputsSb.append("[").append(i).append("]").append(input.getStackSize()).append("x").append(input.getItem());
-                    }
-                }
-            }
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] patternDetails.inputs length={} inputs={}", patternInputs == null ? 0 : patternInputs.length, patternInputsSb);
-
-            // 修复：AE2 CPU 对 craftable 样板默认构造 3x3 InventoryCrafting，但 Extended Crafting
-            // 配方可能有 21/25 个输入。如果 pattern 输入数超过传入 table 的槽位数，则构造 10x10
-            // 的扩展 table，并把缺失的第一份物品也计入 netCosts 从 CPU 缓存补取。
-            InventoryCrafting expandedTable = virtualTable;
-            List<appeng.api.storage.data.IAEItemStack> missingFirstCopy = new java.util.ArrayList<>();
-            if (patternInputs != null && patternInputs.length > virtualTable.getSizeInventory()) {
-                expandedTable = new InventoryCrafting(new appeng.container.ContainerNull(), 10, 10);
-                for (int i = 0; i < virtualTable.getSizeInventory(); i++) {
-                    ItemStack stack = virtualTable.getStackInSlot(i);
-                    if (!stack.isEmpty()) {
-                        expandedTable.setInventorySlotContents(i, stack.copy());
-                    }
-                }
-                for (int i = virtualTable.getSizeInventory(); i < patternInputs.length; i++) {
-                    appeng.api.storage.data.IAEItemStack input = patternInputs[i];
-                    if (input != null && input.getStackSize() > 0) {
-                        expandedTable.setInventorySlotContents(i, input.createItemStack());
-                        missingFirstCopy.add(input.copy());
-                    }
-                }
-                AE2Enhanced.LOGGER.info("[AE2E-Diag] expanded virtualTable from {} to {} slots, missing first-copy inputs={}",
-                        virtualTable.getSizeInventory(), expandedTable.getSizeInventory(), missingFirstCopy.size());
-            }
-
-            boolean canCraft = handler.canCraftVirtually(world, target.pos, expandedTable, outputs);
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] canCraftVirtually target={} handler={} result={}", target.pos, handler.getClass().getSimpleName(), canCraft);
-            if (!canCraft) {
+            if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs, patternDetails)) {
                 logFail(world, target, "canCraftVirtually returned false");
                 return 0;
             }
@@ -150,61 +109,48 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            long actualParallel = computeActualParallel(storage, energy, handler, world, target, expandedTable, outputs, maxParallel, owner.getVirtualItemSource());
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] computeActualParallel target={} maxParallel={} actualParallel={}", target.pos, maxParallel, actualParallel);
+            IMEInventory<IAEItemStack> itemSource = owner.getVirtualItemSource();
+            long actualParallel = computeActualParallel(storage, energy, handler, world, target,
+                    virtualTable, outputs, maxParallel, itemSource, patternDetails);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0");
                 return 0;
             }
 
             IActionSource source = new MachineSource(owner.host);
-
-            // AE2 CPU 已经把第一份物品材料从网络提取到 table 中传入 pushPattern，
-            // 因此虚拟合成不应再向网络索取这一份物品；额外 (parallel-1) 份物品应从
-            // CPU 内部缓存（由 Mixin 传入）提取，secondary 资源才从网络提取。
-            IMEInventory<IAEItemStack> itemSource = owner.getVirtualItemSource();
-            List<IAEStack> netCosts = getNetCosts(handler, world, target, expandedTable, outputs, actualParallel);
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable,
+                    outputs, actualParallel, patternDetails);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return 0;
             }
-            // 补齐第一份中未由 originalTable 带来的物品（这些物品同样需要从 CPU 缓存提取）
-            for (appeng.api.storage.data.IAEItemStack missing : missingFirstCopy) {
-                netCosts.add(missing);
-            }
 
-            // 模拟提取（物品从 CPU 缓存，secondary 从网络）
             if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source, itemSource)) {
-                logFail(world, target, "simulateExtract failed for parallel=" + actualParallel + " netCosts=" + netCosts.size());
+                logFail(world, target, "simulateExtract failed for parallel=" + actualParallel);
                 return 0;
             }
 
-            // 模拟能量
             double energyCost = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost * (double) actualParallel;
             if (!VirtualCostExtractor.simulateExtractEnergy(energy, energyCost)) {
                 logFail(world, target, "simulateExtractEnergy failed (need " + energyCost + " AE)");
                 return 0;
             }
 
-            // 实际提取资源（extra 物品从 CPU 缓存，secondary 资源从网络）
             List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source, itemSource);
             if (extracted == null) {
                 logFail(world, target, "extractAll failed");
                 return 0;
             }
 
-            // 扣除能量
             if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
-                // 资源已扣但能量不足：理论上前面已模拟，出现竞态时回滚资源
                 VirtualCostExtractor.rollbackExtracted(storage, extracted, source, itemSource);
                 logFail(world, target, "extractEnergy failed after resources extracted");
                 return 0;
             }
 
-            // 执行虚拟合成
-            List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, expandedTable, outputs, actualParallel, source);
+            List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, virtualTable,
+                    outputs, actualParallel, source, patternDetails);
             if (products == null || products.isEmpty()) {
-                // 产物为空视为已消耗，不回滚
                 logFail(world, target, "virtualCraftBatch returned no products");
                 return 0;
             }
@@ -212,14 +158,12 @@ public class VirtualBatchEngine {
             products = mergeProducts(products);
             owner.pendingVirtualProducts.addAll(products);
 
-            // 粒子效果
             List<EnumParticleTypes> particleTypes = handler.getVirtualCraftingParticles(world, target.pos);
             int particleType = particleTypes.isEmpty()
                     ? EnumParticleTypes.PORTAL.getParticleID()
                     : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
             addParticleTarget(target.pos, particleType);
 
-            // 进入冷却
             owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
             owner.tryWakeTickDevice();
             return actualParallel;
@@ -239,7 +183,6 @@ public class VirtualBatchEngine {
         boolean didWork = false;
         World world = owner.host.getTileEntity().getWorld();
 
-        // 注入待处理的虚拟合成产物
         if (!owner.pendingVirtualProducts.isEmpty()) {
             List<ItemStack> toInject = new ArrayList<>(owner.pendingVirtualProducts);
             owner.pendingVirtualProducts.clear();
@@ -250,7 +193,6 @@ public class VirtualBatchEngine {
             }
         }
 
-        // 发送粒子包
         if (sendParticlePackets(world)) {
             didWork = true;
         }
@@ -272,11 +214,11 @@ public class VirtualBatchEngine {
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
                                        long maxParallel,
-                                       IMEInventory<IAEItemStack> itemSource) {
+                                       IMEInventory<IAEItemStack> itemSource,
+                                       ICraftingPatternDetails details) {
         MachineSource source = new MachineSource(owner.host);
-        List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1);
+        List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1, details);
         if (perCopy == null || perCopy.isEmpty()) {
-            // 配方无成本时，仅受能量与 maxParallel 限制
             long actual = maxParallel;
             double perOp = AE2EnhancedConfig.centralInterface.virtualParallelEnergyCost;
             if (perOp > 0) {
@@ -286,9 +228,6 @@ public class VirtualBatchEngine {
             return actual > 0 ? actual : 0;
         }
 
-        // 某些 handler（如 ExtendedCraftingTableHandler）按槽位返回单份成本，
-        // 同种物品分散在多格中会导致 perCopySize=1 而严重高估并行数。
-        // 在这里按 Item+meta+NBT 合并物品成本后再计算。
         List<IAEStack> mergedCosts = mergeItemCosts(perCopy);
 
         long actual = maxParallel;
@@ -303,8 +242,6 @@ public class VirtualBatchEngine {
             } else {
                 supported = available / perCopySize;
             }
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] costCheck type={} perCopy={} available={} supported={} currentActual={}",
-                    cost.getClass().getSimpleName(), perCopySize, available, supported, Math.min(actual, supported));
             actual = Math.min(actual, supported);
             if (actual <= 0) return 0;
         }
@@ -320,54 +257,47 @@ public class VirtualBatchEngine {
     /**
      * 获取需要从网络额外提取的资源清单。
      *
-     * <p>策略：
-     * <ul>
-     *   <li>物品（IAEItemStack）: 只提取 (parallel-1) 份，因为第 1 份已由 CPU 提供。</li>
-     *   <li>Secondary 资源（Mana/Starlight/RF/流体/气体/源质等）: 提取 parallel 份。</li>
-     * </ul></p>
+     * <p>策略：以 handler 返回的 {@code parallel} 份总成本为权威值，
+     * 减去已由 CPU 提取并放在 {@code virtualTable} 中的物品（第一份的一部分）。
+     * Secondary 资源不会进入 table，因此不扣减。</p>
      */
     private List<IAEStack> getNetCosts(IVirtualBatchCraftingHandler handler,
                                        World world,
                                        TargetBinding target,
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
-                                       long parallel) {
+                                       long parallel,
+                                       ICraftingPatternDetails details) {
         if (parallel <= 0) {
             return Collections.emptyList();
         }
 
-        List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1);
-        List<IAEStack> fullCosts = handler.getVirtualCost(world, target.pos, virtualTable, outputs, parallel);
+        List<IAEStack> fullCosts = handler.getVirtualCost(world, target.pos, virtualTable, outputs, parallel, details);
         if (fullCosts == null || fullCosts.isEmpty()) {
             return Collections.emptyList();
         }
-        if (parallel <= 1) {
-            // parallel=1 时物品已由 CPU 提供，只留 secondary 资源
-            List<IAEStack> secondary = new ArrayList<>();
-            for (IAEStack cost : fullCosts) {
-                if (cost != null && !(cost instanceof IAEItemStack)) {
-                    secondary.add(cost);
-                }
+
+        Map<ItemCostKey, Long> tableItems = new HashMap<>();
+        for (int i = 0; i < virtualTable.getSizeInventory(); i++) {
+            ItemStack stack = virtualTable.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                tableItems.merge(new ItemCostKey(stack), (long) stack.getCount(), Long::sum);
             }
-            return secondary;
         }
 
         List<IAEStack> net = new ArrayList<>();
-        for (int i = 0; i < fullCosts.size(); i++) {
-            IAEStack full = fullCosts.get(i);
-            if (full == null) continue;
-            if (full instanceof IAEItemStack) {
-                long perCopySize = (perCopy != null && i < perCopy.size() && perCopy.get(i) != null)
-                        ? perCopy.get(i).getStackSize()
-                        : full.getStackSize() / parallel;
-                long extra = full.getStackSize() - perCopySize;
-                if (extra > 0) {
-                    IAEItemStack itemExtra = ((IAEItemStack) full).copy();
-                    itemExtra.setStackSize(extra);
-                    net.add(itemExtra);
-                }
-            } else {
-                net.add(full);
+        for (IAEStack cost : fullCosts) {
+            if (cost == null) continue;
+            long have = 0;
+            if (cost instanceof IAEItemStack) {
+                ItemCostKey key = new ItemCostKey(((IAEItemStack) cost).createItemStack());
+                have = tableItems.getOrDefault(key, 0L);
+            }
+            long need = cost.getStackSize();
+            if (need > have) {
+                IAEStack extra = cost.copy();
+                extra.setStackSize(need - have);
+                net.add(extra);
             }
         }
         return net;
