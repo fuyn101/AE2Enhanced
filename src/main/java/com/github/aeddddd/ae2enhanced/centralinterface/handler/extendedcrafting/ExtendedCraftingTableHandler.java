@@ -142,10 +142,6 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return false;
 
-        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
-        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
-        if (recipes.isEmpty()) return false;
-
         // 打印传入的 ingredients，便于诊断匹配失败
         StringBuilder ingSb = new StringBuilder();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -157,12 +153,34 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         }
         AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft inputs={}", ingSb);
 
+        // 处理样板（processing pattern）的 InventoryCrafting 被 Mixin 扩展为 10×10，
+        // 且 AE2 本身不对 processing pattern 做配方校验，直接信任用户填写的输入/输出。
+        // 因此对于 10×10 输入，跳过 EC/原版配方匹配，直接认为可合成，避免误杀 modpack 魔改配方。
+        if (ingredients.getSizeInventory() == 100) {
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft processing pattern trusted output={}", expectedOutput);
+            return true;
+        }
+
+        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
+        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
+
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
-                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft matched recipe output={}", recipe.getRecipeOutput());
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft matched EC recipe output={}", recipe.getRecipeOutput());
                 return true;
             }
         }
+
+        // 回退：Extended Crafting 工作台通常允许合成原版 3x3 配方（当 confTableUseRecipes 开启时）。
+        // 若 EC 配方未匹配，尝试用原版配方匹配。
+        if (ingredients.getSizeInventory() == 9) {
+            IRecipe vanilla = net.minecraft.item.crafting.CraftingManager.findMatchingRecipe(ingredients, world);
+            if (vanilla != null && outputsMatch(vanilla.getRecipeOutput(), expectedOutput)) {
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft matched vanilla recipe output={}", vanilla.getRecipeOutput());
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -208,12 +226,26 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return products;
 
+        // processing pattern（10×10）直接信任用户填写的输入/输出，不再做配方校验
+        if (ingredients.getSizeInventory() == 100) {
+            return scaleOutputsByCount(outputs, count);
+        }
+
         List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
                 return scaleOutputsByCount(outputs, count);
             }
         }
+
+        // 原版 3x3 配方回退
+        if (ingredients.getSizeInventory() == 9) {
+            IRecipe vanilla = net.minecraft.item.crafting.CraftingManager.findMatchingRecipe(ingredients, world);
+            if (vanilla != null && outputsMatch(vanilla.getRecipeOutput(), expectedOutput)) {
+                return scaleOutputsByCount(outputs, count);
+            }
+        }
+
         return products;
     }
 
