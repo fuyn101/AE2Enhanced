@@ -160,23 +160,9 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
     public List<ItemStack> virtualCraftBatch(World world, BlockPos pos, InventoryCrafting ingredients,
                                              IAEItemStack[] outputs, long count, IActionSource source,
                                              ICraftingPatternDetails details) {
-        IRecipe recipe = findRecipe(world, pos, outputs);
-        if (recipe == null) return Collections.emptyList();
-
-        ItemStack output = recipe.getRecipeOutput().copy();
-        if (output.isEmpty()) return Collections.emptyList();
-
-        long total = (long) output.getCount() * count;
-        List<ItemStack> products = new ArrayList<>();
-        int maxSize = output.getMaxStackSize();
-        while (total > 0) {
-            int slice = (int) Math.min(total, maxSize);
-            ItemStack copy = output.copy();
-            copy.setCount(slice);
-            products.add(copy);
-            total -= slice;
-        }
-        return products;
+        // 成本按 EC 配方计算，但产物必须与样板输出一致，否则 AE2 CPU 的 waitingFor
+        // 无法匹配，导致任务残留一份无法完成。
+        return scaleOutputsByCount(outputs, count);
     }
 
     @Override
