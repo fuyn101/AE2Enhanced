@@ -146,6 +146,17 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
         if (recipes.isEmpty()) return false;
 
+        // 打印传入的 ingredients，便于诊断匹配失败
+        StringBuilder ingSb = new StringBuilder();
+        for (int i = 0; i < ingredients.getSizeInventory(); i++) {
+            ItemStack stack = ingredients.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                if (ingSb.length() > 0) ingSb.append(", ");
+                ingSb.append("[").append(i).append("]").append(stack);
+            }
+        }
+        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft inputs={}", ingSb);
+
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
                 AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft matched recipe output={}", recipe.getRecipeOutput());
@@ -293,9 +304,13 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         }
 
         // 输入物品数必须不少于配方需求数(AE2 提取时可能带入了网络中的多余物品)
-        if (available.size() < required.size()) return false;
+        if (available.size() < required.size()) {
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch fail available={} < required={}", available.size(), required.size());
+            return false;
+        }
 
         // 贪心匹配
+        int matchedCount = 0;
         for (Ingredient ing : required) {
             boolean found = false;
             for (int i = 0; i < available.size(); i++) {
@@ -303,10 +318,22 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
                 if (ing.apply(stack)) {
                     available.remove(i);
                     found = true;
+                    matchedCount++;
                     break;
                 }
             }
-            if (!found) return false;
+            if (!found) {
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch fail at requiredIndex={} matched={}/{} availableRemaining={}",
+                        matchedCount, matchedCount, required.size(), available.size());
+                // 打印前几个未匹配的可用物品，帮助诊断 ingredient 不匹配原因
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < Math.min(available.size(), 9); i++) {
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(available.get(i));
+                }
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.ingredientsMatch availableSamples=[{}]", sb);
+                return false;
+            }
         }
 
         return true;
