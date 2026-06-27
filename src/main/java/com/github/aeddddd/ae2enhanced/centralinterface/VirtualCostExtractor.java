@@ -6,6 +6,7 @@ import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.energy.IEnergySource;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
@@ -34,11 +35,14 @@ public class VirtualCostExtractor {
      *
      * <p>AE2 {@code extractItems} 返回的是实际提取到的堆叠（大小 {@code <=} 请求），
      * 提取成功时大小等于请求，未提取或不足时返回 {@code null} 或更小的堆叠。</p>
+     *
+     * @param itemSource 可选的 CPU 内部物品缓存；若提供，物品成本从此处模拟提取而非网络。
      */
-    public static boolean simulateExtract(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
+    public static boolean simulateExtract(IStorageGrid storage, List<IAEStack> costs, IActionSource source,
+                                          IMEInventory<IAEItemStack> itemSource) {
         for (IAEStack cost : costs) {
             if (isEmpty(cost)) continue;
-            IAEStack extracted = extractOne(storage, cost, Actionable.SIMULATE, source);
+            IAEStack extracted = extractOne(storage, cost, Actionable.SIMULATE, source, itemSource);
             if (!isSufficient(extracted, cost)) {
                 return false;
             }
@@ -49,15 +53,17 @@ public class VirtualCostExtractor {
     /**
      * 实际提取全部资源，失败时自动回滚已提取部分。
      *
+     * @param itemSource 可选的 CPU 内部物品缓存；若提供，物品成本从此处实际提取而非网络。
      * @return 成功时返回已提取的资源清单（用于外部进一步回滚）；失败返回 null
      */
-    public static List<IAEStack> extractAll(IStorageGrid storage, List<IAEStack> costs, IActionSource source) {
+    public static List<IAEStack> extractAll(IStorageGrid storage, List<IAEStack> costs, IActionSource source,
+                                            IMEInventory<IAEItemStack> itemSource) {
         List<IAEStack> extracted = new ArrayList<>();
         for (IAEStack cost : costs) {
             if (isEmpty(cost)) continue;
-            IAEStack got = extractOne(storage, cost, Actionable.MODULATE, source);
+            IAEStack got = extractOne(storage, cost, Actionable.MODULATE, source, itemSource);
             if (!isSufficient(got, cost)) {
-                rollback(storage, extracted, source);
+                rollback(storage, extracted, source, itemSource);
                 return null;
             }
             extracted.add(cost.copy());
@@ -68,11 +74,12 @@ public class VirtualCostExtractor {
     /**
      * 回滚已提取的资源。用于能量扣除失败后恢复已提取的材料。
      */
-    public static void rollbackExtracted(IStorageGrid storage, List<IAEStack> extracted, IActionSource source) {
+    public static void rollbackExtracted(IStorageGrid storage, List<IAEStack> extracted, IActionSource source,
+                                         IMEInventory<IAEItemStack> itemSource) {
         if (extracted == null || extracted.isEmpty()) {
             return;
         }
-        rollback(storage, extracted, source);
+        rollback(storage, extracted, source, itemSource);
     }
 
     /**
@@ -94,16 +101,19 @@ public class VirtualCostExtractor {
     }
 
     /**
-     * 查询网络中指定 AE 堆叠的可用数量。
+     * 查询指定 AE 堆叠的可用数量。
      *
      * <p>通过模拟提取 {@code Long.MAX_VALUE} 并返回实际可取到的数量实现，
      * 避免 binary search 中多次部分提取。</p>
+     *
+     * @param itemSource 可选的 CPU 内部物品缓存；若提供，物品可用量从此处查询。
      */
-    public static long queryAvailable(IStorageGrid storage, IAEStack cost, IActionSource source) {
+    public static long queryAvailable(IStorageGrid storage, IAEStack cost, IActionSource source,
+                                      IMEInventory<IAEItemStack> itemSource) {
         if (isEmpty(cost)) return 0;
         IAEStack request = cost.copy();
         request.setStackSize(Long.MAX_VALUE);
-        IAEStack extracted = extractOne(storage, request, Actionable.SIMULATE, source);
+        IAEStack extracted = extractOne(storage, request, Actionable.SIMULATE, source, itemSource);
         return extracted != null ? extracted.getStackSize() : 0;
     }
 
@@ -129,8 +139,12 @@ public class VirtualCostExtractor {
     }
 
     private static IAEStack extractOne(IStorageGrid storage, IAEStack cost,
-                                       Actionable mode, IActionSource source) {
+                                       Actionable mode, IActionSource source,
+                                       IMEInventory<IAEItemStack> itemSource) {
         if (cost instanceof IAEItemStack) {
+            if (itemSource != null) {
+                return itemSource.extractItems((IAEItemStack) cost, mode, source);
+            }
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             return storage.getInventory(channel).extractItems((IAEItemStack) cost, mode, source);
         }
@@ -196,14 +210,20 @@ public class VirtualCostExtractor {
         }
     }
 
-    private static void rollback(IStorageGrid storage, List<IAEStack> extracted, IActionSource source) {
+    private static void rollback(IStorageGrid storage, List<IAEStack> extracted, IActionSource source,
+                                 IMEInventory<IAEItemStack> itemSource) {
         for (IAEStack stack : extracted) {
-            injectOne(storage, stack, source);
+            injectOne(storage, stack, source, itemSource);
         }
     }
 
-    private static void injectOne(IStorageGrid storage, IAEStack stack, IActionSource source) {
+    private static void injectOne(IStorageGrid storage, IAEStack stack, IActionSource source,
+                                  IMEInventory<IAEItemStack> itemSource) {
         if (stack instanceof IAEItemStack) {
+            if (itemSource != null) {
+                itemSource.injectItems((IAEItemStack) stack, Actionable.MODULATE, source);
+                return;
+            }
             IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
             storage.getInventory(channel).injectItems((IAEItemStack) stack, Actionable.MODULATE, source);
             return;

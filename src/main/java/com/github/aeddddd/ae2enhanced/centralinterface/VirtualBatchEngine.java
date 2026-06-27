@@ -4,6 +4,7 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.energy.IEnergySource;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.storage.IMEInventory;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.me.GridAccessException;
@@ -108,7 +109,7 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            long actualParallel = computeActualParallel(storage, energy, handler, world, target, virtualTable, outputs, maxParallel);
+            long actualParallel = computeActualParallel(storage, energy, handler, world, target, virtualTable, outputs, maxParallel, owner.getVirtualItemSource());
             AE2Enhanced.LOGGER.info("[AE2E-Diag] computeActualParallel target={} maxParallel={} actualParallel={}", target.pos, maxParallel, actualParallel);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0");
@@ -118,16 +119,17 @@ public class VirtualBatchEngine {
             IActionSource source = new MachineSource(owner.host);
 
             // AE2 CPU 已经把第一份物品材料从网络提取到 table 中传入 pushPattern，
-            // 因此虚拟合成不应再向网络索取这一份物品；只对额外的 (parallel-1) 份物品
-            // 以及全部 secondary 资源（RF/Mana/Starlight/流体等）进行网络提取。
+            // 因此虚拟合成不应再向网络索取这一份物品；额外 (parallel-1) 份物品应从
+            // CPU 内部缓存（由 Mixin 传入）提取，secondary 资源才从网络提取。
+            IMEInventory<IAEItemStack> itemSource = owner.getVirtualItemSource();
             List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return 0;
             }
 
-            // 模拟提取
-            if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source)) {
+            // 模拟提取（物品从 CPU 缓存，secondary 从网络）
+            if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source, itemSource)) {
                 logFail(world, target, "simulateExtract failed for parallel=" + actualParallel + " netCosts=" + netCosts.size());
                 return 0;
             }
@@ -139,8 +141,8 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            // 实际提取资源（仅 extra 物品 + secondary 资源）
-            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source);
+            // 实际提取资源（extra 物品从 CPU 缓存，secondary 资源从网络）
+            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source, itemSource);
             if (extracted == null) {
                 logFail(world, target, "extractAll failed");
                 return 0;
@@ -149,7 +151,7 @@ public class VirtualBatchEngine {
             // 扣除能量
             if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
                 // 资源已扣但能量不足：理论上前面已模拟，出现竞态时回滚资源
-                VirtualCostExtractor.rollbackExtracted(storage, extracted, source);
+                VirtualCostExtractor.rollbackExtracted(storage, extracted, source, itemSource);
                 logFail(world, target, "extractEnergy failed after resources extracted");
                 return 0;
             }
@@ -224,7 +226,8 @@ public class VirtualBatchEngine {
                                        TargetBinding target,
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
-                                       long maxParallel) {
+                                       long maxParallel,
+                                       IMEInventory<IAEItemStack> itemSource) {
         MachineSource source = new MachineSource(owner.host);
         List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1);
         if (perCopy == null || perCopy.isEmpty()) {
@@ -242,7 +245,7 @@ public class VirtualBatchEngine {
         for (IAEStack cost : perCopy) {
             if (cost == null || cost.getStackSize() <= 0) continue;
             long perCopySize = cost.getStackSize();
-            long available = VirtualCostExtractor.queryAvailable(storage, cost, source);
+            long available = VirtualCostExtractor.queryAvailable(storage, cost, source, itemSource);
             long supported;
             if (cost instanceof IAEItemStack) {
                 long q = available / perCopySize;
