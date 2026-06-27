@@ -157,32 +157,30 @@ public class MixinCraftingCPUCluster {
     }
 
     /**
-     * 重定向 CraftingCPUCluster.executeCrafting 中的 InventoryCrafting 构造：
-     * - processing pattern 统一使用 10×10；
-     * - craftable pattern 在输入数 > 9 时使用 10×10，否则保持 3×3。
-     * 直接 @Redirect 构造调用，避免 @ModifyVariable 在复杂三目表达式上 ordinal 不易命中的问题。
+     * 当 craftable 样板的输入数超过 9 时，AE2 CPU 仍会构造 3×3 的 InventoryCrafting。
+     * executeCrafting 在遍历 inputs 时会调用 ic.setInventorySlotContents(x, is)，
+     * 对于 x≥9 的物品会被丢弃（从 CPU 缓存扣掉但没有进入 table）。
+     * 这里把超出 3×3 槽位的物品暂存起来，在 pushPattern 前重组为 10×10 table。
      */
+    @Unique
+    private NonNullList<ItemStack> ae2enhanced$extraCraftingItems;
+
     @Redirect(
         method = "executeCrafting",
-        at = @At(value = "NEW",
-                 target = "(Lnet/minecraft/inventory/Container;II)Lnet/minecraft/inventory/InventoryCrafting;",
-                 ordinal = 0)
+        at = @At(value = "INVOKE",
+                 target = "Lnet/minecraft/inventory/InventoryCrafting;setInventorySlotContents(ILnet/minecraft/item/ItemStack;)V")
     )
-    private InventoryCrafting ae2enhanced$createInventoryCrafting(Container container, int width, int height,
-                                                                  @Local ICraftingPatternDetails details) {
-        if (details != null) {
-            if (details.isCraftable()) {
-                IAEItemStack[] inputs = details.getInputs();
-                if (inputs != null && inputs.length > 9) {
-                    AE2Enhanced.LOGGER.info("[AE2E-Diag] resizing CPU craftable InventoryCrafting to 10x10 for {} inputs", inputs.length);
-                    return new InventoryCrafting(container, 10, 10);
-                }
-                return new InventoryCrafting(container, 3, 3);
-            }
-            // processing pattern：保持之前 10×10 的行为
-            return new InventoryCrafting(container, 10, 10);
+    private void ae2enhanced$captureExtraCraftingItem(InventoryCrafting ic, int index, ItemStack stack) {
+        if (index < 0 || index < ic.getSizeInventory()) {
+            ic.setInventorySlotContents(index, stack);
+            return;
         }
-        return new InventoryCrafting(container, width, height);
+        if (ae2enhanced$extraCraftingItems == null) {
+            ae2enhanced$extraCraftingItems = NonNullList.withSize(100, ItemStack.EMPTY);
+        }
+        if (index < ae2enhanced$extraCraftingItems.size()) {
+            ae2enhanced$extraCraftingItems.set(index, stack);
+        }
     }
 
     // ==================== Batch Crafting (Assembly Hub) — retained ====================
@@ -705,7 +703,32 @@ public class MixinCraftingCPUCluster {
             AE2Enhanced.LOGGER.info("[AE2E-Diag] CPU wrap pre pending={} itemSource={} target={}", pending, itemSource != null, medium instanceof TileCentralMEInterface);
         }
 
-        boolean result = original.call(medium, details, table);
+        // 如果 craftable 样板的输入数超过 table 当前槽位数，把暂存的额外物品重组进 10×10 table，
+        // 避免 executeCrafting 把 x≥9 的物品从 CPU 缓存扣掉却未传入 pushPattern。
+        InventoryCrafting pushedTable = table;
+        if (details != null && details.isCraftable() && ae2enhanced$extraCraftingItems != null) {
+            IAEItemStack[] inputs = details.getInputs();
+            if (inputs != null && inputs.length > table.getSizeInventory()) {
+                pushedTable = new InventoryCrafting(new ContainerNull(), 10, 10);
+                for (int i = 0; i < table.getSizeInventory(); i++) {
+                    ItemStack s = table.getStackInSlot(i);
+                    if (!s.isEmpty()) {
+                        pushedTable.setInventorySlotContents(i, s.copy());
+                    }
+                }
+                for (int i = 0; i < ae2enhanced$extraCraftingItems.size(); i++) {
+                    ItemStack s = ae2enhanced$extraCraftingItems.get(i);
+                    if (s != null && !s.isEmpty()) {
+                        pushedTable.setInventorySlotContents(i, s.copy());
+                    }
+                }
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] rebuilt pushPattern table from {} to {} slots using {} extra captured items",
+                        table.getSizeInventory(), pushedTable.getSizeInventory(), inputs.length - table.getSizeInventory());
+            }
+            ae2enhanced$extraCraftingItems = null;
+        }
+
+        boolean result = original.call(medium, details, pushedTable);
         if (medium instanceof TileCentralMEInterface) {
             ((TileCentralMEInterface) medium).getInterfaceDuality().setVirtualItemSource(null);
         }
