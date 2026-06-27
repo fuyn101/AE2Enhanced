@@ -106,7 +106,31 @@ public class VirtualBatchEngine {
             }
             AE2Enhanced.LOGGER.info("[AE2E-Diag] patternDetails.inputs length={} inputs={}", patternInputs == null ? 0 : patternInputs.length, patternInputsSb);
 
-            boolean canCraft = handler.canCraftVirtually(world, target.pos, virtualTable, outputs);
+            // 修复：AE2 CPU 对 craftable 样板默认构造 3x3 InventoryCrafting，但 Extended Crafting
+            // 配方可能有 21/25 个输入。如果 pattern 输入数超过传入 table 的槽位数，则构造 10x10
+            // 的扩展 table，并把缺失的第一份物品也计入 netCosts 从 CPU 缓存补取。
+            InventoryCrafting expandedTable = virtualTable;
+            List<appeng.api.storage.data.IAEItemStack> missingFirstCopy = new java.util.ArrayList<>();
+            if (patternInputs != null && patternInputs.length > virtualTable.getSizeInventory()) {
+                expandedTable = new InventoryCrafting(new appeng.container.ContainerNull(), 10, 10);
+                for (int i = 0; i < virtualTable.getSizeInventory(); i++) {
+                    ItemStack stack = virtualTable.getStackInSlot(i);
+                    if (!stack.isEmpty()) {
+                        expandedTable.setInventorySlotContents(i, stack.copy());
+                    }
+                }
+                for (int i = virtualTable.getSizeInventory(); i < patternInputs.length; i++) {
+                    appeng.api.storage.data.IAEItemStack input = patternInputs[i];
+                    if (input != null && input.getStackSize() > 0) {
+                        expandedTable.setInventorySlotContents(i, input.createItemStack());
+                        missingFirstCopy.add(input.copy());
+                    }
+                }
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] expanded virtualTable from {} to {} slots, missing first-copy inputs={}",
+                        virtualTable.getSizeInventory(), expandedTable.getSizeInventory(), missingFirstCopy.size());
+            }
+
+            boolean canCraft = handler.canCraftVirtually(world, target.pos, expandedTable, outputs);
             AE2Enhanced.LOGGER.info("[AE2E-Diag] canCraftVirtually target={} handler={} result={}", target.pos, handler.getClass().getSimpleName(), canCraft);
             if (!canCraft) {
                 logFail(world, target, "canCraftVirtually returned false");
@@ -123,7 +147,7 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            long actualParallel = computeActualParallel(storage, energy, handler, world, target, virtualTable, outputs, maxParallel, owner.getVirtualItemSource());
+            long actualParallel = computeActualParallel(storage, energy, handler, world, target, expandedTable, outputs, maxParallel, owner.getVirtualItemSource());
             AE2Enhanced.LOGGER.info("[AE2E-Diag] computeActualParallel target={} maxParallel={} actualParallel={}", target.pos, maxParallel, actualParallel);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0");
@@ -136,10 +160,14 @@ public class VirtualBatchEngine {
             // 因此虚拟合成不应再向网络索取这一份物品；额外 (parallel-1) 份物品应从
             // CPU 内部缓存（由 Mixin 传入）提取，secondary 资源才从网络提取。
             IMEInventory<IAEItemStack> itemSource = owner.getVirtualItemSource();
-            List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable, outputs, actualParallel);
+            List<IAEStack> netCosts = getNetCosts(handler, world, target, expandedTable, outputs, actualParallel);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return 0;
+            }
+            // 补齐第一份中未由 originalTable 带来的物品（这些物品同样需要从 CPU 缓存提取）
+            for (appeng.api.storage.data.IAEItemStack missing : missingFirstCopy) {
+                netCosts.add(missing);
             }
 
             // 模拟提取（物品从 CPU 缓存，secondary 从网络）
@@ -171,7 +199,7 @@ public class VirtualBatchEngine {
             }
 
             // 执行虚拟合成
-            List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, virtualTable, outputs, actualParallel, source);
+            List<ItemStack> products = handler.virtualCraftBatch(world, target.pos, expandedTable, outputs, actualParallel, source);
             if (products == null || products.isEmpty()) {
                 // 产物为空视为已消耗，不回滚
                 logFail(world, target, "virtualCraftBatch returned no products");
