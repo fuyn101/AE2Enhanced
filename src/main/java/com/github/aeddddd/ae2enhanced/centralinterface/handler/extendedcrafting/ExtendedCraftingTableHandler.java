@@ -6,6 +6,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.util.item.AEItemStack;
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.HandlerCapabilities;
 import com.github.aeddddd.ae2enhanced.centralinterface.IVirtualBatchCraftingHandler;
 import net.minecraft.inventory.InventoryCrafting;
@@ -142,10 +143,12 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         if (expectedOutput.isEmpty()) return false;
 
         List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
+        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
         if (recipes.isEmpty()) return false;
 
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft matched recipe output={}", recipe.getRecipeOutput());
                 return true;
             }
         }

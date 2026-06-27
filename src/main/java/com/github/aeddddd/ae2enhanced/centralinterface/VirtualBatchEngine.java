@@ -91,7 +91,9 @@ public class VirtualBatchEngine {
             InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
-            if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs)) {
+            boolean canCraft = handler.canCraftVirtually(world, target.pos, virtualTable, outputs);
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] canCraftVirtually target={} handler={} result={}", target.pos, handler.getClass().getSimpleName(), canCraft);
+            if (!canCraft) {
                 logFail(world, target, "canCraftVirtually returned false");
                 return 0;
             }
@@ -107,6 +109,7 @@ public class VirtualBatchEngine {
             }
 
             long actualParallel = computeActualParallel(storage, energy, handler, world, target, virtualTable, outputs, maxParallel);
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] computeActualParallel target={} maxParallel={} actualParallel={}", target.pos, maxParallel, actualParallel);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0");
                 return 0;
@@ -247,6 +250,8 @@ public class VirtualBatchEngine {
             } else {
                 supported = available / perCopySize;
             }
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] costCheck type={} perCopy={} available={} supported={} currentActual={}",
+                    cost.getClass().getSimpleName(), perCopySize, available, supported, Math.min(actual, supported));
             actual = Math.min(actual, supported);
             if (actual <= 0) return 0;
         }

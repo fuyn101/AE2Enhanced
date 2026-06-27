@@ -689,6 +689,7 @@ public class MixinCraftingCPUCluster {
             if (pending > 0) {
                 duality.setNextVirtualBatchLimit(pending);
             }
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] CPU wrap pre pending={} target={}", pending, medium instanceof TileCentralMEInterface);
         }
 
         boolean result = original.call(medium, details, table);
@@ -698,6 +699,7 @@ public class MixinCraftingCPUCluster {
 
         DualityCentralInterface duality = ((TileCentralMEInterface) medium).getInterfaceDuality();
         long batchSize = duality.getLastVirtualBatchSize();
+        AE2Enhanced.LOGGER.info("[AE2E-Diag] CPU wrap post batchSize={} result={}", batchSize, result);
         if (batchSize <= 1) {
             return true;
         }

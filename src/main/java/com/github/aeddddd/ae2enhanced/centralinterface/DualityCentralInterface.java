@@ -260,6 +260,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             boolean canUseVirtual = handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
                     && handler instanceof IVirtualBatchCraftingHandler;
 
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] pushPattern target={} handler={} baseParallel={} pendingLimit={} virtualParallel={} globalCooldown={}",
+                    target.pos, handler.getClass().getSimpleName(), baseVirtualParallel, pendingLimit, virtualParallel, globalVirtualCooling);
+
             // 优先尝试虚拟批量合成（handler 支持虚拟批量即可，virtualParallel 仅限制最大并行数）
             // 注意：纯虚拟 handler（如 Extended Crafting 工作台）即使 virtualParallel=1 也必须走此路径，
             // 否则订单剩余 1 份时会因无物理能力而直接失败。
