@@ -142,6 +142,10 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return false;
 
+        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
+        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
+        if (recipes.isEmpty()) return false;
+
         // 打印传入的 ingredients，便于诊断匹配失败
         StringBuilder ingSb = new StringBuilder();
         for (int i = 0; i < ingredients.getSizeInventory(); i++) {
@@ -152,16 +156,6 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
             }
         }
         AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft inputs={}", ingSb);
-
-        // processing pattern：AE2 不对 processing pattern 做配方校验，直接按用户填写的输入/输出执行。
-        // 其 InventoryCrafting 被 Mixin 扩展为 10×10（100 格），以此作为识别依据。
-        if (ingredients.getSizeInventory() == 100) {
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft processing pattern trusted output={}", expectedOutput);
-            return true;
-        }
-
-        List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
-        AE2Enhanced.LOGGER.info("[AE2E-Diag] ECTable.canCraft recipesFound={} output={} lineSize={}", recipes.size(), expectedOutput, lineSize);
 
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
@@ -214,11 +208,6 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         ItemStack expectedOutput = outputs[0].createItemStack();
         if (expectedOutput.isEmpty()) return products;
 
-        // processing pattern 直接按用户填写的输出缩放
-        if (ingredients.getSizeInventory() == 100) {
-            return scaleOutputsByCount(outputs, count);
-        }
-
         List<IRecipe> recipes = findRecipesByOutput(expectedOutput, lineSize);
         for (IRecipe recipe : recipes) {
             if (ingredientsMatch(recipe, ingredients)) {
@@ -235,37 +224,23 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         List<IRecipe> matches = new ArrayList<>();
         try {
             List<IRecipe> recipes = (List<IRecipe>) METHOD_GET_RECIPES.invoke(RECIPE_MANAGER_INSTANCE);
-            if (recipes != null) {
-                int gridTier = getTierFromGridSize(lineSize * lineSize);
-                for (IRecipe recipe : recipes) {
-                    // 只使用配方的显式 tier 字段做过滤；tier=0 表示未限制工作台等级，
-                    // 此时 ITieredRecipe.getTier() 会返回按材料数/尺寸计算的值，不能用于过滤。
-                    int explicitTier = getExplicitRecipeTier(recipe);
-                    if (explicitTier > 0 && explicitTier != gridTier) continue;
+            if (recipes == null) return matches;
 
-                    if (outputsMatch(recipe.getRecipeOutput(), output)) {
-                        matches.add(recipe);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // ignore
-        }
+            int gridTier = getTierFromGridSize(lineSize * lineSize);
 
-        // 同时搜索原版/全局配方注册表，处理 EC 工作台允许合成原版 3x3 配方的情况。
-        // 用 Set 去重避免 EC 配方库与全局注册表重复添加同一份 recipe。
-        try {
-            java.util.Set<IRecipe> seen = new java.util.HashSet<>(matches);
-            for (IRecipe recipe : net.minecraft.item.crafting.CraftingManager.REGISTRY) {
-                if (!seen.contains(recipe) && outputsMatch(recipe.getRecipeOutput(), output)) {
+            for (IRecipe recipe : recipes) {
+                // 只使用配方的显式 tier 字段做过滤；tier=0 表示未限制工作台等级，
+                // 此时 ITieredRecipe.getTier() 会返回按材料数/尺寸计算的值，不能用于过滤。
+                int explicitTier = getExplicitRecipeTier(recipe);
+                if (explicitTier > 0 && explicitTier != gridTier) continue;
+
+                if (outputsMatch(recipe.getRecipeOutput(), output)) {
                     matches.add(recipe);
-                    seen.add(recipe);
                 }
             }
         } catch (Exception e) {
             // ignore
         }
-
         return matches;
     }
 
