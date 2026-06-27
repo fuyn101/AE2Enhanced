@@ -92,6 +92,20 @@ public class VirtualBatchEngine {
             InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
+            // 诊断：直接打印 patternDetails.getInputs()，验证样板是否真的编码了全部物品
+            StringBuilder patternInputsSb = new StringBuilder();
+            appeng.api.storage.data.IAEItemStack[] patternInputs = patternDetails.getInputs();
+            if (patternInputs != null) {
+                for (int i = 0; i < patternInputs.length; i++) {
+                    appeng.api.storage.data.IAEItemStack input = patternInputs[i];
+                    if (input != null && input.getStackSize() > 0) {
+                        if (patternInputsSb.length() > 0) patternInputsSb.append(", ");
+                        patternInputsSb.append("[").append(i).append("]").append(input.getStackSize()).append("x").append(input.getItem());
+                    }
+                }
+            }
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] patternDetails.inputs length={} inputs={}", patternInputs == null ? 0 : patternInputs.length, patternInputsSb);
+
             boolean canCraft = handler.canCraftVirtually(world, target.pos, virtualTable, outputs);
             AE2Enhanced.LOGGER.info("[AE2E-Diag] canCraftVirtually target={} handler={} result={}", target.pos, handler.getClass().getSimpleName(), canCraft);
             if (!canCraft) {
