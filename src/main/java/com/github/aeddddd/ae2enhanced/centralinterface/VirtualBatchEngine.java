@@ -7,6 +7,7 @@ import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
+import appeng.util.item.AEItemStack;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
@@ -21,8 +22,10 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 虚拟批量合成引擎.
@@ -283,8 +286,13 @@ public class VirtualBatchEngine {
             return actual > 0 ? actual : 0;
         }
 
+        // 某些 handler（如 ExtendedCraftingTableHandler）按槽位返回单份成本，
+        // 同种物品分散在多格中会导致 perCopySize=1 而严重高估并行数。
+        // 在这里按 Item+meta+NBT 合并物品成本后再计算。
+        List<IAEStack> mergedCosts = mergeItemCosts(perCopy);
+
         long actual = maxParallel;
-        for (IAEStack cost : perCopy) {
+        for (IAEStack cost : mergedCosts) {
             if (cost == null || cost.getStackSize() <= 0) continue;
             long perCopySize = cost.getStackSize();
             long available = VirtualCostExtractor.queryAvailable(storage, cost, source, itemSource);
@@ -453,5 +461,64 @@ public class VirtualBatchEngine {
             AE2Enhanced.network.sendTo(packet, player);
         }
         return true;
+    }
+
+    /**
+     * 将 IAEStack 列表中的 IAEItemStack 按物品类型合并，
+     * 避免同种物品分散在多个 crafting slot 时被重复计算并行数。
+     */
+    private static List<IAEStack> mergeItemCosts(List<IAEStack> costs) {
+        if (costs == null || costs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<ItemCostKey, Long> itemSums = new HashMap<>();
+        List<IAEStack> others = new ArrayList<>();
+        for (IAEStack cost : costs) {
+            if (cost == null || cost.getStackSize() <= 0) continue;
+            if (cost instanceof IAEItemStack) {
+                ItemCostKey key = new ItemCostKey(((IAEItemStack) cost).createItemStack());
+                itemSums.merge(key, cost.getStackSize(), Long::sum);
+            } else {
+                others.add(cost);
+            }
+        }
+        List<IAEStack> merged = new ArrayList<>(others);
+        for (Map.Entry<ItemCostKey, Long> entry : itemSums.entrySet()) {
+            IAEItemStack stack = AEItemStack.fromItemStack(entry.getKey().stack.copy());
+            if (stack != null) {
+                stack.setStackSize(entry.getValue());
+                merged.add(stack);
+            }
+        }
+        return merged;
+    }
+
+    private static final class ItemCostKey {
+        private final ItemStack stack;
+
+        ItemCostKey(ItemStack stack) {
+            this.stack = stack.copy();
+            this.stack.setCount(1);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ItemCostKey)) return false;
+            ItemStack other = ((ItemCostKey) o).stack;
+            return ItemStack.areItemsEqual(this.stack, other)
+                    && ItemStack.areItemStackTagsEqual(this.stack, other);
+        }
+
+        @Override
+        public int hashCode() {
+            net.minecraft.util.ResourceLocation regName = this.stack.getItem().getRegistryName();
+            int result = regName != null ? regName.hashCode() : System.identityHashCode(this.stack.getItem());
+            result = 31 * result + this.stack.getMetadata();
+            if (this.stack.hasTagCompound()) {
+                result = 31 * result + this.stack.getTagCompound().hashCode();
+            }
+            return result;
+        }
     }
 }
