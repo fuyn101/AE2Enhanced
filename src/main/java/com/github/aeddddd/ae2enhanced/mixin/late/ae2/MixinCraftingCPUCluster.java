@@ -185,7 +185,7 @@ public class MixinCraftingCPUCluster {
      */
     @ModifyVariable(
         method = "executeCrafting",
-        at = @At(value = "STORE", ordinal = 0),
+        at = @At(value = "STORE", ordinal = 1),
         ordinal = 0
     )
     private InventoryCrafting ae2enhanced$resizeInventoryCrafting(
@@ -193,7 +193,9 @@ public class MixinCraftingCPUCluster {
             @Local ICraftingPatternDetails details) {
         if (details != null && details.isCraftable()) {
             IAEItemStack[] inputs = details.getInputs();
-            if (inputs != null && inputs.length > 9 && original.getSizeInventory() < inputs.length) {
+            AE2Enhanced.LOGGER.info("[AE2E-Diag] resizeInventoryCrafting isCraftable={} inputLength={} originalSize={}", details.isCraftable(), inputs == null ? 0 : inputs.length, original == null ? 0 : original.getSizeInventory());
+            if (inputs != null && inputs.length > 9 && original != null && original.getSizeInventory() < inputs.length) {
+                AE2Enhanced.LOGGER.info("[AE2E-Diag] resizing InventoryCrafting from {} to 100 for large craftable pattern", original.getSizeInventory());
                 return new InventoryCrafting(new ContainerNull(), 10, 10);
             }
         }
