@@ -12,6 +12,7 @@ import appeng.me.cache.CraftingGridCache;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.crafting.TileCraftingMonitorTile;
 import appeng.tile.crafting.TileCraftingTile;
+import appeng.container.ContainerNull;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.centralinterface.DualityCentralInterface;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
@@ -28,8 +29,10 @@ import org.spongepowered.asm.mixin.Unique;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -173,6 +176,28 @@ public class MixinCraftingCPUCluster {
     )
     private int modifyCraftingHeight(int constant) {
         return 10;
+    }
+
+    /**
+     * 当 craftable 样板的实际输入数超过 9 个时，把 CPU 创建的 3×3 InventoryCrafting
+     * 替换为 10×10，否则 executeCrafting 只会提取前 9 个物品，导致 Extended Crafting
+     * 等大工作台配方无法被正确发配。
+     */
+    @ModifyVariable(
+        method = "executeCrafting",
+        at = @At(value = "STORE", ordinal = 0),
+        ordinal = 0
+    )
+    private InventoryCrafting ae2enhanced$resizeInventoryCrafting(
+            InventoryCrafting original,
+            @Local ICraftingPatternDetails details) {
+        if (details != null && details.isCraftable()) {
+            IAEItemStack[] inputs = details.getInputs();
+            if (inputs != null && inputs.length > 9 && original.getSizeInventory() < inputs.length) {
+                return new InventoryCrafting(new ContainerNull(), 10, 10);
+            }
+        }
+        return original;
     }
 
     // ==================== Batch Crafting (Assembly Hub) — retained ====================
