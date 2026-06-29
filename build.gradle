@@ -14,42 +14,46 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(project.java_version.toInteger())
 
-// runs 配置暂时注释：NeoGradle 7.x 需要通过网络解析 net.neoforged:neoforge 才能生成 run types。
-// 当前使用本地 universal jar，runClient/runServer 待网络可用或本地 Maven 仓库补齐后恢复。
-// runs {
-//     configureEach {
-//         workingDirectory project.file('run')
-//         modSource project.sourceSets.main
-//     }
-//     client {
-//         systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-//     }
-//     server {
-//         systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-//     }
-//     data {
-//         programArgument '--mod'
-//         programArgument project.mod_id
-//         programArgument '--all'
-//         programArgument '--output'
-//         programArgument file('src/generated/resources/').getAbsolutePath()
-//         programArgument '--existing'
-//         programArgument file('src/main/resources/').getAbsolutePath()
-//     }
-// }
+runs {
+    configureEach {
+        workingDirectory project.file('run')
+        modSource project.sourceSets.main
+    }
+    client {
+        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+    }
+    server {
+        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+        programArgument '--nogui'
+    }
+    data {
+        programArguments.addAll '--mod', project.mod_id, '--all', '--output',
+                file('src/generated/resources/').getAbsolutePath(), '--existing',
+                file('src/main/resources/').getAbsolutePath()
+    }
+}
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenCentral()
-    maven { url = 'https://www.cursemaven.com' }
+    maven { url = 'https://maven.neoforged.net/releases' }
     maven { url = 'https://modmaven.dev/' }
+    maven { url = 'https://repo.spongepowered.org/maven/' }
+    maven { url = 'https://www.cursemaven.com' }
     maven { url = 'https://maven.blamejared.com' }
 }
 
 dependencies {
-    // 本地 NeoForge/Forge 1.20.1 相关 jar（由用户本地 Prism Launcher 库提供）
-    implementation fileTree(dir: 'libs', include: '*.jar')
+    // NeoForge / Forge 1.20.1 运行时与编译依赖（从网络拉取）
+    implementation "net.neoforged:forge:${project.neo_version}"
+
+    // AE2 UEL / 官方 AE2 15.x（Forge 1.20.1）
+    implementation 'appeng:appliedenergistics2-forge:15.3.4'
+
+    // Mixin 注解处理器（网络版）
+    compileOnly 'org.spongepowered:mixin:0.8.7'
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -67,6 +71,26 @@ tasks.withType(ProcessResources).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.compilerArgs += [
+            '-AoutRefMapFile=' + file("${project.buildDir}/classes/java/main/mixins.ae2enhanced.refmap.json").absolutePath
+    ]
+}
+
+// 将 Mixin AP 生成的 refmap 从编译输出目录复制到资源输出目录，确保被打包进 jar
+tasks.register('copyMixinRefmap', Copy) {
+    group = 'build'
+    from("${project.buildDir}/classes/java/main/mixins.ae2enhanced.refmap.json")
+    into("${project.buildDir}/resources/main")
+    dependsOn(tasks.compileJava)
+}
+
+tasks.jar {
+    dependsOn(tasks.copyMixinRefmap)
+    manifest {
+        attributes(
+                'MixinConfigs': 'mixins.ae2enhanced.json'
+        )
+    }
 }
 
 idea {
