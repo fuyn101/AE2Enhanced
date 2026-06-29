@@ -5,8 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.RegistryObject;
 import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.RegistryObject;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 
@@ -22,7 +22,10 @@ public final class ModCreativeTab {
                     .title(Component.translatable("itemGroup.ae2enhanced"))
                     .icon(() -> new ItemStack(Items.AIR))
                     .displayItems((params, output) -> {
-                        // Phase 1+ 将在此添加本 Mod 的物品
+                        output.accept(ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get());
+                        output.accept(ModBlocks.MULTIBLOCK_INTERFACE.get());
+                        output.accept(ModBlocks.HYPERDIMENSIONAL_CASING.get());
+                        output.accept(ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE.get());
                     })
                     .build());
 

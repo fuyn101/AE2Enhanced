@@ -45,13 +45,13 @@ repositories {
 }
 
 dependencies {
-    // NeoForge / Forge 1.20.1 运行时与编译依赖（从网络拉取）
+    // NeoForge
     implementation "net.neoforged:forge:${project.neo_version}"
 
-    // AE2 UEL / 官方 AE2 15.x（Forge 1.20.1）
+    // ae2
     implementation 'appeng:appliedenergistics2-forge:15.3.4'
 
-    // Mixin 注解处理器（网络版）
+    // Mixin
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -76,7 +76,7 @@ tasks.withType(JavaCompile).configureEach {
     ]
 }
 
-// 将 Mixin AP 生成的 refmap 从编译输出目录复制到资源输出目录，确保被打包进 jar
+
 tasks.register('copyMixinRefmap', Copy) {
     group = 'build'
     from("${project.buildDir}/classes/java/main/mixins.ae2enhanced.refmap.json")

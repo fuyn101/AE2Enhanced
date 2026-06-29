@@ -39,7 +39,18 @@ public class RequestAssemblyPacket implements ServerboundPacket {
 
     @Override
     public void handleOnServer(ServerPlayer player) {
-        // Phase 1 实现：校验权限并尝试放置缺失方块
+        if (player.level().isClientSide()) {
+            return;
+        }
+        var level = player.serverLevel();
+        var state = level.getBlockState(controllerPos);
+        if (state.is(com.github.aeddddd.ae2enhanced.registry.ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get())) {
+            if (player.getAbilities().instabuild) {
+                com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure.placeMissingBlocks(level, controllerPos, player);
+            } else {
+                com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure.tryConsumeAndPlace(level, controllerPos, player);
+            }
+        }
     }
 
     public BlockPos controllerPos() {
