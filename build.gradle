@@ -86,6 +86,7 @@ tasks.register('copyMixinRefmap', Copy) {
 
 tasks.jar {
     dependsOn(tasks.copyMixinRefmap)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes(
                 'MixinConfigs': 'mixins.ae2enhanced.json'
