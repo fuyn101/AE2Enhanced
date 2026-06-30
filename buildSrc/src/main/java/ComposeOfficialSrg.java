@@ -22,7 +22,7 @@ public class ComposeOfficialSrg {
             FieldLookup fl = new FieldLookup();
             MethodLookup ml = new MethodLookup();
             for (IMappingFile.IField f : cls.getFields()) {
-                fl.put(f.getMappedDescriptor(), f.getMapped(), f.getOriginal());
+                fl.put(f.getMapped(), f.getOriginal());
             }
             for (IMappingFile.IMethod m : cls.getMethods()) {
                 ml.put(m.getMappedDescriptor(), m.getMapped(), m.getOriginal());
@@ -42,10 +42,9 @@ public class ComposeOfficialSrg {
                 MethodLookup ml = methodLookups.get(officialClass);
                 if (fl == null || ml == null) continue;
                 for (IMappingFile.IField f : cls.getFields()) {
-                    String obfDesc = f.getDescriptor();
                     String obfName = f.getOriginal();
                     String srgName = f.getMapped();
-                    String officialName = fl.get(obfDesc, obfName);
+                    String officialName = fl.get(obfName);
                     if (officialName == null) continue;
                     pw.println("\t" + officialName + " " + srgName);
                 }
@@ -87,13 +86,12 @@ public class ComposeOfficialSrg {
     }
 
     static class FieldLookup {
-        Map<String, Map<String, String>> byDesc = new HashMap<>();
-        void put(String desc, String obfName, String officialName) {
-            byDesc.computeIfAbsent(desc, k -> new HashMap<>()).put(obfName, officialName);
+        Map<String, String> byName = new HashMap<>();
+        void put(String obfName, String officialName) {
+            byName.put(obfName, officialName);
         }
-        String get(String desc, String obfName) {
-            Map<String, String> m = byDesc.get(desc);
-            return m == null ? null : m.get(obfName);
+        String get(String obfName) {
+            return byName.get(obfName);
         }
     }
 
