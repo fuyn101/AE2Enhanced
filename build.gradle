@@ -45,13 +45,8 @@ repositories {
 }
 
 dependencies {
-    // NeoForge
     implementation "net.neoforged:forge:${project.neo_version}"
-
-    // ae2
     implementation 'appeng:appliedenergistics2-forge:15.3.4'
-
-    // Mixin
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
@@ -76,7 +71,6 @@ tasks.withType(JavaCompile).configureEach {
     ]
 }
 
-
 tasks.register('copyMixinRefmap', Copy) {
     group = 'build'
     from("${project.buildDir}/classes/java/main/mixins.ae2enhanced.refmap.json")
@@ -93,6 +87,46 @@ tasks.jar {
         )
     }
 }
+
+tasks.register('obfuscateJar', net.neoforged.gradle.common.runtime.naming.tasks.UnapplyOfficialMappingsToCompiledJar) {
+    dependsOn(tasks.jar)
+    getRuntimeName().set('AE2Enhanced')
+    getRuntimeDirectory().set(layout.buildDirectory.dir('reobfRuntime'))
+    getInput().set(tasks.jar.archiveFile)
+    getMinecraftVersion().set(project.neo_version.split('-')[0])
+    getDistribution().set(net.neoforged.gradle.dsl.common.util.DistributionType.CLIENT)
+    getStepName().set('obfuscateJar')
+    getOutputFileName().set(tasks.jar.archiveFileName)
+    getOutputDirectory().set(layout.buildDirectory.dir('reobf'))
+}
+
+tasks.register('reobfJar', Exec) {
+    dependsOn(tasks.obfuscateJar)
+
+    def fartJar = project.configurations.detachedConfiguration(
+            project.dependencies.create('net.minecraftforge:ForgeAutoRenamingTool:1.0.2:all')
+    ).files.find { it.name.endsWith('-all.jar') }
+    def mappingFile = tasks.named('neoFormMergeMappings').flatMap { it.output }
+    def inputJar = tasks.named('obfuscateJar').flatMap { it.output }
+    def outputJar = layout.buildDirectory.file("libs/${tasks.jar.archiveFileName.get()}")
+    def libsFile = layout.buildDirectory.file('reobf/fart_libraries.txt')
+
+    doFirst {
+        libsFile.get().asFile.parentFile.mkdirs()
+        libsFile.get().asFile.text = ''
+        libsFile.get().asFile << "-e=${file("${System.getProperty('user.home')}/.gradle/caches/minecraft/versions/1.20.1/client.jar").absolutePath}\n"
+        sourceSets.main.runtimeClasspath.files.each { libsFile.get().asFile << "-e=${it.absolutePath}\n" }
+    }
+
+    commandLine('java', '-jar', fartJar,
+            '--input', inputJar.get().asFile,
+            '--output', outputJar.get().asFile,
+            '--map', mappingFile.get().asFile,
+            '--cfg', libsFile.get().asFile,
+            '--ann-fix', '--ids-fix', '--src-fix', '--record-fix')
+}
+
+tasks.jar.finalizedBy('reobfJar')
 
 idea {
     module {
