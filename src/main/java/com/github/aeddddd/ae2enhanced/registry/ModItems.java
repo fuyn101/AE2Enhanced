@@ -24,8 +24,8 @@ public final class ModItems {
             "hyperdimensional_singularity_core",
             () -> new BlockItem(ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE.get(), new Item.Properties()));
 
-    public static final RegistryObject<Item> HYPERDIMENSIONAL_ME_INTERFACE = DR.register("hyperdimensional_me_interface",
-            () -> new BlockItem(ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get(), new Item.Properties()));
+    public static final RegistryObject<Item> MULTIBLOCK_ME_INTERFACE = DR.register("multiblock_me_interface",
+            () -> new BlockItem(ModBlocks.MULTIBLOCK_ME_INTERFACE.get(), new Item.Properties()));
 
     private ModItems() {
     }

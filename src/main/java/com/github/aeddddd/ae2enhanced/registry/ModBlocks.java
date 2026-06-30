@@ -12,7 +12,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalCasingBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalSingularityCoreBlock;
-import com.github.aeddddd.ae2enhanced.block.HyperdimensionalMeInterfaceBlock;
+import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlock;
 
 /**
  * 方块注册中心。
@@ -30,8 +30,8 @@ public final class ModBlocks {
             "hyperdimensional_singularity_core",
             () -> new HyperdimensionalSingularityCoreBlock(metalProperties().lightLevel(state -> 8)));
 
-    public static final RegistryObject<Block> HYPERDIMENSIONAL_ME_INTERFACE = DR.register("hyperdimensional_me_interface",
-            () -> new HyperdimensionalMeInterfaceBlock(metalProperties()));
+    public static final RegistryObject<Block> MULTIBLOCK_ME_INTERFACE = DR.register("multiblock_me_interface",
+            () -> new MultiblockMeInterfaceBlock(metalProperties()));
 
     private static BlockBehaviour.Properties metalProperties() {
         return BlockBehaviour.Properties.of()
