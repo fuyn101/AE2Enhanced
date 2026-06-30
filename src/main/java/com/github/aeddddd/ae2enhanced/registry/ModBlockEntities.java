@@ -6,6 +6,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 
@@ -25,6 +26,11 @@ public final class ModBlockEntities {
             .register("multiblock_me_interface",
                     () -> BlockEntityType.Builder.of(MultiblockMeInterfaceBlockEntity::new,
                             ModBlocks.MULTIBLOCK_ME_INTERFACE.get()).build(null));
+
+    public static final RegistryObject<BlockEntityType<AssemblyControllerBlockEntity>> ASSEMBLY_CONTROLLER = DR
+            .register("assembly_controller",
+                    () -> BlockEntityType.Builder.of(AssemblyControllerBlockEntity::new,
+                            ModBlocks.ASSEMBLY_CONTROLLER.get()).build(null));
 
     private ModBlockEntities() {
     }

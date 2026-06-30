@@ -21,10 +21,17 @@ public final class ModCreativeTab {
                     .title(Component.translatable("itemGroup.ae2enhanced"))
                     .icon(() -> new ItemStack(ModItems.HYPERDIMENSIONAL_CONTROLLER.get()))
                     .displayItems((params, output) -> {
+                        // Hyperdimensional Storage
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_CONTROLLER.get()));
                         output.accept(new ItemStack(ModItems.MULTIBLOCK_ME_INTERFACE.get()));
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_CASING.get()));
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_SINGULARITY_CORE.get()));
+
+                        // Assembly Hub
+                        output.accept(new ItemStack(ModItems.ASSEMBLY_CONTROLLER.get()));
+                        output.accept(new ItemStack(ModItems.ASSEMBLY_CASING.get()));
+                        output.accept(new ItemStack(ModItems.ASSEMBLY_INNER_WALL.get()));
+                        output.accept(new ItemStack(ModItems.ASSEMBLY_STABILIZER.get()));
                     })
                     .build());
 

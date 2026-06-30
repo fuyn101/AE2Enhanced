@@ -14,6 +14,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 public final class ModItems {
     public static final DeferredRegister<Item> DR = DeferredRegister.create(Registries.ITEM, AE2Enhanced.MOD_ID);
 
+    // Hyperdimensional Storage
     public static final RegistryObject<Item> HYPERDIMENSIONAL_CONTROLLER = DR.register("hyperdimensional_controller",
             () -> new BlockItem(ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get(), new Item.Properties()));
 
@@ -26,6 +27,19 @@ public final class ModItems {
 
     public static final RegistryObject<Item> MULTIBLOCK_ME_INTERFACE = DR.register("multiblock_me_interface",
             () -> new BlockItem(ModBlocks.MULTIBLOCK_ME_INTERFACE.get(), new Item.Properties()));
+
+    // Assembly Hub
+    public static final RegistryObject<Item> ASSEMBLY_CONTROLLER = DR.register("assembly_controller",
+            () -> new BlockItem(ModBlocks.ASSEMBLY_CONTROLLER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ASSEMBLY_CASING = DR.register("assembly_casing",
+            () -> new BlockItem(ModBlocks.ASSEMBLY_CASING.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ASSEMBLY_INNER_WALL = DR.register("assembly_inner_wall",
+            () -> new BlockItem(ModBlocks.ASSEMBLY_INNER_WALL.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ASSEMBLY_STABILIZER = DR.register("assembly_stabilizer",
+            () -> new BlockItem(ModBlocks.ASSEMBLY_STABILIZER.get(), new Item.Properties()));
 
     private ModItems() {
     }

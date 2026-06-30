@@ -9,6 +9,10 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyCasingBlock;
+import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
+import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyInnerWallBlock;
+import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyStabilizerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalCasingBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalSingularityCoreBlock;
@@ -20,6 +24,7 @@ import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlock;
 public final class ModBlocks {
     public static final DeferredRegister<Block> DR = DeferredRegister.create(Registries.BLOCK, AE2Enhanced.MOD_ID);
 
+    // Hyperdimensional Storage
     public static final RegistryObject<Block> HYPERDIMENSIONAL_CONTROLLER = DR.register("hyperdimensional_controller",
             () -> new HyperdimensionalControllerBlock(metalProperties()));
 
@@ -30,8 +35,22 @@ public final class ModBlocks {
             "hyperdimensional_singularity_core",
             () -> new HyperdimensionalSingularityCoreBlock(metalProperties().lightLevel(state -> 8)));
 
+    // Common multiblock ME interface
     public static final RegistryObject<Block> MULTIBLOCK_ME_INTERFACE = DR.register("multiblock_me_interface",
             () -> new MultiblockMeInterfaceBlock(metalProperties()));
+
+    // Assembly Hub
+    public static final RegistryObject<Block> ASSEMBLY_CONTROLLER = DR.register("assembly_controller",
+            () -> new AssemblyControllerBlock(metalProperties()));
+
+    public static final RegistryObject<Block> ASSEMBLY_CASING = DR.register("assembly_casing",
+            () -> new AssemblyCasingBlock(metalProperties()));
+
+    public static final RegistryObject<Block> ASSEMBLY_INNER_WALL = DR.register("assembly_inner_wall",
+            () -> new AssemblyInnerWallBlock(metalProperties()));
+
+    public static final RegistryObject<Block> ASSEMBLY_STABILIZER = DR.register("assembly_stabilizer",
+            () -> new AssemblyStabilizerBlock(metalProperties()));
 
     private static BlockBehaviour.Properties metalProperties() {
         return BlockBehaviour.Properties.of()
