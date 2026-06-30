@@ -6,11 +6,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -25,17 +25,15 @@ import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 
 /**
  * 超维度仓储中枢控制器。
- * <p>右键未成形控制器可尝试一键装配；破坏时自动拆解。</p>
+ * <p>与 master 一致，仅保留 facing 属性；成形状态由方块实体维护。</p>
  */
-public class HyperdimensionalControllerBlock extends AE2EBaseEntityBlock {
+public class HyperdimensionalControllerBlock extends Block implements EntityBlock {
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
     public HyperdimensionalControllerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any()
-                .setValue(FACING, Direction.NORTH)
-                .setValue(FORMED, false));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
     @Override
@@ -45,7 +43,7 @@ public class HyperdimensionalControllerBlock extends AE2EBaseEntityBlock {
     }
 
     @Override
-    public BlockState getStateForPlacement(net.minecraft.world.item.context.BlockPlaceContext context) {
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState()
                 .setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
@@ -63,7 +61,7 @@ public class HyperdimensionalControllerBlock extends AE2EBaseEntityBlock {
         }
 
         if (controller.isFormed()) {
-            // Phase 1A 仅做结构链路，成形后暂时无 GUI/功能
+            // Phase 1 将在此打开 Hyperdimensional Nexus GUI
             return InteractionResult.SUCCESS;
         }
 
@@ -109,7 +107,7 @@ public class HyperdimensionalControllerBlock extends AE2EBaseEntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
             BlockEntityType<T> blockEntityType) {
-        return level.isClientSide() ? null : (lvl, pos, st, be) -> {
+        return level.isClientSide() ? null : (lvl, p, st, be) -> {
             if (be instanceof HyperdimensionalControllerBlockEntity controller) {
                 controller.serverTick();
             }

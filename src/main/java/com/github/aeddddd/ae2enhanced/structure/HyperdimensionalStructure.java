@@ -17,9 +17,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
-import com.github.aeddddd.ae2enhanced.block.MultiblockInterfaceBlock;
+import com.github.aeddddd.ae2enhanced.block.HyperdimensionalMeInterfaceBlock;
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
-import com.github.aeddddd.ae2enhanced.blockentity.MultiblockInterfaceBlockEntity;
+import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
 
 /**
@@ -97,7 +97,7 @@ public final class HyperdimensionalStructure {
     public static boolean validate(Level level, BlockPos controllerPos) {
         Direction facing = getControllerFacing(level, controllerPos);
         return checkBlock(level, controllerPos, CONTROLLER_SET, ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get(), facing)
-                && checkBlock(level, controllerPos, INTERFACE_SET, ModBlocks.MULTIBLOCK_INTERFACE.get(), facing)
+                && checkBlock(level, controllerPos, INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get(), facing)
                 && checkBlock(level, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE.get(), facing)
                 && checkBlock(level, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING.get(), facing);
     }
@@ -119,7 +119,7 @@ public final class HyperdimensionalStructure {
     public static Map<Block, Integer> getMissingMap(Level level, BlockPos controllerPos) {
         Direction facing = getControllerFacing(level, controllerPos);
         Map<Block, Integer> missing = new LinkedHashMap<>();
-        countMissing(level, controllerPos, INTERFACE_SET, ModBlocks.MULTIBLOCK_INTERFACE.get(), missing, facing);
+        countMissing(level, controllerPos, INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get(), missing, facing);
         countMissing(level, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE.get(), missing, facing);
         countMissing(level, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING.get(), missing, facing);
         return missing;
@@ -147,10 +147,6 @@ public final class HyperdimensionalStructure {
         // 更新控制器状态
         BlockState controllerState = level.getBlockState(controllerPos);
         if (controllerState.getBlock() == ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get()) {
-            if (!controllerState.getValue(HyperdimensionalControllerBlock.FORMED)) {
-                level.setBlock(controllerPos, controllerState.setValue(HyperdimensionalControllerBlock.FORMED, true),
-                        Block.UPDATE_ALL);
-            }
             if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
                 controller.assemble();
             }
@@ -160,11 +156,11 @@ public final class HyperdimensionalStructure {
         for (BlockPos rel : INTERFACE_SET) {
             BlockPos actual = controllerPos.offset(rel.getX(), rel.getY(), rel.getZ());
             BlockState state = level.getBlockState(actual);
-            if (state.getBlock() == ModBlocks.MULTIBLOCK_INTERFACE.get()) {
-                if (!state.getValue(MultiblockInterfaceBlock.FORMED)) {
-                    level.setBlock(actual, state.setValue(MultiblockInterfaceBlock.FORMED, true), Block.UPDATE_ALL);
+            if (state.getBlock() == ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get()) {
+                if (!state.getValue(HyperdimensionalMeInterfaceBlock.FORMED)) {
+                    level.setBlock(actual, state.setValue(HyperdimensionalMeInterfaceBlock.FORMED, true), Block.UPDATE_ALL);
                 }
-                if (level.getBlockEntity(actual) instanceof MultiblockInterfaceBlockEntity interfaceBe) {
+                if (level.getBlockEntity(actual) instanceof HyperdimensionalMeInterfaceBlockEntity interfaceBe) {
                     interfaceBe.setControllerPos(controllerPos);
                 }
             }
@@ -181,11 +177,11 @@ public final class HyperdimensionalStructure {
         for (BlockPos rel : INTERFACE_SET) {
             BlockPos actual = controllerPos.offset(rel.getX(), rel.getY(), rel.getZ());
             BlockState state = level.getBlockState(actual);
-            if (state.getBlock() == ModBlocks.MULTIBLOCK_INTERFACE.get()) {
-                if (state.getValue(MultiblockInterfaceBlock.FORMED)) {
-                    level.setBlock(actual, state.setValue(MultiblockInterfaceBlock.FORMED, false), Block.UPDATE_ALL);
+            if (state.getBlock() == ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get()) {
+                if (state.getValue(HyperdimensionalMeInterfaceBlock.FORMED)) {
+                    level.setBlock(actual, state.setValue(HyperdimensionalMeInterfaceBlock.FORMED, false), Block.UPDATE_ALL);
                 }
-                if (level.getBlockEntity(actual) instanceof MultiblockInterfaceBlockEntity interfaceBe) {
+                if (level.getBlockEntity(actual) instanceof HyperdimensionalMeInterfaceBlockEntity interfaceBe) {
                     interfaceBe.setControllerPos(null);
                 }
             }
@@ -194,10 +190,6 @@ public final class HyperdimensionalStructure {
         // 更新控制器状态
         BlockState controllerState = level.getBlockState(controllerPos);
         if (controllerState.getBlock() == ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get()) {
-            if (controllerState.getValue(HyperdimensionalControllerBlock.FORMED)) {
-                level.setBlock(controllerPos, controllerState.setValue(HyperdimensionalControllerBlock.FORMED, false),
-                        Block.UPDATE_ALL);
-            }
             if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
                 controller.disassemble();
             }
@@ -213,7 +205,7 @@ public final class HyperdimensionalStructure {
         }
         Direction facing = getControllerFacing(level, controllerPos);
 
-        placeBlocks(level, controllerPos, INTERFACE_SET, ModBlocks.MULTIBLOCK_INTERFACE.get(), facing);
+        placeBlocks(level, controllerPos, INTERFACE_SET, ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get(), facing);
         placeBlocks(level, controllerPos, CORE_SET, ModBlocks.HYPERDIMENSIONAL_SINGULARITY_CORE.get(), facing);
         placeBlocks(level, controllerPos, CASING_SET, ModBlocks.HYPERDIMENSIONAL_CASING.get(), facing);
 

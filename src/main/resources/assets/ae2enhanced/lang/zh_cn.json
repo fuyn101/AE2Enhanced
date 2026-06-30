@@ -1,7 +1,7 @@
 {
   "itemGroup.ae2enhanced": "AE2 增强",
   "block.ae2enhanced.hyperdimensional_controller": "超维度仓储控制器",
-  "block.ae2enhanced.multiblock_interface": "多方块接口",
+  "block.ae2enhanced.hyperdimensional_me_interface": "超维度 ME 接口",
   "block.ae2enhanced.hyperdimensional_casing": "超维度外壳",
   "block.ae2enhanced.hyperdimensional_singularity_core": "超维度奇点核心"
 }

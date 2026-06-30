@@ -7,7 +7,7 @@ import net.minecraftforge.registries.RegistryObject;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
-import com.github.aeddddd.ae2enhanced.blockentity.MultiblockInterfaceBlockEntity;
+import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalMeInterfaceBlockEntity;
 
 /**
  * 方块实体类型注册中心。
@@ -21,10 +21,10 @@ public final class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(HyperdimensionalControllerBlockEntity::new,
                             ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get()).build(null));
 
-    public static final RegistryObject<BlockEntityType<MultiblockInterfaceBlockEntity>> MULTIBLOCK_INTERFACE = DR
-            .register("multiblock_interface",
-                    () -> BlockEntityType.Builder.of(MultiblockInterfaceBlockEntity::new,
-                            ModBlocks.MULTIBLOCK_INTERFACE.get()).build(null));
+    public static final RegistryObject<BlockEntityType<HyperdimensionalMeInterfaceBlockEntity>> HYPERDIMENSIONAL_ME_INTERFACE = DR
+            .register("hyperdimensional_me_interface",
+                    () -> BlockEntityType.Builder.of(HyperdimensionalMeInterfaceBlockEntity::new,
+                            ModBlocks.HYPERDIMENSIONAL_ME_INTERFACE.get()).build(null));
 
     private ModBlockEntities() {
     }

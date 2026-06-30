@@ -22,7 +22,7 @@ public final class ModCreativeTab {
                     .icon(() -> new ItemStack(ModItems.HYPERDIMENSIONAL_CONTROLLER.get()))
                     .displayItems((params, output) -> {
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_CONTROLLER.get()));
-                        output.accept(new ItemStack(ModItems.MULTIBLOCK_INTERFACE.get()));
+                        output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_ME_INTERFACE.get()));
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_CASING.get()));
                         output.accept(new ItemStack(ModItems.HYPERDIMENSIONAL_SINGULARITY_CORE.get()));
                     })

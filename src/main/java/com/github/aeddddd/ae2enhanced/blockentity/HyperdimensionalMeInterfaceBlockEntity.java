@@ -7,20 +7,20 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import com.github.aeddddd.ae2enhanced.block.MultiblockInterfaceBlock;
+import com.github.aeddddd.ae2enhanced.block.HyperdimensionalMeInterfaceBlock;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 
 /**
  * 统一多方块接口方块实体。
  * <p>记录所属控制器位置；仅在成形后创建 AE2 网格节点，作为多方块对外的网络接入点。</p>
  */
-public class MultiblockInterfaceBlockEntity extends AE2ENetworkedBlockEntity {
+public class HyperdimensionalMeInterfaceBlockEntity extends AE2ENetworkedBlockEntity {
 
     @Nullable
     private BlockPos controllerPos = null;
 
-    public MultiblockInterfaceBlockEntity(BlockPos pos, BlockState blockState) {
-        super(ModBlockEntities.MULTIBLOCK_INTERFACE.get(), pos, blockState);
+    public HyperdimensionalMeInterfaceBlockEntity(BlockPos pos, BlockState blockState) {
+        super(ModBlockEntities.HYPERDIMENSIONAL_ME_INTERFACE.get(), pos, blockState);
     }
 
     @Nullable
@@ -42,8 +42,8 @@ public class MultiblockInterfaceBlockEntity extends AE2ENetworkedBlockEntity {
         // 同步更新方块状态
         BlockState state = getBlockState();
         boolean formed = controllerPos != null;
-        if (state.getValue(MultiblockInterfaceBlock.FORMED) != formed) {
-            level.setBlock(worldPosition, state.setValue(MultiblockInterfaceBlock.FORMED, formed),
+        if (state.getValue(HyperdimensionalMeInterfaceBlock.FORMED) != formed) {
+            level.setBlock(worldPosition, state.setValue(HyperdimensionalMeInterfaceBlock.FORMED, formed),
                     Block.UPDATE_ALL);
         }
 
