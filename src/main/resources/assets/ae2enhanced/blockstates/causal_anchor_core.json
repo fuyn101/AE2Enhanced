@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "ae2enhanced:causal_anchor_core" }
+  }
+}

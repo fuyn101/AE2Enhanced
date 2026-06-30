@@ -14,6 +14,10 @@ import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyInnerWallBlock;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyStabilizerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalCasingBlock;
+import com.github.aeddddd.ae2enhanced.computation.block.CausalAnchorCoreBlock;
+import com.github.aeddddd.ae2enhanced.computation.block.ComputationControllerBlock;
+import com.github.aeddddd.ae2enhanced.computation.block.ConstantSpinorFieldCasingBlock;
+import com.github.aeddddd.ae2enhanced.computation.block.ConstantTensorFieldCasingBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalSingularityCoreBlock;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlock;
@@ -51,6 +55,19 @@ public final class ModBlocks {
 
     public static final RegistryObject<Block> ASSEMBLY_STABILIZER = DR.register("assembly_stabilizer",
             () -> new AssemblyStabilizerBlock(metalProperties()));
+
+    // Supercausal Computation Core
+    public static final RegistryObject<Block> COMPUTATION_CONTROLLER = DR.register("computation_controller",
+            () -> new ComputationControllerBlock(metalProperties()));
+
+    public static final RegistryObject<Block> CONSTANT_TENSOR_FIELD_CASING = DR.register("constant_tensor_field_casing",
+            () -> new ConstantTensorFieldCasingBlock(metalProperties()));
+
+    public static final RegistryObject<Block> CONSTANT_SPINOR_FIELD_CASING = DR.register("constant_spinor_field_casing",
+            () -> new ConstantSpinorFieldCasingBlock(metalProperties()));
+
+    public static final RegistryObject<Block> CAUSAL_ANCHOR_CORE = DR.register("causal_anchor_core",
+            () -> new CausalAnchorCoreBlock(metalProperties().lightLevel(state -> 8)));
 
     private static BlockBehaviour.Properties metalProperties() {
         return BlockBehaviour.Properties.of()

@@ -7,5 +7,9 @@
   "block.ae2enhanced.assembly_controller": "Assembly Controller",
   "block.ae2enhanced.assembly_casing": "Assembly Casing",
   "block.ae2enhanced.assembly_inner_wall": "Assembly Inner Wall",
-  "block.ae2enhanced.assembly_stabilizer": "Assembly Stabilizer"
+  "block.ae2enhanced.assembly_stabilizer": "Assembly Stabilizer",
+  "block.ae2enhanced.computation_controller": "Supercausal Computation Controller",
+  "block.ae2enhanced.constant_tensor_field_casing": "Constant Tensor Field Casing",
+  "block.ae2enhanced.constant_spinor_field_casing": "Constant Spinor Field Casing",
+  "block.ae2enhanced.causal_anchor_core": "Causal Anchor Core"
 }

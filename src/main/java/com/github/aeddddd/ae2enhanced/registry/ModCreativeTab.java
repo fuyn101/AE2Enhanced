@@ -32,6 +32,12 @@ public final class ModCreativeTab {
                         output.accept(new ItemStack(ModItems.ASSEMBLY_CASING.get()));
                         output.accept(new ItemStack(ModItems.ASSEMBLY_INNER_WALL.get()));
                         output.accept(new ItemStack(ModItems.ASSEMBLY_STABILIZER.get()));
+
+                        // Supercausal Computation Core
+                        output.accept(new ItemStack(ModItems.COMPUTATION_CONTROLLER.get()));
+                        output.accept(new ItemStack(ModItems.CONSTANT_TENSOR_FIELD_CASING.get()));
+                        output.accept(new ItemStack(ModItems.CONSTANT_SPINOR_FIELD_CASING.get()));
+                        output.accept(new ItemStack(ModItems.CAUSAL_ANCHOR_CORE.get()));
                     })
                     .build());
 

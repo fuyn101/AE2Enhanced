@@ -41,6 +41,19 @@ public final class ModItems {
     public static final RegistryObject<Item> ASSEMBLY_STABILIZER = DR.register("assembly_stabilizer",
             () -> new BlockItem(ModBlocks.ASSEMBLY_STABILIZER.get(), new Item.Properties()));
 
+    // Supercausal Computation Core
+    public static final RegistryObject<Item> COMPUTATION_CONTROLLER = DR.register("computation_controller",
+            () -> new BlockItem(ModBlocks.COMPUTATION_CONTROLLER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> CONSTANT_TENSOR_FIELD_CASING = DR.register("constant_tensor_field_casing",
+            () -> new BlockItem(ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> CONSTANT_SPINOR_FIELD_CASING = DR.register("constant_spinor_field_casing",
+            () -> new BlockItem(ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> CAUSAL_ANCHOR_CORE = DR.register("causal_anchor_core",
+            () -> new BlockItem(ModBlocks.CAUSAL_ANCHOR_CORE.get(), new Item.Properties()));
+
     private ModItems() {
     }
 }
