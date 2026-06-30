@@ -11,8 +11,9 @@ import com.github.aeddddd.ae2enhanced.block.HyperdimensionalMeInterfaceBlock;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 
 /**
- * 统一多方块接口方块实体。
- * <p>记录所属控制器位置；仅在成形后创建 AE2 网格节点，作为多方块对外的网络接入点。</p>
+ * 超维度仓储中枢 ME 接口方块实体。
+ * <p>多方块成形后作为 ME 网络接入点；未成形的接口不会连接网格。</p>
+ * <p>与 master 的委托设计保持一致：接口本身持有网格节点，但所有存储逻辑委托给控制器。</p>
  */
 public class HyperdimensionalMeInterfaceBlockEntity extends AE2ENetworkedBlockEntity {
 
@@ -39,40 +40,20 @@ public class HyperdimensionalMeInterfaceBlockEntity extends AE2ENetworkedBlockEn
             return;
         }
 
-        // 同步更新方块状态
+        // 同步更新方块状态（成形/未成形）
         BlockState state = getBlockState();
         boolean formed = controllerPos != null;
         if (state.getValue(HyperdimensionalMeInterfaceBlock.FORMED) != formed) {
             level.setBlock(worldPosition, state.setValue(HyperdimensionalMeInterfaceBlock.FORMED, formed),
                     Block.UPDATE_ALL);
         }
-
-        // 仅在成形时创建网格节点；拆解时销毁
-        if (formed) {
-            if (getMainNode().getNode() == null) {
-                getMainNode().create(level, worldPosition);
-                onGridConnectableSidesChanged();
-            }
-        } else {
-            if (getMainNode().getNode() != null) {
-                getMainNode().destroy();
-            }
-        }
     }
 
     @Override
     public void onReady() {
-        // 未成形时不创建网格节点，避免未成形的接口也能连上线缆
+        // 仅在成形后才创建 AE2 网格节点，避免未成形接口也能连上线缆
         if (controllerPos != null) {
             super.onReady();
-        }
-    }
-
-    @Override
-    public void setRemoved() {
-        super.setRemoved();
-        if (getMainNode().getNode() != null) {
-            getMainNode().destroy();
         }
     }
 
