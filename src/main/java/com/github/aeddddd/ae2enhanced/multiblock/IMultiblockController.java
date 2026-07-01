@@ -2,6 +2,8 @@ package com.github.aeddddd.ae2enhanced.multiblock;
 
 import net.minecraft.core.BlockPos;
 
+import appeng.api.networking.security.IActionSource;
+
 /**
  * 多方块控制器标记接口。
  * <p>所有控制器方块实体（超维度、装配、计算核心）均实现此接口，供通用 ME 接口查找与委托。</p>
@@ -40,5 +42,13 @@ public interface IMultiblockController {
      * <p>子类可在此释放存储、CPU 池等资源。</p>
      */
     default void onDisassemble() {
+    }
+
+    /**
+     * 返回用于 AE2 网络操作的动作来源。
+     * <p>默认由绑定的通用 ME 接口节点提供；没有可用接口时返回空源。</p>
+     */
+    default IActionSource getActionSource() {
+        return IActionSource.empty();
     }
 }

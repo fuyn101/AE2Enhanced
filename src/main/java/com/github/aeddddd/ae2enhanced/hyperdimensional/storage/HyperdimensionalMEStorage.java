@@ -28,6 +28,10 @@ public class HyperdimensionalMEStorage implements MEStorage {
         return storage;
     }
 
+    public IActionSource getSource() {
+        return source;
+    }
+
     @Override
     public Component getDescription() {
         return Component.translatable("block.ae2enhanced.hyperdimensional_controller");

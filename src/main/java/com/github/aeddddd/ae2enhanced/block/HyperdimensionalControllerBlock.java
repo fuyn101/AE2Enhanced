@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -28,6 +29,7 @@ import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBloc
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalNexusMenu;
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalUnformedMenu;
 import com.github.aeddddd.ae2enhanced.registry.ModMenus;
+import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 
 /**
@@ -91,9 +93,21 @@ public class HyperdimensionalControllerBlock extends Block implements EntityBloc
     }
 
     @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable net.minecraft.world.entity.LivingEntity placer,
+            net.minecraft.world.item.ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            ControllerIndex.get(serverLevel).add(pos);
+        }
+    }
+
+    @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide() && state.getBlock() != newState.getBlock()) {
             HyperdimensionalStructure.disassemble(level, pos);
+            if (level instanceof ServerLevel serverLevel) {
+                ControllerIndex.get(serverLevel).remove(pos);
+            }
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }

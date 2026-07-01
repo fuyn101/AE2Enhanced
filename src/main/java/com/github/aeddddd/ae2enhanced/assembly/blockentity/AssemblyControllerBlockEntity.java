@@ -118,20 +118,33 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             return false;
         }
         MEStorage storage = storageService.getInventory();
-        IActionSource source = IActionSource.empty();
+        IActionSource source = getActionSource();
 
-        // 预检查输入是否足够
-        List<GenericStack> required = collectInputs(pattern);
-        for (GenericStack req : required) {
-            long available = storage.extract(req.what(), req.amount(), Actionable.SIMULATE, source);
-            if (available < req.amount()) {
-                return false;
+        // 预检查输入是否足够：优先使用 AE2 传入的 inputs，而不是 possibleInputs[0]
+        for (KeyCounter input : inputs) {
+            for (var entry : input) {
+                AEKey key = entry.getKey();
+                long needed = entry.getLongValue();
+                if (needed <= 0) {
+                    continue;
+                }
+                long available = storage.extract(key, needed, Actionable.SIMULATE, source);
+                if (available < needed) {
+                    return false;
+                }
             }
         }
 
         // 扣除输入
-        for (GenericStack req : required) {
-            storage.extract(req.what(), req.amount(), Actionable.MODULATE, source);
+        for (KeyCounter input : inputs) {
+            for (var entry : input) {
+                AEKey key = entry.getKey();
+                long needed = entry.getLongValue();
+                if (needed <= 0) {
+                    continue;
+                }
+                storage.extract(key, needed, Actionable.MODULATE, source);
+            }
         }
 
         // 注入产物

@@ -114,9 +114,31 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         }
         if (storage == null) {
             storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, null);
-            meStorage = new HyperdimensionalMEStorage(storage, IActionSource.empty());
-            // 后续 GUI 可在此注册监听器以实时刷新；网络统计每 20 tick 刷新一次。
         }
+        refreshMeStorageSource();
+        // 后续 GUI 可在此注册监听器以实时刷新；网络统计每 20 tick 刷新一次。
+    }
+
+    private void refreshMeStorageSource() {
+        if (storage == null) {
+            return;
+        }
+        IActionSource source = getActionSource();
+        if (meStorage == null || !source.equals(meStorage.getSource())) {
+            meStorage = new HyperdimensionalMEStorage(storage, source);
+        }
+    }
+
+    @Override
+    public void attachInterface(BlockPos interfacePos) {
+        super.attachInterface(interfacePos);
+        refreshMeStorageSource();
+    }
+
+    @Override
+    public void detachInterface(BlockPos interfacePos) {
+        super.detachInterface(interfacePos);
+        refreshMeStorageSource();
     }
 
     private void flushStorage() {

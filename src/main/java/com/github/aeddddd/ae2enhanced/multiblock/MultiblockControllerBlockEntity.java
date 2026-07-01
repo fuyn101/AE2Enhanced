@@ -12,6 +12,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.networking.security.IActionSource;
+
 import com.github.aeddddd.ae2enhanced.blockentity.AE2EBaseBlockEntity;
 
 /**
@@ -90,6 +92,21 @@ public abstract class MultiblockControllerBlockEntity extends AE2EBaseBlockEntit
 
     public Set<BlockPos> getInterfaces() {
         return new HashSet<>(interfaces);
+    }
+
+    @Override
+    public IActionSource getActionSource() {
+        if (level == null || level.isClientSide()) {
+            return IActionSource.empty();
+        }
+        for (BlockPos pos : interfaces) {
+            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
+                if (me.getActionableNode() != null) {
+                    return IActionSource.ofMachine(me);
+                }
+            }
+        }
+        return IActionSource.empty();
     }
 
     /**
