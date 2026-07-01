@@ -1,14 +1,20 @@
 package com.github.aeddddd.ae2enhanced.blockentity;
 
+import java.math.BigInteger;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.energy.IEnergyService;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.MEStorage;
 
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalMEStorage;
@@ -16,6 +22,7 @@ import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalS
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalStorageFile;
 import com.github.aeddddd.ae2enhanced.multiblock.IStorageHost;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockControllerBlockEntity;
+import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 
@@ -26,6 +33,12 @@ import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 public class HyperdimensionalControllerBlockEntity extends MultiblockControllerBlockEntity
         implements IStorageHost {
 
+    private static final String TAG_NEXUS_ID = "nexusId";
+    private static final String TAG_NETWORK_ACTIVE = "networkActive";
+    private static final String TAG_NETWORK_POWERED = "networkPowered";
+    private static final String TAG_STORAGE_TYPES = "storageTypes";
+    private static final String TAG_STORAGE_TOTAL = "storageTotal";
+
     @Nullable
     private UUID nexusId;
     @Nullable
@@ -35,6 +48,13 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
 
     private int validationCooldown = 0;
     private int saveCooldown = 0;
+    private int statusCooldown = 0;
+
+    // 客户端同步字段
+    private boolean networkActive = false;
+    private boolean networkPowered = false;
+    private int storageTypes = 0;
+    private long storageTotal = 0;
 
     public HyperdimensionalControllerBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.HYPERDIMENSIONAL_CONTROLLER.get(), pos, blockState);
@@ -50,6 +70,22 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         setChanged();
     }
 
+    public boolean isNetworkActive() {
+        return networkActive;
+    }
+
+    public boolean isNetworkPowered() {
+        return networkPowered;
+    }
+
+    public int getStorageTypes() {
+        return storageTypes;
+    }
+
+    public long getStorageTotal() {
+        return storageTotal;
+    }
+
     @Override
     public void onAssemble() {
         initStorage();
@@ -58,6 +94,10 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     @Override
     public void onDisassemble() {
         flushStorage();
+        networkActive = false;
+        networkPowered = false;
+        storageTypes = 0;
+        storageTotal = 0;
     }
 
     private void initStorage() {
@@ -73,8 +113,9 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
             return;
         }
         if (storage == null) {
-            storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, s -> refreshInterfaceServices());
-            meStorage = new HyperdimensionalMEStorage(storage);
+            storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, null);
+            meStorage = new HyperdimensionalMEStorage(storage, IActionSource.empty());
+            // 后续 GUI 可在此注册监听器以实时刷新；网络统计每 20 tick 刷新一次。
         }
     }
 
@@ -87,6 +128,7 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
             HyperdimensionalStorageFile.save(server, storage);
         }
     }
+
 
     public void serverTick() {
         if (level == null || level.isClientSide()) {
@@ -109,6 +151,61 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
                 }
             }
         }
+
+        if (statusCooldown-- <= 0) {
+            statusCooldown = 20;
+            refreshNetworkStatus();
+        }
+    }
+
+    private void refreshNetworkStatus() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        boolean active = false;
+        boolean powered = false;
+        for (BlockPos pos : getInterfaces()) {
+            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
+                IManagedGridNode node = me.getMainNode();
+                if (node != null) {
+                    active = node.isActive();
+                    IGrid grid = node.getGrid();
+                    if (grid != null) {
+                        IEnergyService energy = grid.getEnergyService();
+                        powered = energy != null && energy.isNetworkPowered();
+                    }
+                    break;
+                }
+            }
+        }
+        boolean changed = networkActive != active || networkPowered != powered;
+        networkActive = active;
+        networkPowered = powered;
+        refreshStats();
+        if (changed) {
+            markForUpdate();
+        }
+    }
+
+    private void refreshStats() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        int types = storage == null ? 0 : storage.getContents().size();
+        long total = 0;
+        if (storage != null) {
+            BigInteger sum = BigInteger.ZERO;
+            for (BigInteger amount : storage.getContents().values()) {
+                sum = sum.add(amount);
+            }
+            total = sum.min(BigInteger.valueOf(Long.MAX_VALUE)).longValue();
+        }
+        boolean changed = storageTypes != types || storageTotal != total;
+        storageTypes = types;
+        storageTotal = total;
+        if (changed) {
+            markForUpdate();
+        }
     }
 
     // ---- IStorageHost ----
@@ -122,16 +219,47 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         return meStorage;
     }
 
-    // ---- NBT ----
+    // ---- NBT / 客户端同步 ----
+
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        tag.putBoolean(TAG_NETWORK_ACTIVE, networkActive);
+        tag.putBoolean(TAG_NETWORK_POWERED, networkPowered);
+        tag.putInt(TAG_STORAGE_TYPES, storageTypes);
+        tag.putLong(TAG_STORAGE_TOTAL, storageTotal);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag) {
+        super.handleUpdateTag(tag);
+        if (tag.contains(TAG_NETWORK_ACTIVE, Tag.TAG_BYTE)) {
+            networkActive = tag.getBoolean(TAG_NETWORK_ACTIVE);
+        }
+        if (tag.contains(TAG_NETWORK_POWERED, Tag.TAG_BYTE)) {
+            networkPowered = tag.getBoolean(TAG_NETWORK_POWERED);
+        }
+        if (tag.contains(TAG_STORAGE_TYPES, Tag.TAG_INT)) {
+            storageTypes = tag.getInt(TAG_STORAGE_TYPES);
+        }
+        if (tag.contains(TAG_STORAGE_TOTAL, Tag.TAG_LONG)) {
+            storageTotal = tag.getLong(TAG_STORAGE_TOTAL);
+        }
+    }
 
     @Override
     public void loadTag(CompoundTag data) {
         super.loadTag(data);
-        if (data.hasUUID("nexusId")) {
-            nexusId = data.getUUID("nexusId");
+        if (data.hasUUID(TAG_NEXUS_ID)) {
+            nexusId = data.getUUID(TAG_NEXUS_ID);
         } else {
             nexusId = null;
         }
+        networkActive = data.getBoolean(TAG_NETWORK_ACTIVE);
+        networkPowered = data.getBoolean(TAG_NETWORK_POWERED);
+        storageTypes = data.getInt(TAG_STORAGE_TYPES);
+        storageTotal = data.getLong(TAG_STORAGE_TOTAL);
         if (isFormed() && nexusId != null && level != null && !level.isClientSide()) {
             initStorage();
         }
@@ -141,9 +269,11 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     public void saveAdditional(CompoundTag data) {
         super.saveAdditional(data);
         if (nexusId != null) {
-            data.putUUID("nexusId", nexusId);
+            data.putUUID(TAG_NEXUS_ID, nexusId);
         }
+        data.putBoolean(TAG_NETWORK_ACTIVE, networkActive);
+        data.putBoolean(TAG_NETWORK_POWERED, networkPowered);
+        data.putInt(TAG_STORAGE_TYPES, storageTypes);
+        data.putLong(TAG_STORAGE_TOTAL, storageTotal);
     }
-
-    // setRemoved 已由基类统一调用 disassemble() -> onDisassemble() -> flushStorage()
 }
