@@ -11,5 +11,18 @@
   "block.ae2enhanced.computation_controller": "超因果计算核心控制器",
   "block.ae2enhanced.constant_tensor_field_casing": "恒定张量场外殻",
   "block.ae2enhanced.constant_spinor_field_casing": "恒定旋量场外殻",
-  "block.ae2enhanced.causal_anchor_core": "因果锚定核心"
+  "block.ae2enhanced.causal_anchor_core": "因果锚定核心",
+
+  "gui.ae2enhanced.hyperdimensional_nexus": "超维度仓储中枢",
+  "gui.ae2enhanced.hyperdimensional_unformed": "超维度仓储结构不完整",
+  "gui.ae2enhanced.status.online": "网络：在线",
+  "gui.ae2enhanced.status.offline": "网络：离线",
+  "gui.ae2enhanced.status.powered": "供能：已供能",
+  "gui.ae2enhanced.status.unpowered": "供能：未供能",
+  "gui.ae2enhanced.hyperdimensional.types": "种类：%s",
+  "gui.ae2enhanced.hyperdimensional.total": "物品总量：%s",
+  "gui.ae2enhanced.hyperdimensional.total_scientific": "物品总量：%s（Shift）",
+  "gui.ae2enhanced.hyperdimensional.unformed_hint": "结构未成形",
+  "gui.ae2enhanced.hyperdimensional.missing_entry": "%s x%s",
+  "gui.ae2enhanced.button.assemble": "一键装配"
 }

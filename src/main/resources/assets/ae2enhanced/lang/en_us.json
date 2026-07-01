@@ -11,5 +11,18 @@
   "block.ae2enhanced.computation_controller": "Supercausal Computation Controller",
   "block.ae2enhanced.constant_tensor_field_casing": "Constant Tensor Field Casing",
   "block.ae2enhanced.constant_spinor_field_casing": "Constant Spinor Field Casing",
-  "block.ae2enhanced.causal_anchor_core": "Causal Anchor Core"
+  "block.ae2enhanced.causal_anchor_core": "Causal Anchor Core",
+
+  "gui.ae2enhanced.hyperdimensional_nexus": "Hyperdimensional Storage Nexus",
+  "gui.ae2enhanced.hyperdimensional_unformed": "Hyperdimensional Storage Incomplete",
+  "gui.ae2enhanced.status.online": "Network: Online",
+  "gui.ae2enhanced.status.offline": "Network: Offline",
+  "gui.ae2enhanced.status.powered": "Power: Powered",
+  "gui.ae2enhanced.status.unpowered": "Power: Unpowered",
+  "gui.ae2enhanced.hyperdimensional.types": "Types: %s",
+  "gui.ae2enhanced.hyperdimensional.total": "Total Items: %s",
+  "gui.ae2enhanced.hyperdimensional.total_scientific": "Total Items: %s (Shift)",
+  "gui.ae2enhanced.hyperdimensional.unformed_hint": "Structure incomplete",
+  "gui.ae2enhanced.hyperdimensional.missing_entry": "%s x%s",
+  "gui.ae2enhanced.button.assemble": "Assemble"
 }

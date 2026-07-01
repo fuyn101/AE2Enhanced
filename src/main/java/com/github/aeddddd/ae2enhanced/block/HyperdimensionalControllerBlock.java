@@ -4,8 +4,11 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -19,8 +22,12 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.network.NetworkHooks;
 
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
+import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalNexusMenu;
+import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalUnformedMenu;
+import com.github.aeddddd.ae2enhanced.registry.ModMenus;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 
 /**
@@ -61,15 +68,24 @@ public class HyperdimensionalControllerBlock extends Block implements EntityBloc
         }
 
         if (controller.isFormed()) {
-            // Phase 1 将在此打开 Hyperdimensional Nexus GUI
+            // 成形：打开 Nexus 信息 GUI
+            if (player instanceof ServerPlayer serverPlayer) {
+                NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider(
+                        (id, inv, p) -> new HyperdimensionalNexusMenu(id, inv, pos),
+                        Component.translatable("gui.ae2enhanced.hyperdimensional_nexus")), pos);
+            }
             return InteractionResult.SUCCESS;
         }
 
-        // 未成形：尝试一键装配
-        if (player.getAbilities().instabuild) {
-            HyperdimensionalStructure.placeMissingBlocks(level, pos, player);
-        } else {
-            HyperdimensionalStructure.tryConsumeAndPlace(level, pos, player);
+        // 未成形：打开缺失方块 GUI
+        if (player instanceof ServerPlayer serverPlayer) {
+            java.util.Map<Block, Integer> missing = HyperdimensionalStructure.getMissingMap(level, pos);
+            NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider(
+                    (id, inv, p) -> new HyperdimensionalUnformedMenu(id, inv, pos, missing),
+                    Component.translatable("gui.ae2enhanced.hyperdimensional_unformed")), buf -> {
+                        buf.writeBlockPos(pos);
+                        HyperdimensionalUnformedMenu.encodeMissing(buf, missing);
+                    });
         }
         return InteractionResult.SUCCESS;
     }
