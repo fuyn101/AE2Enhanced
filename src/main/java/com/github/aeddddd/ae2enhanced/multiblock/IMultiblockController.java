@@ -27,4 +27,18 @@ public interface IMultiblockController {
      * 结构拆解时调用，移除接口位置记录。
      */
     void detachInterface(BlockPos interfacePos);
+
+    /**
+     * 结构装配成功、状态即将置为成形时调用。
+     * <p>子类可在此初始化存储、CPU 池等资源。</p>
+     */
+    default void onAssemble() {
+    }
+
+    /**
+     * 结构拆解、状态即将置为未成形时调用。
+     * <p>子类可在此释放存储、CPU 池等资源。</p>
+     */
+    default void onDisassemble() {
+    }
 }

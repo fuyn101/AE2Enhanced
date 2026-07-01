@@ -146,7 +146,7 @@ public final class HyperdimensionalStructure {
         BlockState controllerState = level.getBlockState(controllerPos);
         if (controllerState.getBlock() == ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get()) {
             if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
-                controller.setFormed(true);
+                controller.assemble();
             }
         }
 
@@ -184,7 +184,7 @@ public final class HyperdimensionalStructure {
         BlockState controllerState = level.getBlockState(controllerPos);
         if (controllerState.getBlock() == ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get()) {
             if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
-                controller.setFormed(false);
+                controller.disassemble();
             }
         }
     }

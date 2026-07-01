@@ -51,14 +51,13 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     }
 
     @Override
-    public void setFormed(boolean formed) {
-        boolean wasFormed = isFormed();
-        super.setFormed(formed);
-        if (formed && !wasFormed) {
-            initStorage();
-        } else if (!formed && wasFormed) {
-            flushStorage();
-        }
+    public void onAssemble() {
+        initStorage();
+    }
+
+    @Override
+    public void onDisassemble() {
+        flushStorage();
     }
 
     private void initStorage() {
@@ -77,7 +76,6 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
             storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, s -> refreshInterfaceServices());
             meStorage = new HyperdimensionalMEStorage(storage);
         }
-        refreshInterfaceServices();
     }
 
     private void flushStorage() {
@@ -88,7 +86,6 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         if (server != null) {
             HyperdimensionalStorageFile.save(server, storage);
         }
-        refreshInterfaceServices();
     }
 
     public void serverTick() {
@@ -148,9 +145,5 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         }
     }
 
-    @Override
-    public void setRemoved() {
-        flushStorage();
-        super.setRemoved();
-    }
+    // setRemoved 已由基类统一调用 disassemble() -> onDisassemble() -> flushStorage()
 }
