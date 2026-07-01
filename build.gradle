@@ -59,7 +59,7 @@ repositories {
     mavenCentral()
     maven { url = 'https://maven.neoforged.net/releases' }
     maven { url = 'https://modmaven.dev/' }
-    maven { url = 'https://repo.spongepowered.org/maven/' }
+    maven { url = 'https://repo.spongepowered.org/maven' }
     maven { url = 'https://www.cursemaven.com' }
     maven { url = 'https://maven.blamejared.com' }
 }
@@ -71,6 +71,11 @@ dependencies {
     runtimeOnly files({ tasks.deobfAe2Jar.outputs.files.singleFile })
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+    
+    // MixinExtras：用于更简洁的 Mixin 注入（如 WrapOperation、Local 捕获）。
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
+    annotationProcessor 'io.github.llamalad7:mixinextras-common:0.4.1'
+    implementation 'io.github.llamalad7:mixinextras-forge:0.4.1'
 }
 
 tasks.withType(ProcessResources).configureEach {

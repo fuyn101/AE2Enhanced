@@ -309,7 +309,6 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
         if (level == null || !isFormed()) {
             return result;
         }
-        long multiplier = getParallelCap();
         int patternSlots = getPatternSlotCount();
         for (int i = UPGRADE_SLOTS; i < UPGRADE_SLOTS + patternSlots; i++) {
             ItemStack stack = itemHandler.getStackInSlot(i);
@@ -318,7 +317,7 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             }
             IPatternDetails base = PatternDetailsHelper.decodePattern(stack, level);
             if (base != null) {
-                result.add(new ScaledPatternDetails(base, multiplier));
+                result.add(base);
             }
         }
         return result;
@@ -330,7 +329,23 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     }
 
     public boolean pushPattern(IPatternDetails pattern, KeyCounter[] inputs, @Nullable IManagedGridNode node) {
-        if (level == null || level.isClientSide() || !isFormed()) {
+        return pushPatternBatch(pattern, inputs, node, 1);
+    }
+
+    /**
+     * 批量执行样板任务，一次性处理 {@code batchSize} 个副本。
+     * <p>由 {@code MixinCraftingCpuLogic} 在 AE2 合成 CPU 调用时拦截并注入，
+     * 使装配枢纽的并行升级真正生效。调用方必须确保输入已从 CPU 库存中提取，
+     * 本方法只负责消耗传入的 inputs 并将产物与剩余物加入缓冲。</p>
+     *
+     * @param pattern   原始样板（未缩放）
+     * @param inputs    单副本输入
+     * @param node      优先使用的网络节点（可为 null）
+     * @param batchSize 要批量处理的副本数量
+     * @return 是否成功执行
+     */
+    public boolean pushPatternBatch(IPatternDetails pattern, KeyCounter[] inputs, @Nullable IManagedGridNode node, long batchSize) {
+        if (level == null || level.isClientSide() || !isFormed() || batchSize <= 0) {
             return false;
         }
 
@@ -340,49 +355,18 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             return false;
         }
 
+        // 确保至少能连上网络，用于后续注入产物
         IManagedGridNode targetNode = resolveNode(node);
         if (targetNode == null || targetNode.getGrid() == null) {
             return false;
         }
-        IStorageService storageService = targetNode.getGrid().getStorageService();
-        if (storageService == null) {
-            return false;
-        }
-        MEStorage storage = storageService.getInventory();
-        var source = getActionSource();
 
-        // 预检查输入是否足够：优先使用 AE2 传入的 inputs
-        for (KeyCounter input : inputs) {
-            for (var entry : input) {
-                AEKey key = entry.getKey();
-                long needed = entry.getLongValue();
-                if (needed <= 0) {
-                    continue;
-                }
-                long available = storage.extract(key, needed, Actionable.SIMULATE, source);
-                if (available < needed) {
-                    return false;
-                }
-            }
-        }
-
-        // 扣除输入
-        for (KeyCounter input : inputs) {
-            for (var entry : input) {
-                AEKey key = entry.getKey();
-                long needed = entry.getLongValue();
-                if (needed <= 0) {
-                    continue;
-                }
-                storage.extract(key, needed, Actionable.MODULATE, source);
-            }
-        }
-
-        // 产物与剩余物先进入缓冲，按 getCraftingTicks() 延迟后注入网络
-        long multiplier = (pattern instanceof ScaledPatternDetails scaled) ? scaled.getMultiplier() : 1L;
+        // 传入的 inputs 已由 CPU 库存提取，装配枢纽直接消耗它们，
+        // 产物与剩余物按 batchSize 倍率加入缓冲，按 getCraftingTicks() 延迟后注入网络
         for (GenericStack output : pattern.getOutputs()) {
             if (output != null && output.amount() > 0) {
-                pendingOutputs.add(output);
+                long amount = safeMultiply(output.amount(), batchSize);
+                pendingOutputs.add(new GenericStack(output.what(), amount));
             }
         }
         IPatternDetails.IInput[] patternInputs = pattern.getInputs();
@@ -395,10 +379,10 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
                 AEKey key = entry.getKey();
                 AEKey remaining = input.getRemainingKey(key);
                 if (remaining != null) {
-                    long remainingAmount = multiplier;
+                    long remainingAmount = safeMultiply(1, batchSize);
                     GenericStack[] possible = input.getPossibleInputs();
                     if (possible.length > 0 && possible[0].amount() > 0) {
-                        remainingAmount = entry.getLongValue() / possible[0].amount();
+                        remainingAmount = safeMultiply(entry.getLongValue() / possible[0].amount(), batchSize);
                     }
                     if (remainingAmount > 0) {
                         pendingOutputs.add(new GenericStack(remaining, remainingAmount));
@@ -410,6 +394,14 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
         jobTimers.add(getCraftingTicks());
         batchBusy = true;
         return true;
+    }
+
+    private static long safeMultiply(long a, long b) {
+        try {
+            return Math.multiplyExact(a, b);
+        } catch (ArithmeticException e) {
+            return Long.MAX_VALUE;
+        }
     }
 
     @Nullable

@@ -8,6 +8,8 @@
   "mixins": [
     "MixinCraftingService",
     "MixinCraftingCPUCluster",
+    "MixinCraftingCpuLogic",
+    "MixinPatternEncodingTermMenu",
     "AppEngBaseMixin"
   ],
   "client": [],

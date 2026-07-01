@@ -65,13 +65,8 @@ public class HyperdimensionalMEStorage implements MEStorage, IStorageProvider {
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
-        for (StorageChannel<?> channel : storage.getChannels().values()) {
-            // 能量为内部自定义 key type，不直接暴露给 AE2 网络
-            if (channel.getKeyType() == EnergyKey.ENERGY_KEY_TYPE) {
-                continue;
-            }
-            channel.getAvailableStacks(out);
-        }
+        // 通过 HyperdimensionalStorage 的统一接口获取，利用内部缓存避免每次都遍历全量条目
+        storage.getAvailableStacks(out);
     }
 
     @Override
