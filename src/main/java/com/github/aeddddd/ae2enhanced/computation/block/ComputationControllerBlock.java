@@ -4,10 +4,14 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -20,7 +24,9 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.network.NetworkHooks;
 
+import com.github.aeddddd.ae2enhanced.client.gui.ComputationCoreMenu;
 import com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlockEntity;
 import com.github.aeddddd.ae2enhanced.structure.ComputationCoreIndex;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
@@ -54,7 +60,17 @@ public class ComputationControllerBlock extends Block implements EntityBlock {
         if (player.isShiftKeyDown() || level.isClientSide()) {
             return InteractionResult.PASS;
         }
-        // GUI 将在后续阶段实现
+
+        BlockEntity be = level.getBlockEntity(pos);
+        if (!(be instanceof ComputationCoreBlockEntity controller)) {
+            return InteractionResult.PASS;
+        }
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider(
+                    (id, inv, p) -> new ComputationCoreMenu(id, inv, pos, new SimpleContainerData(4)),
+                    Component.translatable("gui.ae2enhanced.computation_core")), pos);
+        }
         return InteractionResult.SUCCESS;
     }
 
