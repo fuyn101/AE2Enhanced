@@ -18,6 +18,7 @@ import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.MEStorage;
 
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalMEStorage;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalStorage;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.HyperdimensionalStorageFile;
@@ -115,7 +116,10 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
             return;
         }
         if (storage == null) {
-            storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, null);
+            HyperdimensionalStorageFile file = HyperdimensionalStorageFile.forNexus(server, nexusId);
+            file.tryMigrateLegacy();
+            storage = new HyperdimensionalStorage(nexusId, file, s -> onStorageContentChanged());
+            storage.markClean();
         }
         refreshMeStorageSource();
         // 后续 GUI 可在此注册监听器以实时刷新；网络统计每 20 tick 刷新一次。
@@ -128,6 +132,21 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         IActionSource source = getActionSource();
         if (meStorage == null || !source.equals(meStorage.getSource())) {
             meStorage = new HyperdimensionalMEStorage(storage, source);
+        }
+    }
+
+    /**
+     * 当内部存储变化时通知所有通用 ME 接口重新挂载存储提供者，
+     * 确保 AE2 网络能及时感知超维度仓储内容变化。
+     */
+    private void onStorageContentChanged() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        for (BlockPos pos : getInterfaces()) {
+            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
+                me.requestNetworkUpdate();
+            }
         }
     }
 
@@ -147,10 +166,7 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         if (storage == null || level == null || level.isClientSide()) {
             return;
         }
-        MinecraftServer server = level.getServer();
-        if (server != null) {
-            HyperdimensionalStorageFile.save(server, storage);
-        }
+        storage.persist();
     }
 
 
@@ -167,12 +183,9 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         }
 
         if (saveCooldown-- <= 0) {
-            saveCooldown = 100;
-            if (storage != null && storage.isDirty()) {
-                MinecraftServer server = level.getServer();
-                if (server != null) {
-                    HyperdimensionalStorageFile.save(server, storage);
-                }
+            saveCooldown = AE2EnhancedConfig.COMMON.hyperdimensionalFlushIntervalSeconds.get() * 20;
+            if (storage != null) {
+                storage.flush();
             }
         }
 

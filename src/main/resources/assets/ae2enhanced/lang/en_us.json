@@ -16,6 +16,7 @@
   "block.ae2enhanced.constant_tensor_field_casing": "Constant Tensor Field Casing",
   "block.ae2enhanced.constant_spinor_field_casing": "Constant Spinor Field Casing",
   "block.ae2enhanced.causal_anchor_core": "Causal Anchor Core",
+  "block.ae2enhanced.computation_core.name": "Supercausal Computation Core",
 
   "gui.ae2enhanced.assembly": "Assembly Hub",
   "gui.ae2enhanced.assembly.page": "Page %s/%s",
@@ -30,6 +31,10 @@
   "gui.ae2enhanced.hyperdimensional.types": "Types: %s",
   "gui.ae2enhanced.hyperdimensional.total": "Total Items: %s",
   "gui.ae2enhanced.hyperdimensional.total_scientific": "Total Items: %s (Shift)",
+  "gui.ae2enhanced.hyperdimensional.channel.item": "Item Channel",
+  "gui.ae2enhanced.hyperdimensional.channel.fluid": "Fluid Channel",
+  "gui.ae2enhanced.hyperdimensional.channel.energy": "Energy Channel",
+  "gui.ae2enhanced.hyperdimensional.safe_mode": "Safe Mode",
   "gui.ae2enhanced.hyperdimensional.unformed_hint": "Structure incomplete",
   "gui.ae2enhanced.hyperdimensional.missing_entry": "%s x%s",
   "gui.ae2enhanced.button.assemble": "Assemble",

@@ -16,6 +16,7 @@
   "block.ae2enhanced.constant_tensor_field_casing": "恒定张量场外殻",
   "block.ae2enhanced.constant_spinor_field_casing": "恒定旋量场外殻",
   "block.ae2enhanced.causal_anchor_core": "因果锚定核心",
+  "block.ae2enhanced.computation_core.name": "超因果计算核心",
 
   "gui.ae2enhanced.assembly": "装配枢纽",
   "gui.ae2enhanced.assembly.page": "第 %s/%s 页",
@@ -30,6 +31,10 @@
   "gui.ae2enhanced.hyperdimensional.types": "种类：%s",
   "gui.ae2enhanced.hyperdimensional.total": "物品总量：%s",
   "gui.ae2enhanced.hyperdimensional.total_scientific": "物品总量：%s（Shift）",
+  "gui.ae2enhanced.hyperdimensional.channel.item": "物品通道",
+  "gui.ae2enhanced.hyperdimensional.channel.fluid": "流体通道",
+  "gui.ae2enhanced.hyperdimensional.channel.energy": "能量通道",
+  "gui.ae2enhanced.hyperdimensional.safe_mode": "安全模式",
   "gui.ae2enhanced.hyperdimensional.unformed_hint": "结构未成形",
   "gui.ae2enhanced.hyperdimensional.missing_entry": "%s x%s",
   "gui.ae2enhanced.button.assemble": "一键装配",
