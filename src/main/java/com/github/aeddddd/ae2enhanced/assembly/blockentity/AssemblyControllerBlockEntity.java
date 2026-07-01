@@ -8,12 +8,14 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.items.ItemStackHandler;
 
 import appeng.api.config.Actionable;
@@ -27,7 +29,11 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
+import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
 import com.github.aeddddd.ae2enhanced.assembly.pattern.ScaledPatternDetails;
+import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleCraftingHelper;
+import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
@@ -57,6 +63,8 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     private int patternRefreshTicks = 0;
     private boolean patternsDirty = false;
     private boolean batchBusy = false;
+    private final Map<String, Integer> blackHoleBuffer = new HashMap<>();
+    private int blackHoleTick = 0;
 
     public AssemblyControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ASSEMBLY_CONTROLLER.get(), pos, state);
@@ -175,6 +183,47 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
 
         // 每 tick 重置 batchBusy，允许下一 tick 继续接收 pushPattern
         this.batchBusy = false;
+
+        // 黑洞事件视界逻辑
+        if (AE2EnhancedConfig.COMMON.enableBlackHole.get() && isFormed()) {
+            blackHoleTick++;
+            if (blackHoleTick % 5 == 0) {
+                BlockState state = level.getBlockState(worldPosition);
+                Direction facing = state.getValue(AssemblyControllerBlock.FACING);
+                BlockPos center = AssemblyStructure.getOriginFromController(worldPosition, facing);
+                BlockPos outputPos = center.above();
+
+                BlackHoleCraftingHelper.killLivingEntities(level, center);
+                BlackHoleCraftingHelper.suckItems(level, center);
+
+                AABB craftBox = new AABB(
+                        center.getX() - 1, center.getY() - 1, center.getZ() - 1,
+                        center.getX() + 1, center.getY() + 1, center.getZ() + 1);
+                var items = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, craftBox);
+                Map<String, Integer> preTypes = new HashMap<>();
+                for (var entity : items) {
+                    String key = BlackHoleRecipe.keyOf(entity.getItem());
+                    preTypes.merge(key, entity.getItem().getCount(), Integer::sum);
+                }
+
+                boolean crafted = !preTypes.isEmpty() && BlackHoleCraftingHelper.tryCraft(level, center, outputPos, true);
+                if (crafted) {
+                    blackHoleBuffer.clear();
+                } else if (!preTypes.isEmpty()) {
+                    for (Map.Entry<String, Integer> entry : preTypes.entrySet()) {
+                        blackHoleBuffer.merge(entry.getKey(), entry.getValue(), Integer::sum);
+                    }
+                    if (blackHoleBuffer.size() > 5) {
+                        BlackHoleCraftingHelper.explode(level, center);
+                        blackHoleBuffer.clear();
+                        if (AE2EnhancedConfig.COMMON.debugMode.get()) {
+                            AE2Enhanced.LOGGER.info("[AE2E] 黑洞过载爆炸于 {}", center);
+                        }
+                    }
+                }
+                setChanged();
+            }
+        }
     }
 
     private void ensurePatternCapacity() {
@@ -404,6 +453,14 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
                 }
             }
         }
+        if (data.contains("blackHoleBuffer", ListTag.TAG_LIST)) {
+            blackHoleBuffer.clear();
+            ListTag list = data.getList("blackHoleBuffer", CompoundTag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag entryTag = list.getCompound(i);
+                blackHoleBuffer.put(entryTag.getString("key"), entryTag.getInt("count"));
+            }
+        }
         ensurePatternCapacity();
     }
 
@@ -418,6 +475,15 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             }
         }
         data.put("pendingOutputs", list);
+
+        ListTag bufferList = new ListTag();
+        for (Map.Entry<String, Integer> entry : blackHoleBuffer.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putString("key", entry.getKey());
+            entryTag.putInt("count", entry.getValue());
+            bufferList.add(entryTag);
+        }
+        data.put("blackHoleBuffer", bufferList);
     }
 
     /**
