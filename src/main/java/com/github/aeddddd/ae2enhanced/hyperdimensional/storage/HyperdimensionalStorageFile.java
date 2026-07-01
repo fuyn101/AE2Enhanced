@@ -50,7 +50,6 @@ public final class HyperdimensionalStorageFile {
     // 二进制文件格式常量
     private static final byte[] MAGIC = new byte[] { 'A', 'E', '2', 'E' };
     private static final int BINARY_VERSION = 1;
-    private static final int HEADER_SIZE = 16; // 4 + 4 + 4 + 4
 
     private static final byte TYPE_ITEM = 1;
     private static final byte TYPE_FLUID = 2;
