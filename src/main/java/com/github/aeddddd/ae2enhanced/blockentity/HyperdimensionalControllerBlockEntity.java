@@ -6,6 +6,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
@@ -89,6 +90,7 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     @Override
     public void onAssemble() {
         initStorage();
+        updateCableConnections();
     }
 
     @Override
@@ -177,6 +179,26 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         if (statusCooldown-- <= 0) {
             statusCooldown = 20;
             refreshNetworkStatus();
+        }
+    }
+
+    /**
+     * 强制刷新接口相邻位置的 AE2 线缆连接，修复线缆连接时序问题。
+     */
+    private void updateCableConnections() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        for (BlockPos pos : getInterfaces()) {
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.relative(dir);
+                if (level.getBlockEntity(neighborPos) instanceof appeng.blockentity.networking.CableBusBlockEntity cableBe) {
+                    appeng.parts.CableBusContainer cbc = cableBe.getCableBus();
+                    if (cbc != null) {
+                        cbc.updateConnections();
+                    }
+                }
+            }
         }
     }
 

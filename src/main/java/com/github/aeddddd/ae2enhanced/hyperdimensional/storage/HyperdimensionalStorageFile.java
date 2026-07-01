@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -18,6 +19,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
 import appeng.api.stacks.AEKey;
+
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 
 /**
  * 超维度仓储持久化文件管理。
@@ -67,9 +70,16 @@ public final class HyperdimensionalStorageFile {
                 }
             }
             storage.markClean();
-        } catch (IOException e) {
-            // 读取失败时返回空存储，避免崩溃
-            e.printStackTrace();
+        } catch (Exception e) {
+            // 读取失败时将损坏文件备份，然后返回空存储，避免崩溃且保留现场
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to load hyperdimensional storage for nexus {}: {}", nexusId, e.toString());
+            try {
+                Path backup = path.resolveSibling(nexusId + ".dat.bak");
+                Files.move(path, backup, StandardCopyOption.REPLACE_EXISTING);
+                AE2Enhanced.LOGGER.warn("[AE2E] Corrupted storage file moved to {}", backup);
+            } catch (IOException backupEx) {
+                AE2Enhanced.LOGGER.error("[AE2E] Failed to backup corrupted storage file: {}", backupEx.toString());
+            }
         }
         return storage;
     }
