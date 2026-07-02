@@ -4,6 +4,12 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# Python scripts and bytecodes
+*.py
+*.pyc
+*.pyd
+*.pyo
+
 # Markdown documentation (except project-level agent/human readmes)
 docs/
 research/
@@ -27,6 +33,7 @@ libs/*
 !libs/.gitkeep
 
 ### Eclipse ###
+.eclipse/
 .apt_generated
 .classpath
 .factorypath
