@@ -72,10 +72,17 @@ dependencies {
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
     
-    // MixinExtras：用于更简洁的 Mixin 注入（如 WrapOperation、Local 捕获）。
+    // MixinExtras：编译期注解与注解处理器
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
     annotationProcessor 'io.github.llamalad7:mixinextras-common:0.4.1'
-    implementation 'io.github.llamalad7:mixinextras-forge:0.4.1'
+    // MixinExtras：通过 jarJar 打包到 mod jar，避免生产环境缺失
+    jarJar(group: 'io.github.llamalad7', name: 'mixinextras-forge', version: '0.4.1') {
+        jarJar.ranged(it, '[0.4.1,0.5)')
+    }
+}
+
+tasks.named('jarJar', net.neoforged.gradle.common.tasks.JarJar) {
+    // 依赖声明已自动加入 jarJar 配置；此处无需额外 configuration(...) 调用
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -108,12 +115,15 @@ tasks.register('copyMixinRefmap', Copy) {
 tasks.jar {
     dependsOn(tasks.copyMixinRefmap)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes(
                 'MixinConfigs': 'mixins.ae2enhanced.json'
         )
     }
 }
+
+tasks.jar.finalizedBy('reobfJar')
 
 def clientMappingsFile = file("${System.getProperty('user.home')}/.gradle/caches/minecraft/versions/1.20.1/client.txt")
 
@@ -193,12 +203,13 @@ tasks.register('fixAe2Refmap', JavaExec) {
 
 tasks.register('reobfJar', Exec) {
     dependsOn(tasks.generateReobfMapping)
+    dependsOn(tasks.jarJar)
 
     def fartJar = project.configurations.detachedConfiguration(
             project.dependencies.create('net.minecraftforge:ForgeAutoRenamingTool:1.0.2:all')
     ).files.find { it.name.endsWith('-all.jar') }
     def mappingFile = tasks.generateReobfMapping.outputs.files.singleFile
-    def inputJar = tasks.jar.archiveFile
+    def inputJar = tasks.jarJar.archiveFile
     def outputJar = layout.buildDirectory.file("libs/${tasks.jar.archiveFileName.get()}")
     def libsFile = layout.buildDirectory.file('reobf/fart_libraries.txt')
 
