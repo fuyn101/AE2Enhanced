@@ -10,14 +10,13 @@ build/
 *.pyd
 *.pyo
 
-# Markdown documentation (except project-level agent/human readmes)
+# Markdown documentation (except project-level human readmes)
 docs/
 research/
 github-wiki/
 *.md
 !README.md
 !README_zh.md
-!AGENTS.md
 
 ### IntelliJ IDEA ###
 .idea/
