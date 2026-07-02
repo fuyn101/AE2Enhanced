@@ -586,6 +586,9 @@ public class TileNetworkAccessNode extends TileAENetworkBase
             return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
             return null;
+        } catch (NullPointerException e) {
+            // 对应类型的存储通道未注册（如依赖 mod 未加载或通道初始化失败）
+            return null;
         }
     }
 
@@ -602,6 +605,9 @@ public class TileNetworkAccessNode extends TileAENetworkBase
             return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
             return null;
+        } catch (NullPointerException e) {
+            // 对应类型的存储通道未注册（如依赖 mod 未加载或通道初始化失败）
+            return null;
         }
     }
 
@@ -617,6 +623,9 @@ public class TileNetworkAccessNode extends TileAENetworkBase
             }
             return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
+            return null;
+        } catch (NullPointerException e) {
+            // 对应类型的存储通道未注册（如依赖 mod 未加载或通道初始化失败）
             return null;
         }
     }
