@@ -575,9 +575,15 @@ public class TileNetworkAccessNode extends TileAENetworkBase
 
     private IMEMonitor<IAEEnergyStack> getEnergyMonitor() {
         try {
+            IEnergyStorageChannel channel = AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class);
+            if (channel == null) {
+                return null;
+            }
             IStorageGrid storageGrid = getProxy().getGrid().getCache(IStorageGrid.class);
-            if (storageGrid == null) return null;
-            return storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IEnergyStorageChannel.class));
+            if (storageGrid == null) {
+                return null;
+            }
+            return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
             return null;
         }
@@ -585,9 +591,15 @@ public class TileNetworkAccessNode extends TileAENetworkBase
 
     private IMEMonitor<IAEManaStack> getManaMonitor() {
         try {
+            IManaStorageChannel channel = AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class);
+            if (channel == null) {
+                return null;
+            }
             IStorageGrid storageGrid = getProxy().getGrid().getCache(IStorageGrid.class);
-            if (storageGrid == null) return null;
-            return storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IManaStorageChannel.class));
+            if (storageGrid == null) {
+                return null;
+            }
+            return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
             return null;
         }
@@ -595,9 +607,15 @@ public class TileNetworkAccessNode extends TileAENetworkBase
 
     private IMEMonitor<IAEStarlightStack> getStarlightMonitor() {
         try {
+            IStarlightStorageChannel channel = AEApi.instance().storage().getStorageChannel(IStarlightStorageChannel.class);
+            if (channel == null) {
+                return null;
+            }
             IStorageGrid storageGrid = getProxy().getGrid().getCache(IStorageGrid.class);
-            if (storageGrid == null) return null;
-            return storageGrid.getInventory(AEApi.instance().storage().getStorageChannel(IStarlightStorageChannel.class));
+            if (storageGrid == null) {
+                return null;
+            }
+            return storageGrid.getInventory(channel);
         } catch (GridAccessException e) {
             return null;
         }
