@@ -113,6 +113,7 @@ tasks.register('copyMixinRefmap', Copy) {
 }
 
 tasks.jar {
+    archiveClassifier = 'dev'
     dependsOn(tasks.copyMixinRefmap)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
@@ -122,8 +123,6 @@ tasks.jar {
         )
     }
 }
-
-tasks.jar.finalizedBy('reobfJar')
 
 def clientMappingsFile = file("${System.getProperty('user.home')}/.gradle/caches/minecraft/versions/1.20.1/client.txt")
 
@@ -201,6 +200,8 @@ tasks.register('fixAe2Refmap', JavaExec) {
     args = [ae2Jar, mappingFile, outputJar.get().asFile]
 }
 
+// 使用 FART 对 jarJar 输出（含 META-INF/jarjar）进行 official->SRG 重混淆。
+// 需要 ComposeOfficialSrg 生成带字段描述符的 TSRG2，否则 BlockEntity.level 等字段无法正确映射。
 tasks.register('reobfJar', Exec) {
     dependsOn(tasks.generateReobfMapping)
     dependsOn(tasks.jarJar)
@@ -210,13 +211,16 @@ tasks.register('reobfJar', Exec) {
     ).files.find { it.name.endsWith('-all.jar') }
     def mappingFile = tasks.generateReobfMapping.outputs.files.singleFile
     def inputJar = tasks.jarJar.archiveFile
-    def outputJar = layout.buildDirectory.file("libs/${tasks.jar.archiveFileName.get()}")
+    def outputJar = layout.buildDirectory.file("libs/${tasks.jar.archiveBaseName.get()}-${tasks.jar.archiveVersion.get()}.jar")
     def libsFile = layout.buildDirectory.file('reobf/fart_libraries.txt')
 
     doFirst {
         libsFile.get().asFile.parentFile.mkdirs()
         libsFile.get().asFile.text = ''
-        libsFile.get().asFile << "-e=${clientMappingsFile.parentFile}/client.jar\n"
+        def projectClientJar = file("${projectDir}/.gradle/caches/minecraft/versions/1.20.1/client.jar")
+        def userClientJar = file("${System.getProperty('user.home')}/.gradle/caches/minecraft/versions/1.20.1/client.jar")
+        def clientJar = projectClientJar.exists() ? projectClientJar : userClientJar
+        libsFile.get().asFile << "-e=${clientJar.absolutePath}\n"
         sourceSets.main.runtimeClasspath.files.each { libsFile.get().asFile << "-e=${it.absolutePath}\n" }
     }
 
@@ -229,6 +233,10 @@ tasks.register('reobfJar', Exec) {
 }
 
 tasks.jar.finalizedBy('reobfJar')
+
+tasks.named('jarJar', net.neoforged.gradle.common.tasks.JarJar) {
+    archiveClassifier = 'jarjar'
+}
 
 idea {
     module {
