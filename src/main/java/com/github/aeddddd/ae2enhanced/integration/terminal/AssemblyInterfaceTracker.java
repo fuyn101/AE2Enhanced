@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.integration.terminal;
 
+import appeng.helpers.ItemStackHelper;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.helpers.ItemHandlerUtil;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
@@ -94,7 +95,7 @@ public class AssemblyInterfaceTracker {
             ItemStack is = server.getStackInSlot(x + offset);
             ItemHandlerUtil.setStackInSlot(client, x + offset, is.isEmpty() ? ItemStack.EMPTY : is.copy());
             if (!is.isEmpty()) {
-                is.writeToNBT(itemNBT);
+                ItemStackHelper.stackWriteToNBT(is, itemNBT);
             }
             tag.setTag(Integer.toString(x + offset), (NBTBase) itemNBT);
         }

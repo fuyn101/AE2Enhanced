@@ -7,26 +7,28 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * 扩展接口终端,使其能够显示装配中枢的大量样板槽.
  *
  * <p>原版 {@code GuiInterfaceTerminal.getById()} 创建的 {@link ClientDCInternalInv}
- * 固定只有 36 槽,无法容纳装配中枢最多 2880 个样板槽.本 Mixin 为装配中枢跟踪数据
- * (ID &gt;= 0,与原版负 ID 不重叠)创建足够大的客户端库存.</p>
+ * 固定只有 36 槽,无法容纳装配中枢最多 2880 个样板槽.</p>
+ *
+ * <p>关键点：原方法会把新建的 {@code ClientDCInternalInv} 放入 {@code byId} 缓存，
+ * 如果直接在 HEAD 取消并返回新对象，会导致装配中枢条目不被加入缓存，从而在
+ * {@code refreshList()} 中无法显示。因此使用 {@link Redirect} 替换构造器参数，
+ * 保留原方法的缓存和 {@code refreshList} 逻辑。</p>
  */
 @SideOnly(Side.CLIENT)
 @Mixin(value = GuiInterfaceTerminal.class, remap = false)
 public class MixinGuiInterfaceTerminal {
 
-    @Inject(method = "getById", at = @At("HEAD"), cancellable = true)
-    private void ae2enhanced$onGetById(long id, long sortBy, String string,
-                                       CallbackInfoReturnable<ClientDCInternalInv> cir) {
+    @Redirect(method = "getById", at = @At(value = "NEW", target = "Lappeng/client/me/ClientDCInternalInv;"))
+    private ClientDCInternalInv ae2enhanced$createClientDCInternalInv(int size, long id, long sortBy, String string) {
         if (id >= 0) {
-            cir.setReturnValue(new ClientDCInternalInv(
-                    TileAssemblyController.PATTERN_SLOTS_MAX, id, sortBy, string));
+            return new ClientDCInternalInv(TileAssemblyController.PATTERN_SLOTS_MAX, id, sortBy, string);
         }
+        return new ClientDCInternalInv(size, id, sortBy, string);
     }
 }
