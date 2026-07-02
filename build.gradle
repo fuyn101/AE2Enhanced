@@ -3,7 +3,7 @@ buildscript {
         maven { url = 'https://maven.minecraftforge.net' }
     }
     dependencies {
-        classpath 'net.minecraftforge:ForgeAutoRenamingTool:1.0.2:all'
+        classpath 'net.minecraftforge:ForgeAutoRenamingTool:1.1.2:all'
         classpath 'com.google.code.gson:gson:2.10.1'
     }
 }
@@ -205,30 +205,25 @@ tasks.register('fixAe2Refmap', JavaExec) {
 tasks.register('reobfJar', Exec) {
     dependsOn(tasks.generateReobfMapping)
     dependsOn(tasks.jarJar)
+    dependsOn(tasks.deobfAe2Jar)
 
     def fartJar = project.configurations.detachedConfiguration(
-            project.dependencies.create('net.minecraftforge:ForgeAutoRenamingTool:1.0.2:all')
+            project.dependencies.create('net.minecraftforge:ForgeAutoRenamingTool:1.1.2:all')
     ).files.find { it.name.endsWith('-all.jar') }
     def mappingFile = tasks.generateReobfMapping.outputs.files.singleFile
     def inputJar = tasks.jarJar.archiveFile
     def outputJar = layout.buildDirectory.file("libs/${tasks.jar.archiveBaseName.get()}-${tasks.jar.archiveVersion.get()}.jar")
-    def libsFile = layout.buildDirectory.file('reobf/fart_libraries.txt')
+    def ae2DeobfJar = tasks.deobfAe2Jar.outputs.files.singleFile
 
-    doFirst {
-        libsFile.get().asFile.parentFile.mkdirs()
-        libsFile.get().asFile.text = ''
-        def projectClientJar = file("${projectDir}/.gradle/caches/minecraft/versions/1.20.1/client.jar")
-        def userClientJar = file("${System.getProperty('user.home')}/.gradle/caches/minecraft/versions/1.20.1/client.jar")
-        def clientJar = projectClientJar.exists() ? projectClientJar : userClientJar
-        libsFile.get().asFile << "-e=${clientJar.absolutePath}\n"
-        sourceSets.main.runtimeClasspath.files.each { libsFile.get().asFile << "-e=${it.absolutePath}\n" }
-    }
+    def libsArgs = []
+    sourceSets.main.runtimeClasspath.files.each { libsArgs += ['--lib', it.absolutePath] }
+    libsArgs += ['--lib', ae2DeobfJar.absolutePath]
 
     commandLine('java', '-jar', fartJar,
             '--input', inputJar.get().asFile,
             '--output', outputJar.get().asFile,
             '--map', mappingFile,
-            '--cfg', libsFile.get().asFile,
+            *libsArgs,
             '--ann-fix', '--ids-fix', '--src-fix', '--record-fix')
 }
 

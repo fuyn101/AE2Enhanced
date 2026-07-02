@@ -22,7 +22,7 @@ public class ComposeOfficialSrg {
             FieldLookup fl = new FieldLookup();
             MethodLookup ml = new MethodLookup();
             for (IMappingFile.IField f : cls.getFields()) {
-                fl.put(f.getMapped(), f.getOriginal(), f.getDescriptor());
+                fl.put(f.getMapped(), f.getOriginal());
             }
             for (IMappingFile.IMethod m : cls.getMethods()) {
                 ml.put(m.getMappedDescriptor(), m.getMapped(), m.getOriginal());
@@ -46,18 +46,7 @@ public class ComposeOfficialSrg {
                     String srgName = f.getMapped();
                     String officialName = fl.getName(obfName);
                     if (officialName == null) continue;
-                    String officialDesc = fl.getDescriptor(obfName);
-                    if (officialDesc == null) {
-                        String obfDesc = f.getDescriptor();
-                        if (obfDesc != null) {
-                            officialDesc = remapDesc(obfDesc, obfToOfficialClass);
-                        }
-                    }
-                    if (officialDesc != null) {
-                        pw.println("\t" + officialDesc + " " + officialName + " " + srgName);
-                    } else {
-                        pw.println("\t" + officialName + " " + srgName);
-                    }
+                    pw.println("\t" + officialName + " " + srgName);
                 }
                 for (IMappingFile.IMethod m : cls.getMethods()) {
                     String obfDesc = m.getDescriptor();
@@ -98,19 +87,13 @@ public class ComposeOfficialSrg {
 
     static class FieldLookup {
         Map<String, String> byName = new HashMap<>();
-        Map<String, String> descriptorByName = new HashMap<>();
 
-        void put(String obfName, String officialName, String descriptor) {
+        void put(String obfName, String officialName) {
             byName.put(obfName, officialName);
-            descriptorByName.put(obfName, descriptor);
         }
 
         String getName(String obfName) {
             return byName.get(obfName);
-        }
-
-        String getDescriptor(String obfName) {
-            return descriptorByName.get(obfName);
         }
     }
 
