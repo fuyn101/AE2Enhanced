@@ -8,7 +8,6 @@ import net.minecraft.item.ItemStack;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,9 +27,10 @@ public final class JeiSearchHelper {
 
     /**
      * 判断当前是否可以通过 HEI/JEI 进行高级搜索。
+     * 如果之前初始化失败，会再次尝试（因为 JEI 可能在游戏过程中才就绪）。
      */
     public static boolean isAvailable() {
-        if (available == null) {
+        if (available == null || !available) {
             available = init();
         }
         return available;
@@ -82,7 +82,7 @@ public final class JeiSearchHelper {
         }
 
         if (ingredients == null || ingredients.isEmpty()) {
-            return Collections.emptyList();
+            return null;
         }
 
         // 结果过多时放弃 HEI 过滤，避免巨型数据包和客户端卡顿

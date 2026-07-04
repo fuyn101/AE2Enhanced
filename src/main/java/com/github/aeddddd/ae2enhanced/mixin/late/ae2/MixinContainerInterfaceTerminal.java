@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.mixin.late.ae2;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import appeng.api.implementations.ICraftingPatternItem;
 import appeng.container.slot.AppEngSlot;
 import appeng.util.Platform;
 import appeng.container.AEBaseContainer;
@@ -18,12 +17,16 @@ import appeng.util.inv.WrapperFilteredItemHandler;
 import appeng.util.inv.WrapperRangeItemHandler;
 import appeng.util.inv.filter.IAEItemFilter;
 import com.github.aeddddd.ae2enhanced.integration.terminal.AssemblyInterfaceTracker;
+import com.github.aeddddd.ae2enhanced.integration.terminal.AssemblyPatternInventoryWrapper;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,15 +36,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 扩展接口终端,使其显示装配中枢的样板存储.
+ * 扩展接口终端，使其显示装配中枢的样板存储。
  *
- * <p>装配中枢不是 AE2 原版的 {@code IInterfaceHost},因此无法被原版扫描逻辑覆盖.
- * 本 Mixin 在 {@code ContainerInterfaceTerminal} 中维护独立的装配中枢跟踪数据,
- * 在 {@code regenList} 时把装配中枢数据合并进同一个 NBT 包,在检测到变化时单独补发刷新包.</p>
+ * <p>装配中枢按行（每行 9 槽）拆分为多个跟踪器，确保接口终端滚动条按实际行数计算，
+ * 解决原先只能显示单页的问题。</p>
  */
 @Mixin(value = ContainerInterfaceTerminal.class, remap = false)
 public class MixinContainerInterfaceTerminal {
@@ -56,12 +60,12 @@ public class MixinContainerInterfaceTerminal {
     private void regenList(NBTTagCompound data) {
     }
 
-    private final Map<TileAssemblyController, AssemblyInterfaceTracker> ae2enhanced$assemblyDiList = new HashMap<>();
+    private final Map<TileAssemblyController, List<AssemblyInterfaceTracker>> ae2enhanced$assemblyDiList = new HashMap<>();
     private final Map<Long, AssemblyInterfaceTracker> ae2enhanced$assemblyById = new HashMap<>();
 
     /**
-     * 在 regenList 末尾追加装配中枢数据.
-     * 这样当终端因接口列表变化而进行全量刷新时,装配中枢也会一起显示.
+     * 在 regenList 末尾追加装配中枢数据。
+     * 这样当终端因接口列表变化而进行全量刷新时，装配中枢也会一起显示。
      */
     @Inject(method = "regenList", at = @At("TAIL"))
     private void ae2enhanced$onRegenList(NBTTagCompound data, CallbackInfo ci) {
@@ -69,8 +73,8 @@ public class MixinContainerInterfaceTerminal {
     }
 
     /**
-     * 在 detectAndSendChanges 末尾检测装配中枢变化.
-     * 若发现装配中枢增删或样板槽内容变化,调用 regenList 发送一次带 clear 的全量刷新.
+     * 在 detectAndSendChanges 末尾检测装配中枢变化。
+     * 若发现装配中枢增删或样板槽内容变化，调用 regenList 发送一次带 clear 的全量刷新。
      */
     @Inject(method = "func_75142_b", at = @At("TAIL"))
     private void ae2enhanced$onDetectAndSendChanges(CallbackInfo ci) {
@@ -95,7 +99,7 @@ public class MixinContainerInterfaceTerminal {
     }
 
     /**
-     * 拦截 doAction,处理装配中枢相关的终端操作.
+     * 拦截 doAction，处理装配中枢相关的终端操作。
      */
     @Inject(method = "doAction", at = @At("HEAD"), cancellable = true)
     private void ae2enhanced$onDoAction(EntityPlayerMP player, InventoryAction action, int slot, long id,
@@ -109,8 +113,8 @@ public class MixinContainerInterfaceTerminal {
     }
 
     private boolean ae2enhanced$checkAssemblyChanges() {
+        Map<TileAssemblyController, List<AssemblyInterfaceTracker>> current = new HashMap<>();
         boolean changed = false;
-        Map<TileAssemblyController, AssemblyInterfaceTracker> current = new HashMap<>();
 
         for (IGridNode gn : this.grid.getMachines(TileAssemblyController.class)) {
             if (!gn.isActive()) {
@@ -124,25 +128,41 @@ public class MixinContainerInterfaceTerminal {
             if (!controller.isFormed()) {
                 continue;
             }
-            current.put(controller, null);
 
-            AssemblyInterfaceTracker old = this.ae2enhanced$assemblyDiList.get(controller);
-            if (old == null) {
-                changed = true;
-                continue;
-            }
-            current.put(controller, old);
+            int totalSlots = controller.getPatternSlotCount();
+            int totalRows = (totalSlots + 8) / 9;
+            List<AssemblyInterfaceTracker> oldList = this.ae2enhanced$assemblyDiList.get(controller);
 
-            if (!old.getUnlocalizedName().equals(controller.getBlockType().getTranslationKey())) {
+            if (oldList == null || oldList.size() != totalRows) {
                 changed = true;
                 continue;
             }
 
-            IItemHandler server = old.getServer();
-            IItemHandler client = old.getClient();
-            for (int i = 0; i < server.getSlots(); i++) {
-                if (ae2enhanced$isDifferent(server.getStackInSlot(i), client.getStackInSlot(i))) {
+            List<AssemblyInterfaceTracker> newList = new ArrayList<>(oldList);
+            current.put(controller, newList);
+
+            // 检查名称变化
+            for (AssemblyInterfaceTracker old : oldList) {
+                if (!old.getUnlocalizedName().equals(controller.getBlockType().getTranslationKey())) {
                     changed = true;
+                    break;
+                }
+            }
+            if (changed) {
+                continue;
+            }
+
+            // 检查每个 tracker 的 server/client 是否一致
+            for (AssemblyInterfaceTracker old : oldList) {
+                IItemHandler server = old.getServer();
+                IItemHandler client = old.getClient();
+                for (int i = 0; i < server.getSlots(); i++) {
+                    if (ae2enhanced$isDifferent(server.getStackInSlot(i), client.getStackInSlot(i))) {
+                        changed = true;
+                        break;
+                    }
+                }
+                if (changed) {
                     break;
                 }
             }
@@ -176,10 +196,17 @@ public class MixinContainerInterfaceTerminal {
                 continue;
             }
 
-            AssemblyInterfaceTracker tracker = new AssemblyInterfaceTracker(controller);
-            this.ae2enhanced$assemblyDiList.put(controller, tracker);
-            this.ae2enhanced$assemblyById.put(tracker.getWhich(), tracker);
-            tracker.writeToNBT(data, 0, tracker.getServer().getSlots());
+            int totalSlots = controller.getPatternSlotCount();
+            int totalRows = (totalSlots + 8) / 9;
+            List<AssemblyInterfaceTracker> list = new ArrayList<>();
+            for (int row = 0; row < totalRows; row++) {
+                int rowSize = Math.min(9, totalSlots - row * 9);
+                AssemblyInterfaceTracker tracker = new AssemblyInterfaceTracker(controller, row, totalRows, rowSize);
+                list.add(tracker);
+                this.ae2enhanced$assemblyById.put(tracker.getWhich(), tracker);
+                tracker.writeToNBT(data, 0, 9);
+            }
+            this.ae2enhanced$assemblyDiList.put(controller, list);
         }
     }
 
@@ -196,6 +223,8 @@ public class MixinContainerInterfaceTerminal {
     private void ae2enhanced$doAssemblyAction(EntityPlayerMP player, InventoryAction action, int slot,
                                               AssemblyInterfaceTracker tracker) {
         IItemHandler server = tracker.getServer();
+        IItemHandler fullServer = ae2enhanced$getFullServer(tracker);
+        int fullSlots = fullServer != null ? fullServer.getSlots() : server.getSlots();
 
         if (action == InventoryAction.PLACE_SINGLE) {
             Slot playerSlot;
@@ -232,8 +261,8 @@ public class MixinContainerInterfaceTerminal {
             case PICKUP_OR_SET_DOWN: {
                 if (hasItemInHand) {
                     boolean canInsert = true;
-                    for (int s = 0; s < server.getSlots(); s++) {
-                        if (appeng.util.Platform.itemComparisons().isSameItem(server.getStackInSlot(s),
+                    for (int s = 0; s < fullSlots; s++) {
+                        if (appeng.util.Platform.itemComparisons().isSameItem(fullServer.getStackInSlot(s),
                                 player.inventory.getItemStack())) {
                             canInsert = false;
                             break;
@@ -267,8 +296,8 @@ public class MixinContainerInterfaceTerminal {
             case SPLIT_OR_PLACE_SINGLE: {
                 if (hasItemInHand) {
                     boolean canInsert = true;
-                    for (int s = 0; s < server.getSlots(); s++) {
-                        if (appeng.util.Platform.itemComparisons().isSameItem(server.getStackInSlot(s),
+                    for (int s = 0; s < fullSlots; s++) {
+                        if (appeng.util.Platform.itemComparisons().isSameItem(fullServer.getStackInSlot(s),
                                 player.inventory.getItemStack())) {
                             canInsert = false;
                             break;
@@ -320,6 +349,19 @@ public class MixinContainerInterfaceTerminal {
         ae2enhanced$updateHeld(player);
     }
 
+    private IItemHandler ae2enhanced$getFullServer(AssemblyInterfaceTracker tracker) {
+        World world = DimensionManager.getWorld(tracker.getDim());
+        if (world == null) {
+            return tracker.getServer();
+        }
+        TileEntity te = world.getTileEntity(tracker.getPos());
+        if (!(te instanceof TileAssemblyController)) {
+            return tracker.getServer();
+        }
+        TileAssemblyController controller = (TileAssemblyController) te;
+        return new AssemblyPatternInventoryWrapper(controller);
+    }
+
     private void ae2enhanced$updateHeld(EntityPlayerMP player) {
         if (Platform.isServer()) {
             try {
@@ -340,7 +382,8 @@ public class MixinContainerInterfaceTerminal {
 
         @Override
         public boolean allowInsert(IItemHandler inv, int slot, ItemStack stack) {
-            return !stack.isEmpty() && stack.getItem() instanceof ICraftingPatternItem;
+            // 装配中枢仅接受 crafting=1 的合成样板
+            return !stack.isEmpty() && TileAssemblyController.isValidPattern(stack);
         }
     }
 }

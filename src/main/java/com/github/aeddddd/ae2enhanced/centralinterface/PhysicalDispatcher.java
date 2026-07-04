@@ -216,9 +216,11 @@ public class PhysicalDispatcher {
                 products = new ArrayList<>();
             }
 
-            List<ItemStack> fluidProducts = owner.collectFluidProducts(world, target.pos, session);
+            List<FluidStack> fluidProducts = owner.collectFluidProducts(world, target.pos, session);
             if (!fluidProducts.isEmpty()) {
-                products.addAll(fluidProducts);
+                if (owner.injectFluidsToNetwork(proxy, world, fluidProducts)) {
+                    didWork = true;
+                }
             }
 
             if (!products.isEmpty()) {

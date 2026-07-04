@@ -1,8 +1,9 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.container.ContainerComputationFormed;
 import com.github.aeddddd.ae2enhanced.tile.TileComputationCore;
-import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 
@@ -12,24 +13,25 @@ import java.io.IOException;
  * Supercausal Computation Core formed state GUI.
  * Pure display, no item slots, no inventory rendering.
  */
-public class GuiComputationFormed extends GuiScreen {
-
+public class GuiComputationFormed extends GuiContainer {
 
     private final TileComputationCore tile;
-    private int xSize = 280;
-    private int ySize = 200;
-    private int guiLeft;
-    private int guiTop;
 
     public GuiComputationFormed(TileComputationCore tile) {
+        super(new ContainerComputationFormed(tile));
         this.tile = tile;
     }
 
     @Override
     public void initGui() {
+        this.xSize = 280;
+        this.ySize = 200;
         super.initGui();
-        this.guiLeft = (this.width - this.xSize) / 2;
-        this.guiTop = (this.height - this.ySize) / 2;
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        // 纯展示 GUI，无容器背景，背景已在 drawScreen 中绘制
     }
 
     @Override
@@ -67,7 +69,6 @@ public class GuiComputationFormed extends GuiScreen {
 
         if (tile == null) {
             fontRenderer.drawString(I18n.format("gui.ae2enhanced.computation.tile_unavailable"), guiLeft + 20, guiTop + 40, GuiColors.TEXT_WARN);
-            super.drawScreen(mouseX, mouseY, partialTicks);
             return;
         }
 
@@ -118,8 +119,6 @@ public class GuiComputationFormed extends GuiScreen {
         String hint = I18n.format("gui.ae2enhanced.computation.hint.close");
         int hintW = fontRenderer.getStringWidth(hint);
         fontRenderer.drawString(hint, guiLeft + (xSize - hintW) / 2, guiTop + ySize - 18, 0xFF445566);
-
-        super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void drawBar(int x, int y, int maxX, int height, float ratio, int bgColor, int fillColor) {
@@ -138,7 +137,7 @@ public class GuiComputationFormed extends GuiScreen {
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (keyCode == 1 || this.mc.gameSettings.keyBindInventory.isActiveAndMatches(keyCode)) {
-            this.mc.displayGuiScreen(null);
+            this.mc.player.closeScreen();
         }
         super.keyTyped(typedChar, keyCode);
     }

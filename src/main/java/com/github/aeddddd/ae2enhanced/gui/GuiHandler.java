@@ -23,6 +23,7 @@ import appeng.api.util.AEPartLocation;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyFormed;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyPattern;
 import com.github.aeddddd.ae2enhanced.container.ContainerAssemblyUnformed;
+import com.github.aeddddd.ae2enhanced.container.ContainerComputationFormed;
 import com.github.aeddddd.ae2enhanced.container.ContainerComputationUnformed;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalNexus;
 import com.github.aeddddd.ae2enhanced.container.ContainerHyperdimensionalUnformed;
@@ -147,7 +148,7 @@ public class GuiHandler implements IGuiHandler {
             if (ID == GUI_COMPUTATION_UNFORMED && !tile.isFormed()) {
                 return new ContainerComputationUnformed(player.inventory, tile);
             } else if (ID == GUI_COMPUTATION_FORMED && tile.isFormed()) {
-                return new ContainerHyperdimensionalNexus(player.inventory); // Dummy container for pure-display GUI
+                return new ContainerComputationFormed(tile);
             }
             return null;
         }

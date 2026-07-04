@@ -4,6 +4,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.item.ItemAdvancedMEOmniTool;
 import com.github.aeddddd.ae2enhanced.omnitool.OmniToolUpgrades;
+import com.github.aeddddd.ae2enhanced.omnitool.network.WirelessTransmitterNetworkLink;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.util.ITooltipFlag;
@@ -22,10 +23,17 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
+import appeng.api.AEApi;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -106,7 +114,14 @@ public class MiningModule implements IOmniToolModule {
             Block block = state.getBlock();
             if (block.getBlockHardness(state, player.world, pos) < 0.0F) {
                 if (!player.world.isRemote) {
-                    block.dropBlockAsItem(player.world, pos, state, ItemAdvancedMEOmniTool.getFortuneLevel(stack));
+                    List<ItemStack> drops = block.getDrops(player.world, pos, state, ItemAdvancedMEOmniTool.getFortuneLevel(stack));
+                    if (drops.isEmpty()) {
+                        Item item = Item.getItemFromBlock(block);
+                        if (item != null && item != net.minecraft.init.Items.AIR) {
+                            drops.add(new ItemStack(item, 1, block.damageDropped(state)));
+                        }
+                    }
+                    handleDrops(player.world, player, pos, drops, stack);
                     player.world.setBlockToAir(pos);
                     block.breakBlock(player.world, pos, state);
                 }
@@ -162,6 +177,22 @@ public class MiningModule implements IOmniToolModule {
             return;
         }
 
+        // 基岩破坏：对硬度为 -1 的不可破坏方块特殊处理，直接掉落方块本身
+        if (block.getBlockHardness(state, world, pos) < 0.0F) {
+            List<ItemStack> drops = block.getDrops(world, pos, state, ItemAdvancedMEOmniTool.getFortuneLevel(stack));
+            if (drops.isEmpty()) {
+                Item item = Item.getItemFromBlock(block);
+                if (item != null && item != net.minecraft.init.Items.AIR) {
+                    drops.add(new ItemStack(item, 1, block.damageDropped(state)));
+                }
+            }
+            handleDrops(world, player, pos, drops, stack);
+            world.setBlockToAir(pos);
+            block.breakBlock(world, pos, state);
+            world.playEvent(2001, pos, net.minecraft.block.Block.getStateId(state));
+            return;
+        }
+
         // 普通破坏
         TileEntity te = world.getTileEntity(pos);
         if (player.capabilities.isCreativeMode) {
@@ -170,6 +201,76 @@ public class MiningModule implements IOmniToolModule {
             block.harvestBlock(world, player, pos, state, te, stack);
         }
         world.playEvent(2001, pos, net.minecraft.block.Block.getStateId(state));
+    }
+
+    /**
+     * 按工具当前的掉落模式分发掉落物：普通掉落、直接进入背包、或注入 AE 网络。
+     */
+    public static void handleDrops(World world, EntityPlayer player, BlockPos pos, List<ItemStack> drops, ItemStack tool) {
+        if (world.isRemote || drops.isEmpty()) {
+            return;
+        }
+
+        int dropMode = ItemAdvancedMEOmniTool.getDropMode(tool);
+        if (dropMode == ItemAdvancedMEOmniTool.DROP_NORMAL) {
+            for (ItemStack drop : drops) {
+                EntityItem entityItem = new EntityItem(world,
+                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, drop);
+                entityItem.setPickupDelay(10);
+                world.spawnEntity(entityItem);
+            }
+            return;
+        }
+
+        if (dropMode == ItemAdvancedMEOmniTool.DROP_INVENTORY) {
+            for (ItemStack drop : drops) {
+                if (!player.inventory.addItemStackToInventory(drop)) {
+                    EntityItem entityItem = new EntityItem(world, player.posX, player.posY, player.posZ, drop);
+                    world.spawnEntity(entityItem);
+                }
+            }
+        } else if (dropMode == ItemAdvancedMEOmniTool.DROP_AE) {
+            IMEMonitor<IAEItemStack> monitor = WirelessTransmitterNetworkLink.getItemMonitor(tool, world);
+            if (monitor == null) {
+                for (ItemStack drop : drops) {
+                    EntityItem entityItem = new EntityItem(world, player.posX, player.posY, player.posZ, drop);
+                    world.spawnEntity(entityItem);
+                }
+                return;
+            }
+
+            IActionSource source = new IActionSource() {
+                @Override
+                public Optional<EntityPlayer> player() {
+                    return Optional.of(player);
+                }
+
+                @Override
+                public Optional<appeng.api.networking.security.IActionHost> machine() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public <T> Optional<T> context(Class<T> key) {
+                    return Optional.empty();
+                }
+            };
+
+            for (ItemStack drop : drops) {
+                IAEItemStack aeStack = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(drop);
+                if (aeStack != null) {
+                    IAEItemStack leftover = monitor.injectItems(aeStack, appeng.api.config.Actionable.MODULATE, source);
+                    if (leftover != null && leftover.getStackSize() > 0) {
+                        ItemStack overflow = leftover.createItemStack();
+                        EntityItem entityItem = new EntityItem(world, player.posX, player.posY, player.posZ, overflow);
+                        world.spawnEntity(entityItem);
+                    }
+                } else {
+                    EntityItem entityItem = new EntityItem(world, player.posX, player.posY, player.posZ, drop);
+                    world.spawnEntity(entityItem);
+                }
+            }
+        }
     }
 
     private static boolean breakBlockWithNBT(ItemStack stack, World world, BlockPos pos, EntityPlayer player) {
@@ -212,13 +313,8 @@ public class MiningModule implements IOmniToolModule {
             mainDrop.setTagCompound(tag);
         }
 
-        // 5. 生成掉落物
-        for (ItemStack drop : drops) {
-            EntityItem entityItem = new EntityItem(world,
-                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, drop);
-            entityItem.setPickupDelay(10);
-            world.spawnEntity(entityItem);
-        }
+        // 5. 按当前掉落模式分发掉落物
+        handleDrops(world, player, pos, drops, stack);
 
         // 6. 破坏方块并移除
         block.breakBlock(world, pos, state);

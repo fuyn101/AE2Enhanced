@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.recycler;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 
 import javax.annotation.Nullable;
 
@@ -29,6 +30,17 @@ public final class AdapterFactory {
         // 默认通用适配器
         if (tile.hasCapability(net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face)) {
             return new ForgeItemHandlerAdapter(tile, face);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    public static FluidTargetAdapter createFluidAdapter(TileEntity tile, EnumFacing face) {
+        if (tile == null || tile.isInvalid()) return null;
+
+        if (tile.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) {
+            return new ForgeFluidHandlerAdapter(tile, face);
         }
 
         return null;

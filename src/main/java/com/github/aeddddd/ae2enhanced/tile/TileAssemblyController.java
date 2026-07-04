@@ -129,7 +129,8 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
                 }
                 return false;
             }
-            return stack.getItem() instanceof ICraftingPatternItem;
+            // 样板槽仅接受 crafting=1 的合成样板
+            return isValidPattern(stack);
         }
 
         /**
@@ -1186,6 +1187,20 @@ public class TileAssemblyController extends TileAENetworkBase implements ICrafti
     }
 
     // ---------- Capability ----------
+
+    /**
+     * 判断一个物品是否为合法的合成样板（仅接受 crafting=1 的合成样板，拒绝处理样板）。
+     */
+    public static boolean isValidPattern(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof ICraftingPatternItem)) {
+            return false;
+        }
+        if (!stack.hasTagCompound()) {
+            return false;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        return tag.hasKey("crafting", Constants.NBT.TAG_BYTE) && tag.getByte("crafting") == 1;
+    }
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {

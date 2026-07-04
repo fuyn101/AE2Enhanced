@@ -5,6 +5,7 @@ import appeng.api.storage.ICellContainer;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IStorageChannel;
+import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
@@ -33,6 +34,7 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketRecyclerSync;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerBindingRegistry;
+import com.github.aeddddd.ae2enhanced.recycler.RecyclerFluidNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.RecyclerNetworkHandler;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager;
 import com.github.aeddddd.ae2enhanced.recycler.TargetManager.TargetRef;
@@ -48,6 +50,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     private final TargetManager targetManager = new TargetManager();
     private final RecyclerNetworkHandler networkHandler = new RecyclerNetworkHandler(this);
+    private final RecyclerFluidNetworkHandler fluidNetworkHandler = new RecyclerFluidNetworkHandler(this);
 
     private boolean lastPowered = false;
     private boolean lastActive = false;
@@ -117,6 +120,9 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         if (channel instanceof IItemStorageChannel) {
             return Collections.singletonList(networkHandler);
         }
+        if (channel instanceof IFluidStorageChannel) {
+            return Collections.singletonList(fluidNetworkHandler);
+        }
         return Collections.emptyList();
     }
 
@@ -140,6 +146,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         super.onLoad();
         if (!world.isRemote) {
             networkHandler.onLoad();
+            fluidNetworkHandler.onLoad();
             registerAllBindings();
         }
     }
@@ -150,6 +157,9 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         if (networkHandler != null) {
             networkHandler.onInvalidate();
         }
+        if (fluidNetworkHandler != null) {
+            fluidNetworkHandler.onInvalidate();
+        }
         unregisterAllBindings();
     }
 
@@ -158,6 +168,9 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         super.onChunkUnload();
         if (networkHandler != null) {
             networkHandler.onInvalidate();
+        }
+        if (fluidNetworkHandler != null) {
+            fluidNetworkHandler.onInvalidate();
         }
         unregisterAllBindings();
     }
@@ -178,6 +191,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
         tickCounter++;
         if (isActive()) {
             networkHandler.tick(tickCounter);
+            fluidNetworkHandler.tick(tickCounter);
         }
 
         if (tickCounter % 10 == 0) {
@@ -228,6 +242,10 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     public RecyclerNetworkHandler getNetworkHandler() {
         return networkHandler;
+    }
+
+    public RecyclerFluidNetworkHandler getFluidNetworkHandler() {
+        return fluidNetworkHandler;
     }
 
     public boolean isPowered() {
@@ -295,7 +313,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
             return false;
         }
         if (targetManager.addTarget(target)) {
-            RecyclerBindingRegistry.getInstance().register(target, networkHandler);
+            RecyclerBindingRegistry.getInstance().register(target, networkHandler, fluidNetworkHandler);
             markDirty();
             return true;
         }
@@ -313,12 +331,14 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     public void clearTargets() {
         RecyclerBindingRegistry.getInstance().unregisterAll(networkHandler);
+        RecyclerBindingRegistry.getInstance().unregisterAll(fluidNetworkHandler);
         targetManager.clear();
         markDirty();
     }
 
     private void unregisterAllBindings() {
         RecyclerBindingRegistry.getInstance().unregisterAll(networkHandler);
+        RecyclerBindingRegistry.getInstance().unregisterAll(fluidNetworkHandler);
     }
 
     // ---- NBT ----
@@ -333,7 +353,7 @@ public class TileMENetworkRecycler extends TileAENetworkBase implements ITickabl
 
     private void registerAllBindings() {
         for (TargetRef target : targetManager.getTargets()) {
-            RecyclerBindingRegistry.getInstance().register(target, networkHandler);
+            RecyclerBindingRegistry.getInstance().register(target, networkHandler, fluidNetworkHandler);
         }
     }
 

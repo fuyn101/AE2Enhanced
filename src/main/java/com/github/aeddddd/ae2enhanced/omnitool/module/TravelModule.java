@@ -177,7 +177,7 @@ public class TravelModule implements IOmniToolModule {
         for (int dy = 0; dy <= 5; dy++) {
             BlockPos feetPos = basePos.up(dy);
             if (isSafeStandingPos(world, feetPos, player)) {
-                return new Vec3d(target.x, feetPos.getY() + player.getEyeHeight(), target.z);
+                return new Vec3d(feetPos.getX() + 0.5, feetPos.getY() + player.getEyeHeight(), feetPos.getZ() + 0.5);
             }
         }
 
@@ -209,7 +209,7 @@ public class TravelModule implements IOmniToolModule {
 
             BlockPos feetPos = new BlockPos(check);
             if (isSafeStandingPos(world, feetPos, player)) {
-                return new Vec3d(check.x, feetPos.getY(), check.z);
+                return new Vec3d(feetPos.getX() + 0.5, feetPos.getY() + player.getEyeHeight(), feetPos.getZ() + 0.5);
             }
         }
         return null;

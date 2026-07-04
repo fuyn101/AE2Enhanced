@@ -7,7 +7,6 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.CapabilityItemHandler;
-import appeng.api.implementations.ICraftingPatternItem;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -48,7 +47,8 @@ public class ContainerAssemblyPattern extends Container {
                 PATTERN_X + col * 18, PATTERN_Y + row * 18) {
                 @Override
                 public boolean isItemValid(ItemStack stack) {
-                    return !stack.isEmpty() && stack.getItem() instanceof ICraftingPatternItem;
+                    // 仅允许 crafting=1 的合成样板
+                    return !stack.isEmpty() && TileAssemblyController.isValidPattern(stack);
                 }
             });
         }
@@ -92,8 +92,8 @@ public class ContainerAssemblyPattern extends Container {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // 从玩家背包移到样板槽：显式过滤,只允许样板物品
-                if (!itemstack1.isEmpty() && itemstack1.getItem() instanceof ICraftingPatternItem) {
+                // 从玩家背包移到样板槽：显式过滤，只允许 crafting=1 的合成样板
+                if (!itemstack1.isEmpty() && TileAssemblyController.isValidPattern(itemstack1)) {
                     if (!this.mergeItemStack(itemstack1, 0, patternEnd, false)) {
                         return ItemStack.EMPTY;
                     }

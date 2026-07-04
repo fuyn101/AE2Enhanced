@@ -1,7 +1,10 @@
 package com.github.aeddddd.ae2enhanced.storage;
 
 import appeng.api.AEApi;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IBaseMonitor;
 import appeng.api.storage.IStorageChannel;
+import appeng.api.storage.IMEMonitorHandlerReceiver;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.Platform;
@@ -28,7 +31,8 @@ import java.util.WeakHashMap;
  * <p>同时维护服务端搜索索引（nameIndex / modIndex），支持基于关键词的快速筛选。
  * 索引在物品存入/取出时增量更新，避免遍历时的 O(N) 分词开销。
  */
-public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, ItemDescriptor> {
+public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, ItemDescriptor>
+        implements IMEMonitorHandlerReceiver<IAEItemStack> {
 
     // 服务端搜索索引：keyword -> Set<ItemDescriptor>
     private final Object2ObjectOpenHashMap<String, ObjectOpenHashSet<ItemDescriptor>> nameIndex =
@@ -53,6 +57,8 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     // 外部存储差集缓存（externalMonitor 中不在 adapter 中的物品，通常只有几百个）
     private final List<IAEItemStack> externalOnlyCache = new ArrayList<>();
     private boolean externalOnlyDirty = true;
+
+    private long lastExternalNotifyMs = 0;
 
     // descriptor 快照，加速 containsItem()（避免每次查 ConcurrentHashMap）
     private java.util.HashSet<ItemDescriptor> descriptorSnapshot = null;
@@ -130,11 +136,50 @@ public class ItemStorageAdapter extends AbstractStorageAdapter<IAEItemStack, Ite
     }
 
     public void setExternalMonitor(appeng.api.storage.IMEMonitor<IAEItemStack> monitor) {
+        if (this.externalMonitor == monitor) {
+            return;
+        }
+        if (this.externalMonitor != null) {
+            this.externalMonitor.removeListener(this);
+        }
         this.externalMonitor = monitor;
+        markSortedListDirty();
+        if (this.externalMonitor != null) {
+            this.externalMonitor.addListener(this, this);
+        }
     }
 
     public appeng.api.storage.IMEMonitor<IAEItemStack> getExternalMonitor() {
         return this.externalMonitor;
+    }
+
+    @Override
+    public boolean isValid(Object verificationToken) {
+        return verificationToken == this;
+    }
+
+    @Override
+    public void postChange(IBaseMonitor<IAEItemStack> monitor, Iterable<IAEItemStack> changes, IActionSource src) {
+        markSortedListDirty();
+        notifyOpenPlayersExternal();
+    }
+
+    @Override
+    public void onListUpdate() {
+        markSortedListDirty();
+        notifyOpenPlayersExternal();
+    }
+
+    private void notifyOpenPlayersExternal() {
+        long now = System.currentTimeMillis();
+        if (now - lastExternalNotifyMs < 200) {
+            return;
+        }
+        lastExternalNotifyMs = now;
+        for (net.minecraft.entity.player.EntityPlayerMP player : this.openPlayers) {
+            com.github.aeddddd.ae2enhanced.AE2Enhanced.network.sendTo(
+                    new com.github.aeddddd.ae2enhanced.network.packet.PacketOmniUpdateNotify(), player);
+        }
     }
 
     public void markSortedListDirty() {

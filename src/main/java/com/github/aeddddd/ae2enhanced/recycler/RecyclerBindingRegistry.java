@@ -1,5 +1,6 @@
 package com.github.aeddddd.ae2enhanced.recycler;
 
+import com.github.aeddddd.ae2enhanced.storage.FluidStorageAdapter;
 import com.github.aeddddd.ae2enhanced.storage.ItemStorageAdapter;
 import net.minecraft.util.math.BlockPos;
 
@@ -33,14 +34,25 @@ public class RecyclerBindingRegistry {
     }
 
     /**
-     * 注册一个绑定关系。
+     * 注册一个绑定关系（仅物品）。
      *
      * @param ref     机器位置引用
      * @param handler 负责回收的 RecyclerNetworkHandler
      */
     public void register(TargetManager.TargetRef ref, RecyclerNetworkHandler handler) {
+        register(ref, handler, null);
+    }
+
+    /**
+     * 注册一个绑定关系（物品 + 流体）。
+     *
+     * @param ref          机器位置引用
+     * @param handler      负责回收的 RecyclerNetworkHandler
+     * @param fluidHandler 负责流体回收的 RecyclerFluidNetworkHandler
+     */
+    public void register(TargetManager.TargetRef ref, RecyclerNetworkHandler handler, @Nullable RecyclerFluidNetworkHandler fluidHandler) {
         unregister(ref); // 先移除旧的同名绑定
-        Entry entry = new Entry(ref, handler);
+        Entry entry = new Entry(ref, handler, fluidHandler);
         exactMap.put(ref, entry);
         byPosition
                 .computeIfAbsent(ref.dimId, k -> new ConcurrentHashMap<>())
@@ -81,6 +93,16 @@ public class RecyclerBindingRegistry {
     }
 
     /**
+     * 更新某个绑定当前缓存的超维度流体适配器。
+     */
+    public void updateFluidAdapter(TargetManager.TargetRef ref, @Nullable FluidStorageAdapter adapter) {
+        Entry entry = exactMap.get(ref);
+        if (entry != null) {
+            entry.cachedFluidAdapter = adapter;
+        }
+    }
+
+    /**
      * 根据维度+位置查找绑定项，忽略 face。
      *
      * @return 第一个 handler 仍存活的 Entry；没有则返回 null
@@ -94,7 +116,7 @@ public class RecyclerBindingRegistry {
         if (list == null || list.isEmpty()) return null;
 
         for (Entry entry : list) {
-            if (entry.getHandler() != null) {
+            if (entry.getHandler() != null || entry.getFluidHandler() != null) {
                 return entry;
             }
         }
@@ -117,21 +139,44 @@ public class RecyclerBindingRegistry {
     }
 
     /**
+     * 清除某个 fluid handler 的所有绑定。
+     */
+    public void unregisterAll(RecyclerFluidNetworkHandler fluidHandler) {
+        List<TargetManager.TargetRef> toRemove = new ArrayList<>();
+        for (Map.Entry<TargetManager.TargetRef, Entry> e : exactMap.entrySet()) {
+            if (e.getValue().getFluidHandler() == fluidHandler) {
+                toRemove.add(e.getKey());
+            }
+        }
+        for (TargetManager.TargetRef ref : toRemove) {
+            unregister(ref);
+        }
+    }
+
+    /**
      * 绑定项。
      */
     public static final class Entry {
         public final TargetManager.TargetRef ref;
         private final WeakReference<RecyclerNetworkHandler> handlerRef;
+        private final WeakReference<RecyclerFluidNetworkHandler> fluidHandlerRef;
         public volatile ItemStorageAdapter cachedAdapter;
+        public volatile FluidStorageAdapter cachedFluidAdapter;
 
-        public Entry(TargetManager.TargetRef ref, RecyclerNetworkHandler handler) {
+        public Entry(TargetManager.TargetRef ref, RecyclerNetworkHandler handler, @Nullable RecyclerFluidNetworkHandler fluidHandler) {
             this.ref = ref;
             this.handlerRef = new WeakReference<>(handler);
+            this.fluidHandlerRef = new WeakReference<>(fluidHandler);
         }
 
         @Nullable
         public RecyclerNetworkHandler getHandler() {
             return handlerRef.get();
+        }
+
+        @Nullable
+        public RecyclerFluidNetworkHandler getFluidHandler() {
+            return fluidHandlerRef.get();
         }
     }
 }

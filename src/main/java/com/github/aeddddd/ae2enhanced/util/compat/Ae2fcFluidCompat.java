@@ -65,6 +65,10 @@ public final class Ae2fcFluidCompat {
     /**
      * 创建表示指定流体的假物品堆叠.
      *
+     * <p>ae2fc 未安装时回退到 AE2E 自己的 {@link ItemFluidDrop}；
+     * ae2fc 已安装时优先使用 ae2fc 的 ItemFluidDrop，若反射失败则返回空栈，
+     * 避免 AE2E 的 ItemFluidDrop 在 ae2fc 加载时残留在物品网络。</p>
+     *
      * @param fluid 流体及数量
      * @return 流体假物品；若失败则返回空栈
      */
@@ -84,9 +88,9 @@ public final class Ae2fcFluidCompat {
                 }
             }
         } catch (Exception e) {
-            AE2Enhanced.LOGGER.debug("[AE2E] Failed to create ae2fc fluid drop, falling back", e);
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to create ae2fc fluid drop, returning empty to avoid AE2E drop in item network", e);
         }
-        return ItemFluidDrop.createStack(fluid);
+        return ItemStack.EMPTY;
     }
 
     /**

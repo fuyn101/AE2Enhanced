@@ -6,7 +6,10 @@ import mekanism.common.SideData;
 import mekanism.common.tile.component.TileComponentEjector;
 import mekanism.common.tile.prefab.TileEntityContainerBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidTank;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -14,13 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Mekanism 机器产物直注 Mixin。
  *
  * <p>在 {@link TileComponentEjector#tick()} 调用 {@code outputItems()} 之前，
  * 把当前配置的物品输出槽中的产物重定向到已绑定的 ME 网络回收节点。
- * 覆盖所有使用 TileComponentEjector 的 Mekanism 机器（包括工厂）。</p>
+ * 同时流体/GAS 阶段调用 ejectFluid 前把流体产物重定向到网络。</p>
  */
 @Mixin(value = TileComponentEjector.class, remap = false)
 public class MixinTileComponentEjector {
@@ -79,6 +83,38 @@ public class MixinTileComponentEjector {
                 if (remainder.getCount() != stack.getCount()) {
                     tile.setInventorySlotContents(slot, remainder);
                 }
+            }
+        } catch (IllegalAccessException ignored) {
+        }
+    }
+
+    @Inject(method = "ejectFluid(Ljava/util/Set;Lnet/minecraftforge/fluids/FluidTank;)V", at = @At("HEAD"), remap = false)
+    private void ae2enhanced$redirectFluidBeforeEject(Set<EnumFacing> outputSides, FluidTank tank, CallbackInfo ci) {
+        if (FIELD_TILE_ENTITY == null || tank == null) {
+            return;
+        }
+        FluidStack fluid = tank.getFluid();
+        if (fluid == null || fluid.amount <= 0) {
+            return;
+        }
+        try {
+            TileEntityContainerBlock tile = (TileEntityContainerBlock) FIELD_TILE_ENTITY.get(this);
+            if (tile == null) {
+                return;
+            }
+            World world = tile.getWorld();
+            if (world == null || world.isRemote) {
+                return;
+            }
+
+            FluidStack toRedirect = fluid.copy();
+            toRedirect.amount = Math.min(256, tank.getFluidAmount());
+
+            FluidStack remainder = MachineOutputRedirector.tryRedirectFluid(toRedirect, world, tile.getPos());
+            if (remainder == null || remainder.amount == 0) {
+                tank.drain(toRedirect.amount, true);
+            } else if (remainder.amount < toRedirect.amount) {
+                tank.drain(toRedirect.amount - remainder.amount, true);
             }
         } catch (IllegalAccessException ignored) {
         }

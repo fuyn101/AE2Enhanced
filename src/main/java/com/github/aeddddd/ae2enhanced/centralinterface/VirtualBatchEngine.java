@@ -16,16 +16,22 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketVirtualCraftingParticles;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.CraftingManager;
+import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 虚拟批量合成引擎.
@@ -94,6 +100,11 @@ public class VirtualBatchEngine {
             InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
+            RecipeRemainInfo remainInfo = computeRemainInfo(virtualTable, world);
+            if (remainInfo.hasAny()) {
+                maxParallel = 1;
+            }
+
             if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs, patternDetails)) {
                 logFail(world, target, "canCraftVirtually returned false");
                 return 0;
@@ -119,7 +130,7 @@ public class VirtualBatchEngine {
 
             IActionSource source = new MachineSource(owner.host);
             List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable,
-                    outputs, actualParallel, patternDetails);
+                    outputs, actualParallel, patternDetails, remainInfo);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return 0;
@@ -156,6 +167,12 @@ public class VirtualBatchEngine {
             }
 
             products = mergeProducts(products);
+            // 将催化剂、耐久物品等 remaining 产物返回到待注入队列
+            for (ItemStack remaining : remainInfo.remaining) {
+                if (!remaining.isEmpty()) {
+                    products.add(remaining.copy());
+                }
+            }
             owner.pendingVirtualProducts.addAll(products);
 
             List<EnumParticleTypes> particleTypes = handler.getVirtualCraftingParticles(world, target.pos);
@@ -235,13 +252,8 @@ public class VirtualBatchEngine {
             if (cost == null || cost.getStackSize() <= 0) continue;
             long perCopySize = cost.getStackSize();
             long available = VirtualCostExtractor.queryAvailable(storage, cost, source, itemSource);
-            long supported;
-            if (cost instanceof IAEItemStack) {
-                long q = available / perCopySize;
-                supported = (q >= Long.MAX_VALUE - 1) ? Long.MAX_VALUE : q + 1;
-            } else {
-                supported = available / perCopySize;
-            }
+            long q = available / perCopySize;
+            long supported = (q >= Long.MAX_VALUE - 1) ? Long.MAX_VALUE : q + 1;
             actual = Math.min(actual, supported);
             if (actual <= 0) return 0;
         }
@@ -271,7 +283,8 @@ public class VirtualBatchEngine {
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
                                        long parallel,
-                                       ICraftingPatternDetails details) {
+                                       ICraftingPatternDetails details,
+                                       RecipeRemainInfo remainInfo) {
         if (parallel <= 0) {
             return Collections.emptyList();
         }
@@ -286,21 +299,42 @@ public class VirtualBatchEngine {
         for (int i = 0; i < fullCosts.size(); i++) {
             IAEStack full = fullCosts.get(i);
             if (full == null) continue;
-            if (full instanceof IAEItemStack) {
-                long perCopySize = (perCopy != null && i < perCopy.size() && perCopy.get(i) != null)
-                        ? perCopy.get(i).getStackSize()
-                        : full.getStackSize() / parallel;
-                long extra = full.getStackSize() - perCopySize;
-                if (extra > 0) {
-                    IAEItemStack itemExtra = ((IAEItemStack) full).copy();
-                    itemExtra.setStackSize(extra);
-                    net.add(itemExtra);
+            long perCopySize = (perCopy != null && i < perCopy.size() && perCopy.get(i) != null)
+                    ? perCopy.get(i).getStackSize()
+                    : full.getStackSize() / parallel;
+            long extra = full.getStackSize() - perCopySize;
+            if (extra > 0) {
+                IAEStack extraStack = full.copy();
+                extraStack.setStackSize(extra);
+                // 排除催化剂/耐久槽位对应的净成本
+                if (!isExcludedItemCost(extraStack, remainInfo)) {
+                    net.add(extraStack);
                 }
-            } else {
-                net.add(full);
             }
         }
         return net;
+    }
+
+    /**
+     * 判断指定成本是否为已被识别为催化剂或耐久转换的槽位对应的物品成本。
+     */
+    private static boolean isExcludedItemCost(IAEStack cost, RecipeRemainInfo remainInfo) {
+        if (!(cost instanceof IAEItemStack) || remainInfo == null || !remainInfo.hasAny()) {
+            return false;
+        }
+        ItemStack costStack = ((IAEItemStack) cost).createItemStack();
+        for (int i = 0; i < remainInfo.inputs.size(); i++) {
+            if (!remainInfo.catalystSlots.get(i) && !remainInfo.transformSlots.get(i)) {
+                continue;
+            }
+            ItemStack input = remainInfo.inputs.get(i);
+            if (!input.isEmpty()
+                    && ItemStack.areItemsEqual(costStack, input)
+                    && costStack.getMetadata() == input.getMetadata()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -450,5 +484,107 @@ public class VirtualBatchEngine {
             }
             return result;
         }
+    }
+
+    /**
+     * 记录配方 getRemainingItems 分析结果：催化剂槽位、耐久/转换槽位、
+     * 原始输入快照以及剩余物品快照。
+     */
+    public static final class RecipeRemainInfo {
+        public final BitSet catalystSlots;
+        public final BitSet transformSlots;
+        public NonNullList<ItemStack> inputs;
+        public NonNullList<ItemStack> remaining;
+
+        RecipeRemainInfo(int slotCount) {
+            this.catalystSlots = new BitSet(slotCount);
+            this.transformSlots = new BitSet(slotCount);
+            this.inputs = NonNullList.withSize(slotCount, ItemStack.EMPTY);
+            this.remaining = NonNullList.withSize(slotCount, ItemStack.EMPTY);
+        }
+
+        public boolean hasAny() {
+            return catalystSlots.cardinality() > 0 || transformSlots.cardinality() > 0;
+        }
+    }
+
+    /**
+     * 通过 {@link IRecipe#getRemainingItems(InventoryCrafting)} 识别催化剂和耐久/转换槽位。
+     */
+    public static RecipeRemainInfo computeRemainInfo(InventoryCrafting table, World world) {
+        int size = table.getSizeInventory();
+        RecipeRemainInfo info = new RecipeRemainInfo(size);
+        for (int i = 0; i < size; i++) {
+            info.inputs.set(i, table.getStackInSlot(i).copy());
+        }
+
+        IRecipe recipe = CraftingManager.findMatchingRecipe(table, world);
+        if (recipe == null) {
+            return info;
+        }
+
+        NonNullList<ItemStack> remaining = recipe.getRemainingItems(table);
+        for (int i = 0; i < size && i < remaining.size(); i++) {
+            info.remaining.set(i, remaining.get(i));
+        }
+
+        for (int i = 0; i < size && i < remaining.size(); i++) {
+            ItemStack input = table.getStackInSlot(i);
+            ItemStack rem = remaining.get(i);
+            if (rem.isEmpty()) continue;
+            if (ItemStack.areItemsEqual(input, rem) && input.getMetadata() == rem.getMetadata()) {
+                if (areNbtEquivalent(input.getTagCompound(), rem.getTagCompound())) {
+                    info.catalystSlots.set(i); // 真催化剂：NBT 完全不变
+                } else if (!input.isItemStackDamageable()) {
+                    // 不可损坏但 NBT 有差异：仍视为催化剂（某些 mod 的 NBT 状态）
+                    info.catalystSlots.set(i);
+                } else if (input.getItem().hasContainerItem(input)
+                        && ItemStack.areItemStacksEqual(input.getItem().getContainerItem(input), rem)) {
+                    // getContainerItem 明确返回同一物品：视为催化剂
+                    info.catalystSlots.set(i);
+                } else {
+                    // 同一物品但 NBT/耐久变化：消耗性转换（如损坏的工具）
+                    info.transformSlots.set(i);
+                }
+            }
+        }
+
+        return info;
+    }
+
+    /**
+     * 宽松比较两个 NBT：null 与空 tag 视为等价。
+     */
+    private static boolean areNbtEquivalent(NBTTagCompound a, NBTTagCompound b) {
+        if (Objects.equals(a, b)) return true;
+        if (a == null) return b == null || b.getKeySet().isEmpty();
+        if (b == null) return a.getKeySet().isEmpty();
+        return false;
+    }
+
+    /**
+     * 判断指定配方是否包含催化剂或耐久/转换物品。
+     */
+    public static boolean hasTransformItems(InventoryCrafting table, World world) {
+        return computeRemainInfo(table, world).hasAny();
+    }
+
+    /**
+     * 判断 handler 返回的虚拟成本中是否包含非物品 IAEStack（如流体、能量、Mana 等）。
+     */
+    public static boolean hasMixedStackTypes(IVirtualBatchCraftingHandler handler,
+                                              World world,
+                                              TargetBinding target,
+                                              InventoryCrafting table,
+                                              IAEItemStack[] outputs,
+                                              ICraftingPatternDetails details) {
+        List<IAEStack> costs = handler.getVirtualCost(world, target.pos, table, outputs, 1, details);
+        if (costs == null || costs.isEmpty()) return false;
+        for (IAEStack cost : costs) {
+            if (cost != null && !(cost instanceof IAEItemStack)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

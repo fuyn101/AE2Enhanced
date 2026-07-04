@@ -4,8 +4,10 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fluids.FluidStack;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * 机器产物源头直注入口。
@@ -46,6 +48,42 @@ public final class MachineOutputRedirector {
         }
 
         RecyclerNetworkHandler handler = entry.getHandler();
+        if (handler == null) {
+            // 回收节点已失效，清理绑定并回退
+            RecyclerBindingRegistry.getInstance().unregister(entry.ref);
+            return output;
+        }
+
+        return handler.tryInjectMachineOutput(output);
+    }
+
+    /**
+     * 尝试把流体产物重定向到 AE2 网络。
+     *
+     * @param output 产物流体堆叠
+     * @param world  机器所在世界
+     * @param pos    机器位置
+     * @return 未能注入的部分；若全部注入成功返回 null
+     */
+    @Nullable
+    public static FluidStack tryRedirectFluid(@Nonnull FluidStack output, World world, BlockPos pos) {
+        if (output == null || output.amount <= 0) {
+            return null;
+        }
+        if (!AE2EnhancedConfig.recycler.machineOutputRedirect) {
+            return output;
+        }
+        if (world == null || pos == null) {
+            return output;
+        }
+
+        RecyclerBindingRegistry.Entry entry = RecyclerBindingRegistry.getInstance()
+                .find(world.provider.getDimension(), pos);
+        if (entry == null) {
+            return output;
+        }
+
+        RecyclerFluidNetworkHandler handler = entry.getFluidHandler();
         if (handler == null) {
             // 回收节点已失效，清理绑定并回退
             RecyclerBindingRegistry.getInstance().unregister(entry.ref);

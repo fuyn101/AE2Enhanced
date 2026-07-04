@@ -12,7 +12,9 @@ import appeng.api.networking.events.MENetworkCraftingPatternChange;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IConfigManager;
@@ -239,6 +241,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             return false;
         }
 
+        World world = this.host.getTileEntity().getWorld();
+        IAEItemStack[] outputs = patternDetails.getOutputs();
         long baseVirtualParallel = getVirtualParallel();
         if (pendingLimit > 0) {
             baseVirtualParallel = Math.min(baseVirtualParallel, pendingLimit);
@@ -266,6 +270,36 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
             AE2Enhanced.LOGGER.info("[AE2E-Diag] pushPattern target={} handler={} baseParallel={} pendingLimit={} virtualParallel={} globalCooldown={}",
                     target.pos, handler.getClass().getSimpleName(), baseVirtualParallel, pendingLimit, virtualParallel, globalVirtualCooling);
+
+            // 对包含耐久/转换物品或混合 IAEStack 类型的配方，优先尝试物理发配
+            boolean preferPhysical = false;
+            if (canUseVirtual) {
+                IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+                InventoryCrafting virtualTable = copyInventoryCrafting(table);
+                boolean hasTransform = VirtualBatchEngine.hasTransformItems(virtualTable, world);
+                boolean hasMixed = VirtualBatchEngine.hasMixedStackTypes(vh, world, target, virtualTable, outputs, patternDetails);
+                preferPhysical = hasTransform || hasMixed;
+            }
+
+            if (preferPhysical && handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
+                if (this.physicalDispatcher.dispatch(proxy, patternDetails, table, target, handler)) {
+                    this.lastVirtualBatchSize = 1;
+                    return true;
+                }
+                // 物理发配失败时回退到虚拟批量
+                if (!globalVirtualCooling) {
+                    attemptedVirtual = true;
+                    IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+                    long actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
+                    if (actualParallel > 0) {
+                        this.lastVirtualBatchSize = actualParallel;
+                        this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+                        tryWakeTickDevice();
+                        return true;
+                    }
+                }
+                continue;
+            }
 
             // 优先尝试虚拟批量合成（handler 支持虚拟批量即可，virtualParallel 仅限制最大并行数）
             // 注意：纯虚拟 handler（如 Extended Crafting 工作台）即使 virtualParallel=1 也必须走此路径，
@@ -681,12 +715,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 从目标的 IFluidHandler 收集流体产物.
      *
+     * <p>直接返回 FluidStack 列表，不再转换为流体假物品；调用方应通过
+     * {@link #injectFluidsToNetwork} 将流体注入 AE 流体网络。</p>
+     *
      * <p>第一阶段按 {@link #FLUID_FACE_ORDER} 收集与预期产物匹配的流体；
      * 第二阶段作为兜底，抽取各 face 上剩余的非输入流体，避免 TE 等机器的产物
      * 因数量/NBT 不完全匹配而残留在 tank 中。</p>
      */
-    List<ItemStack> collectFluidProducts(World world, BlockPos pos, TargetSession session) {
-        List<ItemStack> fluids = new ArrayList<>();
+    List<FluidStack> collectFluidProducts(World world, BlockPos pos, TargetSession session) {
+        List<FluidStack> fluids = new ArrayList<>();
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return fluids;
 
@@ -735,14 +772,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         return null;
     }
 
-    private boolean tryCollectExpectedFluid(TileEntity te, EnumFacing face, FluidStack expectedFluid, List<ItemStack> fluids) {
+    private boolean tryCollectExpectedFluid(TileEntity te, EnumFacing face, FluidStack expectedFluid, List<FluidStack> fluids) {
         if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return false;
         IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
         if (fh == null) return false;
         FluidStack drained = fh.drain(expectedFluid, false);
         if (drained != null && drained.amount >= expectedFluid.amount) {
             fh.drain(expectedFluid, true);
-            fluids.add(Ae2fcFluidCompat.createFluidDrop(expectedFluid));
+            fluids.add(expectedFluid.copy());
             return true;
         }
         return false;
@@ -751,17 +788,14 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     /**
      * 循环抽取指定 IFluidHandler 中的剩余流体，跳过本批次推送的输入流体。
      */
-    private void collectRemainingFluid(IFluidHandler fh, List<FluidStack> inputFluids, List<ItemStack> fluids) {
+    private void collectRemainingFluid(IFluidHandler fh, List<FluidStack> inputFluids, List<FluidStack> fluids) {
         while (true) {
             FluidStack drained = fh.drain(Integer.MAX_VALUE, false);
             if (drained == null || drained.amount <= 0) break;
             if (isInputFluid(drained, inputFluids)) break;
             FluidStack actual = fh.drain(drained, true);
             if (actual == null || actual.amount <= 0) break;
-            ItemStack drop = Ae2fcFluidCompat.createFluidDrop(actual);
-            if (!drop.isEmpty()) {
-                fluids.add(drop);
-            }
+            fluids.add(actual.copy());
         }
     }
 
@@ -772,6 +806,34 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
         return false;
+    }
+
+    /**
+     * 将流体列表直接注入 AE 流体网络，不再创建流体假物品。
+     * 溢出部分无法暂存，仅记录日志。
+     */
+    boolean injectFluidsToNetwork(AENetworkProxy proxy, World world, List<FluidStack> fluids) {
+        try {
+            IFluidStorageChannel channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            for (FluidStack fluid : fluids) {
+                if (fluid == null || fluid.amount <= 0) continue;
+                IAEFluidStack toInsert = channel.createStack(fluid);
+                if (toInsert == null) continue;
+                IAEFluidStack remaining = Platform.poweredInsert(
+                        proxy.getEnergy(),
+                        proxy.getStorage().getInventory(channel),
+                        toInsert,
+                        new appeng.me.helpers.MachineSource(this.host));
+                if (remaining != null && remaining.getStackSize() > 0) {
+                    FluidStack leftover = remaining.getFluidStack();
+                    AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface fluid overflow: {} mb of {}", leftover.amount, leftover.getFluid().getName());
+                }
+            }
+            return true;
+        } catch (appeng.me.GridAccessException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject fluids to network", e);
+            return false;
+        }
     }
 
     private boolean hasWorkToDo() {

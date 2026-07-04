@@ -14,10 +14,10 @@ import net.minecraftforge.items.IItemHandler;
 import javax.annotation.Nonnull;
 
 /**
- * 装配中枢在接口终端中的跟踪数据.
+ * 装配中枢在接口终端中的跟踪数据。
  *
- * <p>与 AE2 原版 {@code ContainerInterfaceTerminal.InvTracker} 字段对齐,
- * 使用相同的 NBT 输出格式,使客户端 {@code GuiInterfaceTerminal} 无需修改即可显示.</p>
+ * <p>每个实例现在代表装配中枢样板库存的一行（9 槽），而不是整个控制器。
+ * 这样接口终端的滚动条可以按实际行数计算，解决只能显示单页的问题。</p>
  */
 public class AssemblyInterfaceTracker {
 
@@ -32,17 +32,24 @@ public class AssemblyInterfaceTracker {
     private final int dim;
     private final int numUpgrades;
 
-    public AssemblyInterfaceTracker(TileAssemblyController controller) {
+    /**
+     * 为装配中枢的指定行创建跟踪器。
+     *
+     * @param controller 装配中枢控制器
+     * @param rowIndex   行索引（从 0 开始）
+     * @param totalRows  总行数
+     * @param rowSize    本行实际槽位数（最后一行可能不足 9）
+     */
+    public AssemblyInterfaceTracker(TileAssemblyController controller, int rowIndex, int totalRows, int rowSize) {
         this.which = nextId++;
-        this.server = new AssemblyPatternInventoryWrapper(controller);
-        this.client = new AppEngInternalInventory(null, this.server.getSlots());
+        this.server = new AssemblyPatternRowWrapper(new AssemblyPatternInventoryWrapper(controller), rowIndex * 9, rowSize);
+        this.client = new AppEngInternalInventory(null, 9);
         this.pos = controller.getPos();
         this.dim = controller.getWorld().provider.getDimension();
         this.unlocalizedName = controller.getBlockType().getTranslationKey();
-        this.sortBy = pos.toLong();
-
-        int patternSlots = this.server.getSlots();
-        this.numUpgrades = Math.max(0, (int) Math.ceil(patternSlots / 9.0) - 1);
+        // 同一控制器的行按 pos 聚类，rowIndex 保证顺序
+        this.sortBy = pos.toLong() + rowIndex;
+        this.numUpgrades = 0; // 每行只显示一行，不需要额外展开
     }
 
     public long getWhich() {
@@ -78,7 +85,7 @@ public class AssemblyInterfaceTracker {
     }
 
     /**
-     * 将当前跟踪数据写入 NBT,格式与原版 InvTracker.addItems 一致.
+     * 将当前跟踪数据写入 NBT，格式与原版 InvTracker.addItems 一致。
      */
     public void writeToNBT(@Nonnull NBTTagCompound data, int offset, int length) {
         String name = '=' + Long.toString(which, 36);

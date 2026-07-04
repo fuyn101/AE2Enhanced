@@ -1,6 +1,5 @@
 package com.github.aeddddd.ae2enhanced.integration.terminal;
 
-import appeng.api.implementations.ICraftingPatternItem;
 import com.github.aeddddd.ae2enhanced.tile.TileAssemblyController;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
@@ -41,7 +40,8 @@ public class AssemblyPatternInventoryWrapper implements IItemHandler {
         if (!isValidSlot(slot) || stack.isEmpty()) {
             return stack;
         }
-        if (!(stack.getItem() instanceof ICraftingPatternItem)) {
+        // 仅允许 crafting=1 的合成样板
+        if (!TileAssemblyController.isValidPattern(stack)) {
             return stack;
         }
         return controller.getItemHandler().insertItem(toRealSlot(slot), stack, simulate);
