@@ -17,7 +17,15 @@ import java.util.UUID;
  */
 public class PersonalDimensionData extends WorldSavedData {
 
-    private static final String DATA_NAME = AE2Enhanced.MOD_ID + ":personal_dimensions";
+    /**
+     * 当前使用的数据名。使用下划线而非冒号，避免 Windows 文件系统
+     * 将 {@code modid:data} 解析为 NTFS 备用数据流 (ADS) 而导致数据无法保存。
+     */
+    private static final String DATA_NAME = AE2Enhanced.MOD_ID + "_personal_dimensions";
+    /**
+     * 旧版本使用的数据名。保留它用于一次性迁移已有数据。
+     */
+    private static final String LEGACY_DATA_NAME = AE2Enhanced.MOD_ID + ":personal_dimensions";
     private static final int CURRENT_VERSION = 1;
 
     private final Map<UUID, PlayerDimEntry> entries = new HashMap<>();
@@ -93,6 +101,16 @@ public class PersonalDimensionData extends WorldSavedData {
         markDirty();
     }
 
+    /**
+     * 从另一个数据实例复制所有条目。用于旧数据名迁移。
+     */
+    public void copyFrom(PersonalDimensionData other) {
+        this.entries.clear();
+        this.entries.putAll(other.entries);
+        this.dimToPlayer.clear();
+        this.dimToPlayer.putAll(other.dimToPlayer);
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
         entries.clear();
@@ -135,8 +153,18 @@ public class PersonalDimensionData extends WorldSavedData {
         MapStorage storage = overworld.getMapStorage();
         PersonalDimensionData data = (PersonalDimensionData) storage.getOrLoadData(PersonalDimensionData.class, DATA_NAME);
         if (data == null) {
-            data = new PersonalDimensionData();
-            storage.setData(DATA_NAME, data);
+            // 尝试从旧数据名迁移（旧名使用冒号，在 Windows 上可能保存为 ADS 或无法读取）
+            PersonalDimensionData legacy = (PersonalDimensionData) storage.getOrLoadData(PersonalDimensionData.class, LEGACY_DATA_NAME);
+            if (legacy != null) {
+                data = new PersonalDimensionData();
+                data.copyFrom(legacy);
+                storage.setData(DATA_NAME, data);
+                data.markDirty();
+                AE2Enhanced.LOGGER.info("[AE2E] Migrated personal dimension data from legacy name '{}' to '{}'", LEGACY_DATA_NAME, DATA_NAME);
+            } else {
+                data = new PersonalDimensionData();
+                storage.setData(DATA_NAME, data);
+            }
         }
         return data;
     }
