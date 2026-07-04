@@ -5,7 +5,6 @@
   "block.ae2enhanced.hyperdimensional_casing": "超维度外壳",
   "block.ae2enhanced.hyperdimensional_singularity_core": "超维度奇点核心",
   "block.ae2enhanced.assembly_controller": "装配控制器",
-  "block.ae2enhanced.assembly_casing": "装配外壳",
   "block.ae2enhanced.assembly_inner_wall": "装配内壁",
   "block.ae2enhanced.assembly_stabilizer": "装配稳定器",
   "item.ae2enhanced.assembly_parallel_upgrade": "装配并行升级卡",
@@ -17,7 +16,6 @@
   "block.ae2enhanced.constant_spinor_field_casing": "恒定旋量场外殻",
   "block.ae2enhanced.causal_anchor_core": "因果锚定核心",
   "block.ae2enhanced.computation_core.name": "超因果计算核心",
-
   "gui.ae2enhanced.assembly": "装配枢纽",
   "gui.ae2enhanced.assembly.page": "第 %s/%s 页",
   "gui.ae2enhanced.assembly.upgrades": "升级卡",
@@ -43,7 +41,6 @@
   "gui.ae2enhanced.computation_core.pool_size": "CPU 池：%s",
   "gui.ae2enhanced.computation_core.active_jobs": "活跃任务：%s",
   "gui.ae2enhanced.computation_core.max_parallel": "最大并行：%s",
-
   "gui.ae2enhanced.unformed.title": "§c未组装",
   "gui.ae2enhanced.unformed.subtitle": "超因果装配枢纽",
   "gui.ae2enhanced.unformed.ready": "结构完整 - 可以组装",
@@ -65,7 +62,7 @@
   "gui.ae2enhanced.formed.bottom": "AE 网络集成 - 已激活",
   "gui.ae2enhanced.formed.network.active": "§a网络：在线",
   "gui.ae2enhanced.formed.network.booting": "§e网络：启动中",
-  "gui.ae2enhanced.formed.network.offline": "§c网络：离线 - 请将 ME 接口连接至 AE 线缆",
+  "gui.ae2enhanced.formed.network.offline": "§c网络：离线 - 将任意装配枢纽方块连接至 AE 线缆",
   "gui.ae2enhanced.formed.upgrades": "升级模块",
   "gui.ae2enhanced.formed.patterns": "样板存储",
   "gui.ae2enhanced.formed.parallel": "并行：%s",
@@ -77,7 +74,6 @@
   "gui.ae2enhanced.pattern.prev": "← 上一页",
   "gui.ae2enhanced.pattern.next": "下一页 →",
   "gui.ae2enhanced.pattern.page": "第 %s/%s 页",
-
   "gui.ae2enhanced.nexus.title": "§b超维度仓储中枢",
   "gui.ae2enhanced.nexus.tile_unavailable": "§cTile 不可用",
   "gui.ae2enhanced.nexus.label.structure": "结构状态：%s",
@@ -94,7 +90,6 @@
   "gui.ae2enhanced.nexus.label.storage_types": "存储种类：§e%s",
   "gui.ae2enhanced.nexus.label.storage_total": "总存储数：§e%s",
   "gui.ae2enhanced.nexus.storage.empty": "存储核心：§7空",
-
   "gui.ae2enhanced.computation.unformed.title": "§c§l超因果计算核心 §r§8[未成型]",
   "gui.ae2enhanced.computation.formed.title": "§b超因果计算核心",
   "gui.ae2enhanced.computation.tile_unavailable": "§cTile 不可用",
@@ -107,5 +102,9 @@
   "gui.ae2enhanced.computation.orders.empty": "§7暂无活跃合成订单。",
   "gui.ae2enhanced.computation.orders.placeholder": "§7订单列表将在此显示。",
   "gui.ae2enhanced.computation.engine.initializing": "§8引擎：§7初始化中...",
-  "gui.ae2enhanced.computation.hint.close": "§8按 ESC 关闭"
+  "gui.ae2enhanced.computation.hint.close": "§8按 ESC 关闭",
+  "block.ae2enhanced.assembly_casing_1": "装配外壳 I",
+  "block.ae2enhanced.assembly_casing_2": "装配外壳 II",
+  "block.ae2enhanced.assembly_casing_3": "装配外壳 III",
+  "block.ae2enhanced.assembly_casing_4": "装配外壳 IV"
 }

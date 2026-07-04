@@ -22,14 +22,18 @@ import net.minecraftforge.items.ItemStackHandler;
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.util.AECableType;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.energy.IEnergyService;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.blockentity.grid.AENetworkBlockEntity;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
@@ -38,18 +42,17 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleCraftingHelper;
 import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
-import com.github.aeddddd.ae2enhanced.multiblock.MultiblockControllerBlockEntity;
-import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
+import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 
 /**
  * 装配枢纽控制器方块实体。
- * <p>向 AE2 网络提供 Long 级别的并行虚拟样板合成，支持升级卡、样板分页与产物缓冲。</p>
+ * <p>自身作为 AE2 网络节点，向网络提供 Long 级别的并行虚拟样板合成，支持升级卡、样板分页与产物缓冲。</p>
  */
-public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEntity
-        implements IPatternProviderHost {
+public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
+        implements IPatternProviderHost, ICraftingProvider {
 
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
@@ -72,6 +75,7 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     private boolean networkActive = false;
     private boolean networkPowered = false;
     private int statusTick = 0;
+    private boolean formed = false;
 
     public AssemblyControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ASSEMBLY_CONTROLLER.get(), pos, state);
@@ -148,6 +152,19 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     public boolean hasAutoUploadUpgrade() {
         ItemStack stack = itemHandler.getStackInSlot(4);
         return !stack.isEmpty() && stack.getItem() == ModItems.ASSEMBLY_AUTO_UPLOAD_UPGRADE.get();
+    }
+
+    @Override
+    protected IManagedGridNode createMainNode() {
+        return super.createMainNode()
+                .setIdlePowerUsage(1.0)
+                .setVisualRepresentation(ModItems.ASSEMBLY_CONTROLLER.get())
+                .addService(ICraftingProvider.class, this);
+    }
+
+    @Override
+    public AECableType getCableConnectionType(Direction dir) {
+        return AECableType.SMART;
     }
 
     public void serverTick() {
@@ -244,18 +261,13 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
         }
         boolean active = false;
         boolean powered = false;
-        for (BlockPos pos : getInterfaces()) {
-            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
-                IManagedGridNode node = me.getMainNode();
-                if (node != null) {
-                    active = node.isActive();
-                    IGrid grid = node.getGrid();
-                    if (grid != null) {
-                        IEnergyService energy = grid.getEnergyService();
-                        powered = energy != null && energy.isNetworkPowered();
-                    }
-                    break;
-                }
+        IManagedGridNode node = getMainNode();
+        if (node != null) {
+            active = node.isActive();
+            IGrid grid = node.getGrid();
+            if (grid != null) {
+                IEnergyService energy = grid.getEnergyService();
+                powered = energy != null && energy.isNetworkPowered();
             }
         }
         if (networkActive != active || networkPowered != powered) {
@@ -350,6 +362,74 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             }
         }
         pendingOutputs.addAll(leftovers);
+    }
+
+    // ---- IMultiblockController ----
+
+    @Override
+    public boolean isFormed() {
+        return formed;
+    }
+
+    public void setFormed(boolean formed) {
+        if (this.formed != formed) {
+            this.formed = formed;
+            setChanged();
+            markForUpdate();
+        }
+    }
+
+    public void assemble() {
+        if (isFormed()) {
+            return;
+        }
+        onAssemble();
+        setFormed(true);
+        refreshInterfaceServices();
+    }
+
+    public void disassemble() {
+        if (!isFormed()) {
+            return;
+        }
+        onDisassemble();
+        setFormed(false);
+        refreshInterfaceServices();
+    }
+
+    @Override
+    public BlockPos getControllerPos() {
+        return worldPosition;
+    }
+
+    @Override
+    public void attachInterface(BlockPos interfacePos) {
+        setChanged();
+    }
+
+    @Override
+    public void detachInterface(BlockPos interfacePos) {
+        setChanged();
+    }
+
+    @Override
+    public IActionSource getActionSource() {
+        return IActionSource.ofMachine(this);
+    }
+
+    protected void refreshInterfaceServices() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        ICraftingProvider.requestUpdate(getMainNode());
+    }
+
+    @Override
+    public void setRemoved() {
+        if (level != null && !level.isClientSide() && isFormed()) {
+            disassemble();
+        }
+        super.setRemoved();
     }
 
     // ---- IPatternProviderHost ----
@@ -461,15 +541,8 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
         if (preferred != null && preferred.isReady()) {
             return preferred;
         }
-        for (BlockPos pos : getInterfaces()) {
-            if (level != null && level.getBlockEntity(pos) instanceof com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity me) {
-                IManagedGridNode node = me.getMainNode();
-                if (node.isReady()) {
-                    return node;
-                }
-            }
-        }
-        return null;
+        IManagedGridNode node = getMainNode();
+        return node != null && node.isReady() ? node : null;
     }
 
     @Override
@@ -477,6 +550,13 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
         long cap = getParallelCap();
         int intCap = cap >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) cap;
         return jobTimers.size() >= intCap || batchBusy;
+    }
+
+    // ---- ICraftingProvider ----
+
+    @Override
+    public int getPatternPriority() {
+        return 0;
     }
 
     // ---- NBT ----
@@ -505,6 +585,7 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
                 blackHoleBuffer.put(entryTag.getString("key"), entryTag.getInt("count"));
             }
         }
+        formed = data.getBoolean("formed");
         networkActive = data.getBoolean("networkActive");
         networkPowered = data.getBoolean("networkPowered");
         ensurePatternCapacity();
@@ -530,6 +611,7 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
             bufferList.add(entryTag);
         }
         data.put("blackHoleBuffer", bufferList);
+        data.putBoolean("formed", formed);
         data.putBoolean("networkActive", networkActive);
         data.putBoolean("networkPowered", networkPowered);
     }
@@ -537,6 +619,7 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
+        tag.putBoolean("formed", formed);
         tag.putBoolean("networkActive", networkActive);
         tag.putBoolean("networkPowered", networkPowered);
         return tag;
@@ -545,6 +628,9 @@ public class AssemblyControllerBlockEntity extends MultiblockControllerBlockEnti
     @Override
     public void handleUpdateTag(CompoundTag tag) {
         super.handleUpdateTag(tag);
+        if (tag.contains("formed", Tag.TAG_BYTE)) {
+            this.formed = tag.getBoolean("formed");
+        }
         if (tag.contains("networkActive", Tag.TAG_BYTE)) {
             networkActive = tag.getBoolean("networkActive");
         }
