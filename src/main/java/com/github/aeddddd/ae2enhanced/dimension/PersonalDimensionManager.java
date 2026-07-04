@@ -83,20 +83,76 @@ public final class PersonalDimensionManager {
 
     /**
      * 获取或创建玩家个人维度，返回维度 ID。
+     *
+     * <p>本方法使用同步锁避免并发调用时重复创建维度。对于已保存的维度 ID，
+     * 若发现该 ID 在 DimensionManager 中未注册（如上次崩溃、数据不一致），
+     * 会尝试重新注册；若注册失败则重新分配新 ID。</p>
      */
-    public static int getOrCreateDimension(EntityPlayerMP player) {
+    public static synchronized int getOrCreateDimension(EntityPlayerMP player) {
         if (PERSONAL_DIM_TYPE == null) return Integer.MIN_VALUE;
         World world = player.getServerWorld();
         PersonalDimensionData data = PersonalDimensionData.get(world);
         PlayerDimEntry entry = data.getEntry(player.getUniqueID());
-        if (entry.dimensionId == Integer.MIN_VALUE) {
-            int dimId = DimensionManager.getNextFreeDimId();
-            DimensionManager.registerDimension(dimId, PERSONAL_DIM_TYPE);
-            data.updateDimensionMapping(player.getUniqueID(), dimId);
-            AE2Enhanced.LOGGER.info("[AE2E] Created personal dimension {} for player {}", dimId, player.getName());
-            broadcastDimensionRegistrySync();
+
+        if (entry.dimensionId != Integer.MIN_VALUE) {
+            if (!ensureDimensionRegistered(entry.dimensionId)) {
+                // 重新分配新 ID
+                entry.dimensionId = Integer.MIN_VALUE;
+            }
         }
+
+        if (entry.dimensionId == Integer.MIN_VALUE) {
+            int dimId = createPersonalDimension(player);
+            if (dimId != Integer.MIN_VALUE) {
+                data.updateDimensionMapping(player.getUniqueID(), dimId);
+                AE2Enhanced.LOGGER.info("[AE2E] Created personal dimension {} for player {}", dimId, player.getName());
+                broadcastDimensionRegistrySync();
+            }
+            return dimId;
+        }
+
         return entry.dimensionId;
+    }
+
+    /**
+     * 尝试将指定的维度 ID 注册为个人维度。若 ID 已被占用或无效，返回 false。
+     */
+    private static synchronized boolean ensureDimensionRegistered(int dimId) {
+        if (PERSONAL_DIM_TYPE == null) return false;
+        if (DimensionManager.isDimensionRegistered(dimId)) {
+            return DimensionManager.getProviderType(dimId) == PERSONAL_DIM_TYPE;
+        }
+        try {
+            DimensionManager.registerDimension(dimId, PERSONAL_DIM_TYPE);
+            AE2Enhanced.LOGGER.info("[AE2E] Re-registered personal dimension {}", dimId);
+            return true;
+        } catch (IllegalArgumentException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to re-register personal dimension {}: {}", dimId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 创建一个新的个人维度，返回维度 ID。失败返回 Integer.MIN_VALUE。
+     */
+    private static synchronized int createPersonalDimension(EntityPlayerMP player) {
+        if (PERSONAL_DIM_TYPE == null) return Integer.MIN_VALUE;
+        int dimId = DimensionManager.getNextFreeDimId();
+        // 防御性检查：分配到的 ID 已被注册时重试一次
+        if (DimensionManager.isDimensionRegistered(dimId)) {
+            dimId = DimensionManager.getNextFreeDimId();
+            if (DimensionManager.isDimensionRegistered(dimId)) {
+                AE2Enhanced.LOGGER.error("[AE2E] No free dimension ID available for personal dimension");
+                return Integer.MIN_VALUE;
+            }
+        }
+        try {
+            DimensionManager.registerDimension(dimId, PERSONAL_DIM_TYPE);
+            return dimId;
+        } catch (IllegalArgumentException e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Failed to register personal dimension", e);
+            return Integer.MIN_VALUE;
+        }
     }
 
     public static int getDimensionId(UUID playerId) {
@@ -190,6 +246,12 @@ public final class PersonalDimensionManager {
             return false;
         }
         int dimId = entry.dimensionId;
+        // 确保受邀访问的维度仍然有效注册
+        if (!ensureDimensionRegistered(dimId)) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Owner {} personal dimension {} is not registered, cannot teleport player {}",
+                    ownerId, dimId, player.getName());
+            return false;
+        }
         DimensionManager.initDimension(dimId);
         BlockPos entryPos = entry.entryPoint;
         double tx = entryPos.getX() + 0.5;
@@ -350,18 +412,23 @@ public final class PersonalDimensionManager {
      * 服务端启动时重新注册已保存的个人维度。
      * 注意：FML 生命周期事件不在 MinecraftForge.EVENT_BUS 上，需要由 @Mod 主类调用。
      */
-    public static void onServerStarted(FMLServerStartedEvent event) {
+    public static synchronized void onServerStarted(FMLServerStartedEvent event) {
         if (PERSONAL_DIM_TYPE == null) return;
         WorldServer overworld = getOverworld();
         if (overworld == null) return;
         PersonalDimensionData data = PersonalDimensionData.get(overworld);
         for (PlayerDimEntry entry : data.getAllEntries()) {
             if (entry.dimensionId == Integer.MIN_VALUE) continue;
-            if (!DimensionManager.isDimensionRegistered(entry.dimensionId)) {
-                DimensionManager.registerDimension(entry.dimensionId, PERSONAL_DIM_TYPE);
+            if (ensureDimensionRegistered(entry.dimensionId)) {
+                // 立即初始化 WorldServer，避免后续首次访问时因懒加载产生异常
+                DimensionManager.initDimension(entry.dimensionId);
+            } else {
+                AE2Enhanced.LOGGER.error("[AE2E] Saved personal dimension ID {} for player {} could not be re-registered. " +
+                        "It may have been taken by another mod. Player will get a new dimension on next entry.",
+                        entry.dimensionId, entry.playerId);
+                entry.dimensionId = Integer.MIN_VALUE;
+                data.markDirty();
             }
-            // 立即初始化 WorldServer，避免后续首次访问时因懒加载产生异常
-            DimensionManager.initDimension(entry.dimensionId);
         }
     }
 
