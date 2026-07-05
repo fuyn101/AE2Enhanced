@@ -34,15 +34,20 @@ public class ChunkGeneratorPersonalDim implements IChunkGenerator {
         ChunkPrimer primer = new ChunkPrimer();
         int baseX = x << 4;
         int baseZ = z << 4;
+        IBlockState bedrock = Blocks.BEDROCK.getDefaultState();
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
                 int worldX = baseX + lx;
                 int worldZ = baseZ + lz;
                 IBlockState state = preset.getState(worldX, worldZ);
                 if (state == null) {
-                    state = Blocks.BEDROCK.getDefaultState();
+                    state = bedrock;
                 }
                 primer.setBlockState(lx, floorY, lz, state);
+                // 在地板下方生成 2 层基岩，防止玩家意外破坏地板后坠入虚空
+                for (int by = 1; by <= 2 && floorY - by >= 0; by++) {
+                    primer.setBlockState(lx, floorY - by, lz, bedrock);
+                }
             }
         }
         Chunk chunk = new Chunk(world, primer, x, z);

@@ -8,9 +8,9 @@ import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 
 import javax.annotation.Nullable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 玩家个人维度数据的 WorldSavedData，保存在主世界。
@@ -28,8 +28,8 @@ public class PersonalDimensionData extends WorldSavedData {
     private static final String LEGACY_DATA_NAME = AE2Enhanced.MOD_ID + ":personal_dimensions";
     private static final int CURRENT_VERSION = 1;
 
-    private final Map<UUID, PlayerDimEntry> entries = new HashMap<>();
-    private final Map<Integer, UUID> dimToPlayer = new HashMap<>();
+    private final Map<UUID, PlayerDimEntry> entries = new ConcurrentHashMap<>();
+    private final Map<Integer, UUID> dimToPlayer = new ConcurrentHashMap<>();
 
     public PersonalDimensionData() {
         super(DATA_NAME);
@@ -109,6 +109,7 @@ public class PersonalDimensionData extends WorldSavedData {
         this.entries.putAll(other.entries);
         this.dimToPlayer.clear();
         this.dimToPlayer.putAll(other.dimToPlayer);
+        markDirty();
     }
 
     @Override
@@ -146,6 +147,9 @@ public class PersonalDimensionData extends WorldSavedData {
     }
 
     public static PersonalDimensionData get(World world) {
+        if (world.isRemote) {
+            throw new IllegalStateException("PersonalDimensionData cannot be loaded on the client");
+        }
         World overworld = world.getMinecraftServer() != null
                 ? world.getMinecraftServer().getWorld(0)
                 : world;

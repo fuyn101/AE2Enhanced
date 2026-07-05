@@ -393,6 +393,11 @@ public class CommandAE2Enhanced extends CommandBase {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] You don't need to invite yourself."));
             return;
         }
+        PlayerDimEntry entry = PersonalDimensionManager.getEntry(owner.getUniqueID());
+        if (entry != null && entry.allowedPlayers.contains(target.getUniqueID())) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[AE2E] " + target.getName() + " is already invited."));
+            return;
+        }
         PersonalDimensionManager.invitePlayer(owner.getUniqueID(), target.getUniqueID());
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Invited " + target.getName() + " to your personal dimension."));
     }
@@ -417,7 +422,11 @@ public class CommandAE2Enhanced extends CommandBase {
             return;
         }
         PlayerDimEntry entry = PersonalDimensionManager.getEntry(owner.getUniqueID());
-        if (entry != null && entry.dimensionId != Integer.MIN_VALUE) {
+        if (entry == null || !entry.allowedPlayers.contains(targetId)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] " + resolvePlayerName(server, targetId) + " is not in your personal dimension whitelist."));
+            return;
+        }
+        if (entry.dimensionId != Integer.MIN_VALUE) {
             EntityPlayerMP target = server.getPlayerList().getPlayerByUUID(targetId);
             if (target != null && target.dimension == entry.dimensionId) {
                 PersonalDimensionManager.teleportToReturnPoint(target);
@@ -449,7 +458,15 @@ public class CommandAE2Enhanced extends CommandBase {
             sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Unknown permission: " + args[3]));
             return;
         }
-        boolean value = Boolean.parseBoolean(args[4]);
+        boolean value;
+        if ("true".equalsIgnoreCase(args[4])) {
+            value = true;
+        } else if ("false".equalsIgnoreCase(args[4])) {
+            value = false;
+        } else {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[AE2E] Invalid boolean value: " + args[4] + ". Use true or false."));
+            return;
+        }
         PersonalDimensionManager.setPermission(owner.getUniqueID(), targetId, perm, value);
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "[AE2E] Set permission " + perm.name().toLowerCase() + " for " + resolvePlayerName(server, targetId) + " to " + value + "."));
     }

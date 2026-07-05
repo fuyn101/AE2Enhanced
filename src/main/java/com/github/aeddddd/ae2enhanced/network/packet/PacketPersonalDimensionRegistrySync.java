@@ -37,6 +37,10 @@ public class PacketPersonalDimensionRegistrySync implements IMessage {
     public void fromBytes(ByteBuf buf) {
         dimensionIds.clear();
         int count = buf.readInt();
+        if (count < 0 || count > 10000) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Invalid personal dimension registry sync count: {}, dropping packet", count);
+            return;
+        }
         for (int i = 0; i < count; i++) {
             dimensionIds.add(buf.readInt());
         }

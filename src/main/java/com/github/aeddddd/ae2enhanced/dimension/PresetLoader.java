@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -25,13 +26,15 @@ public final class PresetLoader {
 
     private PresetLoader() {}
 
-    private static FloorPreset cached;
+    private static volatile FloorPreset cached;
 
     public static FloorPreset getPreset() {
-        if (cached == null) {
+        FloorPreset preset = cached;
+        if (preset == null) {
             cached = load(AE2EnhancedConfig.personalDimension.presetPath);
+            preset = cached;
         }
-        return cached;
+        return preset;
     }
 
     /**
@@ -102,32 +105,77 @@ public final class PresetLoader {
 
     private static FloorPreset parse(InputStream in) {
         try (InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-            JsonObject root = new JsonParser().parse(reader).getAsJsonObject();
+            JsonElement parsed = new JsonParser().parse(reader);
+            if (!parsed.isJsonObject()) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset root is not a JSON object");
+                return null;
+            }
+            JsonObject root = parsed.getAsJsonObject();
 
             JsonObject start = root.getAsJsonObject("startpos");
             JsonObject end = root.getAsJsonObject("endpos");
+            if (start == null || end == null
+                    || !start.has("X") || !start.has("Z")
+                    || !end.has("X") || !end.has("Z")) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset missing startpos/endpos or X/Z keys");
+                return null;
+            }
             int startX = start.get("X").getAsInt();
             int startZ = start.get("Z").getAsInt();
             int endX = end.get("X").getAsInt();
             int endZ = end.get("Z").getAsInt();
             int width = endX - startX + 1;
             int depth = endZ - startZ + 1;
+            if (width <= 0 || depth <= 0) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset has invalid size: width={}, depth={}", width, depth);
+                return null;
+            }
 
             JsonArray map = root.getAsJsonArray("blockstatemap");
+            if (map == null || map.size() == 0) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset missing blockstatemap");
+                return null;
+            }
             IBlockState[] palette = new IBlockState[map.size()];
             for (int i = 0; i < map.size(); i++) {
-                JsonObject entry = map.get(i).getAsJsonObject();
+                JsonElement entryElement = map.get(i);
+                if (!entryElement.isJsonObject()) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Preset blockstatemap entry {} is not an object", i);
+                    return null;
+                }
+                JsonObject entry = entryElement.getAsJsonObject();
+                if (!entry.has("Name")) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Preset blockstatemap entry {} missing Name", i);
+                    return null;
+                }
                 String name = entry.get("Name").getAsString();
                 palette[i] = resolveState(name);
             }
 
             JsonArray list = root.getAsJsonArray("statelist");
+            if (list == null) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset missing statelist");
+                return null;
+            }
+            int expectedSize = width * depth;
+            if (list.size() != expectedSize) {
+                AE2Enhanced.LOGGER.warn("[AE2E] Preset statelist size {} does not match expected {}", list.size(), expectedSize);
+                return null;
+            }
             int[] states = new int[list.size()];
             for (int i = 0; i < list.size(); i++) {
-                states[i] = list.get(i).getAsInt();
+                int stateIndex = list.get(i).getAsInt();
+                if (stateIndex < 0 || stateIndex >= palette.length) {
+                    AE2Enhanced.LOGGER.warn("[AE2E] Preset statelist index {} out of palette bounds", stateIndex);
+                    return null;
+                }
+                states[i] = stateIndex;
             }
 
             return new FloorPreset(width, depth, palette, states);
+        } catch (JsonSyntaxException e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to parse preset JSON syntax", e);
+            return null;
         } catch (Exception e) {
             AE2Enhanced.LOGGER.warn("[AE2E] Failed to parse preset", e);
             return null;
