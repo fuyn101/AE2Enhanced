@@ -250,6 +250,7 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         boolean globalVirtualCooling = isOnGlobalVirtualCooldown();
         List<TargetBinding> candidates = findIdleTargets();
         boolean attemptedVirtual = false;
+        boolean attemptedNonSkippableVirtual = false;
 
         for (TargetBinding target : candidates) {
             IRemoteHandler handler = HandlerRegistry.findHandler(target.blockId);
@@ -290,10 +291,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 if (!globalVirtualCooling) {
                     attemptedVirtual = true;
                     IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+                    if (!vh.skipCooldownOnSingleBatch()) {
+                        attemptedNonSkippableVirtual = true;
+                    }
                     long actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
                     if (actualParallel > 0) {
                         this.lastVirtualBatchSize = actualParallel;
-                        this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+                        if (actualParallel > 1 || !vh.skipCooldownOnSingleBatch()) {
+                            this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+                        }
                         tryWakeTickDevice();
                         return true;
                     }
@@ -308,10 +314,15 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                     && !globalVirtualCooling) {
                 attemptedVirtual = true;
                 IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
+                if (!vh.skipCooldownOnSingleBatch()) {
+                    attemptedNonSkippableVirtual = true;
+                }
                 long actualParallel = this.virtualBatchEngine.execute(proxy, patternDetails, table, target, vh, virtualParallel);
                 if (actualParallel > 0) {
                     this.lastVirtualBatchSize = actualParallel;
-                    this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+                    if (actualParallel > 1 || !vh.skipCooldownOnSingleBatch()) {
+                        this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
+                    }
                     tryWakeTickDevice();
                     return true;
                 }
@@ -335,8 +346,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             }
         }
 
-        // 尝试了虚拟批量但未成功，进入全局冷却防止 CPU 同 tick 反复重试
-        if (attemptedVirtual) {
+        // 尝试了虚拟批量但未成功，进入全局冷却防止 CPU 同 tick 反复重试。
+        // 若所有尝试过的虚拟 handler 都声明“单份跳过冷却”（如 Extended Crafting 工作台），则不设置冷却。
+        if (attemptedNonSkippableVirtual) {
             this.globalVirtualCooldown = AE2EnhancedConfig.centralInterface.virtualCooldownGlobalTicks;
             tryWakeTickDevice();
         }

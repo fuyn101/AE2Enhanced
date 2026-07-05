@@ -93,6 +93,13 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
         return 8;
     }
 
+    @Override
+    public boolean skipCooldownOnSingleBatch() {
+        // 如果最终只处理了 1 份（自带并行和虚拟卡均不生效），
+        // 表现得像普通物理发配，不进入虚拟冷却，允许 CPU 继续调度。
+        return true;
+    }
+
     // ---- IRemoteHandler 物理模式（纯虚拟设备，空实现） ----
 
     @Override

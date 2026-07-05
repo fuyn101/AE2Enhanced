@@ -167,6 +167,19 @@ public interface IVirtualBatchCraftingHandler extends IRemoteHandler {
     }
 
     /**
+     * 当本次虚拟批量实际只处理了 1 份时，是否跳过目标/全局冷却。
+     * <p>
+     * 某些设备（如 Extended Crafting 工作台）希望“未成功应用并行”时
+     * 表现得和普通物理发配一样：不进入虚拟冷却，使后续 CPU 调度可以
+     * 继续立即尝试其它目标或同目标的下一次合成。</p>
+     *
+     * @return true 表示当实际并行数为 1 时不设置冷却；默认 false
+     */
+    default boolean skipCooldownOnSingleBatch() {
+        return false;
+    }
+
+    /**
      * 默认实现：按 count 缩放单份产物，避免每个 handler 都手写循环。
      *
      * <p>若产物有随机副产物或 count 不能简单缩放，handler 应覆盖此方法。</p>

@@ -181,7 +181,12 @@ public class VirtualBatchEngine {
                     : particleTypes.get(world.rand.nextInt(particleTypes.size())).getParticleID();
             addParticleTarget(target.pos, particleType);
 
-            owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
+            if (actualParallel > 1 || !handler.skipCooldownOnSingleBatch()) {
+                owner.virtualCooldowns.put(target, AE2EnhancedConfig.centralInterface.virtualCooldownTargetTicks);
+            } else {
+                // 部分 handler（如 Extended Crafting 工作台）在单份处理时希望跳过冷却，
+                // 使 CPU 能立即继续调度，等效于无并行时的物理发配行为。
+            }
             owner.tryWakeTickDevice();
             return actualParallel;
         } finally {
