@@ -135,7 +135,12 @@ public abstract class MultiblockControllerBlockEntity extends AE2EBaseBlockEntit
     @Override
     public void setRemoved() {
         if (level != null && !level.isClientSide() && isFormed()) {
-            disassemble();
+            // 仅在控制器方块真正被破坏（方块状态已改变）时解散；
+            // 区块卸载或关服时触发 setRemoved 不应执行完整拆解，避免额外 IO 与状态异常。
+            BlockState currentState = level.getBlockState(worldPosition);
+            if (currentState.getBlock() != getBlockState().getBlock()) {
+                disassemble();
+            }
         }
         super.setRemoved();
     }

@@ -1,8 +1,8 @@
 package com.github.aeddddd.ae2enhanced.assembly.blockentity;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.BlockPos;
 
 import appeng.api.util.AECableType;
 import appeng.api.networking.IManagedGridNode;

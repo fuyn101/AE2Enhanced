@@ -8,6 +8,7 @@ import java.util.Set;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -123,6 +125,19 @@ public class StructureEventHandler {
         for (BlockPos controllerPos : compIndex.getAll()) {
             if (areAllChunksLoadedForController(level, controllerPos)) {
                 scheduleCheck(serverLevel, controllerPos);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        MinecraftServer server = event.getServer();
+        for (ServerLevel level : server.getAllLevels()) {
+            ControllerIndex index = ControllerIndex.get(level);
+            for (BlockPos pos : index.getAll()) {
+                if (level.getBlockEntity(pos) instanceof HyperdimensionalControllerBlockEntity tile) {
+                    tile.flushStorage();
+                }
             }
         }
     }

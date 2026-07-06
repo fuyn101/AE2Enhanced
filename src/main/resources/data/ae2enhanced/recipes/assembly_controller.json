@@ -1,17 +1,14 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "CCC",
-    "CAC",
-    "CCC"
+    "SCS",
+    "CHC",
+    "SCS"
   ],
   "key": {
-    "C": {
-      "item": "ae2enhanced:assembly_casing_1"
-    },
-    "A": {
-      "item": "ae2:logic_processor"
-    }
+    "S": { "item": "ae2enhanced:assembly_stabilizer" },
+    "C": { "item": "ae2enhanced:assembly_casing_1" },
+    "H": { "item": "ae2:engineering_processor" }
   },
   "result": {
     "item": "ae2enhanced:assembly_controller",

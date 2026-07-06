@@ -2,13 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     "SSS",
-    "S S",
+    "SQS",
     "SSS"
   ],
   "key": {
-    "S": {
-      "item": "ae2:smooth_sky_stone_block"
-    }
+    "S": { "item": "ae2:smooth_sky_stone_block" },
+    "Q": { "item": "ae2:quartz_glass" }
   },
   "result": {
     "item": "ae2enhanced:assembly_casing_2",

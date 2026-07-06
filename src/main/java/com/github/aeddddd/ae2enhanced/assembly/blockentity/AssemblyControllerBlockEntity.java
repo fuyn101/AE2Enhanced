@@ -427,7 +427,10 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     @Override
     public void setRemoved() {
         if (level != null && !level.isClientSide() && isFormed()) {
-            disassemble();
+            BlockState currentState = level.getBlockState(worldPosition);
+            if (currentState.getBlock() != getBlockState().getBlock()) {
+                disassemble();
+            }
         }
         super.setRemoved();
     }

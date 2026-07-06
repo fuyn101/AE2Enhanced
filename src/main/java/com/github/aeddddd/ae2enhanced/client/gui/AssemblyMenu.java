@@ -28,7 +28,7 @@ public class AssemblyMenu extends AbstractContainerMenu {
     private static final int PLAYER_INV_X = 8;
     private static final int PLAYER_INV_Y = 84;
     private static final int HOTBAR_Y = 142;
-    private static final int UPGRADE_Y = 18;
+    private static final int UPGRADE_Y = 8;
 
     private final Inventory playerInventory;
     private final BlockPos controllerPos;

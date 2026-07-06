@@ -148,7 +148,8 @@ public class MultiblockMeInterfaceBlockEntity extends AENetworkBlockEntity
 
     @Override
     public void setRemoved() {
-        if (controllerPos != null && level != null
+        if (controllerPos != null && level != null && !level.isClientSide()
+                && level.getBlockState(worldPosition).getBlock() != getBlockState().getBlock()
                 && level.getBlockEntity(controllerPos) instanceof IMultiblockController controller) {
             controller.detachInterface(worldPosition);
         }

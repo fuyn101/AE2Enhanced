@@ -6,9 +6,7 @@
     "SSS"
   ],
   "key": {
-    "S": {
-      "item": "ae2:smooth_sky_stone_block"
-    }
+    "S": { "item": "ae2:smooth_sky_stone_block" }
   },
   "result": {
     "item": "ae2enhanced:assembly_casing_1",

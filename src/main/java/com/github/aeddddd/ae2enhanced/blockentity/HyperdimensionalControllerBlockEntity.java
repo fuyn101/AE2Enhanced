@@ -172,7 +172,7 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         refreshMeStorageSource();
     }
 
-    private void flushStorage() {
+    public void flushStorage() {
         if (storage == null || level == null || level.isClientSide()) {
             return;
         }

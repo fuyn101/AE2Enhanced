@@ -2,13 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     "SSS",
-    "S S",
+    "SPS",
     "SSS"
   ],
   "key": {
-    "S": {
-      "item": "ae2:smooth_sky_stone_block"
-    }
+    "S": { "item": "ae2:smooth_sky_stone_block" },
+    "P": { "item": "ae2:fluix_pearl" }
   },
   "result": {
     "item": "ae2enhanced:assembly_casing_3",
