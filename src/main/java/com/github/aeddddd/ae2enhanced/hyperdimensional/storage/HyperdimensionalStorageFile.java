@@ -32,8 +32,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -91,7 +93,7 @@ public final class HyperdimensionalStorageFile {
 
     private final Path directory;
     private final UUID nexusId;
-    private boolean dirty = false;
+    private final Set<StorageSection> dirtySections = EnumSet.noneOf(StorageSection.class);
     private volatile boolean safeMode = false;
 
     private HyperdimensionalStorageFile(Path directory, UUID nexusId) {
@@ -157,10 +159,10 @@ public final class HyperdimensionalStorageFile {
     }
 
     /**
-     * 读取指定通道的二进制文件，对每个有效条目调用 consumer。
+     * 读取指定 section 与通道的二进制文件，对每个有效条目调用 consumer。
      */
-    public void loadChannel(AEKeyType type, BiConsumer<AEKey, BigInteger> consumer) {
-        if (safeMode || type == null || consumer == null) {
+    public void loadChannel(StorageSection section, AEKeyType type, BiConsumer<AEKey, BigInteger> consumer) {
+        if (safeMode || section == null || type == null || consumer == null) {
             return;
         }
         Path file = getChannelFile(type);
@@ -171,15 +173,19 @@ public final class HyperdimensionalStorageFile {
             byte[] data = readFileLocked(file);
             parseBinaryFile(data, consumer, file);
         } catch (Exception e) {
-            enterSafeMode("loadChannel " + type.getId(), e);
+            enterSafeMode("loadChannel " + section.getName() + " " + type.getId(), e);
         }
     }
 
     /**
-     * 将指定通道的条目写入二进制文件。
+     * 将指定 section 与通道的条目写入二进制文件。
+     * <p>仅当对应 section 为脏时才会实际写入，写入成功后标记该 section 已保存。</p>
      */
-    public void saveChannel(AEKeyType type, Map<AEKey, BigInteger> entries) {
-        if (safeMode || type == null || entries == null) {
+    public void saveChannel(StorageSection section, AEKeyType type, Map<AEKey, BigInteger> entries) {
+        if (safeMode || section == null || type == null || entries == null) {
+            return;
+        }
+        if (!isDirty(section)) {
             return;
         }
         try {
@@ -189,30 +195,63 @@ public final class HyperdimensionalStorageFile {
             byte[] data = serializeBinaryFile(entries);
             writeFileLocked(temp, data);
             Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            markClean(section);
         } catch (Exception e) {
-            enterSafeMode("saveChannel " + type.getId(), e);
+            enterSafeMode("saveChannel " + section.getName() + " " + type.getId(), e);
         }
     }
 
     /**
-     * 标记当前 Nexus 的存储数据已脏。
+     * 标记当前 Nexus 的所有 section 已脏（兼容旧的全局调用）。
      */
     public void markDirty() {
-        this.dirty = true;
+        dirtySections.addAll(EnumSet.allOf(StorageSection.class));
     }
 
     /**
-     * @return 当前是否脏
+     * 标记指定 section 已脏。
+     *
+     * @param section 发生变更的 section
+     */
+    public void markDirty(StorageSection section) {
+        if (section == null) {
+            return;
+        }
+        dirtySections.add(section);
+    }
+
+    /**
+     * @return 当前是否有任何 section 处于脏状态
      */
     public boolean isDirty() {
-        return dirty;
+        return !dirtySections.isEmpty();
     }
 
     /**
-     * 标记当前 Nexus 的存储数据已保存。
+     * @param section 指定 section
+     * @return 该 section 是否处于脏状态
+     */
+    public boolean isDirty(StorageSection section) {
+        return section != null && dirtySections.contains(section);
+    }
+
+    /**
+     * 标记当前 Nexus 的所有 section 已保存。
      */
     public void markClean() {
-        this.dirty = false;
+        dirtySections.clear();
+    }
+
+    /**
+     * 标记指定 section 已保存。
+     *
+     * @param section 已持久化的 section
+     */
+    public void markClean(StorageSection section) {
+        if (section == null) {
+            return;
+        }
+        dirtySections.remove(section);
     }
 
     /**
@@ -269,7 +308,7 @@ public final class HyperdimensionalStorageFile {
                 throw new IOException("Unknown legacy version: " + version);
             }
             for (Map.Entry<AEKeyType, Map<AEKey, BigInteger>> entry : grouped.entrySet()) {
-                saveChannel(entry.getKey(), entry.getValue());
+                saveChannel(StorageSection.fromType(entry.getKey()), entry.getKey(), entry.getValue());
             }
             Path backup = legacyPath.resolveSibling(legacyPath.getFileName() + ".backup");
             Files.move(legacyPath, backup, StandardCopyOption.REPLACE_EXISTING);

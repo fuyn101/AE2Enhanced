@@ -20,6 +20,7 @@ import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
+import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 
 /**
  * 超维度仓储中枢结构验证与一键装配逻辑。
@@ -78,21 +79,6 @@ public final class HyperdimensionalStructure {
     private HyperdimensionalStructure() {
     }
 
-    public static BlockPos rotate(BlockPos rel, Direction facing) {
-        if (facing == Direction.NORTH) {
-            return rel;
-        }
-        int x = rel.getX();
-        int y = rel.getY();
-        int z = rel.getZ();
-        return switch (facing) {
-            case SOUTH -> new BlockPos(-x, y, -z);
-            case EAST -> new BlockPos(-z, y, x);
-            case WEST -> new BlockPos(z, y, -x);
-            default -> rel;
-        };
-    }
-
     public static boolean validate(Level level, BlockPos controllerPos) {
         Direction facing = getControllerFacing(level, controllerPos);
         return checkBlock(level, controllerPos, CONTROLLER_SET, ModBlocks.HYPERDIMENSIONAL_CONTROLLER.get(), facing)
@@ -104,7 +90,7 @@ public final class HyperdimensionalStructure {
     private static boolean checkBlock(Level level, BlockPos controllerPos, Set<BlockPos> relativeSet,
             Block expected, Direction facing) {
         for (BlockPos rel : relativeSet) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!level.isLoaded(actual)) {
                 continue;
             }
@@ -127,7 +113,7 @@ public final class HyperdimensionalStructure {
     private static void countMissing(Level level, BlockPos controllerPos, Set<BlockPos> relativeSet,
             Block expected, Map<Block, Integer> missing, Direction facing) {
         for (BlockPos rel : relativeSet) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!level.isLoaded(actual)) {
                 continue;
             }
@@ -153,7 +139,7 @@ public final class HyperdimensionalStructure {
         // 绑定接口到控制器
         Direction facing = getControllerFacing(level, controllerPos);
         for (BlockPos rel : INTERFACE_SET) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             BlockState state = level.getBlockState(actual);
             if (state.getBlock() == ModBlocks.MULTIBLOCK_ME_INTERFACE.get()) {
                 if (level.getBlockEntity(actual) instanceof MultiblockMeInterfaceBlockEntity interfaceBe) {
@@ -171,7 +157,7 @@ public final class HyperdimensionalStructure {
         // 解除接口绑定
         Direction facing = getControllerFacing(level, controllerPos);
         for (BlockPos rel : INTERFACE_SET) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             BlockState state = level.getBlockState(actual);
             if (state.getBlock() == ModBlocks.MULTIBLOCK_ME_INTERFACE.get()) {
                 if (level.getBlockEntity(actual) instanceof MultiblockMeInterfaceBlockEntity interfaceBe) {
@@ -208,7 +194,7 @@ public final class HyperdimensionalStructure {
     private static void placeBlocks(Level level, BlockPos controllerPos, Set<BlockPos> set, Block block,
             Direction facing) {
         for (BlockPos rel : set) {
-            BlockPos pos = controllerPos.offset(rotate(rel, facing));
+            BlockPos pos = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (level.getBlockState(pos).getBlock() != block) {
                 level.setBlock(pos, block.defaultBlockState(), Block.UPDATE_ALL);
             }

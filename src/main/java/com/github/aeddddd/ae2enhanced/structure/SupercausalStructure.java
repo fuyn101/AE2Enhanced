@@ -18,6 +18,7 @@ import com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlo
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlock;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
+import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 
 /**
  * 超因果计算核心的多方块结构验证系统
@@ -917,19 +918,6 @@ public class SupercausalStructure {
         return Direction.NORTH;
     }
 
-    public static BlockPos rotate(BlockPos rel, Direction facing) {
-        if (facing == Direction.NORTH) return rel;
-        int x = rel.getX();
-        int y = rel.getY();
-        int z = rel.getZ();
-        switch (facing) {
-            case SOUTH: return new BlockPos(-x, y, -z);
-            case EAST:  return new BlockPos(-z, y, x);
-            case WEST:  return new BlockPos(z, y, -x);
-            default:    return rel;
-        }
-    }
-
     /**
      * 验证结构完整性.
      * @return 验证结果,包含是否通过、缺失方块统计、因果锚定核心数量和计算出的并行上限.
@@ -941,7 +929,7 @@ public class SupercausalStructure {
 
         // 验证恒定张量场外壳
         for (BlockPos rel : TENSOR_CASING_SET) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get()) {
                 if (actual.equals(controllerPos)) continue; // 控制器位置由核心方块占用,跳过
@@ -951,7 +939,7 @@ public class SupercausalStructure {
 
         // 验证因果锚定核心
         for (BlockPos rel : CAUSAL_ANCHOR_SET) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() == ModBlocks.CAUSAL_ANCHOR_CORE.get()) {
                 causalCount++;
@@ -962,7 +950,7 @@ public class SupercausalStructure {
 
         // 验证恒定旋量场外壳
         for (BlockPos rel : SPINOR_CASING_SET) {
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get()) {
                 missing.put(ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), missing.getOrDefault(ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), 0) + 1);
@@ -970,7 +958,7 @@ public class SupercausalStructure {
         }
 
         // 验证 ME 接口
-        BlockPos meInterfacePos = controllerPos.offset(rotate(ME_INTERFACE_REL, facing));
+        BlockPos meInterfacePos = controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
         boolean meInterfaceValid = false;
         if (world.isLoaded(meInterfacePos)) {
             meInterfaceValid = world.getBlockState(meInterfacePos).getBlock() == ModBlocks.MULTIBLOCK_ME_INTERFACE.get();
@@ -1016,7 +1004,7 @@ public class SupercausalStructure {
 
     private static BlockPos getMeInterfacePos(Level world, BlockPos controllerPos) {
         Direction facing = getControllerFacing(world, controllerPos);
-        return controllerPos.offset(rotate(ME_INTERFACE_REL, facing));
+        return controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
     }
 
     private static void updateMeInterfaceState(Level world, BlockPos controllerPos, boolean formed) {
@@ -1046,7 +1034,7 @@ public class SupercausalStructure {
         placeBlocks(world, controllerPos, CAUSAL_ANCHOR_SET, ModBlocks.CAUSAL_ANCHOR_CORE.get(), facing, player);
         placeBlocks(world, controllerPos, SPINOR_CASING_SET, ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), facing, player);
 
-        BlockPos meInterfacePos = controllerPos.offset(rotate(ME_INTERFACE_REL, facing));
+        BlockPos meInterfacePos = controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
         if (world.getBlockState(meInterfacePos).getBlock() != ModBlocks.MULTIBLOCK_ME_INTERFACE.get()) {
             world.setBlock(meInterfacePos, ModBlocks.MULTIBLOCK_ME_INTERFACE.get().defaultBlockState(), Block.UPDATE_ALL);
         }
@@ -1057,7 +1045,7 @@ public class SupercausalStructure {
     private static void placeBlocks(Level world, BlockPos controllerPos, Set<BlockPos> set, Block block, Direction facing, Player player) {
         for (BlockPos rel : set) {
             if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
-            BlockPos pos = controllerPos.offset(rotate(rel, facing));
+            BlockPos pos = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (world.getBlockState(pos).getBlock() == block) continue;
             // avoid suffocating player
             if (player != null && pos.equals(player.blockPosition())) {
@@ -1090,7 +1078,7 @@ public class SupercausalStructure {
         Map<Block, Integer> missing = new LinkedHashMap<>();
         for (BlockPos rel : TENSOR_CASING_SET) {
             if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get()) {
                 missing.put(ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get(), missing.getOrDefault(ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get(), 0) + 1);
@@ -1098,7 +1086,7 @@ public class SupercausalStructure {
         }
         for (BlockPos rel : CAUSAL_ANCHOR_SET) {
             if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != ModBlocks.CAUSAL_ANCHOR_CORE.get()) {
                 missing.put(ModBlocks.CAUSAL_ANCHOR_CORE.get(), missing.getOrDefault(ModBlocks.CAUSAL_ANCHOR_CORE.get(), 0) + 1);
@@ -1106,13 +1094,13 @@ public class SupercausalStructure {
         }
         for (BlockPos rel : SPINOR_CASING_SET) {
             if (rel.equals(CONTROLLER_REL)) continue; // skip controller position
-            BlockPos actual = controllerPos.offset(rotate(rel, facing));
+            BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
             if (!world.isLoaded(actual)) continue;
             if (world.getBlockState(actual).getBlock() != ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get()) {
                 missing.put(ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), missing.getOrDefault(ModBlocks.CONSTANT_SPINOR_FIELD_CASING.get(), 0) + 1);
             }
         }
-        BlockPos meInterfacePos = controllerPos.offset(rotate(ME_INTERFACE_REL, facing));
+        BlockPos meInterfacePos = controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
         if (world.isLoaded(meInterfacePos) && world.getBlockState(meInterfacePos).getBlock() != ModBlocks.MULTIBLOCK_ME_INTERFACE.get()) {
             missing.put(ModBlocks.MULTIBLOCK_ME_INTERFACE.get(), missing.getOrDefault(ModBlocks.MULTIBLOCK_ME_INTERFACE.get(), 0) + 1);
         }

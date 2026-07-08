@@ -12,7 +12,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.crafting.IPatternDetails;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.energy.IEnergyService;

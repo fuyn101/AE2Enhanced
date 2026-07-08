@@ -22,6 +22,7 @@ import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.channel.EnergySto
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.channel.FluidStorageChannel;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.channel.ItemStorageChannel;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.channel.StorageChannel;
+import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.OptionalStorageManager;
 
 /**
  * 超维度仓储的内部存储容器。
@@ -40,7 +41,6 @@ public class HyperdimensionalStorage {
     private final List<StorageListener> listeners = new ArrayList<>();
     private final Consumer<HyperdimensionalStorage> changeCallback;
 
-    private boolean dirty = false;
     private KeyCounter availableStacksCache = null;
     private volatile boolean cacheValid = false;
 
@@ -65,6 +65,8 @@ public class HyperdimensionalStorage {
         registerChannel(new ItemStorageChannel());
         registerChannel(new FluidStorageChannel());
         registerChannel(new EnergyStorageChannel());
+        // 通过反射尝试加载并注册第三方可选通道（气体、源质、mana、starlight 等）
+        OptionalStorageManager.getInstance().registerOptionalChannels(this);
         loadFromFile();
     }
 
@@ -134,7 +136,7 @@ public class HyperdimensionalStorage {
         }
         long actual = channel.insert(what, amount, mode);
         if (actual > 0 && mode == Actionable.MODULATE) {
-            markDirty();
+            markDirty(what.getType());
         }
         return actual;
     }
@@ -154,7 +156,7 @@ public class HyperdimensionalStorage {
         }
         long actual = channel.extract(what, amount, mode);
         if (actual > 0 && mode == Actionable.MODULATE) {
-            markDirty();
+            markDirty(what.getType());
         }
         return actual;
     }
@@ -263,7 +265,7 @@ public class HyperdimensionalStorage {
         StorageChannel<?> channel = channels.get(key.getType());
         if (channel instanceof AbstractStorageChannel<?> abstractChannel) {
             setInternal(abstractChannel, key, amount);
-            markDirty();
+            markDirty(key.getType());
         }
     }
 
@@ -290,7 +292,7 @@ public class HyperdimensionalStorage {
         for (StorageChannel<?> channel : channels.values()) {
             if (channel instanceof AbstractStorageChannel<?> abstractChannel) {
                 Map<AEKey, BigInteger> loaded = new HashMap<>();
-                file.loadChannel(channel.getKeyType(), loaded::put);
+                file.loadChannel(StorageSection.fromType(channel.getKeyType()), channel.getKeyType(), loaded::put);
                 abstractChannel.loadFrom(loaded);
             }
         }
@@ -305,7 +307,10 @@ public class HyperdimensionalStorage {
             return;
         }
         for (StorageChannel<?> channel : channels.values()) {
-            file.saveChannel(channel.getKeyType(), channel.getEntries());
+            StorageSection section = StorageSection.fromType(channel.getKeyType());
+            if (file.isDirty(section)) {
+                file.saveChannel(section, channel.getKeyType(), channel.getEntries());
+            }
         }
         markClean();
     }
@@ -320,11 +325,10 @@ public class HyperdimensionalStorage {
     }
 
     public boolean isDirty() {
-        return dirty || (file != null && file.isDirty());
+        return file != null && file.isDirty();
     }
 
     public void markClean() {
-        dirty = false;
         if (file != null) {
             file.markClean();
         }
@@ -352,10 +356,9 @@ public class HyperdimensionalStorage {
         invalidateCache();
     }
 
-    private void markDirty() {
-        dirty = true;
+    private void markDirty(AEKeyType type) {
         if (file != null) {
-            file.markDirty();
+            file.markDirty(StorageSection.fromType(type));
         }
         invalidateCache();
         for (StorageListener listener : listeners) {

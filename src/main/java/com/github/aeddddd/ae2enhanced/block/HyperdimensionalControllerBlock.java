@@ -28,7 +28,6 @@ import net.minecraftforge.network.NetworkHooks;
 import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalNexusMenu;
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalUnformedMenu;
-import com.github.aeddddd.ae2enhanced.registry.ModMenus;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 

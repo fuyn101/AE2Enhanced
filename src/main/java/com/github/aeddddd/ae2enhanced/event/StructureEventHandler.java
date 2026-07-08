@@ -30,6 +30,7 @@ import com.github.aeddddd.ae2enhanced.structure.ComputationCoreIndex;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
 import com.github.aeddddd.ae2enhanced.structure.HyperdimensionalStructure;
 import com.github.aeddddd.ae2enhanced.structure.SupercausalStructure;
+import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 
 /**
  * 多方块结构全局事件驱动验证器。
@@ -146,7 +147,7 @@ public class StructureEventHandler {
         } else if (block instanceof HyperdimensionalControllerBlock) {
             var facing = state.getValue(HyperdimensionalControllerBlock.FACING);
             for (BlockPos rel : HyperdimensionalStructure.ALL_SET) {
-                BlockPos actual = controllerPos.offset(HyperdimensionalStructure.rotate(rel, facing));
+                BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
                 if (!level.isLoaded(actual)) {
                     return false;
                 }
@@ -155,7 +156,7 @@ public class StructureEventHandler {
         } else if (block instanceof ComputationControllerBlock) {
             var facing = SupercausalStructure.getControllerFacing(level, controllerPos);
             for (BlockPos rel : SupercausalStructure.ALL_STRUCTURE_SET) {
-                BlockPos actual = controllerPos.offset(SupercausalStructure.rotate(rel, facing));
+                BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
                 if (!level.isLoaded(actual)) {
                     return false;
                 }
@@ -181,7 +182,7 @@ public class StructureEventHandler {
             } else if (block instanceof HyperdimensionalControllerBlock) {
                 var facing = state.getValue(HyperdimensionalControllerBlock.FACING);
                 BlockPos rel = changedPos.subtract(controllerPos);
-                BlockPos rotatedRel = HyperdimensionalStructure.rotate(rel, facing.getOpposite());
+                BlockPos rotatedRel = StructureUtils.rotate(rel, facing.getOpposite());
                 if (HyperdimensionalStructure.ALL_SET.contains(rotatedRel)) {
                     scheduleCheck(level, controllerPos);
                 }
@@ -195,7 +196,7 @@ public class StructureEventHandler {
             if (block instanceof ComputationControllerBlock) {
                 var facing = SupercausalStructure.getControllerFacing(level, controllerPos);
                 BlockPos rel = changedPos.subtract(controllerPos);
-                BlockPos rotatedRel = SupercausalStructure.rotate(rel, facing.getOpposite());
+                BlockPos rotatedRel = StructureUtils.rotate(rel, facing.getOpposite());
                 if (SupercausalStructure.ALL_STRUCTURE_SET.contains(rotatedRel)) {
                     scheduleCheck(level, controllerPos);
                 }

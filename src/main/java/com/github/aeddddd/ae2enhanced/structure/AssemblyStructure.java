@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
+import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -77,19 +78,6 @@ public class AssemblyStructure {
         ALL_SET = Collections.unmodifiableSet(all);
     }
 
-    public static BlockPos rotate(BlockPos rel, Direction facing) {
-        if (facing == Direction.NORTH) return rel;
-        int x = rel.getX();
-        int y = rel.getY();
-        int z = rel.getZ();
-        switch (facing) {
-            case SOUTH: return new BlockPos(-x, y, -z);
-            case EAST:  return new BlockPos(-z, y, x);
-            case WEST:  return new BlockPos(z, y, -x);
-            default:    return rel;
-        }
-    }
-
     public static BlockPos getOriginFromController(BlockPos controllerPos, Direction facing) {
         // 新结构以控制器本身为原点，结构向面朝方向的反方向延伸。
         return controllerPos;
@@ -109,7 +97,7 @@ public class AssemblyStructure {
         for (Map.Entry<BlockPos, Block> entry : getExpectedBlocks()) {
             BlockPos rel = entry.getKey();
             Block expected = entry.getValue();
-            BlockPos actual = origin.offset(rotate(rel, facing));
+            BlockPos actual = origin.offset(StructureUtils.rotate(rel, facing));
             if (!level.isLoaded(actual)) {
                 continue;
             }
@@ -138,7 +126,7 @@ public class AssemblyStructure {
         for (Map.Entry<BlockPos, Block> entry : getExpectedBlocks()) {
             BlockPos rel = entry.getKey();
             Block expected = entry.getValue();
-            BlockPos actual = origin.offset(rotate(rel, facing));
+            BlockPos actual = origin.offset(StructureUtils.rotate(rel, facing));
             if (!level.isLoaded(actual)) {
                 continue;
             }
@@ -177,7 +165,7 @@ public class AssemblyStructure {
         for (Map.Entry<BlockPos, Block> entry : getExpectedBlocks()) {
             BlockPos rel = entry.getKey();
             Block block = entry.getValue();
-            BlockPos pos = origin.offset(rotate(rel, facing));
+            BlockPos pos = origin.offset(StructureUtils.rotate(rel, facing));
             if (level.getBlockState(pos).getBlock() != block) {
                 level.setBlock(pos, block.defaultBlockState(), Block.UPDATE_ALL);
             }

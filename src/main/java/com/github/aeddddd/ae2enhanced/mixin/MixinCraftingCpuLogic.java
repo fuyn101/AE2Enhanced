@@ -28,6 +28,7 @@ import net.minecraft.world.level.Level;
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
+import com.github.aeddddd.ae2enhanced.util.MathUtils;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -61,8 +62,6 @@ public class MixinCraftingCpuLogic {
     @Unique
     private static final Field AE2E$TASK_PROGRESS_VALUE_FIELD;
     @Unique
-    private static final Method AE2E$ADD_MAX_ITEMS_METHOD;
-    @Unique
     private static final Method AE2E$DECREMENT_ITEMS_METHOD;
 
     static {
@@ -90,8 +89,6 @@ public class MixinCraftingCpuLogic {
             AE2E$TASK_PROGRESS_VALUE_FIELD.setAccessible(true);
 
             Class<?> trackerClass = ElapsedTimeTracker.class;
-            AE2E$ADD_MAX_ITEMS_METHOD = trackerClass.getDeclaredMethod("addMaxItems", long.class, AEKeyType.class);
-            AE2E$ADD_MAX_ITEMS_METHOD.setAccessible(true);
             AE2E$DECREMENT_ITEMS_METHOD = trackerClass.getDeclaredMethod("decrementItems", long.class, AEKeyType.class);
             AE2E$DECREMENT_ITEMS_METHOD.setAccessible(true);
         } catch (Exception e) {
@@ -214,7 +211,7 @@ public class MixinCraftingCpuLogic {
                 }
                 AEKey key = possible[0].what();
                 long perCraft = possible[0].amount();
-                long totalNeed = ae2e$safeMultiply(perCraft, batchSize);
+                long totalNeed = MathUtils.safeMultiply(perCraft, batchSize);
                 if (totalNeed <= 0) {
                     return false;
                 }
@@ -233,7 +230,7 @@ public class MixinCraftingCpuLogic {
                 }
                 AEKey key = possible[0].what();
                 long perCraft = possible[0].amount();
-                long totalNeed = ae2e$safeMultiply(perCraft, batchSize);
+                long totalNeed = MathUtils.safeMultiply(perCraft, batchSize);
                 inventory.extract(key, totalNeed, Actionable.MODULATE);
             }
 
@@ -242,7 +239,7 @@ public class MixinCraftingCpuLogic {
                 if (output == null || output.amount() <= 0) {
                     continue;
                 }
-                long totalCount = ae2e$safeMultiply(output.amount(), batchSize);
+                long totalCount = MathUtils.safeMultiply(output.amount(), batchSize);
                 if (totalCount <= 0) {
                     continue;
                 }
@@ -284,7 +281,7 @@ public class MixinCraftingCpuLogic {
                 long perCraft = inputs[i].getPossibleInputs()[0].amount();
                 long needCount = (info.catalystSlots != null && info.catalystSlots.get(i)) || (info.transformSlots != null && info.transformSlots.get(i))
                         ? 1
-                        : ae2e$safeMultiply(perCraft, actualBatchSize);
+                        : MathUtils.safeMultiply(perCraft, actualBatchSize);
                 long available = inventory.extract(key, needCount, Actionable.SIMULATE);
                 if (available < needCount) {
                     if (actualBatchSize > 1) {
@@ -310,7 +307,7 @@ public class MixinCraftingCpuLogic {
                 long perCraft = inputs[i].getPossibleInputs()[0].amount();
                 long needCount = (info.catalystSlots != null && info.catalystSlots.get(i)) || (info.transformSlots != null && info.transformSlots.get(i))
                         ? 1
-                        : ae2e$safeMultiply(perCraft, actualBatchSize);
+                        : MathUtils.safeMultiply(perCraft, actualBatchSize);
                 inventory.extract(key, needCount, Actionable.MODULATE);
             }
 
@@ -330,7 +327,7 @@ public class MixinCraftingCpuLogic {
             long totalOutputItems = 0;
             if (!output.isEmpty()) {
                 ItemStack batchOutput = output.copy();
-                long count = ae2e$safeMultiply(output.getCount(), actualBatchSize);
+                long count = MathUtils.safeMultiply(output.getCount(), actualBatchSize);
                 if (count > Integer.MAX_VALUE) {
                     count = Integer.MAX_VALUE;
                 }
@@ -354,7 +351,7 @@ public class MixinCraftingCpuLogic {
                         inventory.insert(key, 1, Actionable.MODULATE);
                     }
                 } else {
-                    long count = ae2e$safeMultiply(rem.getCount(), actualBatchSize);
+                    long count = MathUtils.safeMultiply(rem.getCount(), actualBatchSize);
                     if (count > Integer.MAX_VALUE) {
                         count = Integer.MAX_VALUE;
                     }
@@ -404,16 +401,7 @@ public class MixinCraftingCpuLogic {
                 }
             }
         } catch (Exception e) {
-            // ignore
-        }
-    }
-
-    @Unique
-    private static void ae2e$addMaxItems(ElapsedTimeTracker tracker, long amount, AEKeyType type) {
-        try {
-            AE2E$ADD_MAX_ITEMS_METHOD.invoke(tracker, amount, type);
-        } catch (Exception e) {
-            // ignore
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to decrement remaining amount", e);
         }
     }
 
@@ -422,7 +410,7 @@ public class MixinCraftingCpuLogic {
         try {
             AE2E$DECREMENT_ITEMS_METHOD.invoke(tracker, amount, type);
         } catch (Exception e) {
-            // ignore
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to decrement elapsed time tracker", e);
         }
     }
 
@@ -431,6 +419,7 @@ public class MixinCraftingCpuLogic {
         try {
             return AE2E$TASK_PROGRESS_VALUE_FIELD.getLong(progress);
         } catch (Exception e) {
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to read task progress value", e);
             return 0;
         }
     }
@@ -440,16 +429,7 @@ public class MixinCraftingCpuLogic {
         try {
             AE2E$TASK_PROGRESS_VALUE_FIELD.setLong(progress, value);
         } catch (Exception e) {
-            // ignore
-        }
-    }
-
-    @Unique
-    private static long ae2e$safeMultiply(long a, long b) {
-        try {
-            return Math.multiplyExact(a, b);
-        } catch (ArithmeticException e) {
-            return Long.MAX_VALUE;
+            AE2Enhanced.LOGGER.warn("[AE2E] Failed to set task progress value", e);
         }
     }
 }

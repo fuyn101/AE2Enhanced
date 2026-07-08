@@ -46,17 +46,16 @@ import appeng.crafting.inv.ListCraftingInventory;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
-import com.github.aeddddd.ae2enhanced.assembly.pattern.ScaledPatternDetails;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleCraftingHelper;
 import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
-import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
+import com.github.aeddddd.ae2enhanced.util.MathUtils;
 
 /**
  * 装配枢纽控制器方块实体。
@@ -138,9 +137,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         return 64;
     }
 
-    /**
-     * 当前合成延迟 tick 数。0 张速度升级卡 = 20，每张减半，最低 1 tick。
-     */
     /**
      * 设置当前执行样板的动作来源。由 Mixin 在批量处理前设置，确保 AE2 网络操作归因正确。
      */
@@ -731,7 +727,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         // 产物与剩余物按 batchSize 倍率加入缓冲，按 getCraftingTicks() 延迟后注入网络
         for (GenericStack output : pattern.getOutputs()) {
             if (output != null && output.amount() > 0) {
-                long amount = safeMultiply(output.amount(), batchSize);
+                long amount = MathUtils.safeMultiply(output.amount(), batchSize);
                 pendingOutputs.add(new GenericStack(output.what(), amount));
             }
         }
@@ -745,10 +741,10 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
                 AEKey key = entry.getKey();
                 AEKey remaining = input.getRemainingKey(key);
                 if (remaining != null) {
-                    long remainingAmount = safeMultiply(1, batchSize);
+                    long remainingAmount = MathUtils.safeMultiply(1, batchSize);
                     GenericStack[] possible = input.getPossibleInputs();
                     if (possible.length > 0 && possible[0].amount() > 0) {
-                        remainingAmount = safeMultiply(entry.getLongValue() / possible[0].amount(), batchSize);
+                        remainingAmount = MathUtils.safeMultiply(entry.getLongValue() / possible[0].amount(), batchSize);
                     }
                     if (remainingAmount > 0) {
                         pendingOutputs.add(new GenericStack(remaining, remainingAmount));
@@ -760,14 +756,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         jobTimers.add(getCraftingTicks());
         batchBusy = true;
         return true;
-    }
-
-    private static long safeMultiply(long a, long b) {
-        try {
-            return Math.multiplyExact(a, b);
-        } catch (ArithmeticException e) {
-            return Long.MAX_VALUE;
-        }
     }
 
     @Nullable
