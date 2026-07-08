@@ -235,14 +235,24 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (stack == null || stack.isEmpty()) {
             return;
         }
+        GenericStack gs = GenericStack.fromItemStack(stack);
+        if (gs != null && gs.amount() > 0) {
+            addPendingOutput(gs);
+        }
+    }
+
+    /**
+     * 安全地将 GenericStack 产物加入 pendingOutputs。
+     */
+    public void addPendingOutput(GenericStack stack) {
+        if (stack == null || stack.amount() <= 0) {
+            return;
+        }
         if (pendingOutputs.size() >= MAX_PENDING_OUTPUTS) {
             AE2Enhanced.LOGGER.error("[AE2E] pendingOutputs overflow, dropping {}", stack);
             return;
         }
-        GenericStack gs = GenericStack.fromItemStack(stack);
-        if (gs != null && gs.amount() > 0) {
-            pendingOutputs.add(gs);
-        }
+        pendingOutputs.add(stack);
     }
 
     /**
@@ -696,9 +706,8 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
 
     /**
      * 批量执行样板任务，一次性处理 {@code batchSize} 个副本。
-     * <p>由 {@code MixinCraftingCpuLogic} 在 AE2 合成 CPU 调用时拦截并注入，
-     * 使装配枢纽的并行升级真正生效。调用方必须确保输入已从 CPU 库存中提取，
-     * 本方法只负责消耗传入的 inputs 并将产物与剩余物加入缓冲。</p>
+     * <p>作为 AE2 调用 pushPattern 时的回退处理路径，负责将产物与剩余物加入缓冲，
+     * 并在可能的情况下将催化剂直接返回网络，避免催化剂被错误地延迟注入。</p>
      *
      * @param pattern   原始样板（未缩放）
      * @param inputs    单副本输入
@@ -717,21 +726,54 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
             return false;
         }
 
-        // 确保至少能连上网络，用于后续注入产物
+        // 确保至少能连上网络，用于后续注入产物与返还催化剂
         IManagedGridNode targetNode = resolveNode(node);
         if (targetNode == null || targetNode.getGrid() == null) {
             return false;
         }
+        IStorageService storageService = targetNode.getGrid().getStorageService();
+        MEStorage storage = storageService != null ? storageService.getInventory() : null;
+        IActionSource source = getEffectiveActionSource();
 
-        // 传入的 inputs 已由 CPU 库存提取，装配枢纽直接消耗它们，
-        // 产物与剩余物按 batchSize 倍率加入缓冲，按 getCraftingTicks() 延迟后注入网络
+        IPatternDetails.IInput[] patternInputs = pattern.getInputs();
+        if (patternInputs == null) {
+            patternInputs = new IPatternDetails.IInput[0];
+        }
+
+        // 估算产物与剩余物堆叠数，防止 pendingOutputs 溢出
+        int estimatedStacks = 0;
+        for (GenericStack output : pattern.getOutputs()) {
+            if (output != null && output.amount() > 0) {
+                estimatedStacks++;
+            }
+        }
+        for (int i = 0; i < inputs.length && i < patternInputs.length; i++) {
+            IPatternDetails.IInput input = patternInputs[i];
+            if (input == null) {
+                continue;
+            }
+            for (var entry : inputs[i]) {
+                AEKey remaining = input.getRemainingKey(entry.getKey());
+                if (remaining != null) {
+                    estimatedStacks++;
+                }
+            }
+        }
+        if (!canAcceptRealBatch(estimatedStacks)) {
+            return false;
+        }
+
+        // 将产物按 batchSize 倍率加入缓冲
         for (GenericStack output : pattern.getOutputs()) {
             if (output != null && output.amount() > 0) {
                 long amount = MathUtils.safeMultiply(output.amount(), batchSize);
-                pendingOutputs.add(new GenericStack(output.what(), amount));
+                if (amount > 0) {
+                    addPendingOutput(new GenericStack(output.what(), amount));
+                }
             }
         }
-        IPatternDetails.IInput[] patternInputs = pattern.getInputs();
+
+        // 处理剩余物：催化剂立即返回网络，其它剩余物加入缓冲
         for (int i = 0; i < inputs.length && i < patternInputs.length; i++) {
             IPatternDetails.IInput input = patternInputs[i];
             if (input == null) {
@@ -740,15 +782,26 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
             for (var entry : inputs[i]) {
                 AEKey key = entry.getKey();
                 AEKey remaining = input.getRemainingKey(key);
-                if (remaining != null) {
-                    long remainingAmount = MathUtils.safeMultiply(1, batchSize);
-                    GenericStack[] possible = input.getPossibleInputs();
-                    if (possible.length > 0 && possible[0].amount() > 0) {
-                        remainingAmount = MathUtils.safeMultiply(entry.getLongValue() / possible[0].amount(), batchSize);
+                if (remaining == null) {
+                    continue;
+                }
+                long perCraftRemaining = 1;
+                GenericStack[] possible = input.getPossibleInputs();
+                if (possible.length > 0 && possible[0].amount() > 0) {
+                    perCraftRemaining = entry.getLongValue() / possible[0].amount();
+                }
+                long remainingAmount = MathUtils.safeMultiply(perCraftRemaining, batchSize);
+                if (remainingAmount <= 0) {
+                    continue;
+                }
+                if (remaining.equals(key) && storage != null) {
+                    // 催化剂：尝试直接返还网络，剩余部分回退到缓冲
+                    long notInserted = storage.insert(remaining, remainingAmount, Actionable.MODULATE, source);
+                    if (notInserted > 0) {
+                        addPendingOutput(new GenericStack(remaining, notInserted));
                     }
-                    if (remainingAmount > 0) {
-                        pendingOutputs.add(new GenericStack(remaining, remainingAmount));
-                    }
+                } else {
+                    addPendingOutput(new GenericStack(remaining, remainingAmount));
                 }
             }
         }
