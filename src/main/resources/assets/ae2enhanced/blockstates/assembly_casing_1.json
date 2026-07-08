@@ -1,7 +1,5 @@
 {
   "variants": {
-    "": {
-      "model": "ae2enhanced:assembly_casing_1"
-    }
+    "": { "model": "ae2enhanced:block/assembly_casing_1" }
   }
 }

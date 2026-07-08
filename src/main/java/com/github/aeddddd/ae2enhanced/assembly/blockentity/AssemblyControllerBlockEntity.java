@@ -46,6 +46,7 @@ import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
+import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
 
 /**
  * 装配枢纽控制器方块实体。
@@ -426,11 +427,9 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
 
     @Override
     public void setRemoved() {
-        if (level != null && !level.isClientSide() && isFormed()) {
-            BlockState currentState = level.getBlockState(worldPosition);
-            if (currentState.getBlock() != getBlockState().getBlock()) {
-                disassemble();
-            }
+        if (level != null && !level.isClientSide() && isFormed()
+                && BlockEntityRemovalHelper.isBlockBeingBroken(this)) {
+            disassemble();
         }
         super.setRemoved();
     }
