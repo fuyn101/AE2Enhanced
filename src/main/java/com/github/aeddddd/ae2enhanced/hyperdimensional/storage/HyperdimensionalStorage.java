@@ -263,15 +263,10 @@ public class HyperdimensionalStorage {
             return;
         }
         StorageChannel<?> channel = channels.get(key.getType());
-        if (channel instanceof AbstractStorageChannel<?> abstractChannel) {
-            setInternal(abstractChannel, key, amount);
+        if (channel instanceof AbstractStorageChannel<?, ?> abstractChannel) {
+            abstractChannel.set(key, amount);
             markDirty(key.getType());
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends AEKey> void setInternal(AbstractStorageChannel<T> channel, AEKey key, BigInteger amount) {
-        channel.set((T) key, amount);
     }
 
     public void addListener(StorageListener listener) {
@@ -290,10 +285,8 @@ public class HyperdimensionalStorage {
             return;
         }
         for (StorageChannel<?> channel : channels.values()) {
-            if (channel instanceof AbstractStorageChannel<?> abstractChannel) {
-                Map<AEKey, BigInteger> loaded = new HashMap<>();
-                file.loadChannel(StorageSection.fromType(channel.getKeyType()), channel.getKeyType(), loaded::put);
-                abstractChannel.loadFrom(loaded);
+            if (channel instanceof AbstractStorageChannel<?, ?> abstractChannel) {
+                abstractChannel.loadFromFile(file);
             }
         }
         invalidateCache();
@@ -307,9 +300,11 @@ public class HyperdimensionalStorage {
             return;
         }
         for (StorageChannel<?> channel : channels.values()) {
-            StorageSection section = StorageSection.fromType(channel.getKeyType());
-            if (file.isDirty(section)) {
-                file.saveChannel(section, channel.getKeyType(), channel.getEntries());
+            if (channel instanceof AbstractStorageChannel<?, ?> abstractChannel) {
+                StorageSection section = abstractChannel.getAdapter().getStorageSection();
+                if (file.isDirty(section)) {
+                    abstractChannel.saveToFile(file);
+                }
             }
         }
         markClean();
