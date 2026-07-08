@@ -1,10 +1,12 @@
 package com.github.aeddddd.ae2enhanced.assembly.blockentity;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -15,7 +17,10 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -31,11 +36,13 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkBlockEntity;
+import appeng.crafting.inv.ListCraftingInventory;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
@@ -83,6 +90,16 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     @Nullable
     private IActionSource currentActionSource = null;
     private final Set<BlockPos> interfaces = new HashSet<>();
+
+    /**
+     * 缓存样板是否为纯虚拟合成（无剩余物品）。用于 Mixin 在批量处理前选择虚拟/真实轨道。
+     */
+    private final Map<IPatternDetails, Boolean> patternVirtualCache = new HashMap<>();
+
+    /**
+     * 真实合成 batch 信息缓存：配方、催化剂槽位、槽位物品模板。
+     */
+    private final Map<IPatternDetails, PatternBatchInfo> patternBatchInfoCache = new HashMap<>();
 
     public AssemblyControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ASSEMBLY_CONTROLLER.get(), pos, state);
@@ -186,6 +203,155 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         }
         int pages = PATTERN_PAGES_BASE + count * PATTERN_PAGES_PER_CAPACITY;
         return Math.min(pages, PATTERN_PAGES_MAX);
+    }
+
+    // ---- Pattern Batch Info (real vs virtual crafting) ----
+
+    /**
+     * 真实合成 batch 信息缓存：配方、催化剂槽位、槽位物品模板。
+     */
+    public static class PatternBatchInfo {
+        public CraftingRecipe recipe;
+        public BitSet catalystSlots; // 真催化剂：remaining 与 input 完全一致(NBT 不变)
+        public BitSet transformSlots; // 消耗性转换：remaining 与 input 同一物品但 NBT 不同
+        public AEKey[] slotTemplates; // 每个槽位实际提取的物品模板
+    }
+
+    /**
+     * 供 Mixin 调用：检查指定样板是否已被缓存为纯虚拟合成(无剩余物品或加工样板)。
+     */
+    public boolean isVirtualPattern(IPatternDetails details) {
+        Boolean cached = patternVirtualCache.get(details);
+        return cached != null && cached;
+    }
+
+    /**
+     * 供 Mixin 调用：检查 pendingOutputs 是否还能接受指定数量的 stack。
+     */
+    public boolean canAcceptRealBatch(int stackCount) {
+        return pendingOutputs.size() + stackCount <= MAX_PENDING_OUTPUTS;
+    }
+
+    /**
+     * 供 Mixin 调用：安全地将产物加入 pendingOutputs。
+     */
+    public void addPendingOutput(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        if (pendingOutputs.size() >= MAX_PENDING_OUTPUTS) {
+            AE2Enhanced.LOGGER.error("[AE2E] pendingOutputs overflow, dropping {}", stack);
+            return;
+        }
+        GenericStack gs = GenericStack.fromItemStack(stack);
+        if (gs != null && gs.amount() > 0) {
+            pendingOutputs.add(gs);
+        }
+    }
+
+    /**
+     * 供 Mixin 调用：获取或创建 PatternBatchInfo(含催化剂识别)。
+     * 首次调用时从 CPU 本地库存 SIMULATE 提取 1 份原料构造 CraftingInput，
+     * 执行 getRemainingItems() 识别催化剂槽位。
+     */
+    public PatternBatchInfo getPatternBatchInfo(IPatternDetails details, ListCraftingInventory meInv,
+            IActionSource source) {
+        PatternBatchInfo cached = patternBatchInfoCache.get(details);
+        if (cached != null) {
+            return cached;
+        }
+
+        IPatternDetails.IInput[] inputs = details.getInputs();
+        if (inputs == null) {
+            return null;
+        }
+
+        PatternBatchInfo info = new PatternBatchInfo();
+        info.slotTemplates = new AEKey[inputs.length];
+
+        NonNullList<ItemStack> items = NonNullList.withSize(9, ItemStack.EMPTY);
+
+        // SIMULATE 提取 1 份原料填充 CraftingInput
+        for (int i = 0; i < inputs.length && i < 9; i++) {
+            if (inputs[i] == null) {
+                continue;
+            }
+            GenericStack[] possible = inputs[i].getPossibleInputs();
+            if (possible.length == 0) {
+                continue;
+            }
+            AEKey key = possible[0].what();
+            long extracted = meInv.extract(key, 1, Actionable.SIMULATE);
+            if (extracted >= 1) {
+                info.slotTemplates[i] = key;
+                if (key instanceof AEItemKey itemKey) {
+                    items.set(i, itemKey.toStack());
+                }
+            }
+        }
+
+        if (level == null) {
+            patternVirtualCache.put(details, true);
+            patternBatchInfoCache.put(details, info);
+            return info;
+        }
+
+        TransientCraftingContainer container = new TransientCraftingContainer(null, 3, 3);
+        for (int i = 0; i < items.size() && i < 9; i++) {
+            container.setItem(i, items.get(i));
+        }
+        Optional<CraftingRecipe> optional = level.getRecipeManager()
+                .getRecipeFor(RecipeType.CRAFTING, container, level);
+        if (optional.isEmpty()) {
+            patternVirtualCache.put(details, true);
+            patternBatchInfoCache.put(details, info); // 缓存 null recipe 避免重复查找
+            return info;
+        }
+        info.recipe = optional.get();
+
+        NonNullList<ItemStack> remaining = info.recipe.getRemainingItems(container);
+        patternVirtualCache.put(details, remaining.stream().allMatch(ItemStack::isEmpty));
+        info.catalystSlots = new BitSet(inputs.length);
+        info.transformSlots = new BitSet(inputs.length);
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack inputStack = items.get(i);
+            ItemStack rem = i < remaining.size() ? remaining.get(i) : ItemStack.EMPTY;
+            if (rem.isEmpty()) {
+                continue;
+            }
+            if (ItemStack.isSameItem(inputStack, rem)) {
+                if (areNbtEquivalent(inputStack.getTag(), rem.getTag())) {
+                    info.catalystSlots.set(i);
+                } else if (!inputStack.isDamageableItem()) {
+                    // 不可损坏物品但 NBT 有差异：视为催化剂
+                    info.catalystSlots.set(i);
+                } else if (inputStack.getItem().hasCraftingRemainingItem(inputStack)
+                        && ItemStack.isSameItemSameTags(inputStack.getCraftingRemainingItem(), rem)) {
+                    info.catalystSlots.set(i);
+                } else {
+                    info.transformSlots.set(i);
+                }
+            }
+        }
+
+        patternBatchInfoCache.put(details, info);
+        return info;
+    }
+
+    /**
+     * 宽松比较两个 NBT：null 与空 tag 视为等价。
+     */
+    private static boolean areNbtEquivalent(@Nullable CompoundTag a, @Nullable CompoundTag b) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null) {
+            return b == null || b.isEmpty();
+        }
+        if (b == null) {
+            return a.isEmpty();
+        }
+        return a.equals(b);
     }
 
     /**
@@ -435,6 +601,10 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         }
         onDisassemble();
         setFormed(false);
+        pendingOutputs.clear();
+        jobTimers.clear();
+        patternVirtualCache.clear();
+        patternBatchInfoCache.clear();
         refreshInterfaceServices();
     }
 

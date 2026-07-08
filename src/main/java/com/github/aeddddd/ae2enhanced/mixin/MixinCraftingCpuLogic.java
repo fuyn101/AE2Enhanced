@@ -1,6 +1,7 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,30 +9,37 @@ import java.util.Map;
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.KeyCounter;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
 import appeng.crafting.execution.CraftingCpuLogic;
+import appeng.crafting.execution.ElapsedTimeTracker;
 import appeng.crafting.inv.ListCraftingInventory;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import appeng.me.cluster.implementations.CraftingCPUCluster;
+import appeng.me.service.CraftingService;
+import appeng.api.networking.energy.IEnergyService;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.level.Level;
 
+import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.sugar.Local;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 在 {@link CraftingCpuLogic#executeCrafting} 中拦截样板推送，
- * 当目标提供者是装配枢纽的通用 ME 接口时，一次性批量处理多个副本，
- * 使并行升级真正生效。
- * <p>具体做法：从 CPU 本地库存中额外提取 {@code batchSize - 1} 份输入，
- * 将原 1 份输入与额外输入一并交给装配枢纽消耗，并修正 CPU 的预期产物与剩余物统计。</p>
- * <p>相比依赖 {@code @Local} 获取 task，这里通过反射访问 {@code CraftingCpuLogic.job}
- * 与 {@code ExecutingCraftingJob.tasks}，避免局部变量捕获失败导致并行无法生效。</p>
+ * 在 {@link CraftingCpuLogic#executeCrafting} 头部注入批量处理逻辑，
+ * 完整复刻主分支对装配枢纽任务的虚拟/真实合成分批处理。
+ * <p>处理完成后，原方法继续执行；已完成的装配枢纽任务 value 已被扣减至 0，
+ * 原方法会跳过这些任务，从而避免重复处理。</p>
  */
 @Mixin(value = CraftingCpuLogic.class, remap = false)
 public class MixinCraftingCpuLogic {
@@ -39,186 +47,400 @@ public class MixinCraftingCpuLogic {
     @Unique
     private static final Field AE2E$JOB_FIELD;
     @Unique
+    private static final Field AE2E$CLUSTER_FIELD;
+    @Unique
     private static final Field AE2E$TASKS_FIELD;
     @Unique
+    private static final Field AE2E$WAITING_FOR_FIELD;
+    @Unique
+    private static final Field AE2E$TIME_TRACKER_FIELD;
+    @Unique
+    private static final Field AE2E$FINAL_OUTPUT_FIELD;
+    @Unique
+    private static final Field AE2E$REMAINING_AMOUNT_FIELD;
+    @Unique
     private static final Field AE2E$TASK_PROGRESS_VALUE_FIELD;
+    @Unique
+    private static final Method AE2E$ADD_MAX_ITEMS_METHOD;
+    @Unique
+    private static final Method AE2E$DECREMENT_ITEMS_METHOD;
 
     static {
         try {
             AE2E$JOB_FIELD = CraftingCpuLogic.class.getDeclaredField("job");
             AE2E$JOB_FIELD.setAccessible(true);
 
-            // ExecutingCraftingJob 是 package-private，用字符串反射避免跨包引用编译错误
-            Class<?> executingJobClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob");
-            AE2E$TASKS_FIELD = executingJobClass.getDeclaredField("tasks");
-            AE2E$TASKS_FIELD.setAccessible(true);
+            AE2E$CLUSTER_FIELD = CraftingCpuLogic.class.getDeclaredField("cluster");
+            AE2E$CLUSTER_FIELD.setAccessible(true);
 
-            Class<?> taskProgressClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob$TaskProgress");
-            AE2E$TASK_PROGRESS_VALUE_FIELD = taskProgressClass.getDeclaredField("value");
+            Class<?> jobClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob");
+            AE2E$TASKS_FIELD = jobClass.getDeclaredField("tasks");
+            AE2E$TASKS_FIELD.setAccessible(true);
+            AE2E$WAITING_FOR_FIELD = jobClass.getDeclaredField("waitingFor");
+            AE2E$WAITING_FOR_FIELD.setAccessible(true);
+            AE2E$TIME_TRACKER_FIELD = jobClass.getDeclaredField("timeTracker");
+            AE2E$TIME_TRACKER_FIELD.setAccessible(true);
+            AE2E$FINAL_OUTPUT_FIELD = jobClass.getDeclaredField("finalOutput");
+            AE2E$FINAL_OUTPUT_FIELD.setAccessible(true);
+            AE2E$REMAINING_AMOUNT_FIELD = jobClass.getDeclaredField("remainingAmount");
+            AE2E$REMAINING_AMOUNT_FIELD.setAccessible(true);
+
+            Class<?> tpClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob$TaskProgress");
+            AE2E$TASK_PROGRESS_VALUE_FIELD = tpClass.getDeclaredField("value");
             AE2E$TASK_PROGRESS_VALUE_FIELD.setAccessible(true);
+
+            Class<?> trackerClass = ElapsedTimeTracker.class;
+            AE2E$ADD_MAX_ITEMS_METHOD = trackerClass.getDeclaredMethod("addMaxItems", long.class, AEKeyType.class);
+            AE2E$ADD_MAX_ITEMS_METHOD.setAccessible(true);
+            AE2E$DECREMENT_ITEMS_METHOD = trackerClass.getDeclaredMethod("decrementItems", long.class, AEKeyType.class);
+            AE2E$DECREMENT_ITEMS_METHOD.setAccessible(true);
         } catch (Exception e) {
             throw new RuntimeException("[AE2E] Failed to initialize CraftingCpuLogic batch reflection", e);
         }
     }
 
-    @WrapOperation(method = "executeCrafting", at = @org.spongepowered.asm.mixin.injection.At(value = "INVOKE", target = "Lappeng/api/networking/crafting/ICraftingProvider;pushPattern(Lappeng/api/crafting/IPatternDetails;[Lappeng/api/stacks/KeyCounter;)Z"), remap = false)
-    private boolean ae2e$wrapPushPattern(
-            ICraftingProvider provider,
-            IPatternDetails details,
-            KeyCounter[] inputs,
-            Operation<Boolean> original,
-            @Local(ordinal = 0) KeyCounter expectedOutputs,
-            @Local(ordinal = 1) KeyCounter expectedContainerItems) {
+    @Inject(method = "executeCrafting", at = @At("HEAD"), remap = false)
+    private void ae2e$batchProcessAssemblyHubTasks(int maxPatterns, CraftingService craftingService,
+            IEnergyService energyService, Level level, CallbackInfoReturnable<Integer> cir) {
+        try {
+            CraftingCpuLogic logic = (CraftingCpuLogic) (Object) this;
+            CraftingCPUCluster cluster = (CraftingCPUCluster) AE2E$CLUSTER_FIELD.get(logic);
+            Object job = AE2E$JOB_FIELD.get(logic);
+            if (job == null) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<IPatternDetails, ?> tasks = (Map<IPatternDetails, ?>) AE2E$TASKS_FIELD.get(job);
+            ListCraftingInventory inventory = logic.getInventory();
+            ListCraftingInventory waitingFor = (ListCraftingInventory) AE2E$WAITING_FOR_FIELD.get(job);
+            ElapsedTimeTracker timeTracker = (ElapsedTimeTracker) AE2E$TIME_TRACKER_FIELD.get(job);
 
-        // 仅当提供者是装配枢纽接口时才启用批量逻辑
-        if (!(provider instanceof MultiblockMeInterfaceBlockEntity meInterface)) {
-            return original.call(provider, details, inputs);
+            boolean changed;
+            int iterations = 0;
+            do {
+                changed = false;
+                for (Map.Entry<IPatternDetails, ?> entry : new ArrayList<>(tasks.entrySet())) {
+                    IPatternDetails details = entry.getKey();
+                    Object progress = entry.getValue();
+                    long remaining = ae2e$getTaskValue(progress);
+                    if (remaining <= 0) {
+                        continue;
+                    }
+
+                    Iterable<ICraftingProvider> providers = craftingService.getProviders(details);
+                    if (providers == null) {
+                        continue;
+                    }
+
+                    for (ICraftingProvider provider : providers) {
+                        if (!(provider instanceof MultiblockMeInterfaceBlockEntity meInterface)) {
+                            continue;
+                        }
+                        var controller = meInterface.getController();
+                        if (!(controller instanceof AssemblyControllerBlockEntity hub)) {
+                            continue;
+                        }
+                        if (!hub.isFormed() || !hub.canBatch()) {
+                            continue;
+                        }
+
+                        long cap = hub.getParallelCap();
+                        long batchSize = (cap >= Long.MAX_VALUE / 2) ? remaining : Math.min(remaining, cap);
+                        if (batchSize <= 0) {
+                            continue;
+                        }
+
+                        hub.setCurrentActionSource(cluster.getSrc());
+                        try {
+                            AssemblyControllerBlockEntity.PatternBatchInfo info = hub.getPatternBatchInfo(details, inventory, cluster.getSrc());
+                            if (info == null) {
+                                continue;
+                            }
+                            boolean isVirtual = info.recipe == null || hub.isVirtualPattern(details);
+
+                            if (isVirtual) {
+                                if (ae2e$processVirtualBatch(logic, cluster, hub, details, inventory, waitingFor, timeTracker, progress, remaining, batchSize)) {
+                                    changed = true;
+                                }
+                            } else {
+                                if (info.transformSlots != null && info.transformSlots.cardinality() > 0) {
+                                    batchSize = 1;
+                                }
+                                int estimatedStacks = 1;
+                                for (int i = 0; i < info.slotTemplates.length; i++) {
+                                    if (info.slotTemplates[i] != null && (info.catalystSlots == null || !info.catalystSlots.get(i))) {
+                                        estimatedStacks++;
+                                    }
+                                }
+                                if (!hub.canAcceptRealBatch(estimatedStacks)) {
+                                    continue;
+                                }
+                                if (ae2e$processRealBatch(logic, cluster, hub, details, inventory, waitingFor, timeTracker, info, progress, remaining, batchSize, level)) {
+                                    changed = true;
+                                }
+                            }
+                            hub.setBatchBusy(true);
+                            hub.resetBatchCooldown();
+                        } finally {
+                            hub.setCurrentActionSource(null);
+                        }
+                        break;
+                    }
+                }
+                iterations++;
+            } while (changed && iterations < 100000);
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] batchProcessAssemblyHubTasks failed", e);
         }
-        var controller = meInterface.getController();
-        if (!(controller instanceof AssemblyControllerBlockEntity hub)) {
-            return original.call(provider, details, inputs);
-        }
-
-        // 通过反射获取当前 task 的剩余数量，避免 @Local 捕获失败
-        long remaining = ae2e$getRemaining(details);
-        if (remaining <= 1) {
-            return original.call(provider, details, inputs);
-        }
-
-        long cap = hub.getParallelCap();
-        long batchSize = Math.min(remaining, cap);
-        if (batchSize <= 1) {
-            return original.call(provider, details, inputs);
-        }
-
-        // 从 CPU 本地库存中额外提取 batchSize - 1 份输入
-        ListCraftingInventory cpuInv = ((CraftingCpuLogic) (Object) this).getInventory();
-        KeyCounter[] extraInputs = ae2e$tryExtractExtraInputs(cpuInv, inputs, batchSize - 1);
-        if (extraInputs == null) {
-            // CPU 库存不足以支撑批量，回退到原始单份推送
-            return original.call(provider, details, inputs);
-        }
-
-        // 执行批量推送，传入接口节点以便控制器注入产物
-        if (!hub.pushPatternBatch(details, inputs, meInterface.getMainNode(), batchSize)) {
-            // 批量推送失败，将额外提取的输入重新注入 CPU 库存
-            ae2e$reinjectKeyCounters(extraInputs, cpuInv);
-            return false;
-        }
-
-        // 原始代码会再将 value 减 1，因此这里只扣除 batchSize - 1
-        ae2e$setRemaining(details, remaining - (batchSize - 1));
-
-        // 原始代码只插入 1 份预期输出，这里补充 batchSize - 1 份
-        ae2e$multiplyKeyCounter(expectedOutputs, batchSize - 1);
-        ae2e$multiplyKeyCounter(expectedContainerItems, batchSize - 1);
-
-        return true;
     }
 
-    /**
-     * 尝试从 CPU 本地库存中提取额外副本的输入。
-     *
-     * @param cpuInv     CPU 本地库存
-     * @param inputs     已提取的 1 份输入
-     * @param extraCount 需要额外提取的副本数
-     * @return 提取结果，若库存不足则返回 null
-     */
     @Unique
-    private KeyCounter[] ae2e$tryExtractExtraInputs(ListCraftingInventory cpuInv, KeyCounter[] inputs, long extraCount) {
-        KeyCounter[] result = new KeyCounter[inputs.length];
-
-        // 先模拟提取，确保库存足够
-        for (int i = 0; i < inputs.length; i++) {
-            result[i] = new KeyCounter();
-            for (var entry : inputs[i]) {
-                AEKey key = entry.getKey();
-                long needed = ae2e$safeMultiply(entry.getLongValue(), extraCount);
-                if (needed <= 0) {
+    private boolean ae2e$processVirtualBatch(CraftingCpuLogic logic, CraftingCPUCluster cluster,
+            AssemblyControllerBlockEntity hub, IPatternDetails details, ListCraftingInventory inventory,
+            ListCraftingInventory waitingFor, ElapsedTimeTracker timeTracker, Object progress, long remaining,
+            long batchSize) {
+        try {
+            IPatternDetails.IInput[] inputs = details.getInputs();
+            if (inputs == null) {
+                return false;
+            }
+            for (IPatternDetails.IInput input : inputs) {
+                if (input == null) {
                     continue;
                 }
-                long available = cpuInv.extract(key, needed, Actionable.SIMULATE);
-                if (available < needed) {
-                    return null;
+                GenericStack[] possible = input.getPossibleInputs();
+                if (possible.length == 0) {
+                    continue;
                 }
-                result[i].add(key, available);
+                AEKey key = possible[0].what();
+                long perCraft = possible[0].amount();
+                long totalNeed = ae2e$safeMultiply(perCraft, batchSize);
+                if (totalNeed <= 0) {
+                    return false;
+                }
+                long available = inventory.extract(key, totalNeed, Actionable.SIMULATE);
+                if (available < totalNeed) {
+                    return false;
+                }
             }
-        }
-
-        // 实际扣除
-        for (KeyCounter extra : result) {
-            for (var entry : extra) {
-                cpuInv.extract(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+            for (IPatternDetails.IInput input : inputs) {
+                if (input == null) {
+                    continue;
+                }
+                GenericStack[] possible = input.getPossibleInputs();
+                if (possible.length == 0) {
+                    continue;
+                }
+                AEKey key = possible[0].what();
+                long perCraft = possible[0].amount();
+                long totalNeed = ae2e$safeMultiply(perCraft, batchSize);
+                inventory.extract(key, totalNeed, Actionable.MODULATE);
             }
-        }
 
-        return result;
+            long totalOutputItems = 0;
+            for (GenericStack output : details.getOutputs()) {
+                if (output == null || output.amount() <= 0) {
+                    continue;
+                }
+                long totalCount = ae2e$safeMultiply(output.amount(), batchSize);
+                if (totalCount <= 0) {
+                    continue;
+                }
+                totalOutputItems += totalCount;
+                inventory.insert(output.what(), totalCount, Actionable.MODULATE);
+                waitingFor.extract(output.what(), totalCount, Actionable.MODULATE);
+                ae2e$decrementItems(timeTracker, totalCount, output.what().getType());
+            }
+
+            ae2e$setTaskValue(progress, remaining - batchSize);
+            ae2e$decrementRemainingAmount(details, totalOutputItems);
+            cluster.markDirty();
+            return true;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Virtual batch failed", e);
+            return false;
+        }
     }
 
     @Unique
-    private static void ae2e$reinjectKeyCounters(KeyCounter[] counters, ListCraftingInventory cpuInv) {
-        if (counters == null) {
-            return;
-        }
-        for (KeyCounter counter : counters) {
-            for (var entry : counter) {
-                cpuInv.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
-            }
-        }
-    }
-
-    @Unique
-    @SuppressWarnings("unchecked")
-    private long ae2e$getRemaining(IPatternDetails details) {
+    private boolean ae2e$processRealBatch(CraftingCpuLogic logic, CraftingCPUCluster cluster,
+            AssemblyControllerBlockEntity hub, IPatternDetails details, ListCraftingInventory inventory,
+            ListCraftingInventory waitingFor, ElapsedTimeTracker timeTracker,
+            AssemblyControllerBlockEntity.PatternBatchInfo info, Object progress, long remaining, long batchSize,
+            Level level) {
         try {
-            Object job = AE2E$JOB_FIELD.get((CraftingCpuLogic) (Object) this);
+            IPatternDetails.IInput[] inputs = details.getInputs();
+            if (inputs == null || info.slotTemplates == null) {
+                return false;
+            }
+
+            long actualBatchSize = batchSize;
+
+            for (int i = 0; i < inputs.length; i++) {
+                if (inputs[i] == null || info.slotTemplates[i] == null) {
+                    continue;
+                }
+                AEKey key = info.slotTemplates[i];
+                long perCraft = inputs[i].getPossibleInputs()[0].amount();
+                long needCount = (info.catalystSlots != null && info.catalystSlots.get(i)) || (info.transformSlots != null && info.transformSlots.get(i))
+                        ? 1
+                        : ae2e$safeMultiply(perCraft, actualBatchSize);
+                long available = inventory.extract(key, needCount, Actionable.SIMULATE);
+                if (available < needCount) {
+                    if (actualBatchSize > 1) {
+                        long maxBatch = available / perCraft;
+                        if (maxBatch <= 0) {
+                            return false;
+                        }
+                        actualBatchSize = maxBatch;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            if (actualBatchSize <= 0) {
+                return false;
+            }
+
+            for (int i = 0; i < inputs.length; i++) {
+                if (inputs[i] == null || info.slotTemplates[i] == null) {
+                    continue;
+                }
+                AEKey key = info.slotTemplates[i];
+                long perCraft = inputs[i].getPossibleInputs()[0].amount();
+                long needCount = (info.catalystSlots != null && info.catalystSlots.get(i)) || (info.transformSlots != null && info.transformSlots.get(i))
+                        ? 1
+                        : ae2e$safeMultiply(perCraft, actualBatchSize);
+                inventory.extract(key, needCount, Actionable.MODULATE);
+            }
+
+            NonNullList<ItemStack> craftItems = NonNullList.withSize(9, ItemStack.EMPTY);
+            for (int i = 0; i < info.slotTemplates.length && i < 9; i++) {
+                if (info.slotTemplates[i] instanceof AEItemKey itemKey) {
+                    craftItems.set(i, itemKey.toStack());
+                }
+            }
+            TransientCraftingContainer container = new TransientCraftingContainer(null, 3, 3);
+            for (int i = 0; i < craftItems.size(); i++) {
+                container.setItem(i, craftItems.get(i));
+            }
+            ItemStack output = info.recipe.assemble(container, level.registryAccess());
+            NonNullList<ItemStack> remainingItems = info.recipe.getRemainingItems(container);
+
+            long totalOutputItems = 0;
+            if (!output.isEmpty()) {
+                ItemStack batchOutput = output.copy();
+                long count = ae2e$safeMultiply(output.getCount(), actualBatchSize);
+                if (count > Integer.MAX_VALUE) {
+                    count = Integer.MAX_VALUE;
+                }
+                batchOutput.setCount((int) count);
+                hub.addPendingOutput(batchOutput);
+                AEKey outputKey = AEItemKey.of(batchOutput);
+                if (outputKey != null) {
+                    waitingFor.extract(outputKey, count, Actionable.MODULATE);
+                    ae2e$decrementItems(timeTracker, count, outputKey.getType());
+                }
+                totalOutputItems += count;
+            }
+            for (int i = 0; i < remainingItems.size(); i++) {
+                ItemStack rem = remainingItems.get(i);
+                if (rem.isEmpty()) {
+                    continue;
+                }
+                if (info.catalystSlots != null && info.catalystSlots.get(i)) {
+                    AEKey key = info.slotTemplates[i];
+                    if (key != null) {
+                        inventory.insert(key, 1, Actionable.MODULATE);
+                    }
+                } else {
+                    long count = ae2e$safeMultiply(rem.getCount(), actualBatchSize);
+                    if (count > Integer.MAX_VALUE) {
+                        count = Integer.MAX_VALUE;
+                    }
+                    ItemStack batchRem = rem.copy();
+                    batchRem.setCount((int) count);
+                    hub.addPendingOutput(batchRem);
+                    AEKey remKey = AEItemKey.of(batchRem);
+                    if (remKey != null) {
+                        waitingFor.extract(remKey, count, Actionable.MODULATE);
+                        ae2e$decrementItems(timeTracker, count, remKey.getType());
+                    }
+                    totalOutputItems += count;
+                }
+            }
+
+            ae2e$setTaskValue(progress, remaining - actualBatchSize);
+            ae2e$decrementRemainingAmount(details, totalOutputItems);
+            cluster.markDirty();
+            return true;
+        } catch (Exception e) {
+            AE2Enhanced.LOGGER.error("[AE2E] Real batch failed", e);
+            return false;
+        }
+    }
+
+    @Unique
+    private void ae2e$decrementRemainingAmount(IPatternDetails details, long amount) {
+        try {
+            CraftingCpuLogic logic = (CraftingCpuLogic) (Object) this;
+            Object job = AE2E$JOB_FIELD.get(logic);
             if (job == null) {
-                return 1;
+                return;
             }
-            Map<IPatternDetails, ?> tasks = (Map<IPatternDetails, ?>) AE2E$TASKS_FIELD.get(job);
-            Object progress = tasks.get(details);
-            if (progress == null) {
-                return 1;
+            GenericStack finalOutput = (GenericStack) AE2E$FINAL_OUTPUT_FIELD.get(job);
+            if (finalOutput == null) {
+                return;
             }
+            for (GenericStack output : details.getOutputs()) {
+                if (output == null || output.amount() <= 0) {
+                    continue;
+                }
+                if (output.what().equals(finalOutput.what())) {
+                    long current = AE2E$REMAINING_AMOUNT_FIELD.getLong(job);
+                    long decrement = Math.min(amount, current);
+                    AE2E$REMAINING_AMOUNT_FIELD.setLong(job, current - decrement);
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @Unique
+    private static void ae2e$addMaxItems(ElapsedTimeTracker tracker, long amount, AEKeyType type) {
+        try {
+            AE2E$ADD_MAX_ITEMS_METHOD.invoke(tracker, amount, type);
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @Unique
+    private static void ae2e$decrementItems(ElapsedTimeTracker tracker, long amount, AEKeyType type) {
+        try {
+            AE2E$DECREMENT_ITEMS_METHOD.invoke(tracker, amount, type);
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @Unique
+    private static long ae2e$getTaskValue(Object progress) {
+        try {
             return AE2E$TASK_PROGRESS_VALUE_FIELD.getLong(progress);
         } catch (Exception e) {
-            return 1;
+            return 0;
         }
     }
 
     @Unique
-    @SuppressWarnings("unchecked")
-    private void ae2e$setRemaining(IPatternDetails details, long value) {
+    private static void ae2e$setTaskValue(Object progress, long value) {
         try {
-            Object job = AE2E$JOB_FIELD.get((CraftingCpuLogic) (Object) this);
-            if (job == null) {
-                return;
-            }
-            Map<IPatternDetails, ?> tasks = (Map<IPatternDetails, ?>) AE2E$TASKS_FIELD.get(job);
-            Object progress = tasks.get(details);
-            if (progress == null) {
-                return;
-            }
             AE2E$TASK_PROGRESS_VALUE_FIELD.setLong(progress, value);
         } catch (Exception e) {
-            // 失败时交给原始代码继续处理，避免崩溃
-        }
-    }
-
-    @Unique
-    private static void ae2e$multiplyKeyCounter(KeyCounter counter, long multiplier) {
-        if (multiplier <= 0) {
-            return;
-        }
-        List<Object2LongMap.Entry<AEKey>> entries = new ArrayList<>();
-        for (Object2LongMap.Entry<AEKey> entry : counter) {
-            entries.add(entry);
-        }
-        for (Object2LongMap.Entry<AEKey> entry : entries) {
-            long extra = ae2e$safeMultiply(entry.getLongValue(), multiplier);
-            if (extra > 0) {
-                counter.add(entry.getKey(), extra);
-            }
+            // ignore
         }
     }
 
