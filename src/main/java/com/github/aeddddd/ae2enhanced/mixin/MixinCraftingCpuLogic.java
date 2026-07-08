@@ -3,7 +3,6 @@ package com.github.aeddddd.ae2enhanced.mixin;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import appeng.api.config.Actionable;
@@ -22,7 +21,6 @@ import appeng.api.networking.energy.IEnergyService;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.level.Level;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;

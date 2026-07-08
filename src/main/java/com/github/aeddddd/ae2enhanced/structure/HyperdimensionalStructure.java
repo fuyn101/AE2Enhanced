@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.structure;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;

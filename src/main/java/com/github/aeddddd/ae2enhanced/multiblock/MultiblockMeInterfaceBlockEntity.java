@@ -14,8 +14,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.crafting.ICraftingProvider;
-import appeng.api.networking.energy.IEnergyService;
-import appeng.api.networking.storage.IStorageService;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;

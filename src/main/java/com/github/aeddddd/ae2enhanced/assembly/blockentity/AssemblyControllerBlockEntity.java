@@ -553,9 +553,8 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
             AEKey key = entry.getKey();
             long count = entry.getValue();
             while (count > 0) {
-                long batch = Math.min(count, Long.MAX_VALUE);
-                long remainder = storage.insert(key, batch, Actionable.MODULATE, source);
-                if (remainder >= batch) {
+                long remainder = storage.insert(key, count, Actionable.MODULATE, source);
+                if (remainder >= count) {
                     leftovers.add(new GenericStack(key, count));
                     break;
                 }
