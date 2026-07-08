@@ -2,8 +2,10 @@ package com.github.aeddddd.ae2enhanced.assembly.blockentity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -43,6 +45,7 @@ import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleCraftingHelper
 import com.github.aeddddd.ae2enhanced.crafting.blackhole.BlackHoleRecipe;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
 import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
+import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
@@ -53,7 +56,7 @@ import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
  * <p>自身作为 AE2 网络节点，向网络提供 Long 级别的并行虚拟样板合成，支持升级卡、样板分页与产物缓冲。</p>
  */
 public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
-        implements IPatternProviderHost, ICraftingProvider {
+        implements IPatternProviderHost {
 
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
@@ -77,6 +80,9 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     private boolean networkPowered = false;
     private int statusTick = 0;
     private boolean formed = false;
+    @Nullable
+    private IActionSource currentActionSource = null;
+    private final Set<BlockPos> interfaces = new HashSet<>();
 
     public AssemblyControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ASSEMBLY_CONTROLLER.get(), pos, state);
@@ -113,6 +119,41 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
             return cap;
         }
         return 64;
+    }
+
+    /**
+     * 当前合成延迟 tick 数。0 张速度升级卡 = 20，每张减半，最低 1 tick。
+     */
+    /**
+     * 设置当前执行样板的动作来源。由 Mixin 在批量处理前设置，确保 AE2 网络操作归因正确。
+     */
+    public void setCurrentActionSource(@Nullable IActionSource source) {
+        this.currentActionSource = source;
+    }
+
+    /**
+     * 获取实际应使用的动作来源。优先使用 Mixin 设置的临时来源，否则回退到机器源。
+     */
+    public IActionSource getEffectiveActionSource() {
+        return currentActionSource != null ? currentActionSource : getActionSource();
+    }
+
+    /**
+     * 当前 tick 是否还能接受新的 batch。batchBusy 会在每个 tick 的服务器端刷新。
+     */
+    public boolean canBatch() {
+        return !batchBusy;
+    }
+
+    /**
+     * 标记 batch 忙碌状态。由 Mixin 在批量处理前后调用。
+     */
+    public void setBatchBusy(boolean busy) {
+        this.batchBusy = busy;
+    }
+
+    public void resetBatchCooldown() {
+        this.batchBusy = true;
     }
 
     /**
@@ -159,8 +200,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     protected IManagedGridNode createMainNode() {
         return super.createMainNode()
                 .setIdlePowerUsage(1.0)
-                .setVisualRepresentation(ModItems.ASSEMBLY_CONTROLLER.get())
-                .addService(ICraftingProvider.class, this);
+                .setVisualRepresentation(ModItems.ASSEMBLY_CONTROLLER.get());
     }
 
     @Override
@@ -325,7 +365,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
             return;
         }
         MEStorage storage = storageService.getInventory();
-        var source = getActionSource();
+        var source = getEffectiveActionSource();
 
         Map<AEKey, Long> merged = new HashMap<>();
         for (GenericStack stack : pendingOutputs) {
@@ -405,16 +445,33 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
 
     @Override
     public void attachInterface(BlockPos interfacePos) {
-        setChanged();
+        if (interfaces.add(interfacePos)) {
+            setChanged();
+            if (level != null && !level.isClientSide()) {
+                refreshInterfaceServices();
+            }
+        }
     }
 
     @Override
     public void detachInterface(BlockPos interfacePos) {
-        setChanged();
+        if (interfaces.remove(interfacePos)) {
+            setChanged();
+        }
     }
 
     @Override
     public IActionSource getActionSource() {
+        if (level != null) {
+            for (BlockPos pos : interfaces) {
+                if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
+                    IManagedGridNode node = meInterface.getMainNode();
+                    if (node != null && node.isReady()) {
+                        return IActionSource.ofMachine(meInterface);
+                    }
+                }
+            }
+        }
         return IActionSource.ofMachine(this);
     }
 
@@ -422,7 +479,12 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (level == null || level.isClientSide()) {
             return;
         }
-        ICraftingProvider.requestUpdate(getMainNode());
+        // 控制器自身不再注册 ICraftingProvider，应刷新通用 ME 接口节点的样板列表
+        for (BlockPos pos : interfaces) {
+            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
+                ICraftingProvider.requestUpdate(meInterface.getMainNode());
+            }
+        }
     }
 
     @Override
@@ -543,6 +605,17 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (preferred != null && preferred.isReady()) {
             return preferred;
         }
+        // 优先使用已连接的通用 ME 接口节点，控制器自身节点可能未直接接入网络
+        if (level != null) {
+            for (BlockPos pos : interfaces) {
+                if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
+                    IManagedGridNode node = meInterface.getMainNode();
+                    if (node != null && node.isReady()) {
+                        return node;
+                    }
+                }
+            }
+        }
         IManagedGridNode node = getMainNode();
         return node != null && node.isReady() ? node : null;
     }
@@ -552,13 +625,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         long cap = getParallelCap();
         int intCap = cap >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) cap;
         return jobTimers.size() >= intCap || batchBusy;
-    }
-
-    // ---- ICraftingProvider ----
-
-    @Override
-    public int getPatternPriority() {
-        return 0;
     }
 
     // ---- NBT ----
@@ -590,6 +656,14 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         formed = data.getBoolean("formed");
         networkActive = data.getBoolean("networkActive");
         networkPowered = data.getBoolean("networkPowered");
+        if (data.contains("interfaces", ListTag.TAG_LIST)) {
+            interfaces.clear();
+            ListTag interfacesList = data.getList("interfaces", CompoundTag.TAG_COMPOUND);
+            for (int i = 0; i < interfacesList.size(); i++) {
+                CompoundTag posTag = interfacesList.getCompound(i);
+                interfaces.add(new BlockPos(posTag.getInt("x"), posTag.getInt("y"), posTag.getInt("z")));
+            }
+        }
         ensurePatternCapacity();
     }
 
@@ -616,6 +690,15 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         data.putBoolean("formed", formed);
         data.putBoolean("networkActive", networkActive);
         data.putBoolean("networkPowered", networkPowered);
+        ListTag interfacesList = new ListTag();
+        for (BlockPos pos : interfaces) {
+            CompoundTag posTag = new CompoundTag();
+            posTag.putInt("x", pos.getX());
+            posTag.putInt("y", pos.getY());
+            posTag.putInt("z", pos.getZ());
+            interfacesList.add(posTag);
+        }
+        data.put("interfaces", interfacesList);
     }
 
     @Override
