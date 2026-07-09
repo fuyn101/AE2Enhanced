@@ -11,6 +11,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -98,6 +100,36 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
 
     public String getStorageTotalRaw() {
         return String.valueOf(storageTotal);
+    }
+
+    @Override
+    public AABB getRenderBoundingBox() {
+        BlockPos pos = getBlockPos();
+        Direction facing = Direction.NORTH;
+        if (level != null) {
+            BlockState state = level.getBlockState(pos);
+            if (state.hasProperty(com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock.FACING)) {
+                facing = state.getValue(com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock.FACING);
+            }
+        }
+        // 特效中心：结构中心 (0,0,2)，抬高 2.5
+        Vec3 localCenter = new Vec3(0.0, 2.5, 2.0);
+        Vec3 rotatedCenter = rotateOffset(localCenter, facing);
+        Vec3 worldCenter = new Vec3(pos.getX() + rotatedCenter.x, pos.getY() + rotatedCenter.y,
+                pos.getZ() + rotatedCenter.z);
+        return new AABB(worldCenter, worldCenter).inflate(8.0);
+    }
+
+    private static Vec3 rotateOffset(Vec3 local, Direction facing) {
+        double x = local.x;
+        double y = local.y;
+        double z = local.z;
+        return switch (facing) {
+            case SOUTH -> new Vec3(-x, y, -z);
+            case EAST -> new Vec3(-z, y, x);
+            case WEST -> new Vec3(z, y, -x);
+            default -> new Vec3(x, y, z);
+        };
     }
 
     @Override

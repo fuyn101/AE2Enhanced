@@ -11,11 +11,17 @@ public final class AE2EnhancedConfig {
 
     public static final ForgeConfigSpec COMMON_SPEC;
     public static final CommonConfig COMMON;
+    public static final ForgeConfigSpec CLIENT_SPEC;
+    public static final ClientConfig CLIENT;
 
     static {
-        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
-        COMMON = new CommonConfig(builder);
-        COMMON_SPEC = builder.build();
+        ForgeConfigSpec.Builder commonBuilder = new ForgeConfigSpec.Builder();
+        COMMON = new CommonConfig(commonBuilder);
+        COMMON_SPEC = commonBuilder.build();
+
+        ForgeConfigSpec.Builder clientBuilder = new ForgeConfigSpec.Builder();
+        CLIENT = new ClientConfig(clientBuilder);
+        CLIENT_SPEC = clientBuilder.build();
     }
 
     private AE2EnhancedConfig() {
@@ -23,6 +29,7 @@ public final class AE2EnhancedConfig {
 
     public static void register() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC);
     }
 
     public static class CommonConfig {
@@ -50,7 +57,7 @@ public final class AE2EnhancedConfig {
                     .comment("装配枢纽产物缓冲上限")
                     .defineInRange("maxPendingOutputs", 4096, 1, 100000);
             enableBlackHole = builder
-                    .comment("是否启用装配枢纽黑洞事件视界")
+                    .comment("是否启用装配枢纽黑洞事件视界（服务端逻辑开关）")
                     .define("enableBlackHole", true);
             builder.pop();
 
@@ -58,6 +65,50 @@ public final class AE2EnhancedConfig {
             debugMode = builder
                     .comment("调试模式：输出更多日志")
                     .define("debugMode", false);
+            builder.pop();
+        }
+    }
+
+    public static class ClientConfig {
+        public final ForgeConfigSpec.BooleanValue enableAssemblyRenderer;
+        public final ForgeConfigSpec.BooleanValue enableHyperdimensionalRenderer;
+        public final ForgeConfigSpec.IntValue renderDistance;
+        public final ForgeConfigSpec.DoubleValue dynamicRenderIntensity;
+        public final ForgeConfigSpec.IntValue maxDynamicElements;
+        public final ForgeConfigSpec.DoubleValue particleDensity;
+        public final ForgeConfigSpec.BooleanValue useLOD;
+
+        ClientConfig(ForgeConfigSpec.Builder builder) {
+            builder.push("render");
+
+            enableAssemblyRenderer = builder
+                    .comment("是否启用装配枢纽中心渲染")
+                    .define("enableAssemblyRenderer", true);
+
+            enableHyperdimensionalRenderer = builder
+                    .comment("是否启用超维度仓储全息渲染")
+                    .define("enableHyperdimensionalRenderer", true);
+
+            renderDistance = builder
+                    .comment("多方块特效最大渲染距离（方块数）")
+                    .defineInRange("renderDistance", 96, 16, 512);
+
+            dynamicRenderIntensity = builder
+                    .comment("动态渲染强度缩放（0.0 ~ 2.0）")
+                    .defineInRange("dynamicRenderIntensity", 1.0, 0.0, 2.0);
+
+            maxDynamicElements = builder
+                    .comment("动态元素数量上限（环、壳等）")
+                    .defineInRange("maxDynamicElements", 8, 1, 16);
+
+            particleDensity = builder
+                    .comment("粒子密度缩放（0.0 ~ 2.0）")
+                    .defineInRange("particleDensity", 1.0, 0.0, 2.0);
+
+            useLOD = builder
+                    .comment("是否启用远距离 LOD 简化")
+                    .define("useLOD", true);
+
             builder.pop();
         }
     }
