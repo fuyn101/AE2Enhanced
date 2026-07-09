@@ -37,6 +37,7 @@ import appeng.crafting.inv.ListCraftingInventory;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyCraftingProcessor;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternInventory;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternManager;
+import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternSavedData;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyUpgradeManager;
 import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
 import com.github.aeddddd.ae2enhanced.client.render.AbstractMultiblockRenderer;
@@ -60,7 +61,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
     public static final int PATTERN_PAGES_BASE = 5;
-    public static final int PATTERN_PAGES_PER_CAPACITY = 5;
+    public static final int PATTERN_PAGES_PER_CAPACITY = 10; // 10 张扩容卡即可完整解锁 100 页
     public static final int PATTERN_PAGES_MAX = 100;
     public static final int TOTAL_SLOTS_MAX = UPGRADE_SLOTS + PATTERN_SLOTS_PER_PAGE * PATTERN_PAGES_MAX;
     public static final int TOTAL_SLOTS_BASE = UPGRADE_SLOTS + PATTERN_SLOTS_PER_PAGE * PATTERN_PAGES_BASE;
@@ -405,6 +406,12 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (level != null && !level.isClientSide() && isFormed()
                 && BlockEntityRemovalHelper.isBlockBeingBroken(this)) {
             disassemble();
+        }
+        if (level != null && !level.isClientSide() && BlockEntityRemovalHelper.isBlockBeingBroken(this)) {
+            AssemblyPatternSavedData savedData = AssemblyPatternSavedData.get(level);
+            if (savedData != null) {
+                savedData.removePatterns(worldPosition);
+            }
         }
         super.setRemoved();
     }

@@ -149,6 +149,43 @@ public class AssemblyPatternManager {
             if (slot < AssemblyControllerBlockEntity.UPGRADE_SLOTS) {
                 controller.markForUpdate();
             }
+            // 样板变动时立即写入 SavedData，避免仅依赖区块保存导致崩溃丢失。
+            if (slot >= AssemblyControllerBlockEntity.UPGRADE_SLOTS) {
+                savePatternsToSavedData();
+            }
+        }
+
+        /**
+         * 将当前样板背包状态写入维度级 SavedData。
+         */
+        private void savePatternsToSavedData() {
+            Level level = controller.getLevel();
+            if (level == null || level.isClientSide()) {
+                return;
+            }
+            AssemblyPatternSavedData savedData = AssemblyPatternSavedData.get(level);
+            if (savedData != null) {
+                savedData.setPatterns(controller.getBlockPos(), buildPatternNbt());
+            }
+        }
+
+        /**
+         * 构建稀疏的样板背包 NBT，只包含非空槽位。
+         */
+        private CompoundTag buildPatternNbt() {
+            CompoundTag nbt = new CompoundTag();
+            ListTag itemList = new ListTag();
+            for (int i = 0; i < stacks.size(); i++) {
+                ItemStack stack = stacks.get(i);
+                if (!stack.isEmpty()) {
+                    CompoundTag itemTag = new CompoundTag();
+                    itemTag.putInt("Slot", i);
+                    itemList.add(stack.save(itemTag));
+                }
+            }
+            nbt.putInt("Size", stacks.size());
+            nbt.put("Items", itemList);
+            return nbt;
         }
 
         @Override
@@ -222,38 +259,44 @@ public class AssemblyPatternManager {
         }
 
         /**
-         * 稀疏序列化：只保存非空槽位及其索引，防止 100 页（10200 槽）空样板槽撑大 NBT。
+         * 方块实体保存时，将样板数据写入 SavedData，自身 NBT 返回空，避免区块 NBT 膨胀。
          */
         @Override
         public CompoundTag serializeNBT() {
-            CompoundTag nbt = new CompoundTag();
-            ListTag itemList = new ListTag();
-            for (int i = 0; i < stacks.size(); i++) {
-                ItemStack stack = stacks.get(i);
-                if (!stack.isEmpty()) {
-                    CompoundTag itemTag = new CompoundTag();
-                    itemTag.putInt("Slot", i);
-                    itemList.add(stack.save(itemTag));
-                }
-            }
-            nbt.putInt("Size", stacks.size());
-            nbt.put("Items", itemList);
-            return nbt;
+            savePatternsToSavedData();
+            return new CompoundTag();
         }
 
         /**
-         * 反序列化：仅加载非空槽位，并防止损坏/超大 Size 字段导致内存异常。
+         * 从 SavedData 读取样板数据；若 SavedData 为空则回退到传入的 NBT（兼容旧版本）。
          */
         @Override
         public void deserializeNBT(CompoundTag nbt) {
-            int size = nbt.contains("Size", Tag.TAG_INT) ? nbt.getInt("Size") : AssemblyControllerBlockEntity.TOTAL_SLOTS_BASE;
-            int clampedSize = Math.min(Math.max(size, AssemblyControllerBlockEntity.TOTAL_SLOTS_BASE), AssemblyControllerBlockEntity.TOTAL_SLOTS_MAX);
+            Level level = controller.getLevel();
+            CompoundTag dataToLoad = nbt;
+            boolean fromSavedData = false;
+            if (level != null && !level.isClientSide()) {
+                AssemblyPatternSavedData savedData = AssemblyPatternSavedData.get(level);
+                if (savedData != null) {
+                    CompoundTag saved = savedData.getPatterns(controller.getBlockPos());
+                    if (!saved.isEmpty()) {
+                        dataToLoad = saved;
+                        fromSavedData = true;
+                    }
+                }
+            }
+
+            int size = dataToLoad.contains("Size", Tag.TAG_INT)
+                    ? dataToLoad.getInt("Size")
+                    : AssemblyControllerBlockEntity.TOTAL_SLOTS_BASE;
+            int clampedSize = Math.min(Math.max(size, AssemblyControllerBlockEntity.TOTAL_SLOTS_BASE),
+                    AssemblyControllerBlockEntity.TOTAL_SLOTS_MAX);
             setCapacity(clampedSize);
             for (int i = 0; i < clampedSize; i++) {
                 stacks.set(i, ItemStack.EMPTY);
             }
-            if (nbt.contains("Items", Tag.TAG_LIST)) {
-                ListTag itemList = nbt.getList("Items", Tag.TAG_COMPOUND);
+            if (dataToLoad.contains("Items", Tag.TAG_LIST)) {
+                ListTag itemList = dataToLoad.getList("Items", Tag.TAG_COMPOUND);
                 for (int i = 0; i < itemList.size(); i++) {
                     CompoundTag itemTag = itemList.getCompound(i);
                     int slot = itemTag.getInt("Slot");
@@ -265,6 +308,12 @@ public class AssemblyPatternManager {
                     }
                 }
             }
+
+            // 旧版本数据迁移：从方块实体 NBT 加载后写入 SavedData
+            if (!fromSavedData && level != null && !level.isClientSide() && !nbt.isEmpty()) {
+                savePatternsToSavedData();
+            }
+
             onLoad();
         }
     }

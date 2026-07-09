@@ -58,7 +58,7 @@ public final class ModItems {
             () -> new AssemblyUpgradeCardItem(new Item.Properties().stacksTo(5)));
 
     public static final RegistryObject<Item> ASSEMBLY_CAPACITY_UPGRADE = DR.register("assembly_capacity_upgrade",
-            () -> new AssemblyUpgradeCardItem(new Item.Properties().stacksTo(19)));
+            () -> new AssemblyUpgradeCardItem(new Item.Properties().stacksTo(10)));
 
     public static final RegistryObject<Item> ASSEMBLY_AUTO_UPLOAD_UPGRADE = DR.register("assembly_auto_upload_upgrade",
             () -> new AssemblyUpgradeCardItem(new Item.Properties().stacksTo(1)));
