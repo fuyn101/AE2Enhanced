@@ -52,6 +52,8 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     private int validationCooldown = 0;
     private int saveCooldown = 0;
     private int statusCooldown = 0;
+    private int networkUpdateCooldown = 0;
+    private boolean pendingNetworkUpdate = false;
 
     // 客户端同步字段
     private boolean networkActive = false;
@@ -126,10 +128,7 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
             return;
         }
         if (storage == null) {
-            HyperdimensionalStorageFile file = HyperdimensionalStorageFile.forNexus(server, nexusId);
-            file.tryMigrateLegacy();
-            storage = new HyperdimensionalStorage(nexusId, file, s -> onStorageContentChanged());
-            storage.markClean();
+            storage = HyperdimensionalStorageFile.loadOrCreate(server, nexusId, s -> onStorageContentChanged());
         }
         refreshMeStorageSource();
         // 后续 GUI 可在此注册监听器以实时刷新；网络统计每 20 tick 刷新一次。
@@ -146,18 +145,15 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
     }
 
     /**
-     * 当内部存储变化时通知所有通用 ME 接口重新挂载存储提供者，
-     * 确保 AE2 网络能及时感知超维度仓储内容变化。
+     * 当内部存储变化时通知 AE2 网络刷新。
+     * <p>为避免高频写入时反复调用 requestNetworkUpdate，这里仅标记 pending；
+     * 由 {@link #serverTick()} 以最低 5 tick 的间隔统一触发一次。</p>
      */
     private void onStorageContentChanged() {
         if (level == null || level.isClientSide()) {
             return;
         }
-        for (BlockPos pos : getInterfaces()) {
-            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
-                me.requestNetworkUpdate();
-            }
-        }
+        pendingNetworkUpdate = true;
     }
 
     @Override
@@ -202,6 +198,16 @@ public class HyperdimensionalControllerBlockEntity extends MultiblockControllerB
         if (statusCooldown-- <= 0) {
             statusCooldown = 20;
             refreshNetworkStatus();
+        }
+
+        if (networkUpdateCooldown-- <= 0 && pendingNetworkUpdate) {
+            networkUpdateCooldown = 5;
+            pendingNetworkUpdate = false;
+            for (BlockPos pos : getInterfaces()) {
+                if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity me) {
+                    me.requestNetworkUpdate();
+                }
+            }
         }
     }
 
