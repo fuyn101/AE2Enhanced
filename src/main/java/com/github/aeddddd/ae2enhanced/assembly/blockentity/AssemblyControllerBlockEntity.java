@@ -75,6 +75,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     private boolean networkActive = false;
     private boolean networkPowered = false;
     private boolean formed = false;
+    private boolean showingStructureProjection = false;
 
     /**
      * 真实合成 batch 信息缓存：配方、催化剂槽位、槽位物品模板。
@@ -284,6 +285,22 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         return formed;
     }
 
+    @Override
+    public boolean isShowingStructureProjection() {
+        return showingStructureProjection;
+    }
+
+    @Override
+    public void toggleStructureProjection() {
+        if (formed) {
+            showingStructureProjection = false;
+            return;
+        }
+        showingStructureProjection = !showingStructureProjection;
+        setChanged();
+        markForUpdate();
+    }
+
     public void setFormed(boolean formed) {
         if (this.formed != formed) {
             this.formed = formed;
@@ -461,6 +478,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         patternManager.load(data);
         craftingProcessor.load(data);
         formed = data.getBoolean("formed");
+        showingStructureProjection = data.getBoolean("showProjection");
         networkActive = data.getBoolean("networkActive");
         networkPowered = data.getBoolean("networkPowered");
         patternManager.ensurePatternCapacity();
@@ -472,6 +490,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         patternManager.save(data);
         craftingProcessor.save(data);
         data.putBoolean("formed", formed);
+        data.putBoolean("showProjection", showingStructureProjection);
         data.putBoolean("networkActive", networkActive);
         data.putBoolean("networkPowered", networkPowered);
     }
@@ -480,6 +499,7 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
         tag.putBoolean("formed", formed);
+        tag.putBoolean("showProjection", showingStructureProjection);
         tag.putBoolean("networkActive", networkActive);
         tag.putBoolean("networkPowered", networkPowered);
         return tag;
@@ -490,6 +510,9 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         super.handleUpdateTag(tag);
         if (tag.contains("formed", Tag.TAG_BYTE)) {
             this.formed = tag.getBoolean("formed");
+        }
+        if (tag.contains("showProjection", Tag.TAG_BYTE)) {
+            this.showingStructureProjection = tag.getBoolean("showProjection");
         }
         if (tag.contains("networkActive", Tag.TAG_BYTE)) {
             networkActive = tag.getBoolean("networkActive");

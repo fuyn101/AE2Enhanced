@@ -9,6 +9,10 @@ import net.minecraftforge.fml.config.ModConfig;
  */
 public final class AE2EnhancedConfig {
 
+    public enum BlackHoleDamageMode {
+        ALL, NON_CREATIVE, NONE
+    }
+
     public static final ForgeConfigSpec COMMON_SPEC;
     public static final CommonConfig COMMON;
     public static final ForgeConfigSpec CLIENT_SPEC;
@@ -37,6 +41,7 @@ public final class AE2EnhancedConfig {
         public final ForgeConfigSpec.IntValue hyperdimensionalFlushIntervalSeconds;
         public final ForgeConfigSpec.IntValue assemblyMaxPendingOutputs;
         public final ForgeConfigSpec.BooleanValue enableBlackHole;
+        public final ForgeConfigSpec.EnumValue<BlackHoleDamageMode> blackHoleDamageMode;
         public final ForgeConfigSpec.BooleanValue debugMode;
 
         CommonConfig(ForgeConfigSpec.Builder builder) {
@@ -59,6 +64,12 @@ public final class AE2EnhancedConfig {
             enableBlackHole = builder
                     .comment("是否启用装配枢纽黑洞事件视界（服务端逻辑开关）")
                     .define("enableBlackHole", true);
+            builder.pop();
+
+            builder.push("blackHole");
+            blackHoleDamageMode = builder
+                    .comment("微型奇点事件视界伤害模式：ALL 击杀所有实体，NON_CREATIVE 不击杀创造玩家，NONE 关闭伤害")
+                    .defineEnum("damageMode", BlackHoleDamageMode.ALL);
             builder.pop();
 
             builder.push("debug");

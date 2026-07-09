@@ -18,10 +18,12 @@ import net.minecraftforge.network.NetworkHooks;
 
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
+import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
 import com.github.aeddddd.ae2enhanced.client.gui.AssemblyMenu;
 import com.github.aeddddd.ae2enhanced.client.gui.AssemblyUnformedMenu;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
+import com.github.aeddddd.ae2enhanced.structure.IMultiblockStructure;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +40,14 @@ public class AssemblyControllerBlock extends MultiblockControllerBlock {
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hitResult) {
         if (player.isShiftKeyDown()) {
+            if (level.getBlockEntity(pos) instanceof IMultiblockController controller) {
+                if (!controller.isFormed()) {
+                    if (!level.isClientSide()) {
+                        controller.toggleStructureProjection();
+                    }
+                    return InteractionResult.sidedSuccess(level.isClientSide());
+                }
+            }
             return InteractionResult.PASS;
         }
         if (level.isClientSide()) {
@@ -85,6 +95,11 @@ public class AssemblyControllerBlock extends MultiblockControllerBlock {
     @Override
     protected void removeFromIndex(ServerLevel level, BlockPos pos) {
         ControllerIndex.get(level).remove(pos);
+    }
+
+    @Override
+    protected IMultiblockStructure getStructure() {
+        return AssemblyStructure.INSTANCE;
     }
 
     @Override

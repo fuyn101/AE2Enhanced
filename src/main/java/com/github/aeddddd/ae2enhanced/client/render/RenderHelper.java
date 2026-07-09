@@ -213,6 +213,49 @@ public final class RenderHelper {
     }
 
     /**
+     * 绘制实心立方体（6 个面，12 个三角形）。
+     *
+     * @param halfSize 半边长
+     */
+    public static void drawCube(VertexConsumer consumer, PoseStack poseStack,
+            float halfSize, int color, float alpha) {
+        Matrix4f matrix = poseStack.last().pose();
+        int[] c = unpackColor(color, alpha);
+
+        // 8 个顶点
+        float[][] v = {
+                { -halfSize, -halfSize, -halfSize },
+                { halfSize, -halfSize, -halfSize },
+                { halfSize, halfSize, -halfSize },
+                { -halfSize, halfSize, -halfSize },
+                { -halfSize, -halfSize, halfSize },
+                { halfSize, -halfSize, halfSize },
+                { halfSize, halfSize, halfSize },
+                { -halfSize, halfSize, halfSize }
+        };
+
+        // 6 个面，每个面 2 个三角形，顶点按逆时针顺序
+        // 底面 (y = -halfSize): 0, 4, 5, 1
+        drawTriangle(consumer, matrix, v[0], v[4], v[5], c);
+        drawTriangle(consumer, matrix, v[0], v[5], v[1], c);
+        // 顶面 (y = halfSize): 3, 2, 6, 7
+        drawTriangle(consumer, matrix, v[3], v[2], v[6], c);
+        drawTriangle(consumer, matrix, v[3], v[6], v[7], c);
+        // 前面 (z = -halfSize): 0, 1, 2, 3
+        drawTriangle(consumer, matrix, v[0], v[1], v[2], c);
+        drawTriangle(consumer, matrix, v[0], v[2], v[3], c);
+        // 后面 (z = halfSize): 4, 7, 6, 5
+        drawTriangle(consumer, matrix, v[4], v[7], v[6], c);
+        drawTriangle(consumer, matrix, v[4], v[6], v[5], c);
+        // 左面 (x = -halfSize): 0, 3, 7, 4
+        drawTriangle(consumer, matrix, v[0], v[3], v[7], c);
+        drawTriangle(consumer, matrix, v[0], v[7], v[4], c);
+        // 右面 (x = halfSize): 1, 5, 6, 2
+        drawTriangle(consumer, matrix, v[1], v[5], v[6], c);
+        drawTriangle(consumer, matrix, v[1], v[6], v[2], c);
+    }
+
+    /**
      * 绘制实心八面体，用于超立方体核心。
      */
     public static void drawOctahedron(VertexConsumer consumer, PoseStack poseStack,

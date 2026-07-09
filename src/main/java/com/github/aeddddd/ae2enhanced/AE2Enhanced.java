@@ -49,6 +49,7 @@ public class AE2Enhanced {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.info("AE2Enhanced common setup");
+        ModRecipes.init();
         MinecraftForge.EVENT_BUS.register(StructureEventHandler.class);
     }
 }
