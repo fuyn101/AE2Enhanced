@@ -1,23 +1,22 @@
 package com.github.aeddddd.ae2enhanced.mixin;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Map;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
+import appeng.api.networking.energy.IEnergyService;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.crafting.execution.CraftingCpuLogic;
 import appeng.crafting.execution.ElapsedTimeTracker;
+import appeng.crafting.execution.ExecutingCraftingJob;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.service.CraftingService;
-import appeng.api.networking.energy.IEnergyService;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
@@ -25,6 +24,10 @@ import net.minecraft.world.level.Level;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
+import com.github.aeddddd.ae2enhanced.mixin.accessor.CraftingCpuLogicAccessor;
+import com.github.aeddddd.ae2enhanced.mixin.accessor.ExecutingCraftingJobAccessor;
+import com.github.aeddddd.ae2enhanced.mixin.accessor.ElapsedTimeTrackerAccessor;
+import com.github.aeddddd.ae2enhanced.mixin.accessor.TaskProgressAccessor;
 import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.util.MathUtils;
 
@@ -43,72 +46,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = CraftingCpuLogic.class, remap = false)
 public class MixinCraftingCpuLogic {
 
-    @Unique
-    private static final Field AE2E$JOB_FIELD;
-    @Unique
-    private static final Field AE2E$CLUSTER_FIELD;
-    @Unique
-    private static final Field AE2E$TASKS_FIELD;
-    @Unique
-    private static final Field AE2E$WAITING_FOR_FIELD;
-    @Unique
-    private static final Field AE2E$TIME_TRACKER_FIELD;
-    @Unique
-    private static final Field AE2E$FINAL_OUTPUT_FIELD;
-    @Unique
-    private static final Field AE2E$REMAINING_AMOUNT_FIELD;
-    @Unique
-    private static final Field AE2E$TASK_PROGRESS_VALUE_FIELD;
-    @Unique
-    private static final Method AE2E$DECREMENT_ITEMS_METHOD;
-
-    static {
-        try {
-            AE2E$JOB_FIELD = CraftingCpuLogic.class.getDeclaredField("job");
-            AE2E$JOB_FIELD.setAccessible(true);
-
-            AE2E$CLUSTER_FIELD = CraftingCpuLogic.class.getDeclaredField("cluster");
-            AE2E$CLUSTER_FIELD.setAccessible(true);
-
-            Class<?> jobClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob");
-            AE2E$TASKS_FIELD = jobClass.getDeclaredField("tasks");
-            AE2E$TASKS_FIELD.setAccessible(true);
-            AE2E$WAITING_FOR_FIELD = jobClass.getDeclaredField("waitingFor");
-            AE2E$WAITING_FOR_FIELD.setAccessible(true);
-            AE2E$TIME_TRACKER_FIELD = jobClass.getDeclaredField("timeTracker");
-            AE2E$TIME_TRACKER_FIELD.setAccessible(true);
-            AE2E$FINAL_OUTPUT_FIELD = jobClass.getDeclaredField("finalOutput");
-            AE2E$FINAL_OUTPUT_FIELD.setAccessible(true);
-            AE2E$REMAINING_AMOUNT_FIELD = jobClass.getDeclaredField("remainingAmount");
-            AE2E$REMAINING_AMOUNT_FIELD.setAccessible(true);
-
-            Class<?> tpClass = Class.forName("appeng.crafting.execution.ExecutingCraftingJob$TaskProgress");
-            AE2E$TASK_PROGRESS_VALUE_FIELD = tpClass.getDeclaredField("value");
-            AE2E$TASK_PROGRESS_VALUE_FIELD.setAccessible(true);
-
-            Class<?> trackerClass = ElapsedTimeTracker.class;
-            AE2E$DECREMENT_ITEMS_METHOD = trackerClass.getDeclaredMethod("decrementItems", long.class, AEKeyType.class);
-            AE2E$DECREMENT_ITEMS_METHOD.setAccessible(true);
-        } catch (Exception e) {
-            throw new RuntimeException("[AE2E] Failed to initialize CraftingCpuLogic batch reflection", e);
-        }
-    }
-
     @Inject(method = "executeCrafting", at = @At("HEAD"), remap = false)
     private void ae2e$batchProcessAssemblyHubTasks(int maxPatterns, CraftingService craftingService,
             IEnergyService energyService, Level level, CallbackInfoReturnable<Integer> cir) {
         try {
             CraftingCpuLogic logic = (CraftingCpuLogic) (Object) this;
-            CraftingCPUCluster cluster = (CraftingCPUCluster) AE2E$CLUSTER_FIELD.get(logic);
-            Object job = AE2E$JOB_FIELD.get(logic);
+            CraftingCpuLogicAccessor logicAccessor = (CraftingCpuLogicAccessor) logic;
+            CraftingCPUCluster cluster = logicAccessor.getCluster();
+            ExecutingCraftingJob job = logicAccessor.getJob();
             if (job == null) {
                 return;
             }
+            ExecutingCraftingJobAccessor jobAccessor = (ExecutingCraftingJobAccessor) job;
             @SuppressWarnings("unchecked")
-            Map<IPatternDetails, ?> tasks = (Map<IPatternDetails, ?>) AE2E$TASKS_FIELD.get(job);
+            Map<IPatternDetails, ?> tasks = (Map<IPatternDetails, ?>) jobAccessor.getTasks();
             ListCraftingInventory inventory = logic.getInventory();
-            ListCraftingInventory waitingFor = (ListCraftingInventory) AE2E$WAITING_FOR_FIELD.get(job);
-            ElapsedTimeTracker timeTracker = (ElapsedTimeTracker) AE2E$TIME_TRACKER_FIELD.get(job);
+            ListCraftingInventory waitingFor = jobAccessor.getWaitingFor();
+            ElapsedTimeTracker timeTracker = jobAccessor.getTimeTracker();
 
             boolean changed;
             int iterations = 0;
@@ -377,57 +331,42 @@ public class MixinCraftingCpuLogic {
 
     @Unique
     private void ae2e$decrementRemainingAmount(IPatternDetails details, long amount) {
-        try {
-            CraftingCpuLogic logic = (CraftingCpuLogic) (Object) this;
-            Object job = AE2E$JOB_FIELD.get(logic);
-            if (job == null) {
-                return;
+        CraftingCpuLogic logic = (CraftingCpuLogic) (Object) this;
+        CraftingCpuLogicAccessor logicAccessor = (CraftingCpuLogicAccessor) logic;
+        ExecutingCraftingJob job = logicAccessor.getJob();
+        if (job == null) {
+            return;
+        }
+        ExecutingCraftingJobAccessor jobAccessor = (ExecutingCraftingJobAccessor) job;
+        GenericStack finalOutput = jobAccessor.getFinalOutput();
+        if (finalOutput == null) {
+            return;
+        }
+        for (GenericStack output : details.getOutputs()) {
+            if (output == null || output.amount() <= 0) {
+                continue;
             }
-            GenericStack finalOutput = (GenericStack) AE2E$FINAL_OUTPUT_FIELD.get(job);
-            if (finalOutput == null) {
-                return;
+            if (output.what().equals(finalOutput.what())) {
+                long current = jobAccessor.getRemainingAmount();
+                long decrement = Math.min(amount, current);
+                jobAccessor.setRemainingAmount(current - decrement);
+                break;
             }
-            for (GenericStack output : details.getOutputs()) {
-                if (output == null || output.amount() <= 0) {
-                    continue;
-                }
-                if (output.what().equals(finalOutput.what())) {
-                    long current = AE2E$REMAINING_AMOUNT_FIELD.getLong(job);
-                    long decrement = Math.min(amount, current);
-                    AE2E$REMAINING_AMOUNT_FIELD.setLong(job, current - decrement);
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to decrement remaining amount", e);
         }
     }
 
     @Unique
     private static void ae2e$decrementItems(ElapsedTimeTracker tracker, long amount, AEKeyType type) {
-        try {
-            AE2E$DECREMENT_ITEMS_METHOD.invoke(tracker, amount, type);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to decrement elapsed time tracker", e);
-        }
+        ((ElapsedTimeTrackerAccessor) tracker).decrementItems(amount, type);
     }
 
     @Unique
     private static long ae2e$getTaskValue(Object progress) {
-        try {
-            return AE2E$TASK_PROGRESS_VALUE_FIELD.getLong(progress);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to read task progress value", e);
-            return 0;
-        }
+        return ((TaskProgressAccessor) progress).getValue();
     }
 
     @Unique
     private static void ae2e$setTaskValue(Object progress, long value) {
-        try {
-            AE2E$TASK_PROGRESS_VALUE_FIELD.setLong(progress, value);
-        } catch (Exception e) {
-            AE2Enhanced.LOGGER.warn("[AE2E] Failed to set task progress value", e);
-        }
+        ((TaskProgressAccessor) progress).setValue(value);
     }
 }

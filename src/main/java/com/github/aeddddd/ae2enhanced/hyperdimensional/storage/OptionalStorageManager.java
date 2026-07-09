@@ -1,96 +1,71 @@
 package com.github.aeddddd.ae2enhanced.hyperdimensional.storage;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
+
+import net.minecraftforge.fml.ModList;
+
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.hyperdimensional.storage.channel.StorageChannel;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.List;
-
 /**
- * 可选存储管理器：条件加载 Mekanism 气体、Thaumcraft 源质、Botania mana、Astral Sorcery starlight 等
- * 第三方存储通道。
+ * 可选存储通道管理器。
+ * <p>本类不再通过反射扫描第三方 Mod 主类，而是维护一个显式的 modId -> 通道工厂映射。
+ * 第三方 Mod（或本模组的集成模块）在初始化时调用 {@link #registerOptional(String, Supplier)} 注册
+ * 对应 AE key type 的 {@link StorageChannel} 工厂；当目标 Mod 已安装时，工厂才会被调用并注册通道。</p>
  *
- * <p>设计原则：本类<strong>不</strong>直接引用可选 Mod 的类，所有通道实例通过
- * {@link Class#forName} 延迟加载，方法调用通过反射完成。若对应 Mod 未安装或没有提供
- * 符合约定的工厂方法，则静默跳过。</p>
- *
- * <p>当前 1.20.1 分支下这些第三方 Mod 尚未移植，因此本类主要提供反射钩子与占位实现，
- * 便于后续随 Mod 生态更新而扩展。</p>
+ * <p>这种方式避免了反射加载不存在类时的静默失败，也使扩展点清晰、类型安全。</p>
  */
 public class OptionalStorageManager {
 
     private static final OptionalStorageManager INSTANCE = new OptionalStorageManager();
 
-    /**
-     * 需要尝试加载的第三方 Mod 主类列表。
-     * 若类存在，则查找其返回 {@link StorageChannel} 的公共静态无参工厂方法并注册。
-     */
-    private static final List<String> OPTIONAL_CLASSES = List.of(
-            "mekanism.common.Mekanism",
-            "thaumcraft.Thaumcraft",
-            "vazkii.botania.common.Botania",
-            "hellfirepvp.astralsorcery.AstralSorcery"
-    );
+    private final Map<String, Supplier<StorageChannel<?>>> factories = new HashMap<>();
 
     private OptionalStorageManager() {
+        // 预留已知第三方 Mod 的扩展点。实际工厂由对应集成模块注册。
+        // 当前 1.20.1 分支下这些 Mod 尚未移植，因此列表仅作文档化占位。
+        registerOptional("mekanism", () -> null);
+        registerOptional("thaumcraft", () -> null);
+        registerOptional("botania", () -> null);
+        registerOptional("astralsorcery", () -> null);
     }
 
-    /**
-     * 获取单例实例。
-     *
-     * @return OptionalStorageManager 单例
-     */
     public static OptionalStorageManager getInstance() {
         return INSTANCE;
     }
 
     /**
-     * 尝试通过反射加载并注册所有可选第三方通道。
+     * 注册可选存储通道工厂。
+     * <p>若对应 modId 已加载且工厂返回非 null 通道，则会在超维度存储初始化时自动注册。</p>
+     *
+     * @param modId   目标 Mod ID
+     * @param factory 通道工厂
+     */
+    public void registerOptional(String modId, Supplier<StorageChannel<?>> factory) {
+        factories.put(modId, factory);
+    }
+
+    /**
+     * 根据已加载的 Mod 注册所有可选通道。
      *
      * @param storage 目标超维度存储容器
      */
     public void registerOptionalChannels(HyperdimensionalStorage storage) {
-        for (String className : OPTIONAL_CLASSES) {
-            try {
-                Class<?> clazz = Class.forName(className);
-                registerChannelFromClass(clazz, storage);
-            } catch (ClassNotFoundException e) {
-                // 可选 Mod 未安装，静默跳过
-            } catch (Exception e) {
-                AE2Enhanced.LOGGER.warn("[AE2E] 加载可选存储通道 {} 失败", className, e);
-            }
-        }
-    }
-
-    /**
-     * 在指定类中查找返回 {@link StorageChannel} 的公共静态无参方法，并注册到 storage。
-     *
-     * @param clazz   第三方 Mod 主类
-     * @param storage 目标超维度存储容器
-     */
-    @SuppressWarnings("unchecked")
-    private void registerChannelFromClass(Class<?> clazz, HyperdimensionalStorage storage) {
-        for (Method method : clazz.getMethods()) {
-            if (!Modifier.isStatic(method.getModifiers())) {
-                continue;
-            }
-            if (method.getParameterCount() != 0) {
-                continue;
-            }
-            Class<?> returnType = method.getReturnType();
-            if (!StorageChannel.class.isAssignableFrom(returnType)) {
+        for (Map.Entry<String, Supplier<StorageChannel<?>>> entry : factories.entrySet()) {
+            String modId = entry.getKey();
+            if (!ModList.get().isLoaded(modId)) {
                 continue;
             }
             try {
-                Object result = method.invoke(null);
-                if (result instanceof StorageChannel) {
-                    storage.registerChannel((StorageChannel<?>) result);
-                    AE2Enhanced.LOGGER.info("[AE2E] 已注册可选存储通道: {}.{}", clazz.getName(), method.getName());
-                    return;
+                StorageChannel<?> channel = entry.getValue().get();
+                if (channel != null) {
+                    storage.registerChannel(channel);
+                    AE2Enhanced.LOGGER.info("[AE2E] 已注册可选存储通道: {}", modId);
                 }
             } catch (Exception e) {
-                AE2Enhanced.LOGGER.warn("[AE2E] 调用 {}.{} 失败", clazz.getName(), method.getName(), e);
+                AE2Enhanced.LOGGER.warn("[AE2E] 加载可选存储通道 {} 失败", modId, e);
             }
         }
     }

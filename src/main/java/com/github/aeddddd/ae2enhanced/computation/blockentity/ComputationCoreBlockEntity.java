@@ -114,6 +114,16 @@ public class ComputationCoreBlockEntity extends MultiblockControllerBlockEntity 
         parallelLimit = 0;
     }
 
+    @Override
+    public boolean isVirtualCpuAvailable() {
+        return isFormed();
+    }
+
+    @Override
+    public int getVirtualCpuParallelLimit() {
+        return isFormed() ? parallelLimit : 0;
+    }
+
     public void serverTick() {
         if (level == null || level.isClientSide()) {
             return;

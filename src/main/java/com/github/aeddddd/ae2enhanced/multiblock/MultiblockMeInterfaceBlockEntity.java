@@ -205,18 +205,14 @@ public class MultiblockMeInterfaceBlockEntity extends AENetworkBlockEntity
 
     @Override
     public boolean isVirtualCpuAvailable() {
-        return getController() instanceof com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlockEntity core
-                && core.isFormed();
+        IMultiblockController controller = getController();
+        return controller != null && controller.isVirtualCpuAvailable();
     }
 
     @Override
     public int getVirtualCpuParallelLimit() {
         IMultiblockController controller = getController();
-        if (controller instanceof com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlockEntity core
-                && core.isFormed()) {
-            return core.getParallelLimit();
-        }
-        return 0;
+        return controller != null ? controller.getVirtualCpuParallelLimit() : 0;
     }
 
     @Override
