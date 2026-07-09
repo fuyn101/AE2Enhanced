@@ -9,17 +9,24 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.ItemStackHandler;
 
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.crafting.ICraftingProvider;
+import appeng.helpers.patternprovider.PatternContainer;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
@@ -28,11 +35,16 @@ import appeng.blockentity.grid.AENetworkBlockEntity;
 import appeng.crafting.inv.ListCraftingInventory;
 
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyCraftingProcessor;
+import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternInventory;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternManager;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyUpgradeManager;
+import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
+import com.github.aeddddd.ae2enhanced.client.render.AbstractMultiblockRenderer;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.multiblock.IMultiblockController;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
+import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
@@ -43,13 +55,13 @@ import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
  * 核心逻辑已拆分到 {@link AssemblyPatternManager}、{@link AssemblyUpgradeManager} 与 {@link AssemblyCraftingProcessor}。</p>
  */
 public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
-        implements IPatternProviderHost, ICraftingProvider {
+        implements IPatternProviderHost, ICraftingProvider, PatternContainer, IMultiblockController {
 
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
     public static final int PATTERN_PAGES_BASE = 5;
     public static final int PATTERN_PAGES_PER_CAPACITY = 5;
-    public static final int PATTERN_PAGES_MAX = 30;
+    public static final int PATTERN_PAGES_MAX = 100;
     public static final int TOTAL_SLOTS_MAX = UPGRADE_SLOTS + PATTERN_SLOTS_PER_PAGE * PATTERN_PAGES_MAX;
     public static final int TOTAL_SLOTS_BASE = UPGRADE_SLOTS + PATTERN_SLOTS_PER_PAGE * PATTERN_PAGES_BASE;
 
@@ -304,6 +316,23 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     }
 
     @Override
+    public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+        BlockPos pos = getBlockPos();
+        Direction facing = Direction.NORTH;
+        if (level != null) {
+            BlockState state = level.getBlockState(pos);
+            if (state.hasProperty(MultiblockControllerBlock.FACING)) {
+                facing = state.getValue(MultiblockControllerBlock.FACING);
+            }
+        }
+        float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.ALL_SET, facing);
+        Vec3 center = AbstractMultiblockRenderer.computeCenterOffset(bounds);
+        double radius = AbstractMultiblockRenderer.computeRadius(bounds) + 15.0;
+        Vec3 worldCenter = new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z);
+        return new net.minecraft.world.phys.AABB(worldCenter, worldCenter).inflate(radius);
+    }
+
+    @Override
     public void attachInterface(BlockPos interfacePos) {
         // 装配枢纽采用任意结构方块接入网络方案，不依赖通用 ME 接口方块。
     }
@@ -343,6 +372,32 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (level != null && !level.isClientSide() && isFormed()) {
             refreshInterfaceServices();
         }
+    }
+
+    @Override
+    public IGrid getGrid() {
+        IManagedGridNode node = getMainNode();
+        return node != null && node.isReady() ? node.getGrid() : null;
+    }
+
+    @Override
+    public boolean isVisibleInTerminal() {
+        return isFormed();
+    }
+
+    @Override
+    public InternalInventory getTerminalPatternInventory() {
+        return new AssemblyPatternInventory(patternManager);
+    }
+
+    @Override
+    public PatternContainerGroup getTerminalGroup() {
+        var icon = AEItemKey.of(new ItemStack(ModBlocks.ASSEMBLY_CONTROLLER.get()));
+        var name = Component.translatable("block.ae2enhanced.assembly_controller");
+        var tooltip = List.<Component>of(Component.translatable(
+                "gui.ae2enhanced.assembly.pattern_pages",
+                upgradeManager.getPatternPages()));
+        return new PatternContainerGroup(icon, name, tooltip);
     }
 
     @Override
