@@ -10,6 +10,8 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.NetworkHooks;
@@ -20,6 +22,8 @@ import com.github.aeddddd.ae2enhanced.client.gui.AssemblyMenu;
 import com.github.aeddddd.ae2enhanced.client.gui.AssemblyUnformedMenu;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 import com.github.aeddddd.ae2enhanced.structure.ControllerIndex;
+
+import javax.annotation.Nullable;
 
 /**
  * 装配枢纽控制器方块。
@@ -60,6 +64,17 @@ public class AssemblyControllerBlock extends MultiblockControllerBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new AssemblyControllerBlockEntity(pos, state);
+    }
+
+    @Override
+    @Nullable
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+            BlockEntityType<T> blockEntityType) {
+        return level.isClientSide() ? null : (lvl, p, st, be) -> {
+            if (be instanceof AssemblyControllerBlockEntity hub) {
+                hub.serverTick();
+            }
+        };
     }
 
     @Override

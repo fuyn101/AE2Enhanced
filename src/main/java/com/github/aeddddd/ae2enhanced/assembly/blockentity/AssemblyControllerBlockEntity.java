@@ -1,16 +1,13 @@
 package com.github.aeddddd.ae2enhanced.assembly.blockentity;
 
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
@@ -35,7 +32,6 @@ import com.github.aeddddd.ae2enhanced.assembly.AssemblyPatternManager;
 import com.github.aeddddd.ae2enhanced.assembly.AssemblyUpgradeManager;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.multiblock.IPatternProviderHost;
-import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlockEntities;
 import com.github.aeddddd.ae2enhanced.registry.ModItems;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
@@ -47,7 +43,7 @@ import com.github.aeddddd.ae2enhanced.util.BlockEntityRemovalHelper;
  * 核心逻辑已拆分到 {@link AssemblyPatternManager}、{@link AssemblyUpgradeManager} 与 {@link AssemblyCraftingProcessor}。</p>
  */
 public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
-        implements IPatternProviderHost {
+        implements IPatternProviderHost, ICraftingProvider {
 
     public static final int UPGRADE_SLOTS = 6;
     public static final int PATTERN_SLOTS_PER_PAGE = 102; // 17×6
@@ -66,7 +62,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     private boolean networkActive = false;
     private boolean networkPowered = false;
     private boolean formed = false;
-    private final Set<BlockPos> interfaces = new HashSet<>();
 
     /**
      * 真实合成 batch 信息缓存：配方、催化剂槽位、槽位物品模板。
@@ -196,7 +191,8 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
     protected IManagedGridNode createMainNode() {
         return super.createMainNode()
                 .setIdlePowerUsage(1.0)
-                .setVisualRepresentation(ModItems.ASSEMBLY_CONTROLLER.get());
+                .setVisualRepresentation(ModItems.ASSEMBLY_CONTROLLER.get())
+                .addService(ICraftingProvider.class, this);
     }
 
     @Override
@@ -309,45 +305,43 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
 
     @Override
     public void attachInterface(BlockPos interfacePos) {
-        if (interfaces.add(interfacePos)) {
-            setChanged();
-            if (level != null && !level.isClientSide()) {
-                refreshInterfaceServices();
-            }
-        }
+        // 装配枢纽采用任意结构方块接入网络方案，不依赖通用 ME 接口方块。
     }
 
     @Override
     public void detachInterface(BlockPos interfacePos) {
-        if (interfaces.remove(interfacePos)) {
-            setChanged();
-        }
+        // 装配枢纽采用任意结构方块接入网络方案，不依赖通用 ME 接口方块。
     }
 
     @Override
     public IActionSource getActionSource() {
-        if (level != null) {
-            for (BlockPos pos : interfaces) {
-                if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
-                    IManagedGridNode node = meInterface.getMainNode();
-                    if (node != null && node.isReady()) {
-                        return IActionSource.ofMachine(meInterface);
-                    }
-                }
-            }
-        }
         return IActionSource.ofMachine(this);
     }
 
+    /**
+     * 刷新控制器在 AE2 网络中的样板列表。
+     * <p>采用任意结构方块接入网络的方案，控制器自身即为网络节点，直接请求更新即可。</p>
+     */
     public void refreshInterfaceServices() {
         if (level == null || level.isClientSide()) {
             return;
         }
-        // 控制器自身不再注册 ICraftingProvider，应刷新通用 ME 接口节点的样板列表
-        for (BlockPos pos : interfaces) {
-            if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
-                ICraftingProvider.requestUpdate(meInterface.getMainNode());
-            }
+        IManagedGridNode node = getMainNode();
+        if (node != null) {
+            ICraftingProvider.requestUpdate(node);
+        }
+    }
+
+    @Override
+    public int getPatternPriority() {
+        return 0;
+    }
+
+    @Override
+    public void onReady() {
+        super.onReady();
+        if (level != null && !level.isClientSide() && isFormed()) {
+            refreshInterfaceServices();
         }
     }
 
@@ -388,17 +382,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         if (preferred != null && preferred.isReady()) {
             return preferred;
         }
-        // 优先使用已连接的通用 ME 接口节点，控制器自身节点可能未直接接入网络
-        if (level != null) {
-            for (BlockPos pos : interfaces) {
-                if (level.getBlockEntity(pos) instanceof MultiblockMeInterfaceBlockEntity meInterface) {
-                    IManagedGridNode node = meInterface.getMainNode();
-                    if (node != null && node.isReady()) {
-                        return node;
-                    }
-                }
-            }
-        }
         IManagedGridNode node = getMainNode();
         return node != null && node.isReady() ? node : null;
     }
@@ -418,14 +401,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         formed = data.getBoolean("formed");
         networkActive = data.getBoolean("networkActive");
         networkPowered = data.getBoolean("networkPowered");
-        if (data.contains("interfaces", ListTag.TAG_LIST)) {
-            interfaces.clear();
-            ListTag interfacesList = data.getList("interfaces", CompoundTag.TAG_COMPOUND);
-            for (int i = 0; i < interfacesList.size(); i++) {
-                CompoundTag posTag = interfacesList.getCompound(i);
-                interfaces.add(new BlockPos(posTag.getInt("x"), posTag.getInt("y"), posTag.getInt("z")));
-            }
-        }
         patternManager.ensurePatternCapacity();
     }
 
@@ -437,15 +412,6 @@ public class AssemblyControllerBlockEntity extends AENetworkBlockEntity
         data.putBoolean("formed", formed);
         data.putBoolean("networkActive", networkActive);
         data.putBoolean("networkPowered", networkPowered);
-        ListTag interfacesList = new ListTag();
-        for (BlockPos pos : interfaces) {
-            CompoundTag posTag = new CompoundTag();
-            posTag.putInt("x", pos.getX());
-            posTag.putInt("y", pos.getY());
-            posTag.putInt("z", pos.getZ());
-            interfacesList.add(posTag);
-        }
-        data.put("interfaces", interfacesList);
     }
 
     @Override
