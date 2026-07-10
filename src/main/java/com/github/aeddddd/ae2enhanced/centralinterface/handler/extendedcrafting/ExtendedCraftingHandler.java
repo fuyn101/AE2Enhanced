@@ -417,6 +417,10 @@ public class ExtendedCraftingHandler implements IRemoteHandler, IVirtualBatchCra
                 if (!recipeOutput.isEmpty()
                         && recipeOutput.getItem() == output.getItem()
                         && recipeOutput.getMetadata() == output.getMetadata()) {
+                    // expected 有 NBT 时必须一致
+                    if (output.hasTagCompound() && !ItemStack.areItemStackTagsEqual(recipeOutput, output)) {
+                        continue;
+                    }
                     return recipe;
                 }
             }

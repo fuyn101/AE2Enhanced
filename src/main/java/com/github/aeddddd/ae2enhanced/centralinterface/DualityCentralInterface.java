@@ -99,10 +99,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
     // Mixin 传入的下一次虚拟批量上限（通常为 CPU 任务剩余数），0 表示未设置
     private long nextVirtualBatchLimit = 0;
 
-    // Mixin 传入的 CPU 内部物品缓存（MECraftingInventory），虚拟批量应从此处提取额外份数，
-    // 而不是从网络提取，因为 AE2 CPU 已经把整单材料预提到 CPU 缓存中。
-    private appeng.api.storage.IMEInventory<appeng.api.storage.data.IAEItemStack> virtualItemSource = null;
-
     private final PhysicalDispatcher physicalDispatcher;
     private final VirtualBatchEngine virtualBatchEngine;
 
@@ -223,10 +219,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         if (proxy.isActive() && this.craftingList != null && !this.bindings.isEmpty()) {
             for (ICraftingPatternDetails details : this.craftingList) {
                 details.setPriority(this.priority);
-                // 每个 binding 注册一次,使 AE2 网络能并行调度多个相同配方
-                for (int i = 0; i < this.bindings.size(); i++) {
-                    craftingTracker.addCraftingOption(this.host, details);
-                }
+                // 每个配方只注册一次；AE2 CPU 会针对同一 pattern 多次调用 pushPattern 实现并行。
+                craftingTracker.addCraftingOption(this.host, details);
             }
         }
     }
@@ -269,17 +263,16 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
             boolean canUseVirtual = handler.hasCapability(HandlerCapabilities.VIRTUAL_BATCH)
                     && handler instanceof IVirtualBatchCraftingHandler;
 
-            AE2Enhanced.LOGGER.info("[AE2E-Diag] pushPattern target={} handler={} baseParallel={} pendingLimit={} virtualParallel={} globalCooldown={}",
+            AE2Enhanced.LOGGER.debug("[AE2E-Diag] pushPattern target={} handler={} baseParallel={} pendingLimit={} virtualParallel={} globalCooldown={}",
                     target.pos, handler.getClass().getSimpleName(), baseVirtualParallel, pendingLimit, virtualParallel, globalVirtualCooling);
 
-            // 对包含耐久/转换物品或混合 IAEStack 类型的配方，优先尝试物理发配
+            // 对包含非物品 IAEStack 类型（流体、能量、气体等）的配方，优先尝试物理发配，
+            // 因为虚拟批量的网络资源核算对非物品资源更复杂，物理发配更可靠。
             boolean preferPhysical = false;
             if (canUseVirtual) {
                 IVirtualBatchCraftingHandler vh = (IVirtualBatchCraftingHandler) handler;
                 InventoryCrafting virtualTable = copyInventoryCrafting(table);
-                boolean hasTransform = VirtualBatchEngine.hasTransformItems(virtualTable, world);
-                boolean hasMixed = VirtualBatchEngine.hasMixedStackTypes(vh, world, target, virtualTable, outputs, patternDetails);
-                preferPhysical = hasTransform || hasMixed;
+                preferPhysical = VirtualBatchEngine.hasMixedStackTypes(vh, world, target, virtualTable, outputs, patternDetails);
             }
 
             if (preferPhysical && handler.hasCapability(HandlerCapabilities.PHYSICAL)) {
@@ -369,18 +362,6 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
      */
     public void setNextVirtualBatchLimit(long limit) {
         this.nextVirtualBatchLimit = Math.max(0, limit);
-    }
-
-    /**
-     * 设置虚拟批量合成时额外物品份数的来源。
-     * 传入 CPU 的 MECraftingInventory，使虚拟批量从 CPU 缓存提取，而非网络。
-     */
-    public void setVirtualItemSource(appeng.api.storage.IMEInventory<appeng.api.storage.data.IAEItemStack> source) {
-        this.virtualItemSource = source;
-    }
-
-    public appeng.api.storage.IMEInventory<appeng.api.storage.data.IAEItemStack> getVirtualItemSource() {
-        return this.virtualItemSource;
     }
 
     /**
@@ -528,8 +509,8 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
         for (TargetBinding binding : this.bindings) {
             TargetSession session = this.sessions.get(binding);
-            // UNAVAILABLE 目标不算作“忙碌”，否则目标方块短暂卸载/替换后会永久卡住 CPU
-            if (session == null || session.isIdle() || session.isUnavailable()) {
+            // UNAVAILABLE 目标暂时无法工作，也应视为忙碌，防止 CPU 反复调度失败任务
+            if (session == null || session.isIdle()) {
                 if (!isOnVirtualCooldown(binding)) {
                     return false;
                 }
@@ -709,6 +690,38 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
         }
     }
 
+    /**
+     * 将溢出流体尝试重新推回目标机器的 tank。
+     * 用于网络已满时保留流体在目标中，避免产物丢失。
+     *
+     * @return 未能成功推回目标而剩余的流体
+     */
+    List<FluidStack> pushFluidsToTarget(World world, BlockPos pos, List<FluidStack> fluids) {
+        List<FluidStack> remaining = new ArrayList<>();
+        TileEntity te = world.getTileEntity(pos);
+        if (te == null) {
+            for (FluidStack f : fluids) {
+                if (f != null && f.amount > 0) remaining.add(f.copy());
+            }
+            return remaining;
+        }
+        for (FluidStack fluid : fluids) {
+            if (fluid == null || fluid.amount <= 0) continue;
+            boolean pushed = false;
+            List<FluidStack> dummy = new ArrayList<>();
+            for (EnumFacing face : FLUID_FACE_ORDER) {
+                if (tryFillFluidHandler(te, face, fluid, dummy)) {
+                    pushed = true;
+                    break;
+                }
+            }
+            if (!pushed) {
+                remaining.add(fluid.copy());
+            }
+        }
+        return remaining;
+    }
+
     private boolean tryDrainFluidHandler(TileEntity te, EnumFacing face, FluidStack fluid) {
         if (!te.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face)) return false;
         IFluidHandler fh = te.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, face);
@@ -822,15 +835,20 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     /**
      * 将流体列表直接注入 AE 流体网络，不再创建流体假物品。
-     * 溢出部分无法暂存，仅记录日志。
+     *
+     * @return 未能注入网络的溢出流体列表；若全部注入成功则返回空列表
      */
-    boolean injectFluidsToNetwork(AENetworkProxy proxy, World world, List<FluidStack> fluids) {
+    List<FluidStack> injectFluidsToNetwork(AENetworkProxy proxy, World world, List<FluidStack> fluids) {
+        List<FluidStack> overflow = new ArrayList<>();
         try {
             IFluidStorageChannel channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
             for (FluidStack fluid : fluids) {
                 if (fluid == null || fluid.amount <= 0) continue;
                 IAEFluidStack toInsert = channel.createStack(fluid);
-                if (toInsert == null) continue;
+                if (toInsert == null) {
+                    overflow.add(fluid.copy());
+                    continue;
+                }
                 IAEFluidStack remaining = Platform.poweredInsert(
                         proxy.getEnergy(),
                         proxy.getStorage().getInventory(channel),
@@ -839,13 +857,18 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
                 if (remaining != null && remaining.getStackSize() > 0) {
                     FluidStack leftover = remaining.getFluidStack();
                     AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface fluid overflow: {} mb of {}", leftover.amount, leftover.getFluid().getName());
+                    overflow.add(leftover.copy());
                 }
             }
-            return true;
         } catch (appeng.me.GridAccessException e) {
             AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface failed to inject fluids to network", e);
-            return false;
+            for (FluidStack fluid : fluids) {
+                if (fluid != null && fluid.amount > 0) {
+                    overflow.add(fluid.copy());
+                }
+            }
         }
+        return overflow;
     }
 
     private boolean hasWorkToDo() {
@@ -1109,11 +1132,9 @@ public class DualityCentralInterface implements appeng.util.inv.IAEAppEngInvento
 
     InventoryCrafting copyInventoryCrafting(InventoryCrafting original) {
         int size = original.getSizeInventory();
-        int dim = (int) Math.round(Math.sqrt(size));
-        if (dim * dim != size) {
-            // 非方阵时按 3×3 回退(正常配方均为方阵)
-            dim = 3;
-        }
+        int dim = (int) Math.ceil(Math.sqrt(size));
+        if (dim < 3) dim = 3;
+        if (dim > 10) dim = 10;
         InventoryCrafting copy = new InventoryCrafting(new net.minecraft.inventory.Container() {
             @Override public boolean canInteractWith(net.minecraft.entity.player.EntityPlayer playerIn) { return false; }
         }, dim, dim);

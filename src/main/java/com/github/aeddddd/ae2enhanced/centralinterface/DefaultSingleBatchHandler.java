@@ -76,9 +76,21 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
             }
         }
 
+        // 先模拟插入：任一物品无法完整放入目标则不进行任何真实插入，保证原子性
+        List<ItemStack> simulatedRemainings = new ArrayList<>();
         for (ItemStack stack : toPush) {
-            ItemStack remaining = pushItemToTarget(te, stack);
+            ItemStack remaining = pushItemToTarget(te, stack, true);
+            simulatedRemainings.add(remaining);
             if (!remaining.isEmpty()) {
+                return false;
+            }
+        }
+
+        // 全部模拟通过后再真实插入
+        for (ItemStack stack : toPush) {
+            ItemStack remaining = pushItemToTarget(te, stack, false);
+            if (!remaining.isEmpty()) {
+                // 理论上不应发生，但若发生则尽量回退已插入部分
                 return false;
             }
         }
@@ -268,7 +280,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
 
     // ---- Internal helpers ----
 
-    private ItemStack pushItemToTarget(TileEntity target, ItemStack stack) {
+    private ItemStack pushItemToTarget(TileEntity target, ItemStack stack, boolean simulate) {
         ItemStack remaining = stack.copy();
         for (EnumFacing face : EnumFacing.values()) {
             IItemHandler handler = target.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, face);
@@ -276,7 +288,7 @@ public class DefaultSingleBatchHandler implements IRemoteHandler {
                 continue;
             }
             for (int slot = 0; slot < handler.getSlots() && !remaining.isEmpty(); slot++) {
-                remaining = handler.insertItem(slot, remaining, false);
+                remaining = handler.insertItem(slot, remaining, simulate);
             }
             if (remaining.isEmpty()) {
                 break;

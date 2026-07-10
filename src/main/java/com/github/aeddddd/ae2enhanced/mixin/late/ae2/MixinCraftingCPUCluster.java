@@ -693,7 +693,6 @@ public class MixinCraftingCPUCluster {
         if (medium instanceof TileCentralMEInterface) {
             DualityCentralInterface duality = ((TileCentralMEInterface) medium).getInterfaceDuality();
             long pending = -1;
-            appeng.api.storage.IMEInventory<appeng.api.storage.data.IAEItemStack> itemSource = null;
             try {
                 tryInitReflection();
                 if (reflectionReady) {
@@ -704,20 +703,15 @@ public class MixinCraftingCPUCluster {
                     if (progress != null) {
                         pending = taskProgressValueField.getLong(progress);
                     }
-                    itemSource = cpu.getInventory();
                 }
             } catch (Exception ignored) {
             }
             if (pending > 0) {
                 duality.setNextVirtualBatchLimit(pending);
             }
-            duality.setVirtualItemSource(itemSource);
         }
 
         boolean result = original.call(medium, details, table);
-        if (medium instanceof TileCentralMEInterface) {
-            ((TileCentralMEInterface) medium).getInterfaceDuality().setVirtualItemSource(null);
-        }
         if (!result || !(medium instanceof TileCentralMEInterface)) {
             return result;
         }

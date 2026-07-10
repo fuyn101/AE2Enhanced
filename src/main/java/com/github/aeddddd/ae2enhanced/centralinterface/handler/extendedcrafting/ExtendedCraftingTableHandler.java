@@ -274,13 +274,17 @@ public class ExtendedCraftingTableHandler implements IVirtualBatchCraftingHandle
     }
 
     /**
-     * 输出匹配：忽略 NBT，比较 Item + Metadata + Count。
+     * 输出匹配：比较 Item + Metadata + Count + NBT。
+     * 若 expected 有 NBT 则必须完全一致，否则仍可能匹配到 NBT 不同的配方。
      */
     private static boolean outputsMatch(ItemStack recipeOutput, ItemStack expected) {
         if (recipeOutput.isEmpty() || expected.isEmpty()) return false;
         if (recipeOutput.getItem() != expected.getItem()) return false;
         if (recipeOutput.getMetadata() != expected.getMetadata()) return false;
         if (recipeOutput.getCount() != expected.getCount()) return false;
+        if (expected.hasTagCompound() && !ItemStack.areItemStackTagsEqual(recipeOutput, expected)) {
+            return false;
+        }
         return true;
     }
 

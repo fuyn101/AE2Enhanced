@@ -4,7 +4,6 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.energy.IEnergySource;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.IMEInventory;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.util.item.AEItemStack;
@@ -16,28 +15,32 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.network.packet.PacketVirtualCraftingParticles;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.CraftingManager;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.NonNullList;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * 虚拟批量合成引擎.
  *
  * <p>安装虚拟并行卡后，对支持 {@link HandlerCapabilities#VIRTUAL_BATCH} 的目标
  * 直接从网络扣除资源并返回产物，不占用物理设备。</p>
+ *
+ * <p>资源核算策略：
+ * <ul>
+ *   <li>物品：AE2 CPU 在调用 pushPattern 前已经预提取 1 份到 InventoryCrafting，
+ *       因此额外需要从网络提取 {@code parallel - 1} 份。</li>
+ *   <li>非物品（流体、能量、Mana、Starlight、气体、源质等）：CPU 不会预提取，
+ *       因此需要从网络提取完整 {@code parallel} 份。</li>
+ * </ul>
+ * 催化剂/非消耗项由具体 handler 的 {@link IVirtualBatchCraftingHandler#getVirtualCost}
+ * 决定是否排除，不再依赖原版 IRecipe.getRemainingItems。</p>
  */
 public class VirtualBatchEngine {
 
@@ -100,11 +103,6 @@ public class VirtualBatchEngine {
             InventoryCrafting virtualTable = owner.copyInventoryCrafting(originalTable);
             IAEItemStack[] outputs = patternDetails.getOutputs();
 
-            RecipeRemainInfo remainInfo = computeRemainInfo(virtualTable, world);
-            if (remainInfo.hasAny()) {
-                maxParallel = 1;
-            }
-
             if (!handler.canCraftVirtually(world, target.pos, virtualTable, outputs, patternDetails)) {
                 logFail(world, target, "canCraftVirtually returned false");
                 return 0;
@@ -120,9 +118,8 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            IMEInventory<IAEItemStack> itemSource = owner.getVirtualItemSource();
             long actualParallel = computeActualParallel(storage, energy, handler, world, target,
-                    virtualTable, outputs, maxParallel, itemSource, patternDetails);
+                    virtualTable, outputs, maxParallel, patternDetails);
             if (actualParallel <= 0) {
                 logFail(world, target, "computeActualParallel returned 0");
                 return 0;
@@ -130,13 +127,13 @@ public class VirtualBatchEngine {
 
             IActionSource source = new MachineSource(owner.host);
             List<IAEStack> netCosts = getNetCosts(handler, world, target, virtualTable,
-                    outputs, actualParallel, patternDetails, remainInfo);
+                    outputs, actualParallel, patternDetails);
             if (netCosts == null) {
                 logFail(world, target, "getNetCosts returned null for parallel=" + actualParallel);
                 return 0;
             }
 
-            if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source, itemSource)) {
+            if (!VirtualCostExtractor.simulateExtract(storage, netCosts, source, null)) {
                 logFail(world, target, "simulateExtract failed for parallel=" + actualParallel);
                 return 0;
             }
@@ -147,14 +144,14 @@ public class VirtualBatchEngine {
                 return 0;
             }
 
-            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source, itemSource);
+            List<IAEStack> extracted = VirtualCostExtractor.extractAll(storage, netCosts, source, null);
             if (extracted == null) {
                 logFail(world, target, "extractAll failed");
                 return 0;
             }
 
             if (!VirtualCostExtractor.extractEnergy(energy, energyCost, source)) {
-                VirtualCostExtractor.rollbackExtracted(storage, extracted, source, itemSource);
+                VirtualCostExtractor.rollbackExtracted(storage, extracted, source, null);
                 logFail(world, target, "extractEnergy failed after resources extracted");
                 return 0;
             }
@@ -167,12 +164,6 @@ public class VirtualBatchEngine {
             }
 
             products = mergeProducts(products);
-            // 将催化剂、耐久物品等 remaining 产物返回到待注入队列
-            for (ItemStack remaining : remainInfo.remaining) {
-                if (!remaining.isEmpty()) {
-                    products.add(remaining.copy());
-                }
-            }
             owner.pendingVirtualProducts.addAll(products);
 
             List<EnumParticleTypes> particleTypes = handler.getVirtualCraftingParticles(world, target.pos);
@@ -227,6 +218,9 @@ public class VirtualBatchEngine {
      *
      * <p>直接按“单份成本 × 可用量”计算，不再使用 binary search，
      * 因此对 Long.MAX_VALUE 级别的并行卡也没有性能问题。</p>
+     *
+     * <p>物品成本会额外加 1（来自 CPU 已预提取到 InventoryCrafting 的第一份）；
+     * 非物品成本不加 1，因为 CPU 不会预提取流体/能量/气体等。</p>
      */
     private long computeActualParallel(IStorageGrid storage,
                                        IEnergySource energy,
@@ -236,7 +230,6 @@ public class VirtualBatchEngine {
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
                                        long maxParallel,
-                                       IMEInventory<IAEItemStack> itemSource,
                                        ICraftingPatternDetails details) {
         MachineSource source = new MachineSource(owner.host);
         List<IAEStack> perCopy = handler.getVirtualCost(world, target.pos, virtualTable, outputs, 1, details);
@@ -256,9 +249,17 @@ public class VirtualBatchEngine {
         for (IAEStack cost : mergedCosts) {
             if (cost == null || cost.getStackSize() <= 0) continue;
             long perCopySize = cost.getStackSize();
-            long available = VirtualCostExtractor.queryAvailable(storage, cost, source, itemSource);
-            long q = available / perCopySize;
-            long supported = (q >= Long.MAX_VALUE - 1) ? Long.MAX_VALUE : q + 1;
+            long networkAvailable = VirtualCostExtractor.queryAvailable(storage, cost, source, null);
+            long supported;
+            if (cost instanceof IAEItemStack) {
+                // CPU 已预提取 1 份物品到 table，因此网络只需额外提供 parallel - 1 份
+                supported = (networkAvailable / perCopySize) + 1;
+            } else {
+                // 非物品资源 CPU 不会预提取，网络需提供完整 parallel 份
+                supported = networkAvailable / perCopySize;
+            }
+            if (supported <= 0) return 0;
+            if (supported >= Long.MAX_VALUE) supported = Long.MAX_VALUE;
             actual = Math.min(actual, supported);
             if (actual <= 0) return 0;
         }
@@ -274,13 +275,12 @@ public class VirtualBatchEngine {
     /**
      * 获取需要从网络额外提取的资源清单。
      *
-     * <p>策略：以 handler 返回的 {@code parallel} 份总成本为权威值，
-     * 减去 AE2 CPU 已经在 pushPattern 前提取的第一份成本。
-     * 物品按单份成本扣减（因 CPU 已提取 1 份物品到 table），
-     * Secondary 资源不会进入 table，因此不扣减。</p>
+     * <p>策略：以 handler 返回的 {@code parallel} 份总成本为权威值。
+     * 物品成本减去 CPU 已预提取到 table 的第一份；
+     * 非物品成本不减，因为 CPU 不会预提取流体/能量/气体等。</p>
      *
-     * <p>不直接读取 {@code virtualTable} 做扣减，避免 EC 配方 ingredient
-     * 与样板输入之间 NBT 不完全一致导致少扣 1 份。</p>
+     * <p>催化剂、耐久物品等是否扣除由 handler 的 {@code getVirtualCost} 自行决定，
+     * 本方法不再额外排除。</p>
      */
     private List<IAEStack> getNetCosts(IVirtualBatchCraftingHandler handler,
                                        World world,
@@ -288,8 +288,7 @@ public class VirtualBatchEngine {
                                        InventoryCrafting virtualTable,
                                        IAEItemStack[] outputs,
                                        long parallel,
-                                       ICraftingPatternDetails details,
-                                       RecipeRemainInfo remainInfo) {
+                                       ICraftingPatternDetails details) {
         if (parallel <= 0) {
             return Collections.emptyList();
         }
@@ -306,40 +305,22 @@ public class VirtualBatchEngine {
             if (full == null) continue;
             long perCopySize = (perCopy != null && i < perCopy.size() && perCopy.get(i) != null)
                     ? perCopy.get(i).getStackSize()
-                    : full.getStackSize() / parallel;
-            long extra = full.getStackSize() - perCopySize;
+                    : (full.getStackSize() / parallel);
+            long extra;
+            if (full instanceof IAEItemStack) {
+                // 物品：CPU 已预提取 1 份，只需从网络提取剩余份数
+                extra = full.getStackSize() - perCopySize;
+            } else {
+                // 非物品：CPU 未预提取，网络需提供全部份数
+                extra = full.getStackSize();
+            }
             if (extra > 0) {
                 IAEStack extraStack = full.copy();
                 extraStack.setStackSize(extra);
-                // 排除催化剂/耐久槽位对应的净成本
-                if (!isExcludedItemCost(extraStack, remainInfo)) {
-                    net.add(extraStack);
-                }
+                net.add(extraStack);
             }
         }
         return net;
-    }
-
-    /**
-     * 判断指定成本是否为已被识别为催化剂或耐久转换的槽位对应的物品成本。
-     */
-    private static boolean isExcludedItemCost(IAEStack cost, RecipeRemainInfo remainInfo) {
-        if (!(cost instanceof IAEItemStack) || remainInfo == null || !remainInfo.hasAny()) {
-            return false;
-        }
-        ItemStack costStack = ((IAEItemStack) cost).createItemStack();
-        for (int i = 0; i < remainInfo.inputs.size(); i++) {
-            if (!remainInfo.catalystSlots.get(i) && !remainInfo.transformSlots.get(i)) {
-                continue;
-            }
-            ItemStack input = remainInfo.inputs.get(i);
-            if (!input.isEmpty()
-                    && ItemStack.areItemsEqual(costStack, input)
-                    && costStack.getMetadata() == input.getMetadata()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -374,9 +355,12 @@ public class VirtualBatchEngine {
     }
 
     /**
-     * 记录虚拟合成失败原因（无操作占位，避免日志刷屏）。
+     * 记录虚拟合成失败原因。默认只在 debug 日志开启时输出，避免刷屏。
      */
     private void logFail(World world, TargetBinding target, String reason) {
+        if (AE2EnhancedConfig.centralInterface.debugVirtualBatch && !world.isRemote) {
+            AE2Enhanced.LOGGER.debug("[AE2E-VirtBatch] fail at {}: {}", target.pos, reason);
+        }
     }
 
     private void addParticleTarget(BlockPos pos, int particleType) {
@@ -489,89 +473,6 @@ public class VirtualBatchEngine {
             }
             return result;
         }
-    }
-
-    /**
-     * 记录配方 getRemainingItems 分析结果：催化剂槽位、耐久/转换槽位、
-     * 原始输入快照以及剩余物品快照。
-     */
-    public static final class RecipeRemainInfo {
-        public final BitSet catalystSlots;
-        public final BitSet transformSlots;
-        public NonNullList<ItemStack> inputs;
-        public NonNullList<ItemStack> remaining;
-
-        RecipeRemainInfo(int slotCount) {
-            this.catalystSlots = new BitSet(slotCount);
-            this.transformSlots = new BitSet(slotCount);
-            this.inputs = NonNullList.withSize(slotCount, ItemStack.EMPTY);
-            this.remaining = NonNullList.withSize(slotCount, ItemStack.EMPTY);
-        }
-
-        public boolean hasAny() {
-            return catalystSlots.cardinality() > 0 || transformSlots.cardinality() > 0;
-        }
-    }
-
-    /**
-     * 通过 {@link IRecipe#getRemainingItems(InventoryCrafting)} 识别催化剂和耐久/转换槽位。
-     */
-    public static RecipeRemainInfo computeRemainInfo(InventoryCrafting table, World world) {
-        int size = table.getSizeInventory();
-        RecipeRemainInfo info = new RecipeRemainInfo(size);
-        for (int i = 0; i < size; i++) {
-            info.inputs.set(i, table.getStackInSlot(i).copy());
-        }
-
-        IRecipe recipe = CraftingManager.findMatchingRecipe(table, world);
-        if (recipe == null) {
-            return info;
-        }
-
-        NonNullList<ItemStack> remaining = recipe.getRemainingItems(table);
-        for (int i = 0; i < size && i < remaining.size(); i++) {
-            info.remaining.set(i, remaining.get(i));
-        }
-
-        for (int i = 0; i < size && i < remaining.size(); i++) {
-            ItemStack input = table.getStackInSlot(i);
-            ItemStack rem = remaining.get(i);
-            if (rem.isEmpty()) continue;
-            if (ItemStack.areItemsEqual(input, rem) && input.getMetadata() == rem.getMetadata()) {
-                if (areNbtEquivalent(input.getTagCompound(), rem.getTagCompound())) {
-                    info.catalystSlots.set(i); // 真催化剂：NBT 完全不变
-                } else if (!input.isItemStackDamageable()) {
-                    // 不可损坏但 NBT 有差异：仍视为催化剂（某些 mod 的 NBT 状态）
-                    info.catalystSlots.set(i);
-                } else if (input.getItem().hasContainerItem(input)
-                        && ItemStack.areItemStacksEqual(input.getItem().getContainerItem(input), rem)) {
-                    // getContainerItem 明确返回同一物品：视为催化剂
-                    info.catalystSlots.set(i);
-                } else {
-                    // 同一物品但 NBT/耐久变化：消耗性转换（如损坏的工具）
-                    info.transformSlots.set(i);
-                }
-            }
-        }
-
-        return info;
-    }
-
-    /**
-     * 宽松比较两个 NBT：null 与空 tag 视为等价。
-     */
-    private static boolean areNbtEquivalent(NBTTagCompound a, NBTTagCompound b) {
-        if (Objects.equals(a, b)) return true;
-        if (a == null) return b == null || b.getKeySet().isEmpty();
-        if (b == null) return a.getKeySet().isEmpty();
-        return false;
-    }
-
-    /**
-     * 判断指定配方是否包含催化剂或耐久/转换物品。
-     */
-    public static boolean hasTransformItems(InventoryCrafting table, World world) {
-        return computeRemainInfo(table, world).hasAny();
     }
 
     /**

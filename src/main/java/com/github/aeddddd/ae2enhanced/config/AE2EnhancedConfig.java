@@ -575,6 +575,13 @@ public class AE2EnhancedConfig {
         })
         @Config.RangeInt(min = 1, max = 200)
         public int virtualParticleDurationTicks = 30;
+
+        @Config.Comment({
+            "Enable debug logging for virtual batch crafting in Central ME Interface.",
+            "When enabled, failed virtual batches will print reasons to the server log.",
+            "Default: false"
+        })
+        public boolean debugVirtualBatch = false;
     }
 
     public static class Thaumcraft {

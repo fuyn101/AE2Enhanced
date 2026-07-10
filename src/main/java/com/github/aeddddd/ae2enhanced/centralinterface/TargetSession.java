@@ -250,7 +250,7 @@ public class TargetSession {
             return false;
         }
         long elapsed = currentWorldTime - this.startTime;
-        return elapsed > timeoutTicks;
+        return elapsed >= timeoutTicks;
     }
 
     /**

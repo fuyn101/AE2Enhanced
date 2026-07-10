@@ -218,8 +218,16 @@ public class PhysicalDispatcher {
 
             List<FluidStack> fluidProducts = owner.collectFluidProducts(world, target.pos, session);
             if (!fluidProducts.isEmpty()) {
-                if (owner.injectFluidsToNetwork(proxy, world, fluidProducts)) {
+                List<FluidStack> overflow = owner.injectFluidsToNetwork(proxy, world, fluidProducts);
+                if (overflow.isEmpty()) {
                     didWork = true;
+                } else {
+                    // 网络已满，将溢出流体推回目标，保留产物并等待下次重试
+                    List<FluidStack> stillRemaining = owner.pushFluidsToTarget(world, target.pos, overflow);
+                    for (FluidStack f : stillRemaining) {
+                        AE2Enhanced.LOGGER.warn("[AE2E] CentralInterface fluid product lost for {}: {} mb of {}",
+                                target.pos, f.amount, f.getFluid().getName());
+                    }
                 }
             }
 
@@ -235,7 +243,7 @@ public class PhysicalDispatcher {
                 finished = true;
             }
             session.finishCollect(finished);
-            if (!products.isEmpty()) {
+            if (!products.isEmpty() || !fluidProducts.isEmpty()) {
                 didWork = true;
             }
         }
