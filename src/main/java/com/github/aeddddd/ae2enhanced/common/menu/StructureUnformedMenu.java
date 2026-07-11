@@ -1,4 +1,4 @@
-package com.github.aeddddd.ae2enhanced.client.gui.menu;
+package com.github.aeddddd.ae2enhanced.common.menu;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Inventory;

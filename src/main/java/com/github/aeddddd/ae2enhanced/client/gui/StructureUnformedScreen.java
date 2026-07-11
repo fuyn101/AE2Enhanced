@@ -7,7 +7,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
-import com.github.aeddddd.ae2enhanced.client.gui.menu.StructureUnformedMenu;
+import com.github.aeddddd.ae2enhanced.common.menu.StructureUnformedMenu;
 import com.github.aeddddd.ae2enhanced.network.ModNetwork;
 import com.github.aeddddd.ae2enhanced.network.packet.RequestAssemblyPacket;
 

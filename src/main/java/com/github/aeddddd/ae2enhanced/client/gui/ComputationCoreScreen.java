@@ -1,5 +1,7 @@
 package com.github.aeddddd.ae2enhanced.client.gui;
 
+import com.github.aeddddd.ae2enhanced.common.menu.ComputationCoreMenu;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;

@@ -1,4 +1,4 @@
-package com.github.aeddddd.ae2enhanced.client.gui;
+package com.github.aeddddd.ae2enhanced.common.menu;
 
 import javax.annotation.Nullable;
 

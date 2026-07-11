@@ -15,8 +15,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.NetworkHooks;
 
 import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
-import com.github.aeddddd.ae2enhanced.client.gui.ComputationCoreMenu;
-import com.github.aeddddd.ae2enhanced.client.gui.ComputationUnformedMenu;
+import com.github.aeddddd.ae2enhanced.common.menu.ComputationCoreMenu;
+import com.github.aeddddd.ae2enhanced.common.menu.ComputationUnformedMenu;
 import com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlockEntity;
 import com.github.aeddddd.ae2enhanced.structure.ComputationCoreIndex;
 import com.github.aeddddd.ae2enhanced.structure.IMultiblockStructure;
