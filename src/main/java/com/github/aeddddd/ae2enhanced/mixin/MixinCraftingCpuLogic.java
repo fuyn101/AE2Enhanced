@@ -362,7 +362,7 @@ public class MixinCraftingCpuLogic {
 
     @Unique
     private static void ae2e$decrementItems(ElapsedTimeTracker tracker, long amount, AEKeyType type) {
-        ((ElapsedTimeTrackerAccessor) tracker).decrementItems(amount, type);
+        ((ElapsedTimeTrackerAccessor) tracker).invokeDecrementItems(amount, type);
     }
 
     @Unique
