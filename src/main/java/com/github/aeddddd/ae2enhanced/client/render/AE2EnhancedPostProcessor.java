@@ -3,12 +3,13 @@ package com.github.aeddddd.ae2enhanced.client.render;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.blaze3d.shaders.Uniform;
 
 import net.minecraft.client.Minecraft;
@@ -26,6 +27,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import org.joml.Matrix4f;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
@@ -94,30 +97,35 @@ public class AE2EnhancedPostProcessor {
             return;
         }
 
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-
         float time = level.getGameTime() + event.getPartialTick();
         float intensity = Mth.clamp(AE2EnhancedConfig.CLIENT.dynamicRenderIntensity.get().floatValue(), 0.0f, 2.0f);
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
         int textureId = mc.getMainRenderTarget().getColorTextureId();
 
-        RenderSystem.setShaderTexture(0, textureId);
-
         for (Vec3 target : targets) {
-            renderBlackHole(shader, eye, target, time, intensity, width, height);
+            renderBlackHole(shader, eye, target, time, intensity, width, height, textureId);
         }
-
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
     }
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time, float intensity,
-            int width, int height) {
-        GlStateManager._glUseProgram(shader.getId());
+            int width, int height, int textureId) {
+        RenderSystem.setShader(() -> shader);
+
+        // 切换到全屏 NDC 投影，避免世界投影把 quad 顶点挤到屏幕外
+        RenderSystem.backupProjectionMatrix();
+        RenderSystem.setProjectionMatrix(new Matrix4f().identity(), VertexSorting.DISTANCE_TO_ORIGIN);
+        PoseStack poseStack = RenderSystem.getModelViewStack();
+        poseStack.pushPose();
+        poseStack.setIdentity();
+        RenderSystem.applyModelViewMatrix();
+
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+
+        RenderSystem.setShaderTexture(0, textureId);
 
         Uniform uTime = shader.getUniform("u_time");
         Uniform uResolution = shader.getUniform("u_resolution");
@@ -127,23 +135,18 @@ public class AE2EnhancedPostProcessor {
 
         if (uTime != null) {
             uTime.set(time * 0.05f);
-            uTime.upload();
         }
         if (uResolution != null) {
             uResolution.set((float) width, (float) height);
-            uResolution.upload();
         }
         if (uIntensity != null) {
             uIntensity.set(intensity);
-            uIntensity.upload();
         }
         if (eyeUniform != null) {
             eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
-            eyeUniform.upload();
         }
         if (targetUniform != null) {
             targetUniform.set((float) target.x, (float) target.y, (float) target.z);
-            targetUniform.upload();
         }
 
         Tesselator tesselator = Tesselator.getInstance();
@@ -154,5 +157,9 @@ public class AE2EnhancedPostProcessor {
         builder.vertex(1.0, 1.0, 0.0).endVertex();
         builder.vertex(-1.0, 1.0, 0.0).endVertex();
         tesselator.end();
+
+        poseStack.popPose();
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.restoreProjectionMatrix();
     }
 }
