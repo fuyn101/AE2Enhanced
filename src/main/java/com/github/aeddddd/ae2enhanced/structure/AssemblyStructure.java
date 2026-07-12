@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
-import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
 import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 import com.google.gson.JsonArray;
@@ -140,26 +139,6 @@ public class AssemblyStructure {
                 return state.getValue(AssemblyControllerBlock.FACING);
             }
             return Direction.NORTH;
-        }
-
-        @Override
-        public void assemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-            if (level.getBlockEntity(controllerPos) instanceof AssemblyControllerBlockEntity tile) {
-                tile.assemble();
-            }
-        }
-
-        @Override
-        public void disassemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-            if (level.getBlockEntity(controllerPos) instanceof AssemblyControllerBlockEntity tile) {
-                tile.disassemble();
-            }
         }
     }
 }

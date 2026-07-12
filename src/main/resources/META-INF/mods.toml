@@ -23,3 +23,10 @@ mandatory=true
 versionRange="[1.20.1]"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.ae2enhanced]]
+modId="ae2"
+mandatory=true
+versionRange="[15.3.4,)"
+ordering="AFTER"
+side="BOTH"

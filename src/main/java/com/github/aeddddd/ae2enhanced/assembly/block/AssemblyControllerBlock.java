@@ -98,7 +98,7 @@ public class AssemblyControllerBlock extends MultiblockControllerBlock {
     }
 
     @Override
-    protected IMultiblockStructure getStructure() {
+    public IMultiblockStructure getStructure() {
         return AssemblyStructure.INSTANCE;
     }
 

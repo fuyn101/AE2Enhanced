@@ -84,7 +84,7 @@ public class HyperdimensionalControllerBlock extends MultiblockControllerBlock {
     }
 
     @Override
-    protected IMultiblockStructure getStructure() {
+    public IMultiblockStructure getStructure() {
         return HyperdimensionalStructure.INSTANCE;
     }
 

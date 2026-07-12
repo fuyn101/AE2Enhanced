@@ -13,8 +13,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
-import com.github.aeddddd.ae2enhanced.blockentity.HyperdimensionalControllerBlockEntity;
-import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
 import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 
@@ -136,44 +134,6 @@ public final class HyperdimensionalStructure {
                 return state.getValue(HyperdimensionalControllerBlock.FACING);
             }
             return Direction.NORTH;
-        }
-
-        @Override
-        public void assemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-
-            Direction facing = getRotation(level, controllerPos);
-            for (BlockPos rel : INTERFACE_SET) {
-                BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
-                if (level.getBlockEntity(actual) instanceof MultiblockMeInterfaceBlockEntity interfaceBe) {
-                    interfaceBe.setControllerPos(controllerPos);
-                }
-            }
-
-            if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
-                controller.assemble();
-            }
-        }
-
-        @Override
-        public void disassemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-
-            Direction facing = getRotation(level, controllerPos);
-            for (BlockPos rel : INTERFACE_SET) {
-                BlockPos actual = controllerPos.offset(StructureUtils.rotate(rel, facing));
-                if (level.getBlockEntity(actual) instanceof MultiblockMeInterfaceBlockEntity interfaceBe) {
-                    interfaceBe.setControllerPos(null);
-                }
-            }
-
-            if (level.getBlockEntity(controllerPos) instanceof HyperdimensionalControllerBlockEntity controller) {
-                controller.disassemble();
-            }
         }
     }
 }

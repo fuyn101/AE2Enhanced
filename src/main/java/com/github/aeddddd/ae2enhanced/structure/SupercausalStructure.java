@@ -14,9 +14,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.github.aeddddd.ae2enhanced.computation.block.ComputationControllerBlock;
-import com.github.aeddddd.ae2enhanced.computation.blockentity.ComputationCoreBlockEntity;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
-import com.github.aeddddd.ae2enhanced.multiblock.MultiblockMeInterfaceBlockEntity;
 import com.github.aeddddd.ae2enhanced.registry.ModBlocks;
 import com.github.aeddddd.ae2enhanced.util.StructureUtils;
 
@@ -1037,40 +1035,6 @@ public class SupercausalStructure {
         }
 
         @Override
-        public void assemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-            ValidationResult result = validateDetailed(level, controllerPos);
-            if (!result.passed()) {
-                return;
-            }
-            if (level.getBlockEntity(controllerPos) instanceof ComputationCoreBlockEntity tile) {
-                Direction facing = getRotation(level, controllerPos);
-                BlockPos interfacePos = controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
-                if (level.getBlockEntity(interfacePos) instanceof MultiblockMeInterfaceBlockEntity me) {
-                    me.setControllerPos(controllerPos);
-                }
-                tile.assemble(result.parallelLimit(), interfacePos);
-            }
-        }
-
-        @Override
-        public void disassemble(Level level, BlockPos controllerPos) {
-            if (level.isClientSide()) {
-                return;
-            }
-            if (level.getBlockEntity(controllerPos) instanceof ComputationCoreBlockEntity tile) {
-                tile.disassemble();
-            }
-            Direction facing = getRotation(level, controllerPos);
-            BlockPos interfacePos = controllerPos.offset(StructureUtils.rotate(ME_INTERFACE_REL, facing));
-            if (level.getBlockEntity(interfacePos) instanceof MultiblockMeInterfaceBlockEntity me) {
-                me.setControllerPos(null);
-            }
-        }
-
-        @Override
         public void placeMissingBlocks(Level level, BlockPos controllerPos, Player player) {
             if (level.isClientSide()) {
                 return;
@@ -1079,7 +1043,7 @@ public class SupercausalStructure {
             for (Map.Entry<BlockPos, Block> entry : definition.getExpectedBlocks()) {
                 BlockPos rel = entry.getKey();
                 Block block = entry.getValue();
-                if (rel.equals(CONTROLLER_REL) && block == ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get()) {
+                if (isControllerTensorOverlap(rel, block)) {
                     continue;
                 }
                 BlockPos pos = controllerPos.offset(StructureUtils.rotate(rel, facing));
@@ -1092,6 +1056,10 @@ public class SupercausalStructure {
                 level.setBlock(pos, block.defaultBlockState(), Block.UPDATE_ALL);
             }
             assemble(level, controllerPos);
+        }
+
+        private static boolean isControllerTensorOverlap(BlockPos rel, Block expected) {
+            return rel.equals(CONTROLLER_REL) && expected == ModBlocks.CONSTANT_TENSOR_FIELD_CASING.get();
         }
 
         private static void movePlayerToSafety(Level level, BlockPos controllerPos, Player player) {
