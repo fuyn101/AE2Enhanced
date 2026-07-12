@@ -87,6 +87,13 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     @Override
     protected void renderEffect(AssemblyControllerBlockEntity be, float partialTicks, PoseStack poseStack,
             MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+        // 启用后处理时，由 AE2EnhancedPostProcessor 在屏幕空间统一渲染黑洞
+        if (AE2EnhancedConfig.CLIENT.enableAssemblyPostProcessing.get()
+                && !AE2EnhancedConfig.CLIENT.forceCompatibilityMode.get()
+                && AE2EnhancedShaders.isAssemblyBlackHolePostLoaded()) {
+            return;
+        }
+
         Direction facing = getFacing(be);
         float[] bounds = getBounds(facing);
         double scale = getScaleFactor(bounds);
