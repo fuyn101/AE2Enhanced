@@ -4,8 +4,8 @@
         "srcrgb": "srcalpha",
         "dstrgb": "1-srcalpha"
     },
-    "vertex": "ae2enhanced:core/assembly_black_hole_post",
-    "fragment": "ae2enhanced:core/assembly_black_hole_post",
+    "vertex": "ae2enhanced:assembly_black_hole_post",
+    "fragment": "ae2enhanced:assembly_black_hole_post",
     "attributes": [ "Position" ],
     "samplers": [
         { "name": "Sampler0" }

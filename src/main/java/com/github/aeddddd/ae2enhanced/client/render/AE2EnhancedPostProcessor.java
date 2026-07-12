@@ -1,9 +1,9 @@
 package com.github.aeddddd.ae2enhanced.client.render;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -13,7 +13,6 @@ import com.mojang.blaze3d.shaders.Uniform;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -118,7 +117,7 @@ public class AE2EnhancedPostProcessor {
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time, float intensity,
             int width, int height) {
-        RenderSystem.setShader(() -> shader);
+        GlStateManager._glUseProgram(shader.getId());
 
         Uniform uTime = shader.getUniform("u_time");
         Uniform uResolution = shader.getUniform("u_resolution");

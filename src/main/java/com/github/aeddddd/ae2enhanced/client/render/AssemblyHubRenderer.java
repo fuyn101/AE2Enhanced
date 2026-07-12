@@ -23,6 +23,7 @@ import net.minecraftforge.fml.ModList;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
+import com.mojang.blaze3d.platform.GlStateManager;
 
 /**
  * 装配枢纽控制器渲染器：在结构几何中心绘制按比例放大的黑洞事件视界与光晕。
@@ -162,7 +163,7 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
      * 设置 shader 时间/强度 uniform 并立即上传。
      */
     private static void applyUniforms(ShaderInstance shader, float time, float intensity) {
-        RenderSystem.setShader(() -> shader);
+        GlStateManager._glUseProgram(shader.getId());
         Uniform uTime = shader.getUniform("uTime");
         Uniform uIntensity = shader.getUniform("uIntensity");
         if (uTime != null) {
