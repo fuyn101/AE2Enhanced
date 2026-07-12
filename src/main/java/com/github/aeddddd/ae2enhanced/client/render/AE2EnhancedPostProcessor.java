@@ -2,6 +2,7 @@ package com.github.aeddddd.ae2enhanced.client.render;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -15,11 +16,14 @@ import com.mojang.blaze3d.shaders.Uniform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
@@ -29,10 +33,13 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
+import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.structure.IMultiblockStructure;
 
 /**
  * 装配枢纽黑洞后处理渲染器。
@@ -43,6 +50,9 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 public class AE2EnhancedPostProcessor {
 
     private AE2EnhancedPostProcessor() {
+    }
+
+    private record TargetInfo(Vec3 worldPos, float radius, Direction facing) {
     }
 
     @SubscribeEvent
@@ -70,7 +80,7 @@ public class AE2EnhancedPostProcessor {
         int chunkRadius = (int) Math.ceil(renderDist / 16.0);
         ChunkPos playerChunk = player.chunkPosition();
 
-        List<Vec3> targets = new ArrayList<>();
+        List<TargetInfo> targets = new ArrayList<>();
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
                 ChunkAccess chunkAccess = level.getChunk(playerChunk.x + dx, playerChunk.z + dz);
@@ -79,9 +89,9 @@ public class AE2EnhancedPostProcessor {
                 }
                 for (BlockEntity be : chunk.getBlockEntities().values()) {
                     if (be instanceof AssemblyControllerBlockEntity controller && controller.isFormed()) {
-                        Vec3 target = Vec3.atCenterOf(be.getBlockPos());
-                        if (target.distanceToSqr(eye) <= renderDist * renderDist) {
-                            targets.add(target);
+                        TargetInfo info = buildTargetInfo(controller, level);
+                        if (info != null && info.worldPos.distanceToSqr(eye) <= renderDist * renderDist) {
+                            targets.add(info);
                         }
                     }
                 }
@@ -103,16 +113,50 @@ public class AE2EnhancedPostProcessor {
         int height = mc.getWindow().getHeight();
         int textureId = mc.getMainRenderTarget().getColorTextureId();
 
-        for (Vec3 target : targets) {
-            renderBlackHole(shader, eye, target, time, intensity, width, height, textureId);
+        Matrix4f viewMatrix = event.getPoseStack().last().pose();
+        Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
+
+        for (TargetInfo info : targets) {
+            Vector3f screenPos = project(info.worldPos, viewMatrix, projectionMatrix, width, height);
+            // z 在 [0,1] 表示 target 在视锥内，超出则不渲染
+            if (screenPos == null || screenPos.z < 0.0f || screenPos.z > 1.0f) {
+                continue;
+            }
+            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, width, height, textureId);
         }
     }
 
-    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time, float intensity,
-            int width, int height, int textureId) {
+    private static TargetInfo buildTargetInfo(AssemblyControllerBlockEntity controller, Level level) {
+        BlockPos pos = controller.getBlockPos();
+        Direction facing = Direction.NORTH;
+        BlockState state = level.getBlockState(pos);
+        if (state.hasProperty(MultiblockControllerBlock.FACING)) {
+            facing = state.getValue(MultiblockControllerBlock.FACING);
+        }
+
+        IMultiblockStructure structure = controller.getStructure();
+        Set<BlockPos> positions = structure != null ? structure.getAllPositions() : Set.of();
+        float[] bounds = AbstractMultiblockRenderer.computeBounds(positions, facing);
+        Vec3 center = AbstractMultiblockRenderer.computeCenterOffset(bounds);
+        double radius = AbstractMultiblockRenderer.computeRadius(bounds);
+        Vec3 worldPos = new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z);
+        // 半径过小则给一个默认值，避免除零和过小黑洞
+        float finalRadius = (float) Math.max(radius, 1.5);
+        return new TargetInfo(worldPos, finalRadius, facing);
+    }
+
+    private static Vector3f project(Vec3 worldPos, Matrix4f viewMatrix, Matrix4f projectionMatrix, int width, int height) {
+        Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(viewMatrix);
+        Vector3f src = new Vector3f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z);
+        Vector3f dest = new Vector3f();
+        viewProj.project(src, new int[]{0, 0, width, height}, dest);
+        return dest;
+    }
+
+    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
+            float time, float intensity, int width, int height, int textureId) {
         RenderSystem.setShader(() -> shader);
 
-        // 切换到全屏 NDC 投影，避免世界投影把 quad 顶点挤到屏幕外
         RenderSystem.backupProjectionMatrix();
         RenderSystem.setProjectionMatrix(new Matrix4f().identity(), VertexSorting.DISTANCE_TO_ORIGIN);
         PoseStack poseStack = RenderSystem.getModelViewStack();
@@ -130,6 +174,8 @@ public class AE2EnhancedPostProcessor {
         Uniform uTime = shader.getUniform("u_time");
         Uniform uResolution = shader.getUniform("u_resolution");
         Uniform uIntensity = shader.getUniform("u_intensity");
+        Uniform uSize = shader.getUniform("u_size");
+        Uniform uTargetScreen = shader.getUniform("u_targetScreen");
         Uniform eyeUniform = shader.getUniform("eye");
         Uniform targetUniform = shader.getUniform("target");
 
@@ -141,6 +187,12 @@ public class AE2EnhancedPostProcessor {
         }
         if (uIntensity != null) {
             uIntensity.set(intensity);
+        }
+        if (uSize != null) {
+            uSize.set(size);
+        }
+        if (uTargetScreen != null) {
+            uTargetScreen.set(targetScreen.x, targetScreen.y);
         }
         if (eyeUniform != null) {
             eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);

@@ -3,11 +3,12 @@
 #define AA 1
 #define _Speed 3.0
 #define _Steps  12.
-#define _Size 0.3
 
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform float u_intensity;
+uniform float u_size;
+uniform vec2 u_targetScreen;
 uniform vec3 eye;
 uniform vec3 target;
 uniform sampler2D Sampler0;
@@ -30,18 +31,18 @@ float value(vec2 p, float f) {
 }
 
 vec3 background(vec2 fragCoord, float r) {
-    vec2 uv = fragCoord.xy / u_resolution.xy;
+    vec2 centered = fragCoord - u_targetScreen + u_resolution.xy * 0.5;
+    vec2 uv = centered / u_resolution.xy;
     vec2 lpos = u_resolution.xy / 2. / u_resolution.x;
-    vec2 texC2 = fragCoord.xy / u_resolution.x;
+    vec2 texC2 = centered / u_resolution.x;
     vec2 texC = mix(uv, lpos, (20. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r)));
-    vec3 getColor = texture(Sampler0, texC).rgb;
-    return getColor;
+    return texture(Sampler0, texC).rgb;
 }
 
 vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
     vec3 position = zeroPos;
     float lengthPos = length(position.xz);
-    float dist = min(1., lengthPos * (1. / _Size) * 0.5) * _Size * 0.4 * (1. / _Steps) / (abs(ray.y));
+    float dist = min(1., lengthPos * (1. / u_size) * 0.5) * u_size * 0.4 * (1. / _Steps) / (abs(ray.y));
     position += dist * _Steps * ray * 0.5;
 
     vec2 deltaPos;
@@ -54,7 +55,7 @@ vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
     float redShift = parallel + 0.3;
     redShift *= redShift;
     redShift = clamp(redShift, 0., 1.);
-    float disMix = clamp((lengthPos - _Size * 2.) * (1. / _Size) * 0.24, 0., 1.);
+    float disMix = clamp((lengthPos - u_size * 2.) * (1. / u_size) * 0.24, 0., 1.);
     vec3 insideCol = mix(vec3(1.0, 0.8, 0.0), vec3(0.5, 0.13, 0.02) * 0.2, disMix);
     insideCol *= mix(vec3(0.4, 0.2, 0.1), vec3(1.6, 2.4, 4.0), redShift);
     insideCol *= 1.25;
@@ -67,10 +68,10 @@ vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
         float intensity = clamp(1. - abs((i - 0.8) * (1. / _Steps) * 2.), 0., 1.);
         float lengthPos = length(position.xz);
         float distMult = 1.;
-        distMult *= clamp((lengthPos - _Size * 0.75) * (1. / _Size) * 1.5, 0., 1.);
-        distMult *= clamp((_Size * 10. - lengthPos) * (1. / _Size) * 0.20, 0., 1.);
+        distMult *= clamp((lengthPos - u_size * 0.75) * (1. / u_size) * 1.5, 0., 1.);
+        distMult *= clamp((u_size * 10. - lengthPos) * (1. / u_size) * 0.20, 0., 1.);
         distMult *= distMult;
-        float u = lengthPos + u_time * _Size * 0.3 + intensity * _Size * 0.2;
+        float u = lengthPos + u_time * u_size * 0.3 + intensity * u_size * 0.2;
         vec2 xy;
         float rot = mod(u_time * _Speed, 8192.);
         xy.x = -position.z * sin(rot) + position.x * cos(rot);
@@ -78,13 +79,13 @@ vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
         float x = abs(xy.x / (xy.y));
         float angle = 0.02 * atan(x);
         const float f = 70.;
-        float noise = value(vec2(angle, u * (1. / _Size) * 0.05), f);
-        noise = noise * 0.66 + 0.33 * value(vec2(angle, u * (1. / _Size) * 0.05), f * 2.);
+        float noise = value(vec2(angle, u * (1. / u_size) * 0.05), f);
+        noise = noise * 0.66 + 0.33 * value(vec2(angle, u * (1. / u_size) * 0.05), f * 2.);
         float extraWidth = noise * 1. * (1. - clamp(i * (1. / _Steps) * 2. - 1., 0., 1.));
-        float alpha = clamp(noise * (intensity + extraWidth) * ((1. / _Size) * 10. + 0.01) * dist * distMult, 0., 1.);
+        float alpha = clamp(noise * (intensity + extraWidth) * ((1. / u_size) * 10. + 0.01) * dist * distMult, 0., 1.);
         vec3 col = 2. * mix(vec3(0.3, 0.2, 0.15) * insideCol, insideCol, min(1., intensity * 2.));
         o = clamp(vec4(col * alpha + o.rgb * (1. - alpha), o.a * (1. - alpha) + alpha), vec4(0.), vec4(1.));
-        lengthPos *= (1. / _Size);
+        lengthPos *= (1. / u_size);
         o.rgb += redShift * (intensity * 1. + 0.5) * (1. / _Steps) * 100. * distMult / (lengthPos * lengthPos);
     }
     o.rgb = clamp(o.rgb - 0.005, 0., 1.);
@@ -111,11 +112,10 @@ vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
 
 void main() {
     fragColor = vec4(0.);
-    vec2 fragCoordRot = gl_FragCoord.xy;
 
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
-        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy);
+        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
         vec3 pos = eye;
         float r = distance(pos, target);
         mat4 viewToWorld = viewMatrix(pos, target, vec3(0.0, 1.0, 0.0));
@@ -131,26 +131,26 @@ void main() {
                 float centDist = dotpos * invDist;
                 float stepDist = 0.92 * abs(pos.y / (ray.y));
                 float farLimit = centDist * 0.5;
-                float closeLimit = centDist * 0.1 + 0.05 * centDist * centDist * (1. / _Size);
+                float closeLimit = centDist * 0.1 + 0.05 * centDist * centDist * (1. / u_size);
                 stepDist = min(stepDist, min(farLimit, closeLimit));
                 float invDistSqr = invDist * invDist;
-                float bendForce = stepDist * invDistSqr * _Size * 0.625;
+                float bendForce = stepDist * invDistSqr * u_size * 0.625;
                 ray = normalize(ray - (bendForce * invDist) * pos);
                 pos += stepDist * ray;
                 glow += vec4(1.2, 1.1, 1, 1.0) * (0.01 * stepDist * invDistSqr * invDistSqr * clamp(centDist * (2.) - 1.2, 0., 1.));
             }
             float dist2 = length(pos);
-            if (dist2 < _Size * 0.1) {
+            if (dist2 < u_size * 0.1) {
                 outCol = vec4(col.rgb * col.a + glow.rgb * (1. - col.a), 1.);
                 break;
-            } else if (dist2 > _Size * 1000.) {
+            } else if (dist2 > u_size * 1000.) {
                 vec3 bg = background(gl_FragCoord.xy, 1. / r);
                 outCol = vec4(col.rgb * col.a + bg.rgb * (1. - col.a) + glow.rgb * (1. - col.a), 1.);
                 break;
-            } else if (abs(pos.y) <= _Size * 0.002) {
+            } else if (abs(pos.y) <= u_size * 0.002) {
                 vec4 diskCol = raymarchDisk(ray, pos);
                 pos.y = 0.;
-                pos += abs(_Size * 0.001 / ray.y) * ray;
+                pos += abs(u_size * 0.001 / ray.y) * ray;
                 col = vec4(diskCol.rgb * (1. - col.a) + col.rgb, col.a + diskCol.a * (1. - col.a));
             }
         }
