@@ -155,30 +155,23 @@ public class AE2EnhancedPostProcessor {
 
     /**
      * 将世界坐标投影到屏幕像素坐标。
-     * <p>使用相机四元数把向量转到相机局部空间，再做透视投影。
-     * 返回的 z 分量为正表示目标在相机前方。</p>
+     * <p>手动构建 viewMatrix = R * T，其中 R 是相机旋转的逆，T 是 -eye 平移；
+     * 然后 viewProj = projection * viewMatrix，使用 JOML project 得到屏幕坐标。</p>
      */
     private static Vector3f project(Vec3 worldPos, Camera camera, int width, int height) {
         Vec3 eye = camera.getPosition();
-        Vec3 toTarget = worldPos.subtract(eye);
 
-        Quaternionf camRotInv = camera.rotation().invert(new Quaternionf());
-        Vector3f viewSpace = new Vector3f((float) toTarget.x, (float) toTarget.y, (float) toTarget.z);
-        camRotInv.transform(viewSpace);
+        Matrix4f viewMatrix = new Matrix4f().identity()
+                .rotate(camera.rotation().invert(new Quaternionf()))
+                .translate((float) -eye.x, (float) -eye.y, (float) -eye.z);
 
-        // 相机局部空间：-z 为前方，+y 为上方，+x 为右方
-        float distance = -viewSpace.z;
-        if (distance <= 0.01f) {
-            return new Vector3f(0.0f, 0.0f, -1.0f);
-        }
+        Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
+        Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(viewMatrix);
 
-        float fov = Minecraft.getInstance().options.fov().get().floatValue();
-        float f = (float) (height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0)));
-
-        float screenX = viewSpace.x / distance * f + width / 2.0f;
-        float screenY = viewSpace.y / distance * f + height / 2.0f;
-
-        return new Vector3f(screenX, screenY, distance);
+        Vector3f src = new Vector3f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z);
+        Vector3f dest = new Vector3f();
+        viewProj.project(src, new int[]{0, 0, width, height}, dest);
+        return dest;
     }
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
