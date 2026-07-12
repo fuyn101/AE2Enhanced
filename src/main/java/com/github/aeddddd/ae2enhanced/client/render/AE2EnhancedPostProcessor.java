@@ -26,7 +26,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -120,13 +123,22 @@ public class AE2EnhancedPostProcessor {
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
         int textureId = mc.getMainRenderTarget().getColorTextureId();
+        double fov = mc.options.fov().get();
 
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, camera, width, height);
             if (screenPos == null || screenPos.z < 0.0f) {
                 continue;
             }
-            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, width, height, textureId);
+            // 视锥裁剪：目标必须在屏幕范围内，否则不渲染（避免黑洞跟随视角边缘）
+            if (screenPos.x < -1.0f || screenPos.x > width + 1.0f || screenPos.y < -1.0f || screenPos.y > height + 1.0f) {
+                continue;
+            }
+            // 遮挡检测：视线被方块挡住时不渲染
+            if (isOccluded(level, eye, info.worldPos, player)) {
+                continue;
+            }
+            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, (float) fov, width, height, textureId);
         }
     }
 
@@ -154,6 +166,23 @@ public class AE2EnhancedPostProcessor {
     }
 
     /**
+     * 检查从 eye 到 target 的视线是否被方块遮挡。
+     */
+    private static boolean isOccluded(Level level, Vec3 eye, Vec3 target, Player player) {
+        double distToTarget = eye.distanceToSqr(target);
+        if (distToTarget < 0.01) {
+            return false;
+        }
+        Vec3 direction = target.subtract(eye);
+        Vec3 end = target.subtract(direction.normalize().scale(0.15));
+        BlockHitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            return hit.getLocation().distanceToSqr(eye) < distToTarget - 0.01;
+        }
+        return false;
+    }
+
+    /**
      * 将世界坐标投影到屏幕像素坐标。
      * <p>手动构建 viewMatrix = R * T，其中 R 是相机旋转的逆，T 是 -eye 平移；
      * 然后 viewProj = projection * viewMatrix，使用 JOML project 得到屏幕坐标。</p>
@@ -175,7 +204,7 @@ public class AE2EnhancedPostProcessor {
     }
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
-            float time, float intensity, int width, int height, int textureId) {
+            float time, float intensity, float fov, int width, int height, int textureId) {
         RenderSystem.setShader(() -> shader);
 
         RenderSystem.backupProjectionMatrix();
@@ -196,6 +225,7 @@ public class AE2EnhancedPostProcessor {
         Uniform uResolution = shader.getUniform("u_resolution");
         Uniform uIntensity = shader.getUniform("u_intensity");
         Uniform uSize = shader.getUniform("u_size");
+        Uniform uFov = shader.getUniform("u_fov");
         Uniform uTargetScreen = shader.getUniform("u_targetScreen");
         Uniform eyeUniform = shader.getUniform("eye");
         Uniform targetUniform = shader.getUniform("target");
@@ -211,6 +241,9 @@ public class AE2EnhancedPostProcessor {
         }
         if (uSize != null) {
             uSize.set(size);
+        }
+        if (uFov != null) {
+            uFov.set(fov);
         }
         if (uTargetScreen != null) {
             uTargetScreen.set(targetScreen.x, targetScreen.y);

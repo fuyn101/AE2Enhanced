@@ -8,6 +8,7 @@ uniform float u_time;
 uniform vec2 u_resolution;
 uniform float u_intensity;
 uniform float u_size;
+uniform float u_fov;
 uniform vec2 u_targetScreen;
 uniform vec3 eye;
 uniform vec3 target;
@@ -115,7 +116,7 @@ void main() {
 
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
-        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
+        vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
         vec3 pos = eye;
         float r = distance(pos, target);
         mat4 viewToWorld = viewMatrix(pos, target, vec3(0.0, 1.0, 0.0));
