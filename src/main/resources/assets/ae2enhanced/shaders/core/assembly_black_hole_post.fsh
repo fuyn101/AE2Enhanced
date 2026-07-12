@@ -117,9 +117,10 @@ void main() {
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
         vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
-        vec3 pos = eye;
-        float r = distance(pos, target);
-        mat4 viewToWorld = viewMatrix(pos, target, vec3(0.0, 1.0, 0.0));
+        // 坐标系平移到以黑洞 target 为中心，否则引力计算会把世界原点当成黑洞中心
+        vec3 pos = eye - target;
+        float r = length(pos);
+        mat4 viewToWorld = viewMatrix(pos, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
         vec3 ray = (viewToWorld * vec4(viewDir, 0.0)).xyz;
         vec4 col = vec4(0.);
         vec4 glow = vec4(0.);
