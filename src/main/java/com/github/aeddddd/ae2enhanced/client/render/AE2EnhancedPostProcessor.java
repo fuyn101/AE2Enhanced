@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.blaze3d.shaders.Uniform;
 
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -32,6 +33,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
@@ -80,7 +82,8 @@ public class AE2EnhancedPostProcessor {
             return;
         }
 
-        Vec3 eye = event.getCamera().getPosition();
+        Camera camera = event.getCamera();
+        Vec3 eye = camera.getPosition();
         double renderDist = AE2EnhancedConfig.CLIENT.renderDistance.get();
         int chunkRadius = (int) Math.ceil(renderDist / 16.0);
         ChunkPos playerChunk = player.chunkPosition();
@@ -118,13 +121,9 @@ public class AE2EnhancedPostProcessor {
         int height = mc.getWindow().getHeight();
         int textureId = mc.getMainRenderTarget().getColorTextureId();
 
-        Matrix4f viewMatrix = event.getPoseStack().last().pose();
-        Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
-
         for (TargetInfo info : targets) {
-            Vector3f screenPos = project(info.worldPos, viewMatrix, projectionMatrix, width, height);
-            // z 在 [0,1] 表示 target 在视锥内，超出则不渲染
-            if (screenPos == null || screenPos.z < 0.0f || screenPos.z > 1.0f) {
+            Vector3f screenPos = project(info.worldPos, camera, width, height);
+            if (screenPos == null || screenPos.z < 0.0f) {
                 continue;
             }
             renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, width, height, textureId);
@@ -154,12 +153,32 @@ public class AE2EnhancedPostProcessor {
         };
     }
 
-    private static Vector3f project(Vec3 worldPos, Matrix4f viewMatrix, Matrix4f projectionMatrix, int width, int height) {
-        Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(viewMatrix);
-        Vector3f src = new Vector3f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z);
-        Vector3f dest = new Vector3f();
-        viewProj.project(src, new int[]{0, 0, width, height}, dest);
-        return dest;
+    /**
+     * 将世界坐标投影到屏幕像素坐标。
+     * <p>使用相机四元数把向量转到相机局部空间，再做透视投影。
+     * 返回的 z 分量为正表示目标在相机前方。</p>
+     */
+    private static Vector3f project(Vec3 worldPos, Camera camera, int width, int height) {
+        Vec3 eye = camera.getPosition();
+        Vec3 toTarget = worldPos.subtract(eye);
+
+        Quaternionf camRotInv = camera.rotation().invert(new Quaternionf());
+        Vector3f viewSpace = new Vector3f((float) toTarget.x, (float) toTarget.y, (float) toTarget.z);
+        camRotInv.transform(viewSpace);
+
+        // 相机局部空间：-z 为前方，+y 为上方，+x 为右方
+        float distance = -viewSpace.z;
+        if (distance <= 0.01f) {
+            return new Vector3f(0.0f, 0.0f, -1.0f);
+        }
+
+        float fov = Minecraft.getInstance().options.fov().get().floatValue();
+        float f = (float) (height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0)));
+
+        float screenX = viewSpace.x / distance * f + width / 2.0f;
+        float screenY = viewSpace.y / distance * f + height / 2.0f;
+
+        return new Vector3f(screenX, screenY, distance);
     }
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
