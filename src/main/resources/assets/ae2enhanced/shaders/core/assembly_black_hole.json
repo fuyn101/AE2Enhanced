@@ -6,8 +6,8 @@
         "srcalpha": "srcalpha",
         "dstalpha": "1-srcalpha"
     },
-    "vertex": "ae2enhanced:core/assembly_black_hole",
-    "fragment": "ae2enhanced:core/assembly_black_hole",
+    "vertex": "ae2enhanced:assembly_black_hole",
+    "fragment": "ae2enhanced:assembly_black_hole",
     "attributes": [ "Position", "Color" ],
     "samplers": [],
     "uniforms": [
