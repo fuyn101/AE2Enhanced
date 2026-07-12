@@ -31,10 +31,7 @@ import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
  */
 public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyControllerBlockEntity> {
 
-    // 旧结构近似半径，用于参数缩放基准
-    private static final double OLD_STRUCTURE_RADIUS = 7.0;
-
-    // 旧版黑洞渲染参数（来自 1.12 主分支）
+    // 旧版黑洞渲染参数（来自 1.12 主分支），保持固定尺寸
     private static final double EVENT_HORIZON_RADIUS_BASE = 2.5;
     private static final double INNER_HALO_BASE = 3.2;
     private static final double MID_HALO_BASE = 4.6;
@@ -233,9 +230,12 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
         poseStack.popPose();
     }
 
+    /**
+     * 获取黑洞渲染的缩放系数。
+     * <p>原 1.12 实现中黑洞事件视界与光晕为固定尺寸，不随多方块结构大小变化；
+     * 1.20.1 移植也保持固定缩放，避免新结构尺寸过大导致黑洞视觉效果变成几十格。</p>
+     */
     private static double getScaleFactor(float[] bounds) {
-        double maxDim = Math.max(bounds[3] - bounds[0], Math.max(bounds[4] - bounds[1], bounds[5] - bounds[2]));
-        double newRadius = maxDim * 0.5;
-        return newRadius / OLD_STRUCTURE_RADIUS;
+        return 1.0;
     }
 }
