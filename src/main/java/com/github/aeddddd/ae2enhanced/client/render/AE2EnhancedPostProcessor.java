@@ -123,11 +123,8 @@ public class AE2EnhancedPostProcessor {
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
         int textureId = mc.getMainRenderTarget().getColorTextureId();
-        // Minecraft options.fov 是水平 FOV，shader 中 rayDirection 使用垂直 FOV，需要转换
-        double aspect = (double) width / (double) height;
-        double hFovRad = Math.toRadians(mc.options.fov().get());
-        double vFovRad = 2.0 * Math.atan(Math.tan(hFovRad / 2.0) / aspect);
-        double vFovDeg = Math.toDegrees(vFovRad);
+        // Minecraft options.fov() 已经是垂直 FOV，shader 中 rayDirection 直接使用垂直 FOV
+        float fov = mc.options.fov().get().floatValue();
 
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, camera, width, height);
@@ -137,7 +134,7 @@ public class AE2EnhancedPostProcessor {
             // 只有当黑洞效果完全在屏幕外时才剔除，允许效果在屏幕边缘附近仍被渲染
             double distance = eye.distanceTo(info.worldPos);
             double worldRadius = info.radius * 10.0;
-            double focalLength = height / (2.0 * Math.tan(vFovRad / 2.0));
+            double focalLength = height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0));
             double screenRadius = (worldRadius / distance) * focalLength;
             if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
                     || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
@@ -147,7 +144,7 @@ public class AE2EnhancedPostProcessor {
             if (isOccluded(level, eye, info.worldPos, player)) {
                 continue;
             }
-            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, (float) vFovDeg, width, height, textureId);
+            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, fov, width, height, textureId);
         }
     }
 
@@ -161,7 +158,7 @@ public class AE2EnhancedPostProcessor {
 
         Vec3 centerOffset = getStructureCenterOffset(facing);
         Vec3 worldPos = Vec3.atCenterOf(pos).add(centerOffset);
-        return new TargetInfo(worldPos, 2.5f, facing);
+        return new TargetInfo(worldPos, 1.2f, facing);
     }
 
     private static Vec3 getStructureCenterOffset(Direction facing) {
