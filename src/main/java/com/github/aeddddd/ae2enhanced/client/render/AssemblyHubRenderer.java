@@ -23,7 +23,6 @@ import net.minecraftforge.fml.ModList;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
 import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
-import com.mojang.blaze3d.platform.GlStateManager;
 
 /**
  * 装配枢纽控制器渲染器：在结构几何中心绘制按比例放大的黑洞事件视界与光晕。
@@ -143,7 +142,8 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
 
         ShaderInstance shader = AE2EnhancedShaders.getAssemblyBlackHole();
         if (shader != null) {
-            applyUniforms(shader, time, intensity);
+            applyUniforms(shader, time, intensity, (float) scale);
+            RenderSystem.setShader(() -> shader);
         }
 
         // 事件视界 + 吸积盘（translucent）
@@ -160,19 +160,21 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     }
 
     /**
-     * 设置 shader 时间/强度 uniform 并立即上传。
+     * 设置 shader 时间/强度/缩放 uniform。
+     * <p>由 RenderSystem.setShader 负责实际绑定与上传；此处仅设置 uniform 值。</p>
      */
-    private static void applyUniforms(ShaderInstance shader, float time, float intensity) {
-        GlStateManager._glUseProgram(shader.getId());
+    private static void applyUniforms(ShaderInstance shader, float time, float intensity, float scale) {
         Uniform uTime = shader.getUniform("uTime");
         Uniform uIntensity = shader.getUniform("uIntensity");
+        Uniform uScale = shader.getUniform("uScale");
         if (uTime != null) {
             uTime.set(time);
-            uTime.upload();
         }
         if (uIntensity != null) {
             uIntensity.set(intensity);
-            uIntensity.upload();
+        }
+        if (uScale != null) {
+            uScale.set(scale);
         }
     }
 

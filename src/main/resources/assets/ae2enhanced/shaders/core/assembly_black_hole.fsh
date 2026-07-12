@@ -5,6 +5,7 @@ in vec3 vPos;
 
 uniform float uTime;
 uniform float uIntensity;
+uniform float uScale;
 uniform vec4 ColorModulator;
 
 out vec4 fragColor;
@@ -47,16 +48,19 @@ void main() {
         // 事件视界：纯黑实心
         fragColor = vec4(0.0, 0.0, 0.0, 1.0);
     } else if (part == 1) {
-        // 吸积盘：赤道面旋转环，几何本身定义内外半径，shader 只处理厚度与颜色
+        // 吸积盘：赤道面旋转环，几何本身定义内外半径，shader 随 uScale 缩放并处理厚度
         float r = length(vPos.xz);
         float y = vPos.y;
-        float diskH = 0.10 * intensity;
+        float diskH = 0.10 * uScale * intensity;
 
-        if (abs(y) > diskH) {
+        // 通过 y 做软裁剪，使扁平几何也有体积厚度感
+        float yFade = 1.0 - smoothstep(0.0, diskH, abs(y));
+        if (yFade <= 0.0) {
             discard;
         }
 
-        float t = clamp(r / 8.0, 0.0, 1.0);
+        float outerR = 8.0 * uScale;
+        float t = clamp(r / outerR, 0.0, 1.0);
         float angle = atan(vPos.z, vPos.x);
         float rot = angle + uTime * 0.6;
 
@@ -70,15 +74,15 @@ void main() {
         col = mix(col, outerCol, t * t);
         col += n * 0.35;
 
-        float edgeFade = (1.0 - t) * (1.0 - abs(y) / diskH);
+        float edgeFade = (1.0 - t) * yFade;
         float alpha = edgeFade * 0.9 * intensity;
         fragColor = vec4(col * alpha, alpha) * ColorModulator;
     } else if (part == 2) {
-        // 相对论性喷流：沿 Y 轴锥形
+        // 相对论性喷流：沿 Y 轴锥形，随 uScale 缩放
         float r = length(vPos.xz);
         float y = vPos.y;
-        float height = 8.0 * intensity;
-        float base = 1.0;
+        float height = 8.0 * uScale * intensity;
+        float base = 1.0 * uScale;
         float maxR = base * (1.0 - abs(y) / height);
 
         if (abs(y) > height || r > maxR) {

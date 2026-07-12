@@ -105,7 +105,7 @@ public final class AE2EnhancedConfig {
 
             enableAssemblyPostProcessing = builder
                     .comment("是否启用装配枢纽全屏后处理 shader 渲染（参考 GTCEu 的 black_hole.fsh）")
-                    .define("enableAssemblyPostProcessing", true);
+                    .define("enableAssemblyPostProcessing", false);
 
             forceCompatibilityMode = builder
                     .comment("强制兼容模式：禁用后处理与 shader 渲染，避免与光影包/优化模组冲突")
