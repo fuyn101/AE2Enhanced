@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 
 import com.mojang.blaze3d.shaders.Uniform;
+import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -151,17 +152,19 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     }
 
     /**
-     * 设置 shader 时间/强度 uniform。
-     * <p>值会在 {@link ShaderInstance#apply()} 时被上传。</p>
+     * 设置 shader 时间/强度 uniform 并立即上传。
      */
     private static void applyUniforms(ShaderInstance shader, float time, float intensity) {
+        RenderSystem.setShader(() -> shader);
         Uniform uTime = shader.getUniform("uTime");
         Uniform uIntensity = shader.getUniform("uIntensity");
         if (uTime != null) {
             uTime.set(time);
+            uTime.upload();
         }
         if (uIntensity != null) {
             uIntensity.set(intensity);
+            uIntensity.upload();
         }
     }
 

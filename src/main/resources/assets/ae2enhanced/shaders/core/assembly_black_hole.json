@@ -2,9 +2,7 @@
     "blend": {
         "func": "add",
         "srcrgb": "srcalpha",
-        "dstrgb": "1-srcalpha",
-        "srcalpha": "srcalpha",
-        "dstalpha": "1-srcalpha"
+        "dstrgb": "1-srcalpha"
     },
     "vertex": "ae2enhanced:assembly_black_hole",
     "fragment": "ae2enhanced:assembly_black_hole",

@@ -31,12 +31,19 @@ public final class AE2EnhancedShaders {
         return ASSEMBLY_BLACK_HOLE != null;
     }
 
-    public static void registerShaders(RegisterShadersEvent event) throws IOException {
-        event.registerShader(
-                new ShaderInstance(
-                        event.getResourceProvider(),
-                        new ResourceLocation(AE2Enhanced.MOD_ID, "assembly_black_hole"),
-                        DefaultVertexFormat.POSITION_COLOR),
-                shader -> ASSEMBLY_BLACK_HOLE = shader);
+    public static void registerShaders(RegisterShadersEvent event) {
+        try {
+            event.registerShader(
+                    new ShaderInstance(
+                            event.getResourceProvider(),
+                            new ResourceLocation(AE2Enhanced.MOD_ID, "assembly_black_hole"),
+                            DefaultVertexFormat.POSITION_COLOR),
+                    shader -> {
+                        ASSEMBLY_BLACK_HOLE = shader;
+                        AE2Enhanced.LOGGER.info("Registered assembly black hole shader");
+                    });
+        } catch (IOException | RuntimeException e) {
+            AE2Enhanced.LOGGER.error("Failed to register assembly black hole shader, falling back to position_color", e);
+        }
     }
 }
