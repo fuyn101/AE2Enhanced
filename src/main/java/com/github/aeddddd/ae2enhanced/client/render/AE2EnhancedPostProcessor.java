@@ -2,7 +2,6 @@ package com.github.aeddddd.ae2enhanced.client.render;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -39,7 +38,6 @@ import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
-import com.github.aeddddd.ae2enhanced.structure.IMultiblockStructure;
 
 /**
  * 装配枢纽黑洞后处理渲染器。
@@ -51,6 +49,13 @@ public class AE2EnhancedPostProcessor {
 
     private AE2EnhancedPostProcessor() {
     }
+
+    /**
+     * 装配枢纽结构中心相对于控制器方块中心的偏移（NORTH 为基准）。
+     * <p>来自 assembly_new.json 中 controller 所在坐标 (25, -7, 13) 的反向，
+     * 即结构中心 = 控制器中心 - controllerOffset。</p>
+     */
+    private static final Vec3 CENTER_OFFSET_NORTH = new Vec3(-25.0, 7.0, -13.0);
 
     private record TargetInfo(Vec3 worldPos, float radius, Direction facing) {
     }
@@ -134,15 +139,19 @@ public class AE2EnhancedPostProcessor {
             facing = state.getValue(MultiblockControllerBlock.FACING);
         }
 
-        IMultiblockStructure structure = controller.getStructure();
-        Set<BlockPos> positions = structure != null ? structure.getAllPositions() : Set.of();
-        float[] bounds = AbstractMultiblockRenderer.computeBounds(positions, facing);
-        Vec3 center = AbstractMultiblockRenderer.computeCenterOffset(bounds);
-        double radius = AbstractMultiblockRenderer.computeRadius(bounds);
-        Vec3 worldPos = new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z);
-        // 半径过小则给一个默认值，避免除零和过小黑洞
-        float finalRadius = (float) Math.max(radius, 1.5);
-        return new TargetInfo(worldPos, finalRadius, facing);
+        Vec3 centerOffset = getStructureCenterOffset(facing);
+        Vec3 worldPos = Vec3.atCenterOf(pos).add(centerOffset);
+        return new TargetInfo(worldPos, 9.5f, facing);
+    }
+
+    private static Vec3 getStructureCenterOffset(Direction facing) {
+        return switch (facing) {
+            case NORTH -> CENTER_OFFSET_NORTH;
+            case SOUTH -> new Vec3(25.0, 7.0, 13.0);
+            case EAST -> new Vec3(13.0, 7.0, -25.0);
+            case WEST -> new Vec3(-13.0, 7.0, 25.0);
+            default -> CENTER_OFFSET_NORTH;
+        };
     }
 
     private static Vector3f project(Vec3 worldPos, Matrix4f viewMatrix, Matrix4f projectionMatrix, int width, int height) {
