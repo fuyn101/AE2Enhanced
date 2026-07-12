@@ -74,7 +74,7 @@ public class ComputationControllerBlock extends MultiblockControllerBlock {
 
     @Override
     public IMultiblockStructure getStructure() {
-        return SupercausalStructure.INSTANCE;
+        return SupercausalStructure.getInstance();
     }
 
     @Override

@@ -50,13 +50,12 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     private static final int ACCRETION_DISK_PART_ID = 0x010000;
     private static final int RELATIVISTIC_JET_PART_ID = 0x020000;
 
-    // 按朝向缓存的结构包围盒，避免每帧重复计算
+    // 按朝向缓存的结构包围盒，首次使用时计算
     private static final Map<Direction, float[]> BOUNDS_CACHE = new EnumMap<>(Direction.class);
 
-    static {
-        for (Direction facing : Direction.Plane.HORIZONTAL) {
-            BOUNDS_CACHE.put(facing, computeBounds(AssemblyStructure.ALL_SET, facing));
-        }
+    private static float[] getBounds(Direction facing) {
+        return BOUNDS_CACHE.computeIfAbsent(facing,
+                f -> computeBounds(AssemblyStructure.getAllSet(), f));
     }
 
     public AssemblyHubRenderer(BlockEntityRendererProvider.Context context) {
@@ -71,7 +70,7 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     @Override
     protected Vec3 getEffectCenterOffset(AssemblyControllerBlockEntity be) {
         Direction facing = getFacing(be);
-        float[] bounds = BOUNDS_CACHE.getOrDefault(facing, BOUNDS_CACHE.get(Direction.NORTH));
+        float[] bounds = getBounds(facing);
         return computeCenterOffset(bounds);
     }
 
@@ -79,7 +78,7 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     protected double getRenderRadius() {
         // 渲染半径约为结构最大半径 + 外光晕
         Direction facing = Direction.NORTH;
-        float[] bounds = BOUNDS_CACHE.getOrDefault(facing, BOUNDS_CACHE.get(Direction.NORTH));
+        float[] bounds = getBounds(facing);
         double structureRadius = computeRadius(bounds);
         return structureRadius + OUTER_HALO_BASE * getScaleFactor(bounds);
     }
@@ -88,7 +87,7 @@ public class AssemblyHubRenderer extends AbstractMultiblockRenderer<AssemblyCont
     protected void renderEffect(AssemblyControllerBlockEntity be, float partialTicks, PoseStack poseStack,
             MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         Direction facing = getFacing(be);
-        float[] bounds = BOUNDS_CACHE.getOrDefault(facing, BOUNDS_CACHE.get(Direction.NORTH));
+        float[] bounds = getBounds(facing);
         double scale = getScaleFactor(bounds);
 
         Vec3 centerOffset = getEffectCenterOffset(be);

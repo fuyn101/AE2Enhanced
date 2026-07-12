@@ -99,7 +99,7 @@ public class AssemblyControllerBlock extends MultiblockControllerBlock {
 
     @Override
     public IMultiblockStructure getStructure() {
-        return AssemblyStructure.INSTANCE;
+        return AssemblyStructure.getInstance();
     }
 
     @Override

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -22,9 +23,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
-import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.block.AssemblyControllerBlock;
 import com.github.aeddddd.ae2enhanced.block.HyperdimensionalControllerBlock;
 import com.github.aeddddd.ae2enhanced.computation.block.ComputationControllerBlock;
@@ -42,15 +41,16 @@ import com.github.aeddddd.ae2enhanced.util.StructureUtils;
  * 多方块结构全局事件驱动验证器。
  * <p>负责在方块变化、chunk 加载等事件后延迟验证结构完整性，并自动组装/解体。
  * 具体 Block 到 {@link IMultiblockStructure} 的映射由 {@link #STRUCTURES} 集中管理。</p>
+ * <p>该类不在 {@code @Mod.EventBusSubscriber} 中自动注册，而是延迟到
+ * {@code FMLCommonSetupEvent} 中手动注册，以避免在方块注册完成前加载结构类。</p>
  */
-@Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class StructureEventHandler {
 
-    // Block 类型 -> 对应的多方块结构定义
-    private static final Map<Class<? extends Block>, IMultiblockStructure> STRUCTURES = Map.of(
-            AssemblyControllerBlock.class, AssemblyStructure.INSTANCE,
-            HyperdimensionalControllerBlock.class, HyperdimensionalStructure.INSTANCE,
-            ComputationControllerBlock.class, SupercausalStructure.INSTANCE);
+    // Block 类型 -> 对应的多方块结构定义 Supplier（延迟获取）
+    private static final Map<Class<? extends Block>, Supplier<IMultiblockStructure>> STRUCTURES = Map.of(
+            AssemblyControllerBlock.class, AssemblyStructure::getInstance,
+            HyperdimensionalControllerBlock.class, HyperdimensionalStructure::getInstance,
+            ComputationControllerBlock.class, SupercausalStructure::getInstance);
 
     // Block 类型 -> 从对应维度索引移除控制器位置的操作
     private static final Map<Class<? extends Block>, BiConsumer<ServerLevel, BlockPos>> INDEX_REMOVERS = Map.of(
@@ -86,7 +86,8 @@ public class StructureEventHandler {
         BlockPos pos = event.getPos();
         Block brokenBlock = level.getBlockState(pos).getBlock();
 
-        IMultiblockStructure structure = STRUCTURES.get(brokenBlock.getClass());
+        Supplier<IMultiblockStructure> supplier = STRUCTURES.get(brokenBlock.getClass());
+        IMultiblockStructure structure = supplier != null ? supplier.get() : null;
         if (structure != null) {
             structure.disassemble(level, pos);
             INDEX_REMOVERS.get(brokenBlock.getClass()).accept(level, pos);
@@ -214,6 +215,7 @@ public class StructureEventHandler {
 
     private static IMultiblockStructure getStructureForController(Level level, BlockPos controllerPos) {
         BlockState state = level.getBlockState(controllerPos);
-        return STRUCTURES.get(state.getBlock().getClass());
+        Supplier<IMultiblockStructure> supplier = STRUCTURES.get(state.getBlock().getClass());
+        return supplier != null ? supplier.get() : null;
     }
 }
