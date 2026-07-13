@@ -36,7 +36,7 @@ vec3 background(vec2 fragCoord, float r) {
     vec2 uv = centered / u_resolution.xy;
     vec2 lpos = u_resolution.xy / 2. / u_resolution.x;
     vec2 texC2 = centered / u_resolution.x;
-    vec2 texC = mix(uv, lpos, (5. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r + 0.1)));
+    vec2 texC = mix(uv, lpos, (0.5 * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r + 0.2)));
     return texture(Sampler0, texC).rgb;
 }
 
@@ -56,7 +56,7 @@ vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
     float redShift = parallel + 0.3;
     redShift *= redShift;
     redShift = clamp(redShift, 0., 1.);
-    float disMix = clamp((lengthPos - u_size * 2.) * (1. / u_size) * 0.24, 0., 1.);
+    float disMix = clamp((lengthPos - u_size * 1.5) * (1. / u_size) * 0.24, 0., 1.);
     vec3 insideCol = mix(vec3(1.0, 0.8, 0.0), vec3(0.5, 0.13, 0.02) * 0.2, disMix);
     insideCol *= mix(vec3(0.4, 0.2, 0.1), vec3(1.6, 2.4, 4.0), redShift);
     insideCol *= 1.25;
@@ -69,8 +69,8 @@ vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
         float intensity = clamp(1. - abs((i - 0.8) * (1. / _Steps) * 2.), 0., 1.);
         float lengthPos = length(position.xz);
         float distMult = 1.;
-        distMult *= clamp((lengthPos - u_size * 0.75) * (1. / u_size) * 1.5, 0., 1.);
-        distMult *= clamp((u_size * 10. - lengthPos) * (1. / u_size) * 0.20, 0., 1.);
+        distMult *= clamp((lengthPos - u_size * 0.55) * (1. / u_size) * 1.5, 0., 1.);
+        distMult *= clamp((u_size * 3. - lengthPos) * (1. / u_size) * 0.20, 0., 1.);
         distMult *= distMult;
         float u = lengthPos + u_time * u_size * 0.3 + intensity * u_size * 0.2;
         vec2 xy;
@@ -136,13 +136,12 @@ void main() {
                 float closeLimit = centDist * 0.1 + 0.05 * centDist * centDist * (1. / u_size);
                 stepDist = min(stepDist, min(farLimit, closeLimit));
                 float invDistSqr = invDist * invDist;
-                float bendForce = stepDist * invDistSqr * u_size * 0.2;
+                float bendForce = stepDist * invDistSqr * u_size * 0.05;
                 ray = normalize(ray - (bendForce * invDist) * pos);
                 pos += stepDist * ray;
-                glow += vec4(1.2, 1.1, 1, 1.0) * (0.003 * stepDist * invDistSqr * invDistSqr * clamp(centDist * (2.) - 1.2, 0., 1.));
             }
             float dist2 = length(pos);
-            if (dist2 < u_size * 0.1) {
+            if (dist2 < u_size * 0.5) {
                 outCol = vec4(col.rgb * col.a + glow.rgb * (1. - col.a), 1.);
                 break;
             } else if (dist2 > u_size * 1000.) {
