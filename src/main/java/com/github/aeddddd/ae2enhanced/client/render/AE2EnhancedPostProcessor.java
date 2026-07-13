@@ -3,6 +3,8 @@ package com.github.aeddddd.ae2enhanced.client.render;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -11,6 +13,8 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.blaze3d.shaders.Uniform;
+
+import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -51,6 +55,8 @@ import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class AE2EnhancedPostProcessor {
+
+    private static TextureTarget intermediateTarget;
 
     private AE2EnhancedPostProcessor() {
     }
@@ -122,7 +128,8 @@ public class AE2EnhancedPostProcessor {
         float intensity = Mth.clamp(AE2EnhancedConfig.CLIENT.dynamicRenderIntensity.get().floatValue(), 0.0f, 2.0f);
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
-        int textureId = mc.getMainRenderTarget().getColorTextureId();
+        // 先把主渲染目标颜色复制到中间纹理，避免 shader 同时读写同一纹理产生 feedback loop / 撕裂
+        int textureId = copyMainToIntermediate(mc.getMainRenderTarget(), width, height);
         // Minecraft options.fov() 已经是垂直 FOV，shader 中 rayDirection 直接使用垂直 FOV
         float fov = mc.options.fov().get().floatValue();
 
@@ -169,6 +176,30 @@ public class AE2EnhancedPostProcessor {
             case WEST -> new Vec3(-13.0, 7.0, 25.0);
             default -> CENTER_OFFSET_NORTH;
         };
+    }
+
+    /**
+     * 将主渲染目标颜色复制到中间纹理，避免 shader 同时读写同一纹理产生 feedback loop / 撕裂。
+     */
+    private static int copyMainToIntermediate(RenderTarget mainTarget, int width, int height) {
+        if (intermediateTarget == null || intermediateTarget.width != width || intermediateTarget.height != height) {
+            if (intermediateTarget != null) {
+                intermediateTarget.destroyBuffers();
+            }
+            intermediateTarget = new TextureTarget(width, height, false, Minecraft.ON_OSX);
+            intermediateTarget.setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            intermediateTarget.clear(Minecraft.ON_OSX);
+        }
+        // 确保中间纹理已分配存储
+        intermediateTarget.bindWrite(false);
+        intermediateTarget.unbindWrite();
+
+        mainTarget.bindRead();
+        RenderSystem.bindTexture(intermediateTarget.getColorTextureId());
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+        mainTarget.unbindRead();
+
+        return intermediateTarget.getColorTextureId();
     }
 
     /**
