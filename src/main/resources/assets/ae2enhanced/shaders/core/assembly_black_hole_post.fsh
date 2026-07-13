@@ -36,7 +36,10 @@ vec3 background(vec2 fragCoord, float r) {
     vec2 uv = centered / u_resolution.xy;
     vec2 lpos = u_resolution.xy / 2. / u_resolution.x;
     vec2 texC2 = centered / u_resolution.x;
-    vec2 texC = mix(uv, lpos, (0.5 * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r + 0.2)));
+    float factor = 20. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r);
+    factor = clamp(factor, -2.0, 2.0);
+    vec2 texC = mix(uv, lpos, factor);
+    texC = clamp(texC, 0.0, 1.0);
     return texture(Sampler0, texC).rgb;
 }
 
@@ -136,9 +139,10 @@ void main() {
                 float closeLimit = centDist * 0.1 + 0.05 * centDist * centDist * (1. / u_size);
                 stepDist = min(stepDist, min(farLimit, closeLimit));
                 float invDistSqr = invDist * invDist;
-                float bendForce = stepDist * invDistSqr * u_size * 0.05;
+                float bendForce = stepDist * invDistSqr * u_size * 0.625;
                 ray = normalize(ray - (bendForce * invDist) * pos);
                 pos += stepDist * ray;
+                glow += vec4(1.2, 1.1, 1, 1.0) * (0.01 * stepDist * invDistSqr * invDistSqr * clamp(centDist * (2.) - 1.2, 0., 1.));
             }
             float dist2 = length(pos);
             if (dist2 < u_size * 0.5) {
