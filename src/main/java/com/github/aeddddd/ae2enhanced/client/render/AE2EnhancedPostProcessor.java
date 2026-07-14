@@ -42,11 +42,13 @@ import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import com.github.aeddddd.ae2enhanced.AE2Enhanced;
 import com.github.aeddddd.ae2enhanced.assembly.blockentity.AssemblyControllerBlockEntity;
 import com.github.aeddddd.ae2enhanced.block.MultiblockControllerBlock;
 import com.github.aeddddd.ae2enhanced.config.AE2EnhancedConfig;
+import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 
 /**
  * 装配枢纽黑洞后处理渲染器。
@@ -60,13 +62,6 @@ public class AE2EnhancedPostProcessor {
 
     private AE2EnhancedPostProcessor() {
     }
-
-    /**
-     * 装配枢纽结构中心相对于控制器方块中心的偏移（NORTH 为基准）。
-     * <p>来自 assembly_new.json 中 controller 所在坐标 (25, -7, 13) 的反向，
-     * 即结构中心 = 控制器中心 - controllerOffset。</p>
-     */
-    private static final Vec3 CENTER_OFFSET_NORTH = new Vec3(-25.0, 7.0, -13.0);
 
     private record TargetInfo(Vec3 worldPos, float radius, Direction facing) {
     }
@@ -163,19 +158,11 @@ public class AE2EnhancedPostProcessor {
             facing = state.getValue(MultiblockControllerBlock.FACING);
         }
 
-        Vec3 centerOffset = getStructureCenterOffset(facing);
+        // 使用与对象空间渲染器完全相同的包围盒/中心计算，保证黑洞锚点一致
+        float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.getAllSet(), facing);
+        Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
         Vec3 worldPos = Vec3.atCenterOf(pos).add(centerOffset);
         return new TargetInfo(worldPos, 1.2f, facing);
-    }
-
-    private static Vec3 getStructureCenterOffset(Direction facing) {
-        return switch (facing) {
-            case NORTH -> CENTER_OFFSET_NORTH;
-            case SOUTH -> new Vec3(25.0, 7.0, 13.0);
-            case EAST -> new Vec3(13.0, 7.0, -25.0);
-            case WEST -> new Vec3(-13.0, 7.0, 25.0);
-            default -> CENTER_OFFSET_NORTH;
-        };
     }
 
     /**
@@ -234,10 +221,18 @@ public class AE2EnhancedPostProcessor {
         Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
         Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(viewMatrix);
 
-        Vector3f src = new Vector3f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z);
-        Vector3f dest = new Vector3f();
-        viewProj.project(src, new int[]{0, 0, width, height}, dest);
-        return dest;
+        // 手动投影到裁剪空间，检查 w 与 z 以正确剔除位于相机后方的目标
+        Vector4f clip = new Vector4f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z, 1.0f);
+        viewProj.transform(clip);
+        if (clip.w <= 0.0f || clip.z < -clip.w) {
+            return null;
+        }
+
+        float invW = 1.0f / clip.w;
+        float x = (clip.x * invW + 1.0f) * 0.5f * width;
+        float y = (1.0f - clip.y * invW) * 0.5f * height;
+        float z = clip.z * invW * 0.5f + 0.5f;
+        return new Vector3f(x, y, z);
     }
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
@@ -251,55 +246,79 @@ public class AE2EnhancedPostProcessor {
         poseStack.setIdentity();
         RenderSystem.applyModelViewMatrix();
 
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        // 保存当前 GL 状态，绘制后恢复，避免状态泄漏导致后续渲染阶段撕裂/深度失效
+        boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        int[] blendSrc = new int[1];
+        int[] blendDst = new int[1];
+        GL11.glGetIntegerv(GL11.GL_BLEND_SRC, blendSrc);
+        GL11.glGetIntegerv(GL11.GL_BLEND_DST, blendDst);
 
-        RenderSystem.setShaderTexture(0, textureId);
+        try {
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
 
-        Uniform uTime = shader.getUniform("u_time");
-        Uniform uResolution = shader.getUniform("u_resolution");
-        Uniform uIntensity = shader.getUniform("u_intensity");
-        Uniform uSize = shader.getUniform("u_size");
-        Uniform uFov = shader.getUniform("u_fov");
-        Uniform uTargetScreen = shader.getUniform("u_targetScreen");
-        Uniform eyeUniform = shader.getUniform("eye");
-        Uniform targetUniform = shader.getUniform("target");
+            RenderSystem.setShaderTexture(0, textureId);
 
-        if (uTime != null) {
-            uTime.set(time * 0.05f);
-        }
-        if (uResolution != null) {
-            uResolution.set((float) width, (float) height);
-        }
-        if (uIntensity != null) {
-            uIntensity.set(intensity);
-        }
-        if (uSize != null) {
-            uSize.set(size);
-        }
-        if (uFov != null) {
-            uFov.set(fov);
-        }
-        if (uTargetScreen != null) {
-            uTargetScreen.set(targetScreen.x, targetScreen.y);
-        }
-        if (eyeUniform != null) {
-            eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
-        }
-        if (targetUniform != null) {
-            targetUniform.set((float) target.x, (float) target.y, (float) target.z);
-        }
+            Uniform uTime = shader.getUniform("u_time");
+            Uniform uResolution = shader.getUniform("u_resolution");
+            Uniform uIntensity = shader.getUniform("u_intensity");
+            Uniform uSize = shader.getUniform("u_size");
+            Uniform uFov = shader.getUniform("u_fov");
+            Uniform uTargetScreen = shader.getUniform("u_targetScreen");
+            Uniform eyeUniform = shader.getUniform("eye");
+            Uniform targetUniform = shader.getUniform("target");
 
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder builder = tesselator.getBuilder();
-        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        builder.vertex(-1.0, -1.0, 0.0).endVertex();
-        builder.vertex(1.0, -1.0, 0.0).endVertex();
-        builder.vertex(1.0, 1.0, 0.0).endVertex();
-        builder.vertex(-1.0, 1.0, 0.0).endVertex();
-        tesselator.end();
+            if (uTime != null) {
+                uTime.set(time * 0.05f);
+            }
+            if (uResolution != null) {
+                uResolution.set((float) width, (float) height);
+            }
+            if (uIntensity != null) {
+                uIntensity.set(intensity);
+            }
+            if (uSize != null) {
+                uSize.set(size);
+            }
+            if (uFov != null) {
+                uFov.set(fov);
+            }
+            if (uTargetScreen != null) {
+                uTargetScreen.set(targetScreen.x, targetScreen.y);
+            }
+            if (eyeUniform != null) {
+                eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
+            }
+            if (targetUniform != null) {
+                targetUniform.set((float) target.x, (float) target.y, (float) target.z);
+            }
+
+            Tesselator tesselator = Tesselator.getInstance();
+            BufferBuilder builder = tesselator.getBuilder();
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+            builder.vertex(-1.0, -1.0, 0.0).endVertex();
+            builder.vertex(1.0, -1.0, 0.0).endVertex();
+            builder.vertex(1.0, 1.0, 0.0).endVertex();
+            builder.vertex(-1.0, 1.0, 0.0).endVertex();
+            tesselator.end();
+        } finally {
+            if (depthTest) {
+                RenderSystem.enableDepthTest();
+            } else {
+                RenderSystem.disableDepthTest();
+            }
+            RenderSystem.depthMask(depthMask);
+            if (blend) {
+                RenderSystem.enableBlend();
+                RenderSystem.blendFunc(blendSrc[0], blendDst[0]);
+            } else {
+                RenderSystem.disableBlend();
+            }
+        }
 
         poseStack.popPose();
         RenderSystem.applyModelViewMatrix();

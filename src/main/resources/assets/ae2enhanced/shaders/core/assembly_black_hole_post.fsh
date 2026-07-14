@@ -32,13 +32,15 @@ float value(vec2 p, float f) {
 }
 
 vec3 background(vec2 fragCoord, float r) {
-    vec2 centered = fragCoord - u_targetScreen + u_resolution.xy * 0.5;
-    vec2 uv = centered / u_resolution.xy;
-    vec2 lpos = u_resolution.xy / 2. / u_resolution.x;
-    vec2 texC2 = centered / u_resolution.x;
-    float factor = 20. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r);
+    // 以黑洞在屏幕上的投影位置 u_targetScreen 为透镜中心，避免固定为屏幕中心导致的漂移
+    vec2 centered = fragCoord - u_targetScreen;
+    vec2 uv = fragCoord / u_resolution.xy;
+    vec2 targetUv = u_targetScreen / u_resolution.xy;
+    // 将距离归一化到 x 分辨率，避免窗口比例导致的不对称扭曲
+    float dist = length(centered) / u_resolution.x;
+    float factor = 20. * r / max(dist - r, 0.001);
     factor = clamp(factor, -2.0, 2.0);
-    vec2 texC = mix(uv, lpos, factor);
+    vec2 texC = mix(uv, targetUv, factor);
     texC = clamp(texC, 0.0, 1.0);
     return texture(Sampler0, texC).rgb;
 }
@@ -119,7 +121,8 @@ void main() {
 
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
-        vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
+        // 使用当前像素的真实屏幕坐标计算射线方向，避免错误平移导致黑洞随视角漂移
+        vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy);
         // 坐标系平移到以黑洞 target 为中心，否则引力计算会把世界原点当成黑洞中心
         vec3 pos = eye - target;
         float r = length(pos);
