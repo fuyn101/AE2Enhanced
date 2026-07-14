@@ -110,9 +110,11 @@ public class AE2EnhancedPostProcessor {
         if (targets.isEmpty()) {
             return;
         }
+        AE2Enhanced.LOGGER.info("[BlackHoleDebug] found {} target(s) within range", targets.size());
 
         ShaderInstance shader = AE2EnhancedShaders.getAssemblyBlackHolePost();
         if (shader == null) {
+            AE2Enhanced.LOGGER.warn("[BlackHoleDebug] shader instance is null even though loaded flag is true");
             return;
         }
 
@@ -127,7 +129,12 @@ public class AE2EnhancedPostProcessor {
 
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, camera, width, height);
-            if (screenPos == null || screenPos.z < 0.0f) {
+            if (screenPos == null) {
+                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: behind camera", info.worldPos);
+                continue;
+            }
+            if (screenPos.z < 0.0f) {
+                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: negative screen z", info.worldPos);
                 continue;
             }
             // 只剔除完全移出屏幕的效果；不对方块遮挡做剔除，因为黑洞目标位于结构内部，
@@ -138,8 +145,12 @@ public class AE2EnhancedPostProcessor {
             double screenRadius = (worldRadius / distance) * focalLength;
             if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
                     || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
+                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: off screen (screenPos=({:.1f},{:.1f}), radius={:.1f})",
+                        info.worldPos, screenPos.x, screenPos.y, screenRadius);
                 continue;
             }
+            AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} rendering: screenPos=({:.1f},{:.1f}), distance={:.1f}, radius={:.1f}",
+                    info.worldPos, screenPos.x, screenPos.y, distance, screenRadius);
             renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, fov, width, height, textureId);
         }
     }
