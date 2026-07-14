@@ -128,9 +128,9 @@ public class AE2EnhancedPostProcessor {
         float fov = mc.options.fov().get().floatValue();
 
         for (TargetInfo info : targets) {
-            Vector3f screenPos = project(info.worldPos, camera, width, height);
+            Vector3f screenPos = project(info.worldPos, width, height);
             if (screenPos == null) {
-                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: behind camera", info.worldPos);
+                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: projection degenerate (clip.w too small)", info.worldPos);
                 continue;
             }
             if (screenPos.z < 0.0f) {
@@ -198,23 +198,19 @@ public class AE2EnhancedPostProcessor {
 
     /**
      * 将世界坐标投影到屏幕像素坐标。
-     * <p>手动构建 viewMatrix = R * T，其中 R 是相机旋转的逆，T 是 -eye 平移；
-     * 然后 viewProj = projection * viewMatrix，使用 JOML project 得到屏幕坐标。</p>
+     * <p>直接使用 RenderSystem 当前世界渲染的投影与模型视图矩阵，避免手动重建 viewMatrix
+     * 时旋转/平移顺序带来的误差；只剔除会导致透视除零的退化情况。</p>
      */
-    private static Vector3f project(Vec3 worldPos, Camera camera, int width, int height) {
-        Vec3 eye = camera.getPosition();
-
-        Matrix4f viewMatrix = new Matrix4f().identity()
-                .rotate(camera.rotation().invert(new Quaternionf()))
-                .translate((float) -eye.x, (float) -eye.y, (float) -eye.z);
-
+    private static Vector3f project(Vec3 worldPos, int width, int height) {
         Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
-        Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(viewMatrix);
+        Matrix4f modelViewMatrix = RenderSystem.getModelViewMatrix();
+        Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(modelViewMatrix);
 
-        // 手动投影到裁剪空间，检查 w 与 z 以正确剔除位于相机后方的目标
         Vector4f clip = new Vector4f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z, 1.0f);
         viewProj.transform(clip);
-        if (clip.w <= 0.0f || clip.z < -clip.w) {
+
+        // 保留 clip.w 避免透视除零；不再严格剔除侧面/后方的目标，因为屏幕空间效果需要跟随目标
+        if (clip.w <= 0.0001f) {
             return null;
         }
 
