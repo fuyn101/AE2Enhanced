@@ -157,7 +157,8 @@ public class AE2EnhancedPostProcessor {
         Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
         // computeCenterOffset 返回的是从控制器方块整数坐标到结构几何中心的偏移，与 AbstractMultiblockRenderer 保持一致
         Vec3 worldPos = new Vec3(pos.getX() + centerOffset.x, pos.getY() + centerOffset.y, pos.getZ() + centerOffset.z);
-        return new TargetInfo(worldPos, 1.2f, facing);
+        // 将黑洞半径统一为对象空间渲染使用的事件视界基准半径，避免后处理中 u_size 过小导致效果不可见
+        return new TargetInfo(worldPos, 2.5f, facing);
     }
 
     /**
