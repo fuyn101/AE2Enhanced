@@ -15,6 +15,7 @@ import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.blaze3d.shaders.Uniform;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -258,6 +259,13 @@ public class AE2EnhancedPostProcessor {
                 AE2Enhanced.LOGGER.warn("[PostProcessor] OpenGL error before draw: {}", glErrBefore);
             }
 
+            int[] fbo = new int[1];
+            int[] viewport = new int[4];
+            GL30.glGetIntegerv(GL30.GL_FRAMEBUFFER_BINDING, fbo);
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+            AE2Enhanced.LOGGER.info("[PostProcessor] before draw: FBO={}, viewport={},{},{},{}",
+                    fbo[0], viewport[0], viewport[1], viewport[2], viewport[3]);
+
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder builder = tesselator.getBuilder();
             builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
@@ -266,6 +274,11 @@ public class AE2EnhancedPostProcessor {
             builder.vertex(1.0, 1.0, 0.0).endVertex();
             builder.vertex(-1.0, 1.0, 0.0).endVertex();
             tesselator.end();
+
+            GL30.glGetIntegerv(GL30.GL_FRAMEBUFFER_BINDING, fbo);
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+            AE2Enhanced.LOGGER.info("[PostProcessor] after draw: FBO={}, viewport={},{},{},{}",
+                    fbo[0], viewport[0], viewport[1], viewport[2], viewport[3]);
 
             int glErrAfter = GL11.glGetError();
             if (glErrAfter != GL11.GL_NO_ERROR) {
