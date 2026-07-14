@@ -134,7 +134,7 @@ public class AE2EnhancedPostProcessor {
                 continue;
             }
 
-            renderBlackHole(shader, eye, info.worldPos, screenPos, time, intensity, width, height, textureId);
+            renderBlackHole(shader, eye, info.worldPos, time, intensity, width, height, textureId);
         }
     }
 
@@ -198,7 +198,7 @@ public class AE2EnhancedPostProcessor {
         return new Vector3f(x, y, 0.0f);
     }
 
-    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float time,
+    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time,
             float intensity, int width, int height, int textureId) {
         RenderSystem.setShader(() -> shader);
 
@@ -229,7 +229,6 @@ public class AE2EnhancedPostProcessor {
             Uniform uTime = shader.getUniform("u_time");
             Uniform uResolution = shader.getUniform("u_resolution");
             Uniform uIntensity = shader.getUniform("u_intensity");
-            Uniform uTargetScreen = shader.getUniform("u_targetScreen");
             Uniform eyeUniform = shader.getUniform("eye");
             Uniform targetUniform = shader.getUniform("target");
 
@@ -241,9 +240,6 @@ public class AE2EnhancedPostProcessor {
             }
             if (uIntensity != null) {
                 uIntensity.set(intensity);
-            }
-            if (uTargetScreen != null) {
-                uTargetScreen.set(targetScreen.x, targetScreen.y);
             }
             if (eyeUniform != null) {
                 eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
