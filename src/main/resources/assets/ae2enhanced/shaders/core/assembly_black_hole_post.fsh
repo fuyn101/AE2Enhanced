@@ -8,7 +8,6 @@
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform float u_intensity;
-uniform vec2 u_targetScreen;
 uniform vec3 eye;
 uniform vec3 target;
 uniform sampler2D Sampler0;
@@ -32,8 +31,7 @@ float value(vec2 p, float f) {
 
 vec3 background(vec2 fragCoord, float r) {
     vec2 uv = fragCoord.xy / u_resolution.xy;
-    // 以黑洞在屏幕上的投影位置为中心，不再固定为屏幕中心
-    vec2 lpos = u_targetScreen / u_resolution.x;
+    vec2 lpos = u_resolution.xy / 2. / u_resolution.x;
     vec2 texC2 = fragCoord.xy / u_resolution.x;
     vec2 texC = mix(uv, lpos, (20. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r)));
     vec3 getColor = texture(Sampler0, texC).rgb;
@@ -117,8 +115,7 @@ void main() {
 
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
-        // 以 u_targetScreen 为虚拟屏幕中心计算方向，使效果锚定于黑洞的屏幕投影位置
-        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
+        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy);
         vec3 pos = eye;
         float r = distance(pos, target);
         mat4 viewToWorld = viewMatrix(pos, target, vec3(0.0, 1.0, 0.0));
