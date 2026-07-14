@@ -253,6 +253,11 @@ public class AE2EnhancedPostProcessor {
             }
             AE2Enhanced.LOGGER.info("[PostProcessor] uniforms set, drawing quad");
 
+            int glErrBefore = GL11.glGetError();
+            if (glErrBefore != GL11.GL_NO_ERROR) {
+                AE2Enhanced.LOGGER.warn("[PostProcessor] OpenGL error before draw: {}", glErrBefore);
+            }
+
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder builder = tesselator.getBuilder();
             builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
@@ -261,6 +266,11 @@ public class AE2EnhancedPostProcessor {
             builder.vertex(1.0, 1.0, 0.0).endVertex();
             builder.vertex(-1.0, 1.0, 0.0).endVertex();
             tesselator.end();
+
+            int glErrAfter = GL11.glGetError();
+            if (glErrAfter != GL11.GL_NO_ERROR) {
+                AE2Enhanced.LOGGER.warn("[PostProcessor] OpenGL error after draw: {}", glErrAfter);
+            }
             AE2Enhanced.LOGGER.info("[PostProcessor] quad draw submitted");
         } finally {
             if (depthTest) {
