@@ -1,74 +1,167 @@
 #version 150
 
-uniform sampler2D Sampler0;
-uniform vec2 u_resolution;
-uniform vec2 u_targetScreen;
-uniform float u_radius;
-uniform float u_intensity;
+#define AA 1
+#define _Speed 3.0
+#define _Steps  12.
+#define _Size 0.3
+
 uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_intensity;
+uniform vec2 u_targetScreen;
+uniform vec3 eye;
+uniform vec3 target;
+uniform sampler2D Sampler0;
 
 out vec4 fragColor;
 
-// 对象空间渲染中：事件视界半径 2.5，吸积盘外半径 7.8（OUTER_HALO_BASE * 1.3）
-// 因此后处理中黑色事件视界占 u_radius 的 2.5 / 7.8 = 0.32
-const float EVENT_HORIZON_RATIO = 0.32;
-const float INNER_RING_RATIO = 0.38;
-const float OUTER_RING_RATIO = 0.72;
-const float GLOW_START_RATIO = 0.72;
+float hash(float x) { return fract(sin(x) * 152754.742); }
+float hash(vec2 x) { return hash(x.x + hash(x.y)); }
 
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+float value(vec2 p, float f) {
+    float bl = hash(floor(p * f + vec2(0., 0.)));
+    float br = hash(floor(p * f + vec2(1., 0.)));
+    float tl = hash(floor(p * f + vec2(0., 1.)));
+    float tr = hash(floor(p * f + vec2(1., 1.)));
+    vec2 fr = fract(p * f);
+    fr = (3. - 2. * fr) * fr * fr;
+    float b = mix(bl, br, fr.x);
+    float t = mix(tl, tr, fr.x);
+    return mix(b, t, fr.y);
 }
 
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+vec3 background(vec2 fragCoord, float r) {
+    vec2 uv = fragCoord.xy / u_resolution.xy;
+    // 以黑洞在屏幕上的投影位置为中心，不再固定为屏幕中心
+    vec2 lpos = u_targetScreen / u_resolution.x;
+    vec2 texC2 = fragCoord.xy / u_resolution.x;
+    vec2 texC = mix(uv, lpos, (20. * r / (distance((texC2 * 2.0 - lpos * 2.0) * 5. + lpos, lpos) - r)));
+    vec3 getColor = texture(Sampler0, texC).rgb;
+    return getColor;
+}
+
+vec4 raymarchDisk(vec3 ray, vec3 zeroPos) {
+    vec3 position = zeroPos;
+    float lengthPos = length(position.xz);
+    float dist = min(1., lengthPos * (1. / _Size) * 0.5) * _Size * 0.4 * (1. / _Steps) / (abs(ray.y));
+    position += dist * _Steps * ray * 0.5;
+
+    vec2 deltaPos;
+    deltaPos.x = -zeroPos.z * 0.01 + zeroPos.x;
+    deltaPos.y = zeroPos.x * 0.01 + zeroPos.z;
+    deltaPos = normalize(deltaPos - zeroPos.xz);
+    float parallel = dot(ray.xz, deltaPos);
+    parallel /= sqrt(lengthPos);
+    parallel *= 0.5;
+    float redShift = parallel + 0.3;
+    redShift *= redShift;
+    redShift = clamp(redShift, 0., 1.);
+    float disMix = clamp((lengthPos - _Size * 2.) * (1. / _Size) * 0.24, 0., 1.);
+    vec3 insideCol = mix(vec3(1.0, 0.8, 0.0), vec3(0.5, 0.13, 0.02) * 0.2, disMix);
+    insideCol *= mix(vec3(0.4, 0.2, 0.1), vec3(1.6, 2.4, 4.0), redShift);
+    insideCol *= 1.25;
+    redShift += 0.12;
+    redShift *= redShift;
+    vec4 o = vec4(0.);
+
+    for (float i = 0.; i < _Steps; i++) {
+        position -= dist * ray;
+        float intensity = clamp(1. - abs((i - 0.8) * (1. / _Steps) * 2.), 0., 1.);
+        float lengthPos = length(position.xz);
+        float distMult = 1.;
+        distMult *= clamp((lengthPos - _Size * 0.75) * (1. / _Size) * 1.5, 0., 1.);
+        distMult *= clamp((_Size * 10. - lengthPos) * (1. / _Size) * 0.20, 0., 1.);
+        distMult *= distMult;
+        float u = lengthPos + u_time * _Size * 0.3 + intensity * _Size * 0.2;
+        vec2 xy;
+        float rot = mod(u_time * _Speed, 8192.);
+        xy.x = -position.z * sin(rot) + position.x * cos(rot);
+        xy.y = position.x * sin(rot) + position.z * cos(rot);
+        float x = abs(xy.x / (xy.y));
+        float angle = 0.02 * atan(x);
+        const float f = 70.;
+        float noise = value(vec2(angle, u * (1. / _Size) * 0.05), f);
+        noise = noise * 0.66 + 0.33 * value(vec2(angle, u * (1. / _Size) * 0.05), f * 2.);
+        float extraWidth = noise * 1. * (1. - clamp(i * (1. / _Steps) * 2. - 1., 0., 1.));
+        float alpha = clamp(noise * (intensity + extraWidth) * ((1. / _Size) * 10. + 0.01) * dist * distMult, 0., 1.);
+        vec3 col = 2. * mix(vec3(0.3, 0.2, 0.15) * insideCol, insideCol, min(1., intensity * 2.));
+        o = clamp(vec4(col * alpha + o.rgb * (1. - alpha), o.a * (1. - alpha) + alpha), vec4(0.), vec4(1.));
+        lengthPos *= (1. / _Size);
+        o.rgb += redShift * (intensity * 1. + 0.5) * (1. / _Steps) * 100. * distMult / (lengthPos * lengthPos);
+    }
+    o.rgb = clamp(o.rgb - 0.005, 0., 1.);
+    return o;
+}
+
+mat4 viewMatrix(vec3 eye, vec3 center, vec3 up) {
+    vec3 f = normalize(center - eye);
+    vec3 s = normalize(cross(f, up));
+    vec3 u = cross(s, f);
+    return mat4(
+        vec4(s, 0.0),
+        vec4(u, 0.0),
+        vec4(-f, 0.0),
+        vec4(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
+    vec2 xy = fragCoord - size / 2.0;
+    float z = size.y / tan(radians(fieldOfView) / 2.0);
+    return normalize(vec3(xy, -z));
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-    vec2 centered = gl_FragCoord.xy - u_targetScreen;
-    float dist = length(centered);
+    fragColor = vec4(0.);
+    vec2 fragCoordRot = gl_FragCoord.xy;
 
-    // 只影响目标点周围圆形区域，避免全屏扭曲
-    if (dist > u_radius) {
-        fragColor = texture(Sampler0, uv);
-        return;
+    for (int j = 0; j < AA; j++)
+    for (int i = 0; i < AA; i++) {
+        // 以 u_targetScreen 为虚拟屏幕中心计算方向，使效果锚定于黑洞的屏幕投影位置
+        vec3 viewDir = rayDirection(45.0, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
+        vec3 pos = eye;
+        float r = distance(pos, target);
+        mat4 viewToWorld = viewMatrix(pos, target, vec3(0.0, 1.0, 0.0));
+        vec3 ray = (viewToWorld * vec4(viewDir, 0.0)).xyz;
+        vec4 col = vec4(0.);
+        vec4 glow = vec4(0.);
+        vec4 outCol = vec4(100.);
+
+        for (int disks = 0; disks < 20; disks++) {
+            for (int h = 0; h < 6; h++) {
+                float dotpos = dot(pos, pos);
+                float invDist = inversesqrt(dotpos);
+                float centDist = dotpos * invDist;
+                float stepDist = 0.92 * abs(pos.y / (ray.y));
+                float farLimit = centDist * 0.5;
+                float closeLimit = centDist * 0.1 + 0.05 * centDist * centDist * (1. / _Size);
+                stepDist = min(stepDist, min(farLimit, closeLimit));
+                float invDistSqr = invDist * invDist;
+                float bendForce = stepDist * invDistSqr * _Size * 0.625;
+                ray = normalize(ray - (bendForce * invDist) * pos);
+                pos += stepDist * ray;
+                glow += vec4(1.2, 1.1, 1, 1.0) * (0.01 * stepDist * invDistSqr * invDistSqr * clamp(centDist * (2.) - 1.2, 0., 1.));
+            }
+            float dist2 = length(pos);
+            if (dist2 < _Size * 0.1) {
+                outCol = vec4(col.rgb * col.a + glow.rgb * (1. - col.a), 1.);
+                break;
+            } else if (dist2 > _Size * 1000.) {
+                vec3 bg = background(gl_FragCoord.xy, 1. / r);
+                outCol = vec4(col.rgb * col.a + bg.rgb * (1. - col.a) + glow.rgb * (1. - col.a), 1.);
+                break;
+            } else if (abs(pos.y) <= _Size * 0.002) {
+                vec4 diskCol = raymarchDisk(ray, pos);
+                pos.y = 0.;
+                pos += abs(_Size * 0.001 / ray.y) * ray;
+                col = vec4(diskCol.rgb * (1. - col.a) + col.rgb, col.a + diskCol.a * (1. - col.a));
+            }
+        }
+
+        if (outCol.r == 100.)
+            outCol = vec4(col.rgb + glow.rgb * (col.a + glow.a), 1.);
+        col = outCol;
+        col.rgb = pow(col.rgb, vec3(0.6));
+        fragColor += col / float(AA * AA);
     }
-
-    float t = dist / u_radius;
-
-    // 径向扭曲：越靠近中心，采样越向中心偏移
-    float lensFactor = (1.0 - t) * u_intensity * 0.45;
-    vec2 targetUv = u_targetScreen / u_resolution.xy;
-    vec2 texC = mix(uv, targetUv, lensFactor);
-    vec3 bg = texture(Sampler0, texC).rgb;
-    vec3 color = bg;
-
-    // 事件视界：与对象空间黑色球体一致
-    float eventHorizon = 1.0 - smoothstep(0.0, EVENT_HORIZON_RATIO, t);
-    color = mix(color, vec3(0.0), eventHorizon);
-
-    // 吸积盘光环：在事件视界与吸积盘外缘之间
-    float ring = smoothstep(EVENT_HORIZON_RATIO, INNER_RING_RATIO, t)
-               * (1.0 - smoothstep(OUTER_RING_RATIO - 0.05, OUTER_RING_RATIO + 0.05, t));
-    if (ring > 0.0) {
-        float angle = atan(centered.y, centered.x) + u_time * 2.0;
-        float flicker = 0.7 + 0.3 * noise(vec2(angle * 2.0, t * 5.0));
-        vec3 ringColor = vec3(1.0, 0.45, 0.05) * flicker * u_intensity;
-        color = mix(color, ringColor, ring * 0.85);
-    }
-
-    // 外部光晕
-    float glow = smoothstep(GLOW_START_RATIO, 1.0, t) * (1.0 - t);
-    vec3 glowColor = vec3(0.7, 0.15, 0.0) * glow * u_intensity;
-    color += glowColor;
-
-    fragColor = vec4(color, 1.0);
 }

@@ -121,7 +121,6 @@ public class AE2EnhancedPostProcessor {
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
         int textureId = copyMainToIntermediate(mc.getMainRenderTarget(), width, height);
-        float fov = mc.options.fov().get().floatValue();
 
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, event.getPoseStack().last().pose(), width, height);
@@ -129,20 +128,13 @@ public class AE2EnhancedPostProcessor {
                 continue;
             }
 
-            double distance = eye.distanceTo(info.worldPos);
-            // 屏幕空间半径：世界半径 * 焦距 / 距离
-            double focalLength = height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0));
-            double screenRadius = (info.radius * 2.0 / distance) * focalLength;
-            // 限制最大半径，避免近处效果过度放大并覆盖整个屏幕
-            screenRadius = Math.min(screenRadius, height * 0.35);
-
-            // 当目标点移出屏幕且效果半径无法覆盖屏幕时，跳过
-            if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
-                    || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
+            // 仅当目标点离开屏幕较远时跳过；shader 为全屏效果，目标点附近的像素都会受影响
+            if (screenPos.x < -width || screenPos.x > width * 2
+                    || screenPos.y < -height || screenPos.y > height * 2) {
                 continue;
             }
 
-            renderBlackHole(shader, screenPos, (float) screenRadius, time, intensity, width, height, textureId);
+            renderBlackHole(shader, eye, info.worldPos, screenPos, time, intensity, width, height, textureId);
         }
     }
 
@@ -158,9 +150,7 @@ public class AE2EnhancedPostProcessor {
         float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.getAllSet(), facing);
         Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
         Vec3 worldPos = new Vec3(pos.getX() + centerOffset.x, pos.getY() + centerOffset.y, pos.getZ() + centerOffset.z);
-        // 后处理效果半径与对象空间吸积盘外半径（OUTER_HALO_BASE 6.0 * 1.3 = 7.8）一致，
-        // 使事件视界、吸积盘光环与对象空间渲染完全对应。
-        return new TargetInfo(worldPos, 7.8f, facing);
+        return new TargetInfo(worldPos, 2.5f, facing);
     }
 
     /**
@@ -208,7 +198,7 @@ public class AE2EnhancedPostProcessor {
         return new Vector3f(x, y, 0.0f);
     }
 
-    private static void renderBlackHole(ShaderInstance shader, Vector3f targetScreen, float radius, float time,
+    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float time,
             float intensity, int width, int height, int textureId) {
         RenderSystem.setShader(() -> shader);
 
@@ -239,8 +229,9 @@ public class AE2EnhancedPostProcessor {
             Uniform uTime = shader.getUniform("u_time");
             Uniform uResolution = shader.getUniform("u_resolution");
             Uniform uIntensity = shader.getUniform("u_intensity");
-            Uniform uRadius = shader.getUniform("u_radius");
             Uniform uTargetScreen = shader.getUniform("u_targetScreen");
+            Uniform eyeUniform = shader.getUniform("eye");
+            Uniform targetUniform = shader.getUniform("target");
 
             if (uTime != null) {
                 uTime.set(time * 0.05f);
@@ -251,11 +242,14 @@ public class AE2EnhancedPostProcessor {
             if (uIntensity != null) {
                 uIntensity.set(intensity);
             }
-            if (uRadius != null) {
-                uRadius.set(radius);
-            }
             if (uTargetScreen != null) {
                 uTargetScreen.set(targetScreen.x, targetScreen.y);
+            }
+            if (eyeUniform != null) {
+                eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
+            }
+            if (targetUniform != null) {
+                targetUniform.set((float) target.x, (float) target.y, (float) target.z);
             }
 
             Tesselator tesselator = Tesselator.getInstance();
