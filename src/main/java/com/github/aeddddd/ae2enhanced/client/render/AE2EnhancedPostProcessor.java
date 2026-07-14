@@ -38,7 +38,6 @@ import net.minecraftforge.fml.common.Mod;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -50,8 +49,8 @@ import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 
 /**
  * 装配枢纽黑洞后处理渲染器。
- * <p>参考 GregTechCEu Modern 的 black_hole.fsh 思路，在屏幕空间对成形装配枢纽进行
- * raymarching 全屏后处理，实现事件视界、引力透镜与吸积盘效果。</p>
+ * <p>在屏幕空间以结构几何中心为锚点，绘制固定且局域的黑洞效果：
+ * 事件视界、吸积盘光环、径向背景扭曲与外部光晕。</p>
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class AE2EnhancedPostProcessor {
@@ -111,11 +110,9 @@ public class AE2EnhancedPostProcessor {
         if (targets.isEmpty()) {
             return;
         }
-        AE2Enhanced.LOGGER.info("[BlackHoleDebug] found {} target(s) within range", targets.size());
 
         ShaderInstance shader = AE2EnhancedShaders.getAssemblyBlackHolePost();
         if (shader == null) {
-            AE2Enhanced.LOGGER.warn("[BlackHoleDebug] shader instance is null even though loaded flag is true");
             return;
         }
 
@@ -123,36 +120,29 @@ public class AE2EnhancedPostProcessor {
         float intensity = Mth.clamp(AE2EnhancedConfig.CLIENT.dynamicRenderIntensity.get().floatValue(), 0.0f, 2.0f);
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
-        // 先把主渲染目标颜色复制到中间纹理，避免 shader 同时读写同一纹理产生 feedback loop / 撕裂
         int textureId = copyMainToIntermediate(mc.getMainRenderTarget(), width, height);
-        // Minecraft options.fov() 已经是垂直 FOV，shader 中 rayDirection 直接使用垂直 FOV
         float fov = mc.options.fov().get().floatValue();
 
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, event.getPoseStack().last().pose(), width, height);
             if (screenPos == null) {
-                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: projection degenerate (clip.w too small)", info.worldPos);
                 continue;
             }
-            if (screenPos.z < 0.0f) {
-                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: negative screen z", info.worldPos);
-                continue;
-            }
-            // 只剔除完全移出屏幕的效果；不对方块遮挡做剔除，因为黑洞目标位于结构内部，
-            // 点遮挡检测会永远将其过滤掉，导致后处理完全不可见。
+
             double distance = eye.distanceTo(info.worldPos);
-            double worldRadius = info.radius * 10.0;
+            // 屏幕空间半径：世界半径 * 焦距 / 距离
             double focalLength = height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0));
-            double screenRadius = (worldRadius / distance) * focalLength;
+            double screenRadius = (info.radius * 2.0 / distance) * focalLength;
+            // 限制最大半径，避免近处效果过度放大并覆盖整个屏幕
+            screenRadius = Math.min(screenRadius, height * 0.35);
+
+            // 当目标点移出屏幕且效果半径无法覆盖屏幕时，跳过
             if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
                     || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
-                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: off screen (screenPos=({}, {}), radius={})",
-                        info.worldPos, screenPos.x, screenPos.y, screenRadius);
                 continue;
             }
-            AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} rendering: screenPos=({}, {}), distance={}, radius={}",
-                    info.worldPos, screenPos.x, screenPos.y, distance, screenRadius);
-            renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, fov, width, height, textureId);
+
+            renderBlackHole(shader, screenPos, (float) screenRadius, time, intensity, width, height, textureId);
         }
     }
 
@@ -167,9 +157,7 @@ public class AE2EnhancedPostProcessor {
         // 使用与对象空间渲染器完全相同的包围盒/中心计算，保证黑洞锚点一致
         float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.getAllSet(), facing);
         Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
-        // computeCenterOffset 返回的是从控制器方块整数坐标到结构几何中心的偏移，与 AbstractMultiblockRenderer 保持一致
         Vec3 worldPos = new Vec3(pos.getX() + centerOffset.x, pos.getY() + centerOffset.y, pos.getZ() + centerOffset.z);
-        // 将黑洞半径统一为对象空间渲染使用的事件视界基准半径，避免后处理中 u_size 过小导致效果不可见
         return new TargetInfo(worldPos, 2.5f, facing);
     }
 
@@ -185,7 +173,6 @@ public class AE2EnhancedPostProcessor {
             intermediateTarget.setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             intermediateTarget.clear(Minecraft.ON_OSX);
         }
-        // 确保中间纹理已分配存储
         intermediateTarget.bindWrite(false);
         intermediateTarget.unbindWrite();
 
@@ -199,7 +186,7 @@ public class AE2EnhancedPostProcessor {
 
     /**
      * 将世界坐标投影到屏幕像素坐标。
-     * <p>直接使用 RenderSystem 当前世界渲染的投影与模型视图矩阵，避免手动重建 viewMatrix
+     * <p>直接使用事件阶段提供的模型视图矩阵与 RenderSystem 投影矩阵，避免手动重建 viewMatrix
      * 时旋转/平移顺序带来的误差；只剔除会导致透视除零的退化情况。</p>
      */
     private static Vector3f project(Vec3 worldPos, Matrix4fc modelViewMatrix, int width, int height) {
@@ -208,9 +195,7 @@ public class AE2EnhancedPostProcessor {
 
         Vector4f clip = new Vector4f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z, 1.0f);
         viewProj.transform(clip);
-        AE2Enhanced.LOGGER.info("[BlackHoleDebug] clip=({}, {}, {}, {})", clip.x, clip.y, clip.z, clip.w);
 
-        // 保留 clip.w 避免透视除零；不再严格剔除侧面/后方的目标，因为屏幕空间效果需要跟随目标
         if (clip.w <= 0.0001f) {
             return null;
         }
@@ -218,12 +203,11 @@ public class AE2EnhancedPostProcessor {
         float invW = 1.0f / clip.w;
         float x = (clip.x * invW + 1.0f) * 0.5f * width;
         float y = (1.0f - clip.y * invW) * 0.5f * height;
-        float z = clip.z * invW * 0.5f + 0.5f;
-        return new Vector3f(x, y, z);
+        return new Vector3f(x, y, 0.0f);
     }
 
-    private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, Vector3f targetScreen, float size,
-            float time, float intensity, float fov, int width, int height, int textureId) {
+    private static void renderBlackHole(ShaderInstance shader, Vector3f targetScreen, float radius, float time,
+            float intensity, int width, int height, int textureId) {
         RenderSystem.setShader(() -> shader);
 
         RenderSystem.backupProjectionMatrix();
@@ -253,11 +237,8 @@ public class AE2EnhancedPostProcessor {
             Uniform uTime = shader.getUniform("u_time");
             Uniform uResolution = shader.getUniform("u_resolution");
             Uniform uIntensity = shader.getUniform("u_intensity");
-            Uniform uSize = shader.getUniform("u_size");
-            Uniform uFov = shader.getUniform("u_fov");
+            Uniform uRadius = shader.getUniform("u_radius");
             Uniform uTargetScreen = shader.getUniform("u_targetScreen");
-            Uniform eyeUniform = shader.getUniform("eye");
-            Uniform targetUniform = shader.getUniform("target");
 
             if (uTime != null) {
                 uTime.set(time * 0.05f);
@@ -268,20 +249,11 @@ public class AE2EnhancedPostProcessor {
             if (uIntensity != null) {
                 uIntensity.set(intensity);
             }
-            if (uSize != null) {
-                uSize.set(size);
-            }
-            if (uFov != null) {
-                uFov.set(fov);
+            if (uRadius != null) {
+                uRadius.set(radius);
             }
             if (uTargetScreen != null) {
                 uTargetScreen.set(targetScreen.x, targetScreen.y);
-            }
-            if (eyeUniform != null) {
-                eyeUniform.set((float) eye.x, (float) eye.y, (float) eye.z);
-            }
-            if (targetUniform != null) {
-                targetUniform.set((float) target.x, (float) target.y, (float) target.z);
             }
 
             Tesselator tesselator = Tesselator.getInstance();
