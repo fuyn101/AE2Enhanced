@@ -30,10 +30,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.level.ClipContext;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -133,17 +130,14 @@ public class AE2EnhancedPostProcessor {
             if (screenPos == null || screenPos.z < 0.0f) {
                 continue;
             }
-            // 只有当黑洞效果完全在屏幕外时才剔除，允许效果在屏幕边缘附近仍被渲染
+            // 只剔除完全移出屏幕的效果；不对方块遮挡做剔除，因为黑洞目标位于结构内部，
+            // 点遮挡检测会永远将其过滤掉，导致后处理完全不可见。
             double distance = eye.distanceTo(info.worldPos);
             double worldRadius = info.radius * 10.0;
             double focalLength = height / (2.0 * Math.tan(Math.toRadians(fov) / 2.0));
             double screenRadius = (worldRadius / distance) * focalLength;
             if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
                     || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
-                continue;
-            }
-            // 遮挡检测：视线被方块挡住时不渲染
-            if (isOccluded(level, eye, info.worldPos, player)) {
                 continue;
             }
             renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, fov, width, height, textureId);
@@ -188,23 +182,6 @@ public class AE2EnhancedPostProcessor {
         mainTarget.unbindRead();
 
         return intermediateTarget.getColorTextureId();
-    }
-
-    /**
-     * 检查从 eye 到 target 的视线是否被方块遮挡。
-     */
-    private static boolean isOccluded(Level level, Vec3 eye, Vec3 target, Player player) {
-        double distToTarget = eye.distanceToSqr(target);
-        if (distToTarget < 0.01) {
-            return false;
-        }
-        Vec3 direction = target.subtract(eye);
-        Vec3 end = target.subtract(direction.normalize().scale(0.15));
-        BlockHitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-        if (hit.getType() == HitResult.Type.BLOCK) {
-            return hit.getLocation().distanceToSqr(eye) < distToTarget - 0.01;
-        }
-        return false;
     }
 
     /**
