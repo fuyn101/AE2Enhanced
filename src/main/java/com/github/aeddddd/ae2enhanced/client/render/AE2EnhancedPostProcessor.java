@@ -56,6 +56,7 @@ import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 public class AE2EnhancedPostProcessor {
 
     private static TextureTarget intermediateTarget;
+    private static boolean LOGGED_ENTRY_ONCE = false;
 
     private AE2EnhancedPostProcessor() {
     }
@@ -65,6 +66,10 @@ public class AE2EnhancedPostProcessor {
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
+        if (!LOGGED_ENTRY_ONCE) {
+            LOGGED_ENTRY_ONCE = true;
+            AE2Enhanced.LOGGER.info("[PostProcessor] onRenderLevel entered, stage = {}", event.getStage());
+        }
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             return;
         }

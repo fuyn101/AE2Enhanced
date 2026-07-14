@@ -18,6 +18,7 @@ import com.github.aeddddd.ae2enhanced.client.gui.ComputationCoreScreen;
 import com.github.aeddddd.ae2enhanced.client.gui.ComputationUnformedScreen;
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalNexusScreen;
 import com.github.aeddddd.ae2enhanced.client.gui.HyperdimensionalUnformedScreen;
+import com.github.aeddddd.ae2enhanced.client.render.AE2EnhancedPostProcessor;
 import com.github.aeddddd.ae2enhanced.client.render.AE2EnhancedShaders;
 import com.github.aeddddd.ae2enhanced.client.render.AssemblyHubRenderer;
 import com.github.aeddddd.ae2enhanced.client.render.HyperdimensionalControllerRenderer;
@@ -33,6 +34,10 @@ public final class ClientSetup {
     @SubscribeEvent
     public static void clientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            // 显式触发类加载，确保 @Mod.EventBusSubscriber 注解被扫描注册
+            AE2EnhancedPostProcessor.class.getName();
+            AE2EnhancedShaders.class.getName();
+
             MenuScreens.register(ModMenus.ASSEMBLY.get(), AssemblyScreen::new);
             MenuScreens.register(ModMenus.ASSEMBLY_PATTERN.get(), AssemblyPatternScreen::new);
             MenuScreens.register(ModMenus.ASSEMBLY_UNFORMED.get(), AssemblyUnformedScreen::new);
