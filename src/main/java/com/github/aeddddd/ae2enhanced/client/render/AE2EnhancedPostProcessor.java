@@ -37,6 +37,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -128,7 +129,7 @@ public class AE2EnhancedPostProcessor {
         float fov = mc.options.fov().get().floatValue();
 
         for (TargetInfo info : targets) {
-            Vector3f screenPos = project(info.worldPos, width, height);
+            Vector3f screenPos = project(info.worldPos, event.getPoseStack().last().pose(), width, height);
             if (screenPos == null) {
                 AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: projection degenerate (clip.w too small)", info.worldPos);
                 continue;
@@ -145,11 +146,11 @@ public class AE2EnhancedPostProcessor {
             double screenRadius = (worldRadius / distance) * focalLength;
             if (screenPos.x + screenRadius < 0 || screenPos.x - screenRadius > width
                     || screenPos.y + screenRadius < 0 || screenPos.y - screenRadius > height) {
-                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: off screen (screenPos=({:.1f},{:.1f}), radius={:.1f})",
+                AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} culled: off screen (screenPos=({}, {}), radius={})",
                         info.worldPos, screenPos.x, screenPos.y, screenRadius);
                 continue;
             }
-            AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} rendering: screenPos=({:.1f},{:.1f}), distance={:.1f}, radius={:.1f}",
+            AE2Enhanced.LOGGER.info("[BlackHoleDebug] target at {} rendering: screenPos=({}, {}), distance={}, radius={}",
                     info.worldPos, screenPos.x, screenPos.y, distance, screenRadius);
             renderBlackHole(shader, eye, info.worldPos, screenPos, info.radius, time, intensity, fov, width, height, textureId);
         }
@@ -201,13 +202,13 @@ public class AE2EnhancedPostProcessor {
      * <p>直接使用 RenderSystem 当前世界渲染的投影与模型视图矩阵，避免手动重建 viewMatrix
      * 时旋转/平移顺序带来的误差；只剔除会导致透视除零的退化情况。</p>
      */
-    private static Vector3f project(Vec3 worldPos, int width, int height) {
+    private static Vector3f project(Vec3 worldPos, Matrix4fc modelViewMatrix, int width, int height) {
         Matrix4f projectionMatrix = RenderSystem.getProjectionMatrix();
-        Matrix4f modelViewMatrix = RenderSystem.getModelViewMatrix();
         Matrix4f viewProj = new Matrix4f(projectionMatrix).mul(modelViewMatrix);
 
         Vector4f clip = new Vector4f((float) worldPos.x, (float) worldPos.y, (float) worldPos.z, 1.0f);
         viewProj.transform(clip);
+        AE2Enhanced.LOGGER.info("[BlackHoleDebug] clip=({}, {}, {}, {})", clip.x, clip.y, clip.z, clip.w);
 
         // 保留 clip.w 避免透视除零；不再严格剔除侧面/后方的目标，因为屏幕空间效果需要跟随目标
         if (clip.w <= 0.0001f) {
