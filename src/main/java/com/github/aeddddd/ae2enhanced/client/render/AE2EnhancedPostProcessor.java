@@ -113,9 +113,11 @@ public class AE2EnhancedPostProcessor {
         if (targets.isEmpty()) {
             return;
         }
+        AE2Enhanced.LOGGER.info("[PostProcessor] found {} targets", targets.size());
 
         ShaderInstance shader = AE2EnhancedShaders.getAssemblyBlackHolePost();
         if (shader == null) {
+            AE2Enhanced.LOGGER.warn("[PostProcessor] post shader is null");
             return;
         }
 
@@ -128,15 +130,11 @@ public class AE2EnhancedPostProcessor {
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, event.getPoseStack().last().pose(), width, height);
             if (screenPos == null) {
+                AE2Enhanced.LOGGER.warn("[PostProcessor] projection failed for target {}", info.worldPos);
                 continue;
             }
 
-            // 仅当目标点离开屏幕较远时跳过；shader 为全屏效果，目标点附近的像素都会受影响
-            if (screenPos.x < -width || screenPos.x > width * 2
-                    || screenPos.y < -height || screenPos.y > height * 2) {
-                continue;
-            }
-
+            AE2Enhanced.LOGGER.info("[PostProcessor] calling renderBlackHole for target at {} screenPos {}", info.worldPos, screenPos);
             renderBlackHole(shader, eye, info.worldPos, time, intensity, width, height, textureId);
         }
     }
@@ -203,6 +201,9 @@ public class AE2EnhancedPostProcessor {
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time,
             float intensity, int width, int height, int textureId) {
+        AE2Enhanced.LOGGER.info("[PostProcessor] renderBlackHole start: eye={}, target={}, time={}, intensity={}, w={}, h={}, tex={}",
+                eye, target, time, intensity, width, height, textureId);
+
         RenderSystem.setShader(() -> shader);
 
         RenderSystem.backupProjectionMatrix();
@@ -250,6 +251,7 @@ public class AE2EnhancedPostProcessor {
             if (targetUniform != null) {
                 targetUniform.set((float) target.x, (float) target.y, (float) target.z);
             }
+            AE2Enhanced.LOGGER.info("[PostProcessor] uniforms set, drawing quad");
 
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder builder = tesselator.getBuilder();
@@ -259,6 +261,7 @@ public class AE2EnhancedPostProcessor {
             builder.vertex(1.0, 1.0, 0.0).endVertex();
             builder.vertex(-1.0, 1.0, 0.0).endVertex();
             tesselator.end();
+            AE2Enhanced.LOGGER.info("[PostProcessor] quad draw submitted");
         } finally {
             if (depthTest) {
                 RenderSystem.enableDepthTest();
