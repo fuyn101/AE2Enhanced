@@ -161,7 +161,8 @@ public class AE2EnhancedPostProcessor {
         // 使用与对象空间渲染器完全相同的包围盒/中心计算，保证黑洞锚点一致
         float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.getAllSet(), facing);
         Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
-        Vec3 worldPos = Vec3.atCenterOf(pos).add(centerOffset);
+        // computeCenterOffset 返回的是从控制器方块整数坐标到结构几何中心的偏移，与 AbstractMultiblockRenderer 保持一致
+        Vec3 worldPos = new Vec3(pos.getX() + centerOffset.x, pos.getY() + centerOffset.y, pos.getZ() + centerOffset.z);
         return new TargetInfo(worldPos, 1.2f, facing);
     }
 

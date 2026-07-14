@@ -117,12 +117,21 @@ vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
 }
 
 void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    // 限制后处理影响范围为 u_targetScreen 附近的圆形区域，避免远离像素被错误扭曲
+    float screenDist = length(gl_FragCoord.xy - u_targetScreen) / u_resolution.x;
+    float maxRadius = 0.35;
+    if (screenDist > maxRadius) {
+        fragColor = texture(Sampler0, uv);
+        return;
+    }
+
     fragColor = vec4(0.);
 
     for (int j = 0; j < AA; j++)
     for (int i = 0; i < AA; i++) {
-        // 使用当前像素的真实屏幕坐标计算射线方向，避免错误平移导致黑洞随视角漂移
-        vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy);
+        // 以 u_targetScreen 为虚拟屏幕中心计算方向，保证黑洞固定在其屏幕投影位置
+        vec3 viewDir = rayDirection(u_fov, u_resolution.xy, gl_FragCoord.xy - u_targetScreen + u_resolution.xy * 0.5);
         // 坐标系平移到以黑洞 target 为中心，否则引力计算会把世界原点当成黑洞中心
         vec3 pos = eye - target;
         float r = length(pos);
