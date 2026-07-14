@@ -158,7 +158,9 @@ public class AE2EnhancedPostProcessor {
         float[] bounds = AbstractMultiblockRenderer.computeBounds(AssemblyStructure.getAllSet(), facing);
         Vec3 centerOffset = AbstractMultiblockRenderer.computeCenterOffset(bounds);
         Vec3 worldPos = new Vec3(pos.getX() + centerOffset.x, pos.getY() + centerOffset.y, pos.getZ() + centerOffset.z);
-        return new TargetInfo(worldPos, 2.5f, facing);
+        // 后处理效果半径与对象空间吸积盘外半径（OUTER_HALO_BASE 6.0 * 1.3 = 7.8）一致，
+        // 使事件视界、吸积盘光环与对象空间渲染完全对应。
+        return new TargetInfo(worldPos, 7.8f, facing);
     }
 
     /**

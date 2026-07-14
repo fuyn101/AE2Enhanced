@@ -9,6 +9,13 @@ uniform float u_time;
 
 out vec4 fragColor;
 
+// 对象空间渲染中：事件视界半径 2.5，吸积盘外半径 7.8（OUTER_HALO_BASE * 1.3）
+// 因此后处理中黑色事件视界占 u_radius 的 2.5 / 7.8 = 0.32
+const float EVENT_HORIZON_RATIO = 0.32;
+const float INNER_RING_RATIO = 0.38;
+const float OUTER_RING_RATIO = 0.72;
+const float GLOW_START_RATIO = 0.72;
+
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -38,29 +45,29 @@ void main() {
     float t = dist / u_radius;
 
     // 径向扭曲：越靠近中心，采样越向中心偏移
-    float lensFactor = (1.0 - t) * u_intensity * 0.35;
+    float lensFactor = (1.0 - t) * u_intensity * 0.45;
     vec2 targetUv = u_targetScreen / u_resolution.xy;
     vec2 texC = mix(uv, targetUv, lensFactor);
-
     vec3 bg = texture(Sampler0, texC).rgb;
     vec3 color = bg;
 
-    // 事件视界：半径的 30% 内为黑色
-    float eventHorizon = 1.0 - smoothstep(0.0, 0.30, t);
+    // 事件视界：与对象空间黑色球体一致
+    float eventHorizon = 1.0 - smoothstep(0.0, EVENT_HORIZON_RATIO, t);
     color = mix(color, vec3(0.0), eventHorizon);
 
-    // 吸积盘光环：在 30% ~ 55% 之间
-    float ring = smoothstep(0.30, 0.38, t) * (1.0 - smoothstep(0.45, 0.55, t));
+    // 吸积盘光环：在事件视界与吸积盘外缘之间
+    float ring = smoothstep(EVENT_HORIZON_RATIO, INNER_RING_RATIO, t)
+               * (1.0 - smoothstep(OUTER_RING_RATIO - 0.05, OUTER_RING_RATIO + 0.05, t));
     if (ring > 0.0) {
-        float angle = atan(centered.y, centered.x) + u_time * 1.5;
+        float angle = atan(centered.y, centered.x) + u_time * 2.0;
         float flicker = 0.7 + 0.3 * noise(vec2(angle * 2.0, t * 5.0));
         vec3 ringColor = vec3(1.0, 0.45, 0.05) * flicker * u_intensity;
-        color = mix(color, ringColor, ring * 0.8);
+        color = mix(color, ringColor, ring * 0.85);
     }
 
-    // 外部光晕：55% ~ 100%
-    float glow = smoothstep(0.55, 1.0, t) * (1.0 - t);
-    vec3 glowColor = vec3(0.6, 0.15, 0.0) * glow * u_intensity;
+    // 外部光晕
+    float glow = smoothstep(GLOW_START_RATIO, 1.0, t) * (1.0 - t);
+    vec3 glowColor = vec3(0.7, 0.15, 0.0) * glow * u_intensity;
     color += glowColor;
 
     fragColor = vec4(color, 1.0);
