@@ -205,6 +205,8 @@ public class AE2EnhancedPostProcessor {
         AE2Enhanced.LOGGER.info("[PostProcessor] renderBlackHole start: eye={}, target={}, time={}, intensity={}, w={}, h={}, tex={}",
                 eye, target, time, intensity, width, height, textureId);
 
+        Minecraft mc = Minecraft.getInstance();
+
         RenderSystem.setShader(() -> shader);
 
         RenderSystem.backupProjectionMatrix();
@@ -265,6 +267,9 @@ public class AE2EnhancedPostProcessor {
             GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
             AE2Enhanced.LOGGER.info("[PostProcessor] before draw: FBO={}, viewport={},{},{},{}",
                     fbo[0], viewport[0], viewport[1], viewport[2], viewport[3]);
+
+            // 确保绘制到 Minecraft 主渲染目标，而不是默认 FBO
+            mc.getMainRenderTarget().bindWrite(false);
 
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder builder = tesselator.getBuilder();
