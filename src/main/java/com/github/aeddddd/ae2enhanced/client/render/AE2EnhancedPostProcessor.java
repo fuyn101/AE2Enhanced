@@ -50,8 +50,8 @@ import com.github.aeddddd.ae2enhanced.structure.AssemblyStructure;
 
 /**
  * 装配枢纽黑洞后处理渲染器。
- * <p>在屏幕空间以结构几何中心为锚点，绘制固定且局域的黑洞效果：
- * 事件视界、吸积盘光环、径向背景扭曲与外部光晕。</p>
+ * <p>在屏幕空间以结构几何中心为锚点，绘制完整黑洞效果：
+ * 事件视界、吸积盘体渲染、相对论性喷流、引力透镜背景扭曲与外部光晕。</p>
  */
 @Mod.EventBusSubscriber(modid = AE2Enhanced.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class AE2EnhancedPostProcessor {
@@ -66,9 +66,6 @@ public class AE2EnhancedPostProcessor {
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-            AE2Enhanced.LOGGER.info("[PostProcessor] AFTER_TRANSLUCENT_BLOCKS triggered");
-        }
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             return;
         }
@@ -114,11 +111,9 @@ public class AE2EnhancedPostProcessor {
         if (targets.isEmpty()) {
             return;
         }
-        AE2Enhanced.LOGGER.info("[PostProcessor] found {} targets", targets.size());
 
         ShaderInstance shader = AE2EnhancedShaders.getAssemblyBlackHolePost();
         if (shader == null) {
-            AE2Enhanced.LOGGER.warn("[PostProcessor] post shader is null");
             return;
         }
 
@@ -131,11 +126,9 @@ public class AE2EnhancedPostProcessor {
         for (TargetInfo info : targets) {
             Vector3f screenPos = project(info.worldPos, event.getPoseStack().last().pose(), width, height);
             if (screenPos == null) {
-                AE2Enhanced.LOGGER.warn("[PostProcessor] projection failed for target {}", info.worldPos);
                 continue;
             }
 
-            AE2Enhanced.LOGGER.info("[PostProcessor] calling renderBlackHole for target at {} screenPos {}", info.worldPos, screenPos);
             renderBlackHole(shader, eye, info.worldPos, time, intensity, width, height, textureId);
         }
     }
@@ -202,10 +195,13 @@ public class AE2EnhancedPostProcessor {
 
     private static void renderBlackHole(ShaderInstance shader, Vec3 eye, Vec3 target, float time,
             float intensity, int width, int height, int textureId) {
-        AE2Enhanced.LOGGER.info("[PostProcessor] renderBlackHole start: eye={}, target={}, time={}, intensity={}, w={}, h={}, tex={}",
-                eye, target, time, intensity, width, height, textureId);
-
         Minecraft mc = Minecraft.getInstance();
+
+        // 保存当前 FBO 与 viewport，绘制后恢复
+        int[] savedFbo = new int[1];
+        int[] savedViewport = new int[4];
+        GL30.glGetIntegerv(GL30.GL_FRAMEBUFFER_BINDING, savedFbo);
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, savedViewport);
 
         RenderSystem.setShader(() -> shader);
 
@@ -254,21 +250,8 @@ public class AE2EnhancedPostProcessor {
             if (targetUniform != null) {
                 targetUniform.set((float) target.x, (float) target.y, (float) target.z);
             }
-            AE2Enhanced.LOGGER.info("[PostProcessor] uniforms set, drawing quad");
 
-            int glErrBefore = GL11.glGetError();
-            if (glErrBefore != GL11.GL_NO_ERROR) {
-                AE2Enhanced.LOGGER.warn("[PostProcessor] OpenGL error before draw: {}", glErrBefore);
-            }
-
-            int[] fbo = new int[1];
-            int[] viewport = new int[4];
-            GL30.glGetIntegerv(GL30.GL_FRAMEBUFFER_BINDING, fbo);
-            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
-            AE2Enhanced.LOGGER.info("[PostProcessor] before draw: FBO={}, viewport={},{},{},{}",
-                    fbo[0], viewport[0], viewport[1], viewport[2], viewport[3]);
-
-            // 确保绘制到 Minecraft 主渲染目标，而不是默认 FBO
+            // 确保绘制到 Minecraft 主渲染目标，而不是默认 FBO，否则后续 mainTarget blit 会覆盖输出
             mc.getMainRenderTarget().bindWrite(false);
 
             Tesselator tesselator = Tesselator.getInstance();
@@ -279,17 +262,6 @@ public class AE2EnhancedPostProcessor {
             builder.vertex(1.0, 1.0, 0.0).endVertex();
             builder.vertex(-1.0, 1.0, 0.0).endVertex();
             tesselator.end();
-
-            GL30.glGetIntegerv(GL30.GL_FRAMEBUFFER_BINDING, fbo);
-            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
-            AE2Enhanced.LOGGER.info("[PostProcessor] after draw: FBO={}, viewport={},{},{},{}",
-                    fbo[0], viewport[0], viewport[1], viewport[2], viewport[3]);
-
-            int glErrAfter = GL11.glGetError();
-            if (glErrAfter != GL11.GL_NO_ERROR) {
-                AE2Enhanced.LOGGER.warn("[PostProcessor] OpenGL error after draw: {}", glErrAfter);
-            }
-            AE2Enhanced.LOGGER.info("[PostProcessor] quad draw submitted");
         } finally {
             if (depthTest) {
                 RenderSystem.enableDepthTest();
@@ -303,6 +275,10 @@ public class AE2EnhancedPostProcessor {
             } else {
                 RenderSystem.disableBlend();
             }
+
+            // 恢复之前的 FBO 与 viewport
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, savedFbo[0]);
+            GL11.glViewport(savedViewport[0], savedViewport[1], savedViewport[2], savedViewport[3]);
         }
 
         poseStack.popPose();
