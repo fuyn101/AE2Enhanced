@@ -8,18 +8,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Mekanism 机器产物直注 Mixin 配置插件。
+ * Legacy Mekanism machine output redirect mixin config plugin.
  */
 public class MekanismMixinPlugin implements IMixinConfigPlugin {
 
-    private boolean mekanismLoaded = false;
+    private boolean legacyMekanismLoaded = false;
 
     @Override
     public void onLoad(String mixinPackage) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            java.net.URL url = cl.getResource("mekanism/common/tile/component/TileComponentEjector.class");
-            mekanismLoaded = url != null;
+            java.net.URL ejector = cl.getResource("mekanism/common/tile/component/TileComponentEjector.class");
+            java.net.URL v10Api = cl.getResource("mekanism/api/fluid/IExtendedFluidTank.class");
+            legacyMekanismLoaded = ejector != null && v10Api == null;
         } catch (Exception ignored) {
         }
     }
@@ -31,7 +32,7 @@ public class MekanismMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        return mekanismLoaded;
+        return legacyMekanismLoaded;
     }
 
     @Override

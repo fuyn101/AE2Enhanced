@@ -41,7 +41,11 @@ public class LateMixinLoader implements ILateMixinLoader {
             configs.add("mixins.ae2enhanced.late.thermal.json");
         }
         if (Loader.isModLoaded("mekanism")) {
-            configs.add("mixins.ae2enhanced.late.mekanism.json");
+            if (isMekCeuV10()) {
+                configs.add("mixins.ae2enhanced.late.mekceuv10.json");
+            } else {
+                configs.add("mixins.ae2enhanced.late.mekanism.json");
+            }
         }
         if (Loader.isModLoaded("techreborn")) {
             configs.add("mixins.ae2enhanced.late.techreborn.json");
@@ -62,5 +66,10 @@ public class LateMixinLoader implements ILateMixinLoader {
             configs.add("mixins.ae2enhanced.late.projecte.json");
         }
         return configs;
+    }
+
+    private static boolean isMekCeuV10() {
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        return loader != null && loader.getResource("mekanism/api/fluid/IExtendedFluidTank.class") != null;
     }
 }
