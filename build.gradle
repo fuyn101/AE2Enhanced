@@ -50,28 +50,28 @@ dependencies {
     compileOnly files('libs/Mekanism-1.12.2-9.8.3.390.jar')
     compileOnly files('libs/MekanismEnergistics-0.1.5.jar')
     compileOnly files('libs/Thaumcraft-1.12.2-6.1.BETA26.jar')
-    compileOnly files('libs/thaumic-energistics-extended-life-1.12.2-2.3.5.jar')
+    compileOnly files('libs/thaumic-energistics-extended-life-1.12.2-2.5.2.jar')
     compileOnly files('libs/Baubles-1.12-1.5.2.jar')
-    compileOnly files('libs/Botania r1.10-364.4.jar')
-    compileOnly files('libs/terminal_interaction_integration-1.0.jar')
+    compileOnly files('libs/botania-r1.10-373a.jar')
+    compileOnly files('libs/terminal_interaction_integration-1.2.0.jar')
     compileOnly files('libs/BloodMagic-1.12.2-2.4.3-105.jar')
-    compileOnly files('libs/ActuallyAdditions-1.12.2-r152.jar')
+    compileOnly files('libs/ActuallyAdditions-1.12.2-r157.jar')
     compileOnly files('libs/CoFHCore-1.12.2-4.6.6.1-universal.jar')
     compileOnly files('libs/ThermalExpansion-1.12.2-5.5.7.1-universal.jar')
     compileOnly files('libs/ThermalFoundation-1.12.2-2.6.7.1-universal.jar')
-    compileOnly files('libs/EnderIO-1.12.2-5.3.72.jar')
-    compileOnly files('libs/EnderCore-1.12.2-0.5.78.jar')
+    compileOnly files('libs/EnderIO-CEu-5.4.2.jar')
+    compileOnly files('libs/endercore-1.12.2-0.5.81.jar')
     compileOnly files('libs/industrialforegoing-1.12.2-1.12.13-237.jar')
     compileOnly files('libs/AutoSave-1.12.2-1.0.11.jar')
-    compileOnly files('libs/RebornCore-1.12.2-3.19.4.529-universal.jar')
+    compileOnly files('libs/RebornCore-1.12.2-3.19.5-universal.jar')
     compileOnly files('libs/TechReborn-1.12.2-2.27.3.1084-universal.jar')
     compileOnly files('libs/nuclearcraft-1.12.2-2o.9.7.jar')
     compileOnly files('libs/Draconic-Evolution-1.12.2-2.3.28.354-universal.jar')
-    compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.6.jar')
+    compileOnly files('libs/extendedcrafting-nomifactory-edition-1.7.0.7.jar')
     // fastutil: 高性能集合库,打包进 jar
     compile 'it.unimi.dsi:fastutil:8.5.12'
 
-    compile files('libs/!mixinbooter-10.6.jar')
+    compile files('libs/-mixinbooter-11.5.jar')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
