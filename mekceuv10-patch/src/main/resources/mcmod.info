@@ -1,0 +1,10 @@
+[
+  {
+    "modid": "ae2enhanced_mekceuv10_patch",
+    "name": "AE2Enhanced MEK CEu v10 Patch",
+    "description": "Standalone MEK CE Unofficial v10 integration patch for older AE2Enhanced builds.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "authorList": ["AE2Enhanced contributors"]
+  }
+]

@@ -1,0 +1,65 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = 'https://files.minecraftforge.net/maven' }
+        maven { url = 'https://maven.cleanroommc.com' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+version = '1.0.0'
+group = 'com.github.aeddddd'
+archivesBaseName = 'AE2Enhanced-MEKCEuV10-Patch'
+
+sourceCompatibility = targetCompatibility = '1.8'
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
+
+minecraft {
+    version = '1.12.2-14.23.5.2768'
+    mappings = 'stable_39'
+}
+
+repositories {
+    maven { url = 'https://maven.cleanroommc.com' }
+}
+
+def mekanismV10Jar = file(findProperty('mekceuv10Jar') ?: '../libs/Mekanism-CE-Unofficial-All-10.0.0.450-dev.jar')
+if (!mekanismV10Jar.isFile()) {
+    throw new GradleException("Missing MEK CEu v10 development JAR: ${mekanismV10Jar}. Set -Pmekceuv10Jar=<path> to its location.")
+}
+
+dependencies {
+    compileOnly files(mekanismV10Jar)
+    compileOnly('zone.rong:mixinbooter:11.5') {
+        transitive = false
+    }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mcversion', project.minecraft.version
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+                'FMLCorePluginContainsFMLMod': true,
+                'ForceLoadAsMod': true,
+                'FMLCorePlugin': 'com.github.aeddddd.ae2enhanced.mekceuv10patch.core.MekCeuV10PatchLoadingPlugin'
+        ])
+    }
+}

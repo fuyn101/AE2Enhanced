@@ -1,0 +1,11 @@
+{
+  "package": "com.github.aeddddd.ae2enhanced.mekceuv10patch.mixin",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinTileComponentEjector"
+  ],
+  "client": [],
+  "server": []
+}
